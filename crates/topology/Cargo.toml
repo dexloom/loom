@@ -1,0 +1,34 @@
+[package]
+name = "loom-topology"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+defi-entities.workspace = true
+defi-actors.workspace = true
+defi-types.workspace = true
+defi-events.workspace = true
+loom-multicaller.workspace = true
+flashbots.workspace = true
+
+loom-actors.workspace = true
+
+alloy-primitives.workspace = true
+alloy-rpc-client.workspace = true
+alloy-rpc-types.workspace = true
+alloy-provider.workspace = true
+alloy-transport.workspace = true
+alloy-transport-ws.workspace = true
+alloy-transport-ipc.workspace = true
+revm.workspace = true
+eyre.workspace = true
+toml.workspace = true
+
+log.workspace = true
+serde.workspace = true
+tokio.workspace = true

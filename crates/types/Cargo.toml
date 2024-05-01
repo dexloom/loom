@@ -1,0 +1,27 @@
+[package]
+name = "defi-types"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+alloy-rpc-types.workspace = true
+alloy-provider.workspace = true
+alloy-primitives.workspace = true
+alloy-rpc-types-trace.workspace = true
+alloy-eips.workspace = true
+revm.workspace = true
+alloy-transport.workspace = true
+
+debug-provider.workspace = true
+
+chrono.workspace = true
+eyre.workspace = true
+log.workspace = true
+lazy_static.workspace = true
+tokio.workspace = true
+hex.workspace = true
+

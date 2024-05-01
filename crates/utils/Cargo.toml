@@ -1,0 +1,22 @@
+[package]
+name = "loom-utils"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+revm.workspace = true
+alloy-primitives.workspace = true
+alloy-rpc-types.workspace = true
+alloy-provider.workspace = true
+alloy-rpc-types-trace.workspace = true
+
+eyre.workspace = true
+log.workspace = true
+lazy_static.workspace = true
+
+defi-types.workspace = true

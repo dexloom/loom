@@ -1,0 +1,37 @@
+[package]
+name = "defi-entities"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+alloy-provider.workspace = true
+alloy-primitives.workspace = true
+alloy-rpc-types.workspace = true
+alloy-rpc-types-trace.workspace = true
+alloy-signer.workspace = true
+alloy-signer-wallet.workspace = true
+alloy-network.workspace = true
+alloy-consensus.workspace = true
+alloy-rlp.workspace = true
+
+
+revm.workspace = true
+
+tokio.workspace = true
+eyre.workspace = true
+log.workspace = true
+hex.workspace = true
+lazy_static.workspace = true
+async-trait.workspace = true
+rand.workspace = true
+sha2.workspace = true
+aes.workspace = true
+
+defi-types.workspace = true
+loom-utils.workspace = true
+debug-provider.workspace = true

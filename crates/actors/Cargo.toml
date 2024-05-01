@@ -1,0 +1,12 @@
+[package]
+name = "loom-actors"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+eyre = "0.6.8"
+async-trait = "0.1.68"
+loom-actors-macros.workspace = true
+tokio.workspace = true

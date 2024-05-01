@@ -1,0 +1,28 @@
+[package]
+name = "debug-provider"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+async-trait.workspace = true
+log.workspace = true
+eyre.workspace = true
+
+alloy-provider.workspace = true
+alloy-rpc-types.workspace = true
+alloy-rpc-types-trace.workspace = true
+alloy-primitives.workspace = true
+alloy-transport.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+env_logger.workspace = true
+url.workspace = true
+
+alloy-provider.workspace = true
+alloy-rpc-client.workspace = true

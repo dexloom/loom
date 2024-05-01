@@ -1,0 +1,40 @@
+[package]
+name = "defi-pools"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+lazy_static.workspace = true
+async-trait.workspace = true
+
+defi-entities.workspace = true
+defi-abi.workspace = true
+defi-types.workspace = true
+loom-utils.workspace = true
+
+alloy-primitives.workspace = true
+alloy-sol-macro.workspace = true
+alloy-sol-types.workspace = true
+alloy-provider.workspace = true
+alloy-rpc-types.workspace = true
+alloy-rpc-types-trace.workspace = true
+
+revm.workspace = true
+
+eyre.workspace = true
+log.workspace = true
+
+[dev-dependencies]
+tokio.workspace = true
+env_logger.workspace = true
+defi-entities.workspace = true
+
+alloy-rpc-client.workspace = true
+
+url.workspace = true
+debug-provider.workspace = true

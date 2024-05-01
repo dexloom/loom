@@ -1,0 +1,22 @@
+[package]
+name = "defi-events"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+defi-types.workspace = true
+defi-entities.workspace = true
+
+
+alloy-primitives.workspace = true
+alloy-rpc-types.workspace = true
+alloy-consensus.workspace = true
+revm.workspace = true
+
+eyre.workspace = true
+chrono.workspace = true
