@@ -2,4 +2,6 @@
 .idea
 private.rs
 cargo.lock
+config.toml
+
 

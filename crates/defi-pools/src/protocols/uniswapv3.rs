@@ -2,11 +2,14 @@ use std::collections::BTreeMap;
 
 use alloy_primitives::{Address, B256, Bytes, U256};
 use alloy_rpc_types_trace::geth::AccountState;
+use alloy_sol_types::SolCall;
 use lazy_static::lazy_static;
 
+use defi_abi::uniswap3::IUniswapV3Pool;
 use defi_types::GethStateUpdate;
 
 use crate::protocols::helper::get_uniswap3pool_address;
+use crate::protocols::match_abi;
 use crate::protocols::protocol::Protocol;
 
 lazy_static! {
@@ -46,6 +49,10 @@ impl UniswapV3Protocol {
         state.insert(Self::get_custom_quoter_address(), acc_state);
 
         state
+    }
+
+    pub fn is_code(code: &Bytes) -> bool {
+        match_abi(code, vec![IUniswapV3Pool::swapCall::SELECTOR, IUniswapV3Pool::mintCall::SELECTOR, IUniswapV3Pool::collectCall::SELECTOR])
     }
 }
 

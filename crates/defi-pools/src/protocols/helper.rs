@@ -1,6 +1,6 @@
 use std::ops::Add;
 
-use alloy_primitives::{Address, B256, keccak256};
+use alloy_primitives::{Address, B256, Bytes, keccak256};
 use alloy_provider::Provider;
 use eyre::Result;
 use revm::primitives::bitvec::view::BitViewSized;
@@ -77,6 +77,23 @@ pub async fn fetch_uni3_factory<P: Provider>(client: P, address: Address) -> Res
     let pool = IUniswapV3Pool::IUniswapV3PoolInstance::new(address, client);
     let factory = pool.factory().call().await?;
     Ok(factory._0)
+}
+
+fn sel(s: &str) -> [u8; 4] {
+    keccak256(s)[..4].try_into().unwrap()
+}
+
+pub fn match_abi(code: &Bytes, selectors: Vec<[u8; 4]>) -> bool {
+    //println!("Code len {}", code.len());
+    for selector in selectors.iter() {
+        if !code.as_ref().windows(4).any(|sig| sig == selector) {
+            //println!("{:?} not found", selector);
+            return false;
+        } else {
+            //println!("{} found", fn_name);
+        }
+    }
+    true
 }
 
 

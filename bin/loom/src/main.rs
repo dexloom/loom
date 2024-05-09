@@ -19,13 +19,6 @@ async fn main() -> Result<()> {
         .filter_level(LevelFilter::Debug)
         .init();
 
-    //std::env::set_var("RUST_LOG", "debug");
-    //std::env::set_var("RUST_BACKTRACE", "1");
-    //env_logger::init_from_env(Env::default().default_filter_or("debug"));
-
-    // create ethers client and wrap it in Arc<M>
-    //let client = Provider::<Http>::try_from("https://mainnet.infura.io/v3/c60b0bb42f8a4c6481ecd229eddaca27", )?;
-
 
     let topology_config = TopologyConfig::load_from_file("config.toml".to_string())?;
     let (mut topology, mut worker_task_vec) = Topology::from(topology_config).await?;
@@ -41,8 +34,8 @@ async fn main() -> Result<()> {
 
     info!("Creating shared state");
 
-    /*
-    info!("Starting state change arb actor");
+
+    /*info!("Starting state change arb actor");
     let mut state_change_arb_actor = StateChangeArbActor::new(client.clone(), true, true);
     match state_change_arb_actor
         .access(blockchain.mempool())
@@ -61,7 +54,7 @@ async fn main() -> Result<()> {
             info!("State change arb actor started successfully")
         }
     }
-
+    
      */
 
 

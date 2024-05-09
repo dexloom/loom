@@ -1,4 +1,5 @@
 pub use accounts_monitor::NonceAndBalanceMonitorActor;
+pub use backrun::{PendingTxStateChangeProcessorActor, StateChangeArbSearcherActor};
 pub use block_history::BlockHistoryActor;
 pub use estimators::{EvmEstimatorActor, GethEstimatorActor, HardhatEstimatorActor};
 pub use gas::GasStationActor;
@@ -33,3 +34,5 @@ mod tx_broadcaster;
 mod estimators;
 
 mod mergers;
+
+mod backrun;

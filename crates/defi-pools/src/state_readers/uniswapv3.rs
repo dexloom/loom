@@ -34,9 +34,7 @@ impl UniswapV3StateReader {
     }
 
     /*
-    pub fn is_code(code: &Bytecode) -> bool {
-        match_abi(code, vec![IUniswapV3Pool::IUniswapV3PoolCalls::swapCall::SELECTOR, IUniswapV3Pool::IUniswapV3PoolCalls::mintCall::SELECTOR, IUniswapV3Pool::IUniswapV3PoolCalls::collectCall::SELECTOR])
-    }
+
 
      */
 }

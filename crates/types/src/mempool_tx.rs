@@ -6,6 +6,7 @@ use crate::{FetchState, GethStateUpdate};
 
 #[derive(Clone, Debug)]
 pub struct MempoolTx {
+    pub source: String,
     pub tx_hash: TxHash,
     pub time: DateTime<Utc>,
     pub tx: Option<Transaction>,
@@ -33,6 +34,7 @@ impl MempoolTx {
 impl Default for MempoolTx {
     fn default() -> Self {
         MempoolTx {
+            source: "unknown".to_string(),
             tx_hash: TxHash::repeat_byte(0),
             time: chrono::Utc::now(),
             tx: None,

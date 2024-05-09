@@ -35,6 +35,10 @@ impl<T> Message<T> {
         }
     }
 
+    pub fn source(&self) -> String {
+        self.source.clone().unwrap_or("unknown".to_string())
+    }
+
 
     pub fn inner(&self) -> &T {
         &self.inner

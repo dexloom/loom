@@ -33,7 +33,7 @@ pub async fn new_mempool_worker(
                     Ok(mempool_update_msg) => {
                         let mut mempool_guard = mempool.write().await;
                         let tx_hash = mempool_update_msg.tx_hash;
-                        let mempool_entry = mempool_guard.txs.entry(tx_hash).or_insert( MempoolTx{ tx_hash,  ..MempoolTx::default()});
+                        let mempool_entry = mempool_guard.txs.entry(tx_hash).or_insert( MempoolTx{ tx_hash,  source : mempool_update_msg.source(), ..MempoolTx::default()});
                         if let Some(logs) = &mempool_update_msg.mempool_tx.logs {
                             match mempool_entry.logs {
                                 None => {

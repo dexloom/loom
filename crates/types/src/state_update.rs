@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use alloy_primitives::{Address, TxHash};
+use alloy_primitives::{Address, BlockNumber, TxHash};
 use alloy_provider::{Network, Provider};
 use alloy_provider::ext::DebugApi;
 use alloy_provider::network::Ethereum;
@@ -42,17 +42,27 @@ pub static ref TRACING_CALL_OPTS: GethDebugTracingCallOptions = GethDebugTracing
 
 
 pub async fn debug_trace_block<P: Provider>(client: P, block_id: BlockId, diff_mode: bool) -> eyre::Result<(GethStateUpdateVec, GethStateUpdateVec)> {
+    /*let tracer_opts = GethDebugTracingOptions {
+        tracer: Some(GethDebugTracerType::BuiltInTracer(
+            GethDebugBuiltInTracerType::PreStateTracer,
+        )),
+        config: GethDefaultTracingOptions::default().disable_storage().disable_stack().disable_memory().disable_return_data(),
+        timeout: None,
+        tracer_config: GethDebugTracerConfig::default(),
+    }.prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
+
+     */
     let tracer_opts = GethDebugTracingOptions {
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()
     }.with_tracer(BuiltInTracer(PreStateTracer)).prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
 
-
     let trace_result_vec = match block_id {
         BlockId::Number(block_number) => {
-            client.debug_trace_block_by_number(block_number.as_number().unwrap(), tracer_opts).await?
+            client.debug_trace_block_by_number(block_number.into(), tracer_opts).await?
         }
         BlockId::Hash(rpc_block_hash) => {
+            //client.debug_trace_block_by_number(BlockNumber::from(19776525u32), tracer_opts).await?
             client.debug_trace_block_by_hash(rpc_block_hash.block_hash, tracer_opts).await?
         }
     };
@@ -65,7 +75,7 @@ pub async fn debug_trace_block<P: Provider>(client: P, block_id: BlockId, diff_m
 
 
     for trace_result in trace_result_vec.into_iter() {
-        match trace_result {
+        match trace_result.result {
             GethTrace::PreStateTracer(geth_trace_frame) => {
                 match geth_trace_frame {
                     PreStateFrame::Diff(diff_frame) => {
@@ -175,5 +185,45 @@ pub async fn debug_trace_transaction<P: Provider + DebugApi<Ethereum, BoxTranspo
         _ => {
             Err(eyre::eyre!("TRACE_RESULT_FAILED"))
         }
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use alloy_provider::ProviderBuilder;
+    use alloy_rpc_client::{ClientBuilder, WsConnect};
+    use env_logger::Env as EnvLog;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_debug_block() -> Result<()> {
+        std::env::set_var("RUST_LOG", "trace,tokio_tungstenite=off,tungstenite=off");
+        std::env::set_var("RUST_BACKTRACE", "1");
+        //let node_url = std::env::var("TEST_NODE_URL").unwrap_or("http://falcon.loop:8008/rpc".to_string());
+        let node_url = std::env::var("TEST_NODE_URL").unwrap_or("ws://tokyo.loop:8008/looper".to_string());
+
+        env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
+        let node_url = url::Url::parse(node_url.as_str())?;
+
+        //let client = ClientBuilder::default().http(node_url).boxed();
+        let ws_connect = WsConnect::new(node_url);
+        let client = ClientBuilder::default().ws(ws_connect).await?;
+
+        let client = ProviderBuilder::new().on_client(client).boxed();
+
+        let tracer_opts = GethDebugTracingOptions {
+            config: GethDefaultTracingOptions::default(),
+            ..GethDebugTracingOptions::default()
+        }.with_tracer(BuiltInTracer(PreStateTracer)).prestate_config(PreStateConfig { diff_mode: Some(true) });
+
+        let blocknumber = client.get_block_number().await?;
+        let block = client.get_block_by_number(blocknumber.into(), false).await?.unwrap();
+        let blockhash = block.header.hash.unwrap();
+
+        let ret = client.debug_trace_block_by_number(blocknumber.into(), tracer_opts).await?;
+        //let blockhash: BlockHash = "0xd16074b40a4cb1e0b24fea1ffb5dcadb7363d38f93a9efa9eb43fc161a7e16f6".parse()?;
+        //let ret = client.debug_trace_block_by_hash(blockhash, tracer_opts).await?;
+        Ok(())
     }
 }

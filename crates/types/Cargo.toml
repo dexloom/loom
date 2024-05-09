@@ -25,3 +25,9 @@ lazy_static.workspace = true
 tokio.workspace = true
 hex.workspace = true
 
+[dev-dependencies]
+env_logger.workspace = true
+url.workspace = true
+
+alloy-rpc-client.workspace = true
+

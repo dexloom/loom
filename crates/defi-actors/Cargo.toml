@@ -24,11 +24,13 @@ loom-utils.workspace = true
 
 eyre.workspace = true
 tokio.workspace = true
+rayon.workspace = true
 async-trait.workspace = true
 log.workspace = true
 chrono.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
+num_cpus.workspace = true
 
 
 alloy-primitives.workspace = true
@@ -45,6 +47,7 @@ alloy-network.workspace = true
 revm.workspace = true
 
 rand = "0.8.5"
+
 
 [dev-dependencies]
 alloy-rpc-client.workspace = true
