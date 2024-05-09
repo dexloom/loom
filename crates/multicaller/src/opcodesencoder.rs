@@ -33,24 +33,24 @@ impl OpcodesEncoderV2 {
         let mut selector = U256::ZERO;
         let mut selector_bytes_len = 0x20;
         let mut selector_call = match opcode.opcode_type {
-            OpcodeType::CALL => {
+            OpcodeType::Call => {
                 if opcode.value.is_none() {
                     *ZERO_VALUE_CALL_SELECTOR
                 } else {
                     *VALUE_CALL_SELECTOR
                 }
             }
-            OpcodeType::DELEGATE_CALL => {
+            OpcodeType::DelegateCall => {
                 *DELEGATE_CALL_SELECTOR
             }
-            OpcodeType::INTERNAL_CALL => {
+            OpcodeType::InternalCall => {
                 selector_bytes_len = 0xC;
                 *INTERNAL_CALL_SELECTOR
             }
-            OpcodeType::STATIC_CALL => {
+            OpcodeType::StaticCall => {
                 *STATIC_CALL_SELECTOR
             }
-            OpcodeType::CALCULATION_CALL => {
+            OpcodeType::CalculationCall => {
                 selector_bytes_len = 0xC;
                 *CALCULATION_CALL_SELECTOR
             }
@@ -76,7 +76,7 @@ impl OpcodesEncoderV2 {
 
 
         match opcode.opcode_type {
-            OpcodeType::CALCULATION_CALL | OpcodeType::INTERNAL_CALL => {}
+            OpcodeType::CalculationCall | OpcodeType::InternalCall => {}
             _ => {
                 let mut address_bytes = opcode.to.to_vec();
                 ret.append(&mut address_bytes);

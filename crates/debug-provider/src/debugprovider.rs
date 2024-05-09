@@ -1,13 +1,10 @@
-use std::ops::Deref;
-use std::sync::Arc;
-
 use alloy_primitives::BlockNumber;
-use alloy_provider::{Network, Provider, ProviderLayer, RootProvider};
+use alloy_provider::{Provider, RootProvider};
 use alloy_provider::ext::DebugApi;
 use alloy_provider::network::Ethereum;
 use alloy_rpc_types::{BlockNumberOrTag, TransactionRequest};
 use alloy_rpc_types_trace::geth::{GethDebugTracingCallOptions, GethTrace};
-use alloy_transport::{BoxTransport, Transport, TransportResult};
+use alloy_transport::{BoxTransport, TransportResult};
 use async_trait::async_trait;
 
 #[derive(Clone, Debug)]

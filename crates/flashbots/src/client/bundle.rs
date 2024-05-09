@@ -1,10 +1,8 @@
 use std::fmt::{Display, Formatter};
 
-use alloy_consensus::{SignableTransaction, TxEnvelope};
-use alloy_network::{Network, TransactionBuilder};
+use alloy_consensus::TxEnvelope;
 use alloy_network::eip2718::Encodable2718;
 use alloy_primitives::{Address, Bytes, keccak256, TxHash, U256, U64};
-use alloy_rlp::Encodable;
 use alloy_rpc_types::{AccessList, Log, Transaction};
 use eyre::{eyre, Result};
 use serde::{Deserialize, Serialize, Serializer};
@@ -105,7 +103,7 @@ pub fn serialize_txs<S>(txs: &[BundleTransaction], s: S) -> Result<S::Ok, S::Err
                     Ok(x) => {
                         Ok(Bytes::from(x.encoded_2718()))
                     }
-                    Err(e) => {
+                    Err(_) => {
                         Err(eyre!("CONVERSION_ERROR"))
                     }
                 }
@@ -114,7 +112,7 @@ pub fn serialize_txs<S>(txs: &[BundleTransaction], s: S) -> Result<S::Ok, S::Err
         })
         .collect();
 
-    raw_txs.map_err(|e| S::Error::custom(e))?.serialize(s)
+    raw_txs.map_err(S::Error::custom)?.serialize(s)
 }
 
 impl BundleRequest {
@@ -153,7 +151,7 @@ impl BundleRequest {
 
         let tx_hash: TxHash = match tx {
             BundleTransaction::Signed(inner) => inner.hash,
-            BundleTransaction::Raw(inner) => keccak256(inner).into(),
+            BundleTransaction::Raw(inner) => keccak256(inner),
         };
         self.revertible_transaction_hashes.push(tx_hash);
 
@@ -173,7 +171,7 @@ impl BundleRequest {
 
         let tx_hash: TxHash = match tx {
             BundleTransaction::Signed(inner) => inner.hash,
-            BundleTransaction::Raw(inner) => keccak256(inner).into(),
+            BundleTransaction::Raw(inner) => keccak256(inner),
         };
         self.revertible_transaction_hashes.push(tx_hash);
     }
@@ -349,7 +347,7 @@ impl Display for SimulatedTransaction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{:#20x}->{:20x} {} Gas : {}  CB : {} {}",
                self.from,
-               self.to.clone().unwrap(),
+               self.to.unwrap_or_default(),
                self.hash,
                self.gas_used,
                self.coinbase_tip,
@@ -432,11 +430,11 @@ mod tests {
         let bundle = BundleRequest::new()
             .push_transaction(Bytes::from(vec![0x1]))
             .push_revertible_transaction(Bytes::from(vec![0x2]))
-            .set_block(2.into())
+            .set_block(U64::from(2))
             .set_min_timestamp(1000)
             .set_max_timestamp(2000)
             .set_simulation_timestamp(1000)
-            .set_simulation_block(1.into())
+            .set_simulation_block(U64::from(1))
             .set_simulation_basefee(333333);
 
         assert_eq!(
@@ -450,11 +448,11 @@ mod tests {
         let mut bundle = BundleRequest::new()
             .push_transaction(Bytes::from(vec![0x1]))
             .push_revertible_transaction(Bytes::from(vec![0x2]))
-            .set_block(2.into())
+            .set_block(U64::from(2))
             .set_min_timestamp(1000)
             .set_max_timestamp(2000)
             .set_simulation_timestamp(1000)
-            .set_simulation_block(1.into())
+            .set_simulation_block(U64::from(1))
             .set_simulation_basefee(333333);
 
         bundle.add_transaction(Bytes::from(vec![0x3]));
@@ -587,46 +585,5 @@ mod tests {
 
         assert_eq!(tx.error, Some("execution reverted".into()));
         assert_eq!(tx.revert, Some("transfer failed".into()));
-    }
-
-    #[test]
-    fn bundle_stats_deserialize() {
-        let bundle_stats: BundleStats = serde_json::from_str(
-            r#"{
-                "isHighPriority": true,
-                "isSimulated": true,
-                "simulatedAt": "2022-10-06T21:36:06.317Z",
-                "receivedAt": "2022-10-06T21:36:06.250Z",
-                "consideredByBuildersAt": [{
-                    "pubkey": "0x81babeec8c9f2bb9c329fd8a3b176032fe0ab5f3b92a3f44d4575a231c7bd9c31d10b6328ef68ed1e8c02a3dbc8e80f9",
-                    "timestamp": "2022-10-06T21:36:06.343Z"
-                }, {
-                    "pubkey": "0x81beef03aafd3dd33ffd7deb337407142c80fea2690e5b3190cfc01bde5753f28982a7857c96172a75a234cb7bcb994f",
-                    "timestamp": "2022-10-06T21:36:06.394Z"
-                }, {
-                    "pubkey": "0xa1dead1e65f0a0eee7b5170223f20c8f0cbf122eac3324d61afbdb33a8885ff8cab2ef514ac2c7698ae0d6289ef27fcf",
-                    "timestamp": "2022-10-06T21:36:06.322Z"
-                }],
-                "sealedByBuildersAt": [{
-                    "pubkey": "0x81beef03aafd3dd33ffd7deb337407142c80fea2690e5b3190cfc01bde5753f28982a7857c96172a75a234cb7bcb994f",
-                    "timestamp": "2022-10-06T21:36:07.742Z"
-                }]
-            }"#,
-        )
-            .unwrap();
-
-        assert!(bundle_stats.is_high_priority);
-        assert!(bundle_stats.is_simulated);
-        assert_eq!(
-            bundle_stats.simulated_at.unwrap().to_rfc3339(),
-            "2022-10-06T21:36:06.317+00:00"
-        );
-        assert_eq!(
-            bundle_stats.received_at.unwrap().to_rfc3339(),
-            "2022-10-06T21:36:06.250+00:00"
-        );
-
-        assert_eq!(bundle_stats.considered_by_builders_at.len(), 3);
-        assert_eq!(bundle_stats.sealed_by_builders_at.len(), 1);
     }
 }

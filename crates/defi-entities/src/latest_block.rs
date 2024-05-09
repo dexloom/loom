@@ -47,7 +47,7 @@ impl LatestBlock {
                 for (addr, state) in diff_entry {
                     let account = cur_state_override.entry(*addr).or_insert(AccountOverride::default());
                     account.balance = state.balance;
-                    account.nonce = state.nonce.map_or(None, |n| Some(U64::from(n)));
+                    account.nonce = state.nonce.map(|n| U64::from(n));
 
                     let diff: HashMap<B256, U256> = state.storage.iter().map(|(k, v)| (*k, (*v).into())).collect();
                     account.state_diff = Some(diff);

@@ -1,16 +1,12 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::sync::Arc;
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag};
 use alloy_rpc_types_trace::geth::AccountState;
 use eyre::Result;
 use log::{debug, error, trace};
-use revm::db::{CacheDB, Database, DatabaseCommit, DatabaseRef};
-use revm::db::AccountState as DbAccountState;
+use revm::db::{AccountState as DbAccountState, Database};
 use revm::InMemoryDB;
 use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
@@ -58,20 +54,14 @@ impl MarketState
     }
 
     pub fn is_account(&self, address: &Address) -> bool {
-        match self.state_db.accounts.get(address) {
-            Some(_) => true,
-            None => false
-        }
+        self.state_db.accounts.contains_key(address)
     }
 
 
     pub fn is_slot(&self, address: &Address, slot: &U256) -> bool {
         match self.state_db.accounts.get(address) {
             Some(account) => {
-                match account.storage.get(slot) {
-                    Some(_) => true,
-                    None => false
-                }
+                account.storage.get(slot).is_some()
             }
             None => false
         }
@@ -109,7 +99,7 @@ impl MarketState
                         balance: account_updated_state.balance.unwrap_or_default(),
                         nonce: account_updated_state.nonce.unwrap_or_default().as_u64(),
                         code_hash: KECCAK_EMPTY,
-                        code: code,
+                        code,
                     };
 
 
@@ -185,12 +175,7 @@ impl MarketState
 
     pub fn add_state(&mut self, state: &GethStateUpdate) -> Result<()> {
         for (address, account_state) in state.iter() {
-            let hex_code = match &account_state.code {
-                Some(code_bytes) => {
-                    Some(Bytecode::new_raw(code_bytes.clone()))
-                }
-                None => None
-            };
+            let hex_code = account_state.code.as_ref().map(|code_bytes| Bytecode::new_raw(code_bytes.clone()));
 
             let balance: U256 = account_state.balance.unwrap_or_default();
 
@@ -257,7 +242,7 @@ impl MarketState
     }
 
     pub async fn fetch_all_states<P: Provider + Clone + 'static>(&mut self, client: P) -> Result<()> {
-        let addresses: Vec<Address> = self.state_db.accounts.keys().map(|x| *x).collect();
+        let addresses: Vec<Address> = self.state_db.accounts.keys().copied().collect();
         for account in addresses {
             let acc: Address = account;
             match self.fetch_state(acc, client.clone()).await {
@@ -270,7 +255,7 @@ impl MarketState
 
 
     pub fn disable_cell(&mut self, address: Address, cell: U256) {
-        self.read_only_cells.entry(address).or_insert(HashSet::new()).insert(cell);
+        self.read_only_cells.entry(address).or_default().insert(cell);
     }
 
     pub fn disable_cell_vec(&mut self, address: Address, cells: Vec<U256>) {

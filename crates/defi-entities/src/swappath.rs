@@ -6,7 +6,7 @@ use std::sync::Arc;
 use alloy_primitives::Address;
 use eyre::Result;
 
-use crate::{Pool, PoolWrapper, Token};
+use crate::{PoolWrapper, Token};
 
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
 pub struct SwapPath {
@@ -147,19 +147,12 @@ impl SwapPaths {
     }
 
     pub fn get_pool_paths_vec(&self, pool_address: &Address) -> Option<Vec<Arc<SwapPath>>> {
-        match self.get_pool_paths_hashset(pool_address) {
-            Some(set) => {
-                Some(set.iter().map(|s| s.clone()).collect())
-            }
-            None => None
-        }
+        self.get_pool_paths_hashset(pool_address).map(|set| set.iter().cloned().collect())
     }
 }
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use tokio::task::JoinHandle;
 
     use super::*;

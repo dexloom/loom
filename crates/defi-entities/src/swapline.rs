@@ -1,18 +1,17 @@
-use std::convert::Infallible;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use alloy_primitives::{Address, I256, U256};
-use eyre::{eyre, Report, Result};
+use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, trace};
+use log::debug;
 use revm::InMemoryDB;
 use revm::primitives::Env;
 
 use defi_types::SwapError;
 
-use crate::{Pool, PoolWrapper, Token};
+use crate::{PoolWrapper, Token};
 use crate::swappath::SwapPath;
 
 lazy_static! {
@@ -74,17 +73,17 @@ pub struct SwapLine {
 
 impl fmt::Display for SwapLine {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        let token_in = self.tokens().first().clone();
-        let token_out = self.tokens().last().clone();
+        let token_in = self.tokens().first();
+        let token_out = self.tokens().last();
 
 
         let profit: String = if token_in == token_out {
             match token_in {
                 Some(t) => {
-                    format!("profit {}", t.to_float_sign(self.profit().unwrap_or_else(|_| I256::ZERO)))
+                    format!("profit {}", t.to_float_sign(self.profit().unwrap_or(I256::ZERO)))
                 }
                 _ => {
-                    format!("profit {}", self.profit().unwrap_or_else(|_| I256::ZERO))
+                    format!("profit {}", self.profit().unwrap_or(I256::ZERO))
                 }
             }
         } else {
@@ -155,11 +154,7 @@ impl Hash for SwapLine {
 
 impl PartialEq for SwapLine {
     fn eq(&self, other: &Self) -> bool {
-        if self.tokens() == other.tokens() && self.pools() == other.pools() {
-            true
-        } else {
-            false
-        }
+        self.tokens() == other.tokens() && self.pools() == other.pools()
     }
 }
 
@@ -209,7 +204,7 @@ impl SwapLine {
 
     pub fn get_token_in_address(&self) -> Option<Address> {
         let tokens = self.tokens();
-        if tokens.len() == 0 {
+        if tokens.is_empty() {
             None
         } else {
             Some(tokens[0].get_address())
@@ -219,7 +214,7 @@ impl SwapLine {
     pub fn is_in_token_weth(&self) -> bool {
         let tokens = self.tokens();
 
-        if tokens.len() == 0 {
+        if tokens.is_empty() {
             false
         } else {
             tokens[0].get_address() == *WETH_ADDRESS
@@ -253,7 +248,7 @@ impl SwapLine {
                 return false;
             }
         }
-        return true;
+        true
     }
 
     pub fn merge(&self, pool_index: usize) -> Result<(SwapLine, SwapLine)> {
@@ -410,7 +405,6 @@ impl SwapLine {
         let mut next_amount = current_in_amount;
         let mut prev_in_amount = U256::ZERO;
         let mut counter = 0;
-        let min_step = U256::from(100);
         let denominator = U256::from(1000);
 
 
@@ -445,40 +439,40 @@ impl SwapLine {
                 if current_out_amount.is_zero() || current_profit.is_negative() {
                     return Ok(self);
                 }
-            } else {
-                if bestprofit.unwrap() > current_profit || current_out_amount.is_zero() /*|| next_profit < current_profit*/ {
-                    if first_step_change && inc_direction && current_step < denominator {
-                        inc_direction = false;
-                        next_amount = prev_in_amount;
-                        current_in_amount = prev_in_amount;
-                        first_step_change = true;
-                        //debug!("inc direction changed {} {} {}", next_amount, current_profit, bestprofit.unwrap());
-                    } else if first_step_change && !inc_direction {
-                        current_in_amount = current_in_amount;
-                        inc_direction = true;
-                        current_step /= U256::from(10);
-                        bestprofit = Some(current_profit);
-                        first_step_change = true;
-                        //debug!("dec direction changed  {} {} {}", next_amount, current_profit, bestprofit.unwrap());
+            } else if bestprofit.unwrap() > current_profit || current_out_amount.is_zero() /*|| next_profit < current_profit*/ {
+                if first_step_change && inc_direction && current_step < denominator {
+                    inc_direction = false;
+                    //TODO : Check why not used
+                    next_amount = prev_in_amount;
+                    current_in_amount = prev_in_amount;
+                    first_step_change = true;
+                    //debug!("inc direction changed {} {} {}", next_amount, current_profit, bestprofit.unwrap());
+                } else if first_step_change && !inc_direction {
+                    //TODO : Check why is self aligned
+                    current_in_amount = current_in_amount;
+                    inc_direction = true;
+                    current_step /= U256::from(10);
+                    bestprofit = Some(current_profit);
+                    first_step_change = true;
+                    //debug!("dec direction changed  {} {} {}", next_amount, current_profit, bestprofit.unwrap());
 
-                        if current_step == U256::from(1) {
-                            break;
-                        }
-                    } else {
-                        current_step /= U256::from(10);
-                        first_step_change = true;
-                        if current_step == U256::from(1) {
-                            break;
-                        }
+                    if current_step == U256::from(1) {
+                        break;
                     }
                 } else {
-                    bestprofit = Some(current_profit);
-                    self.amount_in = SwapAmountType::Set(next_amount);
-                    self.amount_out = SwapAmountType::Set(current_out_amount);
-                    self.gas_used = Some(current_gas_used);
-                    current_in_amount = next_amount;
-                    first_step_change = false;
+                    current_step /= U256::from(10);
+                    first_step_change = true;
+                    if current_step == U256::from(1) {
+                        break;
+                    }
                 }
+            } else {
+                bestprofit = Some(current_profit);
+                self.amount_in = SwapAmountType::Set(next_amount);
+                self.amount_out = SwapAmountType::Set(current_out_amount);
+                self.gas_used = Some(current_gas_used);
+                current_in_amount = next_amount;
+                first_step_change = false;
             }
 
 

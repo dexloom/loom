@@ -2,21 +2,19 @@ use std::collections::HashMap;
 
 use alloy_primitives::{Address, U256};
 
+#[derive(Debug, Clone, Default)]
 pub struct AccountNonceAndBalances {
     nonce: u64,
     balance: HashMap<Address, U256>,
 }
 
 impl AccountNonceAndBalances {
-    pub fn new() -> AccountNonceAndBalances {
-        AccountNonceAndBalances {
-            nonce: 0,
-            balance: HashMap::new(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn get_nonce(&self) -> u64 {
-        return self.nonce;
+        self.nonce
     }
 
     pub fn set_nonce(&mut self, nonce: u64) -> &mut Self {
@@ -25,19 +23,19 @@ impl AccountNonceAndBalances {
     }
 
     pub fn set_balance(&mut self, token: Address, balance: U256) -> &mut Self {
-        let mut entry = self.balance.entry(token).or_default();
+        let entry = self.balance.entry(token).or_default();
         *entry = balance;
         self
     }
 
     pub fn add_balance(&mut self, token: Address, balance: U256) -> &mut Self {
-        let mut entry = self.balance.entry(token).or_default();
+        let entry = self.balance.entry(token).or_default();
         *entry += balance;
         self
     }
 
     pub fn sub_balance(&mut self, token: Address, balance: U256) -> &mut Self {
-        let mut entry = self.balance.entry(token).or_default();
+        let entry = self.balance.entry(token).or_default();
         *entry -= balance;
         self
     }
@@ -51,19 +49,19 @@ impl AccountNonceAndBalances {
     }
 }
 
+#[derive(Debug, Clone, Default)]
 pub struct AccountNonceAndBalanceState {
     accounts: HashMap<Address, AccountNonceAndBalances>,
 }
 
+
 impl AccountNonceAndBalanceState {
-    pub fn new() -> AccountNonceAndBalanceState {
-        AccountNonceAndBalanceState {
-            accounts: HashMap::new()
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn add_account(&mut self, account: Address) -> &mut AccountNonceAndBalances {
-        self.accounts.entry(account).or_insert(AccountNonceAndBalances::new())
+        self.accounts.entry(account).or_default()
     }
 
     pub fn get_account(&self, account: &Address) -> Option<&AccountNonceAndBalances> {
@@ -75,11 +73,11 @@ impl AccountNonceAndBalanceState {
     }
 
     pub fn get_accounts_vec(&self) -> Vec<Address> {
-        self.accounts.iter().map(|(address, _)| address.clone()).collect()
+        self.accounts.keys().copied().collect()
     }
 
 
     pub fn is_monitored(&self, account: &Address) -> bool {
-        self.accounts.get(account).is_some()
+        self.accounts.contains_key(account)
     }
 }

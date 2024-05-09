@@ -1,17 +1,17 @@
 use std::collections::BTreeMap;
 
-use alloy_primitives::{Address, BlockNumber, TxHash};
-use alloy_provider::{Network, Provider};
+use alloy_primitives::{Address, TxHash};
 use alloy_provider::ext::DebugApi;
 use alloy_provider::network::Ethereum;
+use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionRequest};
 use alloy_rpc_types_trace::geth::{AccountState, GethDebugBuiltInTracerType, GethDebugTracerConfig, GethDebugTracerType, GethDebugTracingCallOptions, GethDebugTracingOptions, GethDefaultTracingOptions, GethTrace, PreStateConfig, PreStateFrame};
 use alloy_rpc_types_trace::geth::GethDebugBuiltInTracerType::PreStateTracer;
 use alloy_rpc_types_trace::geth::GethDebugTracerType::BuiltInTracer;
 use alloy_transport::BoxTransport;
-use eyre::{eyre, Result};
+use eyre::Result;
 use lazy_static::lazy_static;
-use log::{error, trace};
+use log::trace;
 
 use debug_provider::DebugProviderExt;
 
@@ -59,7 +59,7 @@ pub async fn debug_trace_block<P: Provider>(client: P, block_id: BlockId, diff_m
 
     let trace_result_vec = match block_id {
         BlockId::Number(block_number) => {
-            client.debug_trace_block_by_number(block_number.into(), tracer_opts).await?
+            client.debug_trace_block_by_number(block_number, tracer_opts).await?
         }
         BlockId::Hash(rpc_block_hash) => {
             //client.debug_trace_block_by_number(BlockNumber::from(19776525u32), tracer_opts).await?
@@ -79,11 +79,11 @@ pub async fn debug_trace_block<P: Provider>(client: P, block_id: BlockId, diff_m
             GethTrace::PreStateTracer(geth_trace_frame) => {
                 match geth_trace_frame {
                     PreStateFrame::Diff(diff_frame) => {
-                        pre.push(diff_frame.pre.into_iter().map(|(k, v)| (k, v)).collect());
-                        post.push(diff_frame.post.into_iter().map(|(k, v)| (k, v)).collect());
+                        pre.push(diff_frame.pre);
+                        post.push(diff_frame.post);
                     }
                     PreStateFrame::Default(diff_frame) => {
-                        pre.push(diff_frame.0.into_iter().map(|(k, v)| (k, v)).collect());
+                        pre.push(diff_frame.0.into_iter().collect());
                     }
                 }
             }
@@ -105,8 +105,8 @@ async fn debug_trace_call<C: DebugProviderExt, T: Into<TransactionRequest> + Sen
 
     let tracer_call_opts = GethDebugTracingCallOptions {
         tracing_options: tracer_opts,
-        state_overrides: opts.clone().map_or(None, |x| x.state_overrides),
-        block_overrides: opts.map_or(None, |x| x.block_overrides),
+        state_overrides: opts.clone().and_then(|x| x.state_overrides),
+        block_overrides: opts.and_then(|x| x.block_overrides),
 
     };
 
@@ -119,16 +119,13 @@ async fn debug_trace_call<C: DebugProviderExt, T: Into<TransactionRequest> + Sen
             match geth_trace_frame {
                 PreStateFrame::Diff(diff_frame) => {
                     Ok((
-                        diff_frame.pre.into_iter().map(|(k, v)| (k, v)).collect(),
-                        diff_frame.post.into_iter().map(|(k, v)| (k, v)).collect()))
+                        diff_frame.pre,
+                        diff_frame.post))
                 }
                 PreStateFrame::Default(diff_frame) => {
                     Ok((
-                        diff_frame.0.into_iter().map(|(k, v)| (k, v)).collect(),
+                        diff_frame.0,
                         BTreeMap::new()))
-                }
-                _ => {
-                    Err(eyre::eyre!("PRESTATE_TRACE_FAILED"))
                 }
             }
         }
@@ -161,7 +158,7 @@ pub async fn debug_trace_transaction<P: Provider + DebugApi<Ethereum, BoxTranspo
 // TODO : Fix parameters
 
 
-    let trace_result = client.debug_trace_transaction(req.into(), tracer_opts).await?;
+    let trace_result = client.debug_trace_transaction(req, tracer_opts).await?;
     trace!("{:?}", trace_result);
 
     match trace_result {
@@ -169,16 +166,13 @@ pub async fn debug_trace_transaction<P: Provider + DebugApi<Ethereum, BoxTranspo
             match geth_trace_frame {
                 PreStateFrame::Diff(diff_frame) => {
                     Ok((
-                        diff_frame.pre.into_iter().map(|(k, v)| (k, v)).collect(),
-                        diff_frame.post.into_iter().map(|(k, v)| (k, v)).collect()))
+                        diff_frame.pre.into_iter().collect(),
+                        diff_frame.post.into_iter().collect()))
                 }
                 PreStateFrame::Default(diff_frame) => {
                     Ok((
-                        diff_frame.0.into_iter().map(|(k, v)| (k, v)).collect(),
+                        diff_frame.0.into_iter().collect(),
                         BTreeMap::new()))
-                }
-                _ => {
-                    Err(eyre::eyre!("PRESTATE_TRACE_FAILED"))
                 }
             }
         }
@@ -219,7 +213,7 @@ mod test {
 
         let blocknumber = client.get_block_number().await?;
         let block = client.get_block_by_number(blocknumber.into(), false).await?.unwrap();
-        let blockhash = block.header.hash.unwrap();
+        //let blockhash = block.header.hash.unwrap();
 
         let ret = client.debug_trace_block_by_number(blocknumber.into(), tracer_opts).await?;
         //let blockhash: BlockHash = "0xd16074b40a4cb1e0b24fea1ffb5dcadb7363d38f93a9efa9eb43fc161a7e16f6".parse()?;

@@ -1,4 +1,4 @@
-use alloy_sol_types::{sol, SolCall, SolInterface};
+use alloy_sol_types::sol;
 
 sol! {
 

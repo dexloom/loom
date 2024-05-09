@@ -1,15 +1,13 @@
 use alloy_primitives::U256;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct GasStation {
     pub next_block_base_fee: u128,
 }
 
 impl GasStation {
-    pub fn new() -> GasStation {
-        GasStation {
-            next_block_base_fee: 0,
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn get_next_base_fee(&self) -> u128 {

@@ -1,12 +1,11 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
-use std::ops::{Add, Div, Mul, Neg, Rem};
+use std::ops::{Add, Div, Mul, Neg};
 use std::sync::Arc;
 use std::sync::RwLock;
 
 use alloy_primitives::{Address, I256, U256};
 use lazy_static::lazy_static;
-use revm::primitives::bitvec::macros::internal::funty::{Fundamental, Integral};
 
 lazy_static! {
     static ref WETH_ADDRESS : Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
@@ -94,7 +93,7 @@ impl Token {
     pub fn get_eth_price(&self) -> Option<U256> {
         match self.eth_price.read() {
             Ok(x) => {
-                x.clone()
+                *x
             }
             _ => None
         }
@@ -173,7 +172,7 @@ impl Token {
             if !div.is_ok() || !rem.is_ok() {
                 0f64
             } else {
-                div.unwrap() as f64 + ((rem.unwrap() as f64) / ((10u64.pow(decimals as u32)) as f64))
+                div.unwrap_or_default() as f64 + ((rem.unwrap_or_default() as f64) / ((10u64.pow(decimals as u32)) as f64))
             }
         }
     }
@@ -217,7 +216,7 @@ impl NWETH {
 
     pub fn from_float(value: f64) -> U256 {
         let multiplier = U256::from(value as i64);
-        let modulus = U256::from((value - value.abs()) as i64 * (10.pow(18) as i64));
+        let modulus = U256::from((value - value.abs()) as i64 * (10_i64.pow(18) as i64));
         multiplier.mul(U256::from(10).pow(U256::from(18))).add(modulus)
     }
 }

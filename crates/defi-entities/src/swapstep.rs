@@ -1,9 +1,9 @@
-use std::fmt::{Display, format, Formatter, write};
+use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use alloy_primitives::{Address, I256, U256};
 use eyre::{eyre, Result};
-use log::{debug, error};
+use log::error;
 use revm::InMemoryDB;
 use revm::primitives::Env;
 
@@ -47,6 +47,10 @@ impl SwapStep {
         self.swap_line_vec.len()
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.swap_line_vec.is_empty()
+    }
+
     fn first_swap_line(&self) -> Option<&SwapLine> {
         self.swap_line_vec.first()
     }
@@ -67,15 +71,13 @@ impl SwapStep {
 
 
     pub fn add(&mut self, swap_path: SwapLine) -> &mut Self {
-        if self.len() == 0 {
+        if self.is_empty() {
+            self.swap_line_vec.push(swap_path);
+        } else if (self.first_token().unwrap() == swap_path.get_first_token().unwrap()) &&
+            (self.last_token().unwrap() == swap_path.get_last_token().unwrap()) {
             self.swap_line_vec.push(swap_path);
         } else {
-            if (self.first_token().unwrap() == swap_path.get_first_token().unwrap()) &&
-                (self.last_token().unwrap() == swap_path.get_last_token().unwrap()) {
-                self.swap_line_vec.push(swap_path);
-            } else {
-                error!("cannot add SwapPath {} != {} {} !=  {}", self.first_token().unwrap().get_address() , swap_path.get_first_token().unwrap().get_address(), self.last_token().unwrap().get_address() , swap_path.get_last_token().unwrap().get_address())
-            }
+            error!("cannot add SwapPath {} != {} {} !=  {}", self.first_token().unwrap().get_address() , swap_path.get_first_token().unwrap().get_address(), self.last_token().unwrap().get_address() , swap_path.get_last_token().unwrap().get_address())
         }
         self
     }
@@ -192,7 +194,7 @@ impl SwapStep {
 
         if split_index_start > 0 {
             let (mut split_0_0, mut split_0_1) = swap_path_0.split(split_index_start)?;
-            let (mut split_1_0, mut split_1_1) = swap_path_1.split(split_index_start)?;
+            let (split_1_0, mut split_1_1) = swap_path_1.split(split_index_start)?;
 
 
             let mut swap_step_0 = SwapStep::new(multicaller);
@@ -240,7 +242,7 @@ impl SwapStep {
 
         if split_index_end > 0 {
             let (mut split_0_0, mut split_0_1) = swap_path_0.split(swap_path_0.pools().len() - split_index_end)?;
-            let (mut split_1_0, mut split_1_1) = swap_path_1.split(swap_path_1.pools().len() - split_index_end)?;
+            let (mut split_1_0, split_1_1) = swap_path_1.split(swap_path_1.pools().len() - split_index_end)?;
 
             let mut swap_step_0 = SwapStep::new(multicaller);
             let mut swap_step_1 = SwapStep::new(multicaller);
@@ -496,7 +498,7 @@ impl SwapStep {
         let mut best_profit: Option<I256> = None;
 
 
-        let (mut middle_amount, _) = match middle_amount {
+        let (middle_amount, _) = match middle_amount {
             Some(amount) => step_0.calculate_swap_step_in_amount_provided(state, env.clone(), Some(amount))?,
             _ => step_0.calculate_swap_step_in_amount_provided(state, env.clone(), None)?
         };
@@ -670,7 +672,7 @@ impl SwapStep {
             Some(amount) => step_0.calculate_swap_step_in_amount_provided(state, env.clone(), Some(amount))?,
             _ => step_0.calculate_swap_step_in_amount_provided(state, env.clone(), None)?
         };
-        let mut in_amount = step_0.get_in_amount()?;
+        let in_amount = step_0.get_in_amount()?;
 
 
         let step_0_out_amount = step_0.get_out_amount()?;

@@ -1,19 +1,17 @@
-use std::error::Error;
-
-use eyre::{ErrReport, Result};
-
-use aes::{Aes128, Aes128Enc};
+use aes::Aes128;
 use aes::cipher::{Block, BlockDecrypt, KeyInit};
+use eyre::{ErrReport, Result};
 use sha2::{Digest, Sha512};
-use sha2::digest::generic_array::GenericArray;
 
 use crate::private::PWD;
 
 const BLOCK_SIZE: usize = 16;
 
+#[derive(Clone, Default)]
 pub struct KeyStore {
     pwd: Vec<u8>,
 }
+
 
 impl KeyStore {
     pub fn new() -> KeyStore {
@@ -105,7 +103,7 @@ mod tests {
             Ok(decrypted_data) => {
                 println!("{}", hex::encode(decrypted_data));
             }
-            Err(e) => {
+            Err(_) => {
                 //println!("{}", hex::encode(decrypted_data));
                 panic!("BAD_CHECKSUM")
             }

@@ -5,7 +5,6 @@ use alloy_network::{TxSigner as AlloyTxSigner, TxSignerSync};
 use alloy_primitives::{Address, B256, Bytes, TxHash};
 use alloy_primitives::private::alloy_rlp::Encodable;
 use alloy_rpc_types::TransactionRequest;
-use alloy_signer::Signer;
 use alloy_signer_wallet::LocalWallet;
 use eyre::{eyre, OptionExt, Result};
 use rand::Rng;
@@ -14,6 +13,16 @@ use rand::Rng;
 pub struct TxSigner {
     address: Address,
     wallet: LocalWallet,
+}
+
+impl Default for TxSigner {
+    fn default() -> Self {
+        let wallet = LocalWallet::random();
+        Self {
+            address: wallet.address(),
+            wallet,
+        }
+    }
 }
 
 impl fmt::Debug for TxSigner {
@@ -34,7 +43,7 @@ impl TxSigner {
     }
 
     pub fn address(&self) -> Address {
-        self.address.clone()
+        self.address
     }
 
     pub async fn sign(&self, tx_req: TransactionRequest) -> Result<(TxHash, Bytes)> {
@@ -60,7 +69,7 @@ impl TxSigner {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct TxSigners {
     signers_vec: Vec<TxSigner>,
 }

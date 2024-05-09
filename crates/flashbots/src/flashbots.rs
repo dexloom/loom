@@ -1,13 +1,9 @@
-use std::convert::TryFrom;
 use std::sync::Arc;
 
-use alloy_primitives::{B256, TxHash, U64};
+use alloy_primitives::{TxHash, U64};
 use alloy_provider::Provider;
-use alloy_signer::{Signature, Signer, SignerSync};
-use alloy_signer_wallet::{LocalWallet, Wallet};
 use eyre::{ErrReport, eyre, Result};
 use log::{debug, error, info};
-use rand::thread_rng;
 use url::Url;
 
 use crate::client::{BundleRequest, BundleTransaction, FlashbotsMiddleware, FlashbotsMiddlewareError, SimulatedBundle};
@@ -84,7 +80,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsClient<P> {
 
     pub async fn send_bundle(&self, request: &BundleRequest) -> Result<()> {
         match self.flashbots_middleware.send_bundle(request).await {
-            Ok(resp) => {
+            Ok(_resp) => {
                 info!("Bundle sent to : {}", self.name );
                 Ok(())
             }
@@ -119,7 +115,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
     pub fn new(provider: P, simulation_endpoint: &str) -> Self
     {
         let flashbots = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
-        let builder0x69 = FlashbotsClient::new_no_sign(provider.clone(), "https://builder0x69.io");
+        //let builder0x69 = FlashbotsClient::new_no_sign(provider.clone(), "https://builder0x69.io");
         let eden = FlashbotsClient::new(provider.clone(), "https://api.edennetwork.io/v1/bundle");
         let eth_builder = FlashbotsClient::new_no_sign(provider.clone(), "https://eth-builder.com");
         let beaverbuild = FlashbotsClient::new_no_sign(provider.clone(), "https://rpc.beaverbuild.org/");
@@ -140,7 +136,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
         let clients_vec = vec![flashbots, /* builder0x69,*/ titan, fibio, eden, eth_builder, beaverbuild, secureapi, rsync, /*blocknative,*/ buildai, payloadde, loki, ibuilder, jetbuilder, penguinbuilder, gambitbuilder];
 
         Flashbots {
-            clients: clients_vec.into_iter().map(|x| Arc::new(x)).collect(),
+            clients: clients_vec.into_iter().map(Arc::new).collect(),
             simulation_client: FlashbotsClient::new(provider.clone(), simulation_endpoint),
         }
     }
@@ -180,7 +176,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
                 debug!("Sending bundle to {}", client_clone.name);
                 let bundle_result = client_clone.send_bundle(bundle_arc_clone.as_ref()).await;
                 match bundle_result {
-                    Ok(x) => {
+                    Ok(_) => {
                         info!("Flashbots bundle broadcast successfully {}", client_clone.name);
                     }
                     Err(x) => {
@@ -195,37 +191,3 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
     }
 }
 
-
-#[cfg(test)]
-mod tests {
-    use std::time::Duration;
-
-    use env_logger::Env;
-    use ethers::prelude::{H256, Provider, Ws};
-
-    use super::*;
-
-    #[tokio::test]
-    async fn test_broadcast_txs() {
-        std::env::set_var("RUST_LOG", "debug");
-        std::env::set_var("RUST_BACKTRACE", "1");
-        env_logger::init_from_env(Env::default().default_filter_or("debug"));
-
-        const WS_URL: &str = "wss://eth-mainnet.alchemyapi.io/v2/v5AzlmuG3aN7FFF0FkXhF396y9ISRIsu";
-
-        let provider = Provider::<Ws>::connect_with_reconnects(WS_URL, 10).await.unwrap();
-        let client = Arc::new(provider);
-
-        let flashbots_client = Flashbots::new(client.clone());
-
-        let tx = client.get_transaction(H256::from_slice(
-            &hex::decode("6efe8576460f0493f66bf9565f2ed906e3db2eebea88b179a027c72c2cc30146").unwrap())).await.unwrap().unwrap();
-
-        let rlp_encoded = tx.rlp();
-
-
-        flashbots_client.broadcast_txes(vec![tx.clone()], tx.block_number.unwrap()).await;
-
-        tokio::time::sleep(Duration::from_secs(10)).await;
-    }
-}

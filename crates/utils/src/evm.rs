@@ -1,13 +1,13 @@
 use alloy_primitives::{Address, B256, Bytes, U256};
-use alloy_rpc_types::{AccessList, AccessListItem, Block, Header, Transaction, TransactionRequest};
+use alloy_rpc_types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, trace};
 use revm::{Context, EvmContext, Handler, InMemoryDB};
-use revm::db::{Database, DatabaseCommit, DatabaseRef, WrapDatabaseRef};
+use revm::db::WrapDatabaseRef;
 use revm::Evm;
 use revm::interpreter::Host;
-use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, ExecutionResult, Output, SHANGHAI, ShanghaiSpec, StorageSlot, TransactTo, TxEnv};
+use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, ExecutionResult, Output, SHANGHAI, ShanghaiSpec, TransactTo, TxEnv};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();
@@ -56,7 +56,7 @@ pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data
 
 pub fn evm_transact(evm: &mut Evm<(), InMemoryDB>, tx: &Transaction) -> Result<()>
 {
-    let mut env = evm.env_mut();
+    let env = evm.env_mut();
 
     env.tx.transact_to = TransactTo::Call(tx.to.unwrap());
     env.tx.nonce = Some(tx.nonce);
@@ -184,7 +184,7 @@ fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
             nonce: Some(tx.nonce),
             chain_id: tx.chain_id,
             access_list: Vec::new(),
-            gas_priority_fee: tx.max_priority_fee_per_gas.map_or(None, |x| Some(U256::from(x))),
+            gas_priority_fee: tx.max_priority_fee_per_gas.map(|x| U256::from(x)),
             blob_hashes: Vec::new(),
             max_fee_per_blob_gas: None,
         },

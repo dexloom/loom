@@ -13,7 +13,7 @@ use defi_types::GethStateUpdateVec;
 
 use crate::MarketState;
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct BlockHistoryEntry
 {
     pub header: Option<Header>,
@@ -36,19 +36,6 @@ impl BlockHistoryEntry
             logs,
             state_update,
             state_db,
-        }
-    }
-}
-
-impl Default for BlockHistoryEntry
-{
-    fn default() -> Self {
-        BlockHistoryEntry {
-            header: None,
-            block: None,
-            logs: None,
-            state_update: None,
-            state_db: None,
         }
     }
 }
@@ -99,7 +86,7 @@ impl BlockHistory
         block_numbers.insert(latest_block_number, block_hash);
 
         Ok(BlockHistory {
-            depth: depth,
+            depth,
             latest_block_number,
             block_entries,
             block_numbers,
@@ -108,6 +95,10 @@ impl BlockHistory
 
     pub fn len(&self) -> usize {
         self.block_entries.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.block_entries.is_empty()
     }
 
     fn process_block_number_with_hash(&mut self, block_number: u64, block_hash: BlockHash) -> &mut BlockHistoryEntry {
@@ -120,11 +111,11 @@ impl BlockHistory
         let actual_hashes: Vec<BlockHash> = self.block_numbers.values().cloned().collect();
         self.block_entries.retain(|key, _| actual_hashes.contains(key));
 
-        self.block_entries.entry(block_hash).or_insert(BlockHistoryEntry::default())
+        self.block_entries.entry(block_hash).or_default()
     }
 
     fn process_block_hash(&mut self, block_hash: BlockHash) -> &mut BlockHistoryEntry {
-        self.block_entries.entry(block_hash).or_insert(BlockHistoryEntry::default())
+        self.block_entries.entry(block_hash).or_default()
     }
 
     pub fn add_block_header(&mut self, block_header: Header) -> Result<()> {
@@ -150,7 +141,7 @@ impl BlockHistory
         let block_hash = block.header.hash.unwrap();
         let block_number = block.header.number.unwrap();
 
-        let mut market_history_entry = self.process_block_number_with_hash(block_number, block_hash);
+        let market_history_entry = self.process_block_number_with_hash(block_number, block_hash);
 
         if market_history_entry.block.is_some() {
             return Err(ErrReport::msg("BLOCK_IS_ALREADY_PROCESSED"));
@@ -174,18 +165,18 @@ impl BlockHistory
 
             Ok(())
         } else {
-            return Err(ErrReport::msg("BLOCK_STATE_IS_ALREADY_PROCESSED"));
+            Err(ErrReport::msg("BLOCK_STATE_IS_ALREADY_PROCESSED"))
         }
     }
 
     pub fn add_logs(&mut self, block_hash: BlockHash, logs: Vec<Log>) -> Result<()> {
-        let mut market_history_entry = self.process_block_hash(block_hash);
+        let market_history_entry = self.process_block_hash(block_hash);
 
         if market_history_entry.logs.is_none() {
             market_history_entry.logs = Some(logs);
             Ok(())
         } else {
-            return Err(ErrReport::msg("BLOCK_LOGS_ARE_ALREADY_PROCESSED"));
+            Err(ErrReport::msg("BLOCK_LOGS_ARE_ALREADY_PROCESSED"))
         }
     }
 

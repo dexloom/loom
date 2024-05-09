@@ -1,15 +1,14 @@
 use alloy_primitives::{Address, Bytes, U256};
-use lazy_static::lazy_static;
 use log::debug;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum OpcodeType {
-    UNKNOWN,
-    CALL,
-    DELEGATE_CALL,
-    STATIC_CALL,
-    INTERNAL_CALL,
-    CALCULATION_CALL,
+    Unknown,
+    Call,
+    DelegateCall,
+    StaticCall,
+    InternalCall,
+    CalculationCall,
 }
 
 
@@ -37,25 +36,25 @@ impl Opcode {
     }
 
     pub fn new_call(to: Address, call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::CALL, to, call_data, None)
+        Opcode::new(OpcodeType::Call, to, call_data, None)
     }
     pub fn new_call_with_value(to: Address, call_data: &Bytes, value: U256) -> Opcode {
-        Opcode::new(OpcodeType::CALL, to, call_data, Some(value))
+        Opcode::new(OpcodeType::Call, to, call_data, Some(value))
     }
     pub fn new_internal_call(call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::INTERNAL_CALL, Address::ZERO, call_data, None)
+        Opcode::new(OpcodeType::InternalCall, Address::ZERO, call_data, None)
     }
 
     pub fn new_calculation_call(call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::CALCULATION_CALL, Address::ZERO, call_data, None)
+        Opcode::new(OpcodeType::CalculationCall, Address::ZERO, call_data, None)
     }
 
     pub fn new_delegate_call(to: Address, call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::DELEGATE_CALL, to, call_data, None)
+        Opcode::new(OpcodeType::DelegateCall, to, call_data, None)
     }
 
     pub fn new_static_call(to: Address, call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::STATIC_CALL, to, call_data, None)
+        Opcode::new(OpcodeType::StaticCall, to, call_data, None)
     }
 
 
@@ -63,14 +62,14 @@ impl Opcode {
         let mut ret = if is_relative { 0x800000 } else { 0x0 };
         ret |= (stack_offset & 0x7) << 20;
         ret |= (data_len as u32 & 0xFF) << 12;
-        ret |= (data_offset & 0xFFF);
+        ret |= data_offset & 0xFFF;
         ret
     }
 
     pub fn set_call_stack(&mut self, is_relative: bool, stack_offset: u32, data_offset: u32, data_len: usize) -> &mut Self {
         self.call_stack =
             match self.opcode_type {
-                OpcodeType::INTERNAL_CALL | OpcodeType::CALCULATION_CALL => {
+                OpcodeType::InternalCall | OpcodeType::CalculationCall => {
                     Opcode::encode_data_offset(is_relative, stack_offset, data_offset + 0xC, data_len)
                 }
                 _ => {
@@ -111,16 +110,14 @@ impl Opcode {
      */
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct Opcodes {
     pub opcodes_vec: Vec<Opcode>,
 }
 
 impl Opcodes {
-    pub fn new() -> Opcodes {
-        Opcodes {
-            opcodes_vec: Vec::new()
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn log(&self) {

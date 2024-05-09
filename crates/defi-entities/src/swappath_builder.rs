@@ -26,7 +26,7 @@ impl SwapPathSet {
     }
 
     pub fn to_arc_vec(self) -> Vec<Arc<SwapPath>> {
-        self.set.into_iter().map(|v| Arc::new(v)).collect()
+        self.set.into_iter().map(Arc::new).collect()
     }
 }
 
@@ -61,8 +61,8 @@ fn build_swap_path_three_hopes_basic_in(market: &Market, pool: &PoolWrapper, tok
     let mut ret: Vec<SwapPath> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_to_address) {
         for token_middle_address in token_tokens.iter() {
-            if let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, &token_middle_address) {
-                if let Some(token_token_pools_2) = market.get_token_token_pools(&token_middle_address, &token_from_address) {
+            if let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) {
+                if let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) {
                     for pool_address_1 in token_token_pools_1.iter() {
                         if !market.is_pool_ok(pool_address_1) {
                             continue;
@@ -114,15 +114,15 @@ fn build_swap_path_four_hopes_basic_in(market: &Market, pool: &PoolWrapper, toke
                 continue;
             }
 
-            if let Some(token_tokens_0) = market.get_token_tokens(&token_middle_address) {
+            if let Some(token_tokens_0) = market.get_token_tokens(token_middle_address) {
                 for token_middle_address_0 in token_tokens_0.iter() {
                     if !market.get_token_or_default(token_middle_address_0).is_basic() {
                         continue;
                     }
 
-                    if let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, &token_middle_address) {
-                        if let Some(token_token_pools_2) = market.get_token_token_pools(&token_middle_address, &token_middle_address_0) {
-                            if let Some(token_token_pools_3) = market.get_token_token_pools(&token_middle_address_0, &token_from_address) {
+                    if let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) {
+                        if let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, token_middle_address_0) {
+                            if let Some(token_token_pools_3) = market.get_token_token_pools(token_middle_address_0, &token_from_address) {
                                 for pool_address_1 in token_token_pools_1.iter() {
                                     if !market.is_pool_ok(pool_address_1) {
                                         continue;
@@ -213,8 +213,8 @@ fn build_swap_path_three_hopes_basic_out(market: &Market, pool: &PoolWrapper, to
     let mut ret: Vec<SwapPath> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_from_address) {
         for token_middle_address in token_tokens.iter() {
-            if let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, &token_middle_address) {
-                if let Some(token_token_pools_2) = market.get_token_token_pools(&token_middle_address, &token_from_address) {
+            if let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) {
+                if let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) {
                     for pool_address_1 in token_token_pools_1.iter() {
                         if !market.is_pool_ok(pool_address_1) {
                             continue;
@@ -265,15 +265,15 @@ fn build_swap_path_four_hopes_basic_out(market: &Market, pool: &PoolWrapper, tok
             if !market.get_token_or_default(token_middle_address).is_middle() {
                 continue;
             }
-            if let Some(token_tokens_2) = market.get_token_tokens(&token_middle_address) {
+            if let Some(token_tokens_2) = market.get_token_tokens(token_middle_address) {
                 for token_middle_address_0 in token_tokens_2.iter() {
                     if !market.get_token_or_default(token_middle_address_0).is_basic() {
                         continue;
                     }
 
-                    if let Some(token_token_pools_0) = market.get_token_token_pools(&token_to_address, &token_middle_address_0) {
-                        if let Some(token_token_pools_1) = market.get_token_token_pools(&token_middle_address_0, &token_middle_address) {
-                            if let Some(token_token_pools_2) = market.get_token_token_pools(&token_middle_address, &token_from_address) {
+                    if let Some(token_token_pools_0) = market.get_token_token_pools(&token_to_address, token_middle_address_0) {
+                        if let Some(token_token_pools_1) = market.get_token_token_pools(token_middle_address_0, token_middle_address) {
+                            if let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) {
                                 for pool_address_0 in token_token_pools_0.iter() {
                                     if !market.is_pool_ok(pool_address_0) {
                                         continue;
@@ -348,8 +348,8 @@ fn build_swap_path_three_hopes_no_basic(market: &Market, pool: &PoolWrapper, tok
                 continue;
             }
 
-            if let Some(token_token_pools_1) = market.get_token_token_pools(&token_basic_address, &token_from_address) {
-                if let Some(token_token_pools_2) = market.get_token_token_pools(&token_to_address, &token_basic_address) {
+            if let Some(token_token_pools_1) = market.get_token_token_pools(token_basic_address, &token_from_address) {
+                if let Some(token_token_pools_2) = market.get_token_token_pools(&token_to_address, token_basic_address) {
                     for pool_address_1 in token_token_pools_1.iter() {
                         if !market.is_pool_ok(pool_address_1) {
                             continue;

@@ -1,19 +1,17 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
-use std::ops::Range;
-use std::slice::from_raw_parts_mut;
-use std::sync::Arc;
 
 use alloy_primitives::{Address, BlockNumber, Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_rpc_types_trace::geth::AccountState;
 use eyre::{eyre, Result};
-use log::{debug, error, trace};
+use log::{error, trace};
 
 use debug_provider::DebugProviderExt;
-use defi_types::{debug_trace_call_pre_state, GethStateUpdate};
+use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec};
 
+#[derive(Clone, Debug, Default)]
 pub struct RequiredState {
     calls: Vec<TransactionRequest>,
     slots: Vec<(Address, U256)>,
@@ -22,11 +20,7 @@ pub struct RequiredState {
 
 impl RequiredState {
     pub fn new() -> Self {
-        Self {
-            calls: Vec::new(),
-            slots: Vec::new(),
-            empty_slots: Vec::new(),
-        }
+        Self::default()
     }
 
     pub fn add_call<T: Into<Bytes> + Debug, A: Into<Address> + Debug>(&mut self, to: A, call_data: T) -> &mut Self {
@@ -84,7 +78,7 @@ impl RequiredStateReader {
             match call_result {
                 Ok(update) => {
                     for (address, account_state) in update.into_iter() {
-                        let mut entry = ret.entry(address).or_insert(account_state.clone());
+                        let entry = ret.entry(address).or_insert(account_state.clone());
                         for (slot, value) in account_state.storage.clone().into_iter() {
                             entry.storage.insert(slot, value);
                             //debug!("Inserting storage {:#20x} {} {}", address, slot, value);
@@ -101,7 +95,7 @@ impl RequiredStateReader {
             let value_result = client.get_storage_at(address, slot, BlockId::Number(block_id)).await;
             match value_result {
                 Ok(value) => {
-                    let mut entry = ret.entry(address).or_insert(AccountState::default());
+                    let entry = ret.entry(address).or_default();
                     entry.storage.insert(slot.into(), value.into());
                 }
                 Err(e) => { error!("{}",e) }
@@ -111,7 +105,7 @@ impl RequiredStateReader {
         for (address, slot) in required_state.empty_slots.into_iter() {
             let value = U256::ZERO;
 
-            let mut entry = ret.entry(address).or_insert(AccountState::default());
+            let entry = ret.entry(address).or_insert(AccountState::default());
             entry.storage.insert(slot.into(), value.into());
         }
 
@@ -125,6 +119,6 @@ pub fn accounts_len(state: &BTreeMap<Address, AccountState>) -> (usize, usize) {
     (accounts, storage)
 }
 
-pub fn accounts_vec_len(state: &Vec<BTreeMap<Address, AccountState>>) -> usize {
+pub fn accounts_vec_len(state: &GethStateUpdateVec) -> usize {
     state.iter().map(|item| accounts_len(item).1).sum()
 }

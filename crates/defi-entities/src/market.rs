@@ -1,9 +1,8 @@
 use std::collections::{BTreeMap, HashMap};
-use std::fmt::Debug;
 use std::sync::Arc;
 
 use alloy_primitives::Address;
-use eyre::{eyre, Result};
+use eyre::Result;
 use lazy_static::lazy_static;
 use log::debug;
 
@@ -67,19 +66,19 @@ impl Market
         let mut token_to_len = 0;
 
         for (token_address_from, token_address_to) in pool_contract.get_swap_directions().iter() {
-            let mut token_from_entry = self.token_pools.entry(*token_address_from).or_insert(HashMap::new());
-            let mut token_to_entry = token_from_entry.entry(*token_address_to).or_insert(Vec::new());
+            let token_from_entry = self.token_pools.entry(*token_address_from).or_default();
+            let token_to_entry = token_from_entry.entry(*token_address_to).or_default();
             if !token_to_entry.contains(&pool_address) {
                 token_to_entry.push(pool_address);
                 token_to_entry_len = token_to_entry.len();
             }
 
-            let mut token_token_entry = self.token_tokens.entry(*token_address_from).or_insert(Vec::new());
+            let token_token_entry = self.token_tokens.entry(*token_address_from).or_default();
             if !token_token_entry.contains(token_address_to) {
                 token_token_entry.push(*token_address_to);
                 token_from_len = token_token_entry.len();
             }
-            let mut token_token_entry = self.token_tokens.entry(*token_address_to).or_insert(Vec::new());
+            let token_token_entry = self.token_tokens.entry(*token_address_to).or_default();
             if !token_token_entry.contains(token_address_from) {
                 token_token_entry.push(*token_address_from);
                 token_to_len = token_token_entry.len();
@@ -103,16 +102,7 @@ impl Market
     }
 
     pub fn get_pool(&self, address: &Address) -> Option<&PoolWrapper> {
-        match self.pools.get(address) {
-            Some(pool_wrapper) => {
-                if pool_wrapper.get_class() == PoolClass::Unknown {
-                    None
-                } else {
-                    Some(pool_wrapper)
-                }
-            }
-            _ => { None }
-        }
+        self.pools.get(address).filter(|&pool_wrapper| pool_wrapper.get_class() != PoolClass::Unknown)
     }
 
     pub fn is_pool(&self, address: &Address) -> bool {
@@ -145,7 +135,7 @@ impl Market
     }
 
     pub fn get_token(&self, address: &Address) -> Option<Arc<Token>> {
-        self.tokens.get(address).map_or(None, |t| Some(t.clone()))
+        self.tokens.get(address).cloned()
     }
 
     /*pub fn get_token_mut(&mut self, address : &Address) -> Option<&mut Token> {

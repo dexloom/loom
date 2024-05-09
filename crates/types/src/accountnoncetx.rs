@@ -1,16 +1,14 @@
 use alloy_primitives::TxHash;
 
+#[derive(Debug, Clone, Default)]
 pub struct AccountNonceAndTransactions {
     pub nonce: Option<u64>,
     pub txs: Vec<TxHash>,
 }
 
 impl AccountNonceAndTransactions {
-    pub fn new() -> AccountNonceAndTransactions {
-        AccountNonceAndTransactions {
-            nonce: None,
-            txs: Vec::new(),
-        }
+    pub fn new() -> Self {
+        Self::default()
     }
 
     pub fn add_tx_hash(&mut self, tx_hash: TxHash) -> &mut Self {
