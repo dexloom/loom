@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use alloy_primitives::{hex, keccak256, U64};
+use alloy_primitives::{hex, keccak256};
 use alloy_signer::Signer;
 use alloy_signer_wallet::LocalWallet;
 use reqwest::{Client, Error as ReqwestError};
@@ -127,19 +127,7 @@ impl Relay {
         }
     }
 }
-/*
-impl<S: Signer + Clone> Clone for Relay<S> {
-    fn clone(&self) -> Self {
-        Self {
-            id: AtomicU64::new(0),
-            client: self.client.clone(),
-            url: self.url.clone(),
-            signer: self.signer.clone(),
-        }
-    }
-}
 
- */
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -148,15 +136,4 @@ pub(crate) struct SendBundleResponse {
     pub(crate) bundle_hash: Option<BundleHash>,
 }
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct GetBundleStatsParams {
-    pub(crate) bundle_hash: BundleHash,
-    pub(crate) block_number: U64,
-}
 
-#[derive(Serialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct GetUserStatsParams {
-    pub(crate) block_number: U64,
-}

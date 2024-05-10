@@ -105,7 +105,7 @@ impl RequiredStateReader {
         for (address, slot) in required_state.empty_slots.into_iter() {
             let value = U256::ZERO;
 
-            let entry = ret.entry(address).or_insert(AccountState::default());
+            let entry = ret.entry(address).or_default();
             entry.storage.insert(slot.into(), value.into());
         }
 

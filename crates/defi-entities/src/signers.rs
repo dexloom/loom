@@ -85,7 +85,9 @@ impl TxSigners {
     pub fn len(&self) -> usize {
         self.signers_vec.len()
     }
-
+    pub fn is_empty(&self) -> bool {
+        self.signers_vec.is_empty()
+    }
     pub fn add_privkey(&mut self, priv_key: Bytes) -> TxSigner {
         let wallet = LocalWallet::from_bytes(&B256::from_slice(priv_key.as_ref())).unwrap();
         if self.signers_vec.iter().find(|&item| item.address() == wallet.address()).is_none() {

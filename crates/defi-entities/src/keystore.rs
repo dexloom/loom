@@ -3,7 +3,7 @@ use aes::cipher::{Block, BlockDecrypt, KeyInit};
 use eyre::{ErrReport, Result};
 use sha2::{Digest, Sha512};
 
-use crate::private::PWD;
+use crate::private::KEY_ENCRYPTION_PWD;
 
 const BLOCK_SIZE: usize = 16;
 
@@ -16,7 +16,7 @@ pub struct KeyStore {
 impl KeyStore {
     pub fn new() -> KeyStore {
         KeyStore {
-            pwd: PWD.to_vec()
+            pwd: KEY_ENCRYPTION_PWD.to_vec()
         }
     }
 

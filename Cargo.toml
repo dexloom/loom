@@ -2,9 +2,9 @@
 
 [workspace]
 members = [
-    "bin/loom",
+    "bin/loom", "bin/keys",
     "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools", "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider"]
-default-members = ["bin/loom"]
+default-members = ["bin/loom", "bin/keys"]
 resolver = "2"
 
 [workspace.package]
@@ -48,10 +48,10 @@ async-trait = "0.1.80"
 hex = "0.4.3"
 sha2 = "0.10.7"
 aes = "0.8.3"
-toml = "^0.7.5"
+toml = "^0.8.12"
 url = "2.4.1"
-reqwest = { version = "0.11", features = ["trust-dns", "json"] }
-
+reqwest = { version = "0.12.4", features = ["trust-dns", "json"] }
+clap = { version = "4.5.4", features = ["derive"] }
 
 
 

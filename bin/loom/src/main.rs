@@ -5,7 +5,7 @@ use alloy_provider::Provider;
 use eyre::Result;
 use log::{error, info, LevelFilter};
 
-use defi_actors::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateHealthMonitorActor, StuffingTxMonitorActor};
+use defi_actors::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, DiffPathMergerActor, FlashbotsBroadcastActor, SamePathMergerActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 use defi_events::MarketEvents;
 use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, Consumer, Producer};
@@ -213,17 +213,6 @@ async fn main() -> Result<()> {
             worker_task_vec = remaining_futures;
         }
     });
-
-    /*
-    let mut flashbots_tx_broadcaster_actor = FlashbotsBroadcastActor::new(flashbots_client.clone());
-    match flashbots_tx_broadcaster_actor
-        .access(blockchain.latest_block())
-        .consume( blockchain.compose_channel())
-        .start().await {
-        Err(e) => {error!("{}", e)}
-        _=>info!("Flashbots broadcaster actor started successfully")
-    }
-     */
 
 
     let mut s = blockchain.market_events_channel().subscribe().await;

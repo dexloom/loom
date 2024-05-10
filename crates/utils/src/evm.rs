@@ -37,15 +37,15 @@ pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data
     let value = match result {
         ExecutionResult::Success { output, .. } => match output {
             Output::Call(value) => Some(value),
-            _ => None,
+            _ => None
         },
         ExecutionResult::Revert { output, gas_used } => {
             trace!("Revert {} : {:?}", gas_used, output);
             None
         }
-
         _ => None,
     };
+
     match value {
         Some(v) => {
             Ok((v.to_vec(), gas_used))
@@ -78,7 +78,7 @@ pub fn evm_transact(evm: &mut Evm<(), InMemoryDB>, tx: &Transaction) -> Result<(
                     Ok(())
                 }
                 ExecutionResult::Revert { output, gas_used } => {
-                    error!("Revert {output}");
+                    error!("Revert {output} Gas used {gas_used}");
                     Err(eyre!("EXECUTION_REVERTED"))
                 }
                 ExecutionResult::Halt { reason, .. } => {
@@ -188,20 +188,5 @@ fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
             blob_hashes: Vec::new(),
             max_fee_per_blob_gas: None,
         },
-    }
-}
-
-#[cfg(test)]
-mod test
-{
-    use revm::db::{CacheDB, EmptyDB};
-
-    use super::*;
-
-    #[test]
-    fn test_transact() {
-        let db = CacheDB::new(EmptyDB::new());
-        let env = Env::default();
-        //evm_transact(db, env, Address::repeat_byte(1), vec![]);
     }
 }
