@@ -5,7 +5,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag};
 use alloy_rpc_types_trace::geth::AccountState;
 use eyre::Result;
-use log::{debug, error, trace};
+use log::{debug, error, info, trace};
 use revm::db::{AccountState as DbAccountState, Database};
 use revm::InMemoryDB;
 use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};

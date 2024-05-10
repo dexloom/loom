@@ -72,6 +72,10 @@ impl Topology
             topology.clients.insert(name.clone(), provider);
         }
 
+        if topology.clients.is_empty() {
+            return Err(eyre!("NO_CLIENTS_CONNECTED"));
+        }
+
 
         for (k, v) in config.encoders.iter() {
             match v {

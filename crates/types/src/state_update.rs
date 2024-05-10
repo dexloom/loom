@@ -11,7 +11,7 @@ use alloy_rpc_types_trace::geth::GethDebugTracerType::BuiltInTracer;
 use alloy_transport::BoxTransport;
 use eyre::Result;
 use lazy_static::lazy_static;
-use log::trace;
+use log::{info, trace};
 
 use debug_provider::DebugProviderExt;
 
@@ -42,16 +42,6 @@ pub static ref TRACING_CALL_OPTS: GethDebugTracingCallOptions = GethDebugTracing
 
 
 pub async fn debug_trace_block<P: Provider>(client: P, block_id: BlockId, diff_mode: bool) -> eyre::Result<(GethStateUpdateVec, GethStateUpdateVec)> {
-    /*let tracer_opts = GethDebugTracingOptions {
-        tracer: Some(GethDebugTracerType::BuiltInTracer(
-            GethDebugBuiltInTracerType::PreStateTracer,
-        )),
-        config: GethDefaultTracingOptions::default().disable_storage().disable_stack().disable_memory().disable_return_data(),
-        timeout: None,
-        tracer_config: GethDebugTracerConfig::default(),
-    }.prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
-
-     */
     let tracer_opts = GethDebugTracingOptions {
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()
@@ -101,10 +91,10 @@ async fn debug_trace_call<C: DebugProviderExt, T: Into<TransactionRequest> + Sen
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()
     }.with_tracer(BuiltInTracer(PreStateTracer)).prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
-// TODO : Fix parameters
+
 
     let tracer_call_opts = GethDebugTracingCallOptions {
-        tracing_options: tracer_opts,
+        tracing_options: tracer_opts.clone(),
         state_overrides: opts.clone().and_then(|x| x.state_overrides),
         block_overrides: opts.and_then(|x| x.block_overrides),
 
@@ -112,7 +102,7 @@ async fn debug_trace_call<C: DebugProviderExt, T: Into<TransactionRequest> + Sen
 
 
     let trace_result = client.geth_debug_trace_call(req.into(), block, tracer_call_opts).await?;
-    trace!("{:?}", trace_result);
+    info!("{} {} {:?}", tracer_opts.config.is_stack_enabled(), tracer_opts.config.is_storage_enabled(),trace_result);
 
     match trace_result {
         GethTrace::PreStateTracer(geth_trace_frame) => {

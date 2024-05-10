@@ -33,8 +33,8 @@ log.workspace = true
 tokio.workspace = true
 env_logger.workspace = true
 defi-entities.workspace = true
-
 alloy-rpc-client.workspace = true
+alloy-transport.workspace = true
 
 url.workspace = true
 debug-provider.workspace = true

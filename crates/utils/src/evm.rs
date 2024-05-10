@@ -7,7 +7,7 @@ use revm::{Context, EvmContext, Handler, InMemoryDB};
 use revm::db::WrapDatabaseRef;
 use revm::Evm;
 use revm::interpreter::Host;
-use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, ExecutionResult, Output, SHANGHAI, ShanghaiSpec, TransactTo, TxEnv};
+use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, ExecutionResult, Output, SHANGHAI, ShanghaiSpec, SpecId, TransactTo, TxEnv};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();
@@ -18,14 +18,19 @@ pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
 
 pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data_vec: Vec<u8>) -> Result<(Vec<u8>, u64)> {
     let mut env = env;
-
     env.tx.transact_to = TransactTo::Call(transact_to);
     env.tx.data = Bytes::from(call_data_vec);
     env.tx.value = U256::from(0);
 
+    let mut evm = Evm::builder()
+        .with_spec_id(SpecId::SHANGHAI)
+        .with_db(state_db.clone()).with_env(Box::new(env))
+        .build();
 
-    let mut evm = Evm::new(
-        Context { evm: EvmContext::new_with_env(WrapDatabaseRef(state_db), Box::new(env)), external: () }, Handler::mainnet::<ShanghaiSpec>());
+
+    //let mut evm = Evm::new(
+    //    Context { evm: EvmContext::new_with_env(WrapDatabaseRef(state_db), Box::new(env)), external: () }, Handler::mainnet::<ShanghaiSpec>());
+
 
     let ref_tx = evm.transact()?;
     let result = ref_tx.result;
@@ -35,10 +40,12 @@ pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data
 
     // unpack output call enum into raw bytes
     let value = match result {
-        ExecutionResult::Success { output, .. } => match output {
-            Output::Call(value) => Some(value),
-            _ => None
-        },
+        ExecutionResult::Success { output, .. } => {
+            match output {
+                Output::Call(value) => Some(value),
+                _ => None,
+            }
+        }
         ExecutionResult::Revert { output, gas_used } => {
             trace!("Revert {} : {:?}", gas_used, output);
             None

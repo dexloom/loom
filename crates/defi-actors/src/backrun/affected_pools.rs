@@ -10,8 +10,8 @@ use revm::db::{CacheDB, DatabaseCommit, EmptyDB};
 use revm::precompile::Bytes;
 use revm::primitives::{Bytecode, Env, U256};
 
-use defi_entities::{Market, MarketState, PoolProtocol, PoolWrapper};
-use defi_pools::{UniswapV2Pool, UniswapV3Pool};
+use defi_entities::{Market, MarketState, Pool, PoolProtocol, PoolWrapper};
+use defi_pools::{MaverickPool, UniswapV2Pool, UniswapV3Pool};
 use defi_pools::protocols::{UniswapV2Protocol, UniswapV3Protocol};
 use defi_pools::state_readers::{UniswapV2StateReader, UniswapV3StateReader};
 use defi_types::GethStateUpdateVec;
@@ -126,21 +126,17 @@ pub async fn get_affected_pools_from_code<P>(
                                                  */
                                             }
                                             PoolProtocol::Maverick => {
-                                                //TODO : Add maverick
-                                                /*
-                                                let mut pool = MaverickPool::new(*address);
-                                                match pool.fetch_pool_data_evm(&market_state.state_db, env.clone()) {
-                                                    Ok(_) => {
+                                                let mut pool = MaverickPool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
+                                                match pool {
+                                                    Ok(pool) => {
                                                         info!("Maverick Pool loaded {address:?} {}", pool.get_protocol() );
                                                         let swap_directions = pool.get_swap_directions();
-                                                        ret.insert(Arc::new(PoolWrapper::new(Arc::new(pool))), swap_directions);
+                                                        ret.insert(PoolWrapper::new(Arc::new(pool)), swap_directions);
                                                     }
                                                     Err(e) => {
                                                         error!("Error loading Maverick pool @{address:?}: {e}");
                                                     }
                                                 }
-
-                                                 */
                                             }
                                             _ => {
                                                 match UniswapV3Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address) {

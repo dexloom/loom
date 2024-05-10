@@ -33,6 +33,13 @@ impl UniswapV3StateReader {
         Ok(call_return._0)
     }
 
+    pub fn tick_spacing(db: &InMemoryDB, env: Env, pool: Address) -> eyre::Result<u32> {
+        let call_data_result = evm_call(db, env, pool, IUniswapV3Pool::IUniswapV3PoolCalls::tickSpacing(IUniswapV3Pool::tickSpacingCall {}).abi_encode())?.0;
+        let call_return = IUniswapV3Pool::tickSpacingCall::abi_decode_returns(&call_data_result, false)?;
+        Ok(call_return._0 as u32)
+    }
+
+
     /*
 
 

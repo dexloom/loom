@@ -12,6 +12,7 @@ use log::error;
 use tokio::task::JoinHandle;
 
 use debug_provider::DebugProviderExt;
+use defi_abi::maverick::IMaverickPool::IMaverickPoolEvents;
 use defi_abi::uniswap2::IUniswapV2Pair::IUniswapV2PairEvents;
 use defi_abi::uniswap3::IUniswapV3Pool::IUniswapV3PoolEvents;
 use defi_entities::{Market, MarketState, PoolClass};
@@ -23,8 +24,8 @@ fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
     {
         let log_entry: Option<EVMLog> = EVMLog::new(log_entry.address(), log_entry.topics().to_vec(), log_entry.data().data.clone());
         match log_entry {
-            Some(log_entry) => {
-                match IUniswapV3PoolEvents::decode_log(&log_entry.clone(), false) {
+            Some(log_entry) =>
+                match IUniswapV3PoolEvents::decode_log(&log_entry, false) {
                     Ok(event) => {
                         match event.data {
                             IUniswapV3PoolEvents::Swap(_) | IUniswapV3PoolEvents::Mint(_) | IUniswapV3PoolEvents::Burn(_) | IUniswapV3PoolEvents::Initialize(_) => {
@@ -34,13 +35,11 @@ fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
                         }
                     }
                     Err(_) => None
-                }
-                    //TODO : maverick
-                    /*.or_else(|| {
-                    match parse_log::<MaverickPoolEvents>(log_entry.clone()) {
+                }.or_else(|| {
+                    match IMaverickPoolEvents::decode_log(&log_entry, false) {
                         Ok(event) => {
-                            match event {
-                                MaverickPoolEvents::SwapFilter(_) | MaverickPoolEvents::AddLiquidityFilter(_) | MaverickPoolEvents::RemoveLiquidityFilter(_) => {
+                            match event.data {
+                                IMaverickPoolEvents::Swap(_) | IMaverickPoolEvents::AddLiquidity(_) | IMaverickPoolEvents::RemoveLiquidity(_) => {
                                     Some(PoolClass::UniswapV3)
                                 }
                                 _ => None
@@ -48,7 +47,7 @@ fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
                         }
                         Err(_) => None
                     }
-                })*/.or_else(|| {
+                }.or_else(|| {
                     match IUniswapV2PairEvents::decode_log(&log_entry.clone().into(), false) {
                         Ok(event) => {
                             match event.data {
@@ -62,7 +61,7 @@ fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
                             None
                         }
                     }
-                })/*.or_else(|| {
+                }/*).or_else(|| {
             match parse_log::<PancakeV3PoolEvents>(log_entry.clone()) {
                 Ok(event) => {
                     match event {
@@ -74,8 +73,7 @@ fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
                 }
                 Err(_) => None
             }
-        })*/.or_else(|| None)
-            }
+        })*/.or_else(|| None))),
             _ => None
         }
     }
