@@ -22,7 +22,7 @@ pub trait Producer<T>
     where
         T: Sync + Send + Clone
 {
-    fn produce(&mut self, broadcaster: Broadcaster<T>) -> &mut Self {
+    fn produce(&mut self, _broadcaster: Broadcaster<T>) -> &mut Self {
         panic!("Not implemented");
     }
 }

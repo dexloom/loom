@@ -1,163 +1,61 @@
-/*use std::fmt::{Display, Formatter};
+use std::fmt::{Display, Formatter};
+use std::marker::PhantomData;
 use std::sync::Arc;
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, BlockNumber, Bytes, U256};
+use alloy_provider::{Network, Provider};
+use alloy_provider::network::Ethereum;
+use alloy_rpc_types::{BlockId, BlockNumberOrTag};
+use alloy_sol_types::sol_data::Function;
+use alloy_sol_types::SolInterface;
+use alloy_transport::{BoxTransport, Transport};
 use eyre::{eyre, Report, Result};
 use log::{debug, error, trace, warn};
 
-use ethers::abi::{Abi, AbiEncode};
-use ethers::prelude::{abigen, BlockId, BlockNumber, NameOrAddress};
-use ethers::providers::Middleware;
-
-use crate::Convert;
-use crate::erc20::erc20::{ApproveCall, ERC20Calls, TotalSupplyCall};
-
-pub struct CurveProtocol {}
-
-
-abigen!(ICurveFactory, r#"[
-            pool_list(uint256) external view returns (address)
-            pool_count() external view returns (uint256)
-        ]"#);
-
-abigen!(ICurveAddressProvider, r#"[
-            get_address(uint256) external view returns (address)
-        ]"#);
-
-
-abigen!(ICurveCommon, r#"[
-            coins(uint256) external view returns (address)
-            balances(uint256) external view returns (uint256)
-            get_balances() external view returns (bytes)
-        ]"#);
-
-abigen!(ICurveCommonI128, r#"[
-            coins(int128) external view returns (address)
-            balances(int128) external view returns (uint256)
-        ]"#);
-
-abigen!(ICurveI128_2, r#"[
-            get_dy(int128,int128,uint256) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,int128) external view returns (uint256)
-            calc_token_amount(uint256[2],bool) external view returns (uint256)
-            exchange(int128,int128,uint256,uint256) external
-            remove_liquidity_one_coin(uint256,int128,uint256) external
-            add_liquidity(uint256[2],uint256) external
-        ]"#);
-
-
-abigen!(ICurveI128_2_To_Meta, r#"[
-            get_dy(int128,int128,uint256) external view returns (uint256)
-            get_dy_underlying(int128,int128,uint256) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,int128) external view returns (uint256)
-            calc_token_amount(uint256[2],bool) external view returns (uint256)
-            exchange(int128,int128,uint256,uint256,address) external
-            exchange_underlying(int128,int128,uint256,uint256,address) external
-            remove_liquidity_one_coin(uint256,int128,uint256) external
-            add_liquidity(uint256[2],uint256) external
-        ]"#);
-
-abigen!(ICurveI128_2_To, r#"[
-            get_dy(int128,int128,uint256) external view returns (uint256)
-            get_dx(int128,int128,uint256) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,int128) external view returns (uint256)
-            calc_token_amount(uint256[2],bool) external view returns (uint256)
-            exchange(int128,int128,uint256,uint256,address) external
-            remove_liquidity_one_coin(uint256,int128,uint256) external
-            add_liquidity(uint256[2],uint256) external
-        ]"#);
-
-
-abigen!(ICurveI128_3, r#"[
-            get_dy(int128,int128,uint256) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,int128) external view returns (uint256)
-            calc_token_amount(uint256[3],bool) external view returns (uint256)
-            exchange(int128,int128,uint256,uint256) external
-            remove_liquidity_one_coin(uint256,int128,uint256) external
-            add_liquidity(uint256[3],uint256) external
-        ]"#);
-
-abigen!(ICurveI128_4, r#"[
-            get_dy(int128,int128,uint256) external view returns (uint256)
-            calc_token_amount(uint256[4],bool) external view returns (uint256)
-            exchange(int128,int128,uint256,uint256) external
-            add_liquidity(uint256[4],uint256) external
-        ]"#);
-
-abigen!(ICurveU256_2_To, r#"[
-            get_dy(uint256,uint256,uint256) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,int128) external view returns (uint256)
-            calc_token_amount(uint256[2],bool) external view returns (uint256)
-            exchange(uint256,uint256,uint256,uint256,address) external
-            remove_liquidity_one_coin(uint256,uint128,uint256) external
-            add_liquidity(uint256[2],uint256) external
-        ]"#);
-
-abigen!(ICurveU256_2, r#"[
-            get_dy(uint256,uint256,uint256) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,uint256) external view returns (uint256)
-            calc_token_amount(uint256[2]) external view returns (uint256)
-            exchange(uint256,uint256,uint256,uint256) external
-            remove_liquidity_one_coin(uint256,uint256,uint256) external
-            add_liquidity(uint256[2],uint256) external
-        ]"#);
-
-
-abigen!(ICurveU256_2_Eth_To, r#"[
-            get_dy(uint256,uint256,uint256) external view returns (uint256)
-            get_dx(uint256,uint256,uint256) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,int128) external view returns (uint256)
-            calc_token_amount(uint256[2],bool) external view returns (uint256)
-            exchange(uint256,uint256,uint256,uint256,bool,address) external
-            remove_liquidity_one_coin(uint256,uint128,uint256) external
-            add_liquidity(uint256[2],uint256) external
-        ]"#);
-abigen!(ICurveU256_3_Eth, r#"[
-            get_dy(uint256,uint256,uint256) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,int128) external view returns (uint256)
-            calc_token_amount(uint256[3],bool) external view returns (uint256)
-            exchange(uint256,uint256,uint256,uint256,bool) external
-            remove_liquidity_one_coin(uint256,uint256,uint256) external
-            add_liquidity(uint256[3],uint256) external
-        ]"#);
-abigen!(ICurveU256_3_Eth_To, r#"[
-            get_dy(uint256,uint256,uint256) external view returns (uint256)
-            get_dx(uint256,uint256,uint256) external view returns (uint256)
-            calc_token_amount(uint256[3],bool) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,int128) external  view returns (uint256)
-            exchange(uint256,uint256,uint256,uint256,bool,address) external
-            remove_liquidity_one_coin(uint256,uint256,uint256) external
-            add_liquidity(uint256[3],uint256) external
-        ]"#);
-abigen!(ICurveU256_3_Eth_To2, r#"[
-            get_dy(uint256,uint256,uint256) external view returns (uint256)
-            get_dx(uint256,uint256,uint256) external view returns (uint256)
-            calc_token_amount(uint256[3], bool) external view returns (uint256)
-            calc_withdraw_one_coin(uint256,uint256) external  view returns (uint256)
-            exchange(uint256,uint256,uint256,uint256,bool,address) external
-            remove_liquidity_one_coin(uint256,uint256,uint256) external
-            add_liquidity(uint256[3],uint256) external
-        ]"#);
-
+use defi_abi::curve::{ICurveI128_2, ICurveI128_2_To, ICurveI128_2_To_Meta, ICurveI128_3, ICurveI128_4, ICurveU256_2, ICurveU256_2_Eth_To, ICurveU256_2_To, ICurveU256_3_Eth, ICurveU256_3_Eth_To, ICurveU256_3_Eth_To2};
+use defi_abi::curve::ICurveAddressProvider::ICurveAddressProviderInstance;
+use defi_abi::curve::ICurveCommon::ICurveCommonInstance;
+use defi_abi::curve::ICurveCommonI128::ICurveCommonI128Instance;
+use defi_abi::curve::ICurveFactory::{ICurveFactoryCalls, ICurveFactoryInstance};
+use defi_abi::curve::ICurveI128_2::{ICurveI128_2Calls, ICurveI128_2Instance};
+use defi_abi::curve::ICurveI128_2_To::{ICurveI128_2_ToCalls, ICurveI128_2_ToInstance};
+use defi_abi::curve::ICurveI128_2_To_Meta::ICurveI128_2_To_MetaInstance;
+use defi_abi::curve::ICurveI128_3::ICurveI128_3Instance;
+use defi_abi::curve::ICurveI128_4::ICurveI128_4Instance;
+use defi_abi::curve::ICurveU256_2::ICurveU256_2Instance;
+use defi_abi::curve::ICurveU256_2_Eth_To::ICurveU256_2_Eth_ToInstance;
+use defi_abi::curve::ICurveU256_2_To::ICurveU256_2_ToInstance;
+use defi_abi::curve::ICurveU256_3_Eth::ICurveU256_3_EthInstance;
+use defi_abi::curve::ICurveU256_3_Eth_To2::ICurveU256_3_Eth_To2Instance;
+use defi_abi::curve::ICurveU256_3_Eth_To::ICurveU256_3_Eth_ToInstance;
 
 #[derive(Clone)]
-pub enum CurveContract<M>
-    where M: Middleware + 'static
+pub enum CurveContract<P, T, N>
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
 {
-    I128_2(ICurveI128_2<M>),
-    I128_2_To(ICurveI128_2_To<M>),
-    I128_2_To_Meta(ICurveI128_2_To_Meta<M>),
-    I128_3(ICurveI128_3<M>),
-    I128_4(ICurveI128_4<M>),
-    U256_2(ICurveU256_2<M>),
-    U256_2_To(ICurveU256_2_To<M>),
-    U256_2_Eth_To(ICurveU256_2_Eth_To<M>),
-    U256_3_Eth(ICurveU256_3_Eth<M>),
-    U256_3_Eth_To(ICurveU256_3_Eth_To<M>),
-    U256_3_Eth_To2(ICurveU256_3_Eth_To2<M>),
+    I128_2(ICurveI128_2Instance<T, P, N>),
+    I128_2_To(ICurveI128_2_ToInstance<T, P, N>),
+    I128_2_To_Meta(ICurveI128_2_To_MetaInstance<T, P, N>),
+    I128_3(ICurveI128_3Instance<T, P, N>),
+    I128_4(ICurveI128_4Instance<T, P, N>),
+    U256_2(ICurveU256_2Instance<T, P, N>),
+    U256_2_To(ICurveU256_2_ToInstance<T, P, N>),
+    U256_2_Eth_To(ICurveU256_2_Eth_ToInstance<T, P, N>),
+    U256_3_Eth(ICurveU256_3_EthInstance<T, P, N>),
+    U256_3_Eth_To(ICurveU256_3_Eth_ToInstance<T, P, N>),
+    U256_3_Eth_To2(ICurveU256_3_Eth_To2Instance<T, P, N>),
 }
 
-impl<M: Middleware + 'static> Display for CurveContract<M> {
+impl<P, T, N> Display for CurveContract<P, T, N>
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
+
+{
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let contract_type = match self {
             CurveContract::I128_2(_) => "I128_2",
@@ -177,10 +75,25 @@ impl<M: Middleware + 'static> Display for CurveContract<M> {
     }
 }
 
-pub struct CurveCommonContract {}
+pub struct CurveCommonContract<P, T, N>
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
+{
+    p: PhantomData<P>,
+    t: PhantomData<T>,
+    n: PhantomData<N>,
+}
 
-impl CurveCommonContract {
-    pub async fn lp_token<M: Middleware + 'static>(client: Arc<M>, address: Address) -> Result<Address> {
+impl<P, T, N> CurveCommonContract<P, T, N>
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
+
+{
+    pub async fn lp_token(client: P, address: Address) -> Result<Address> {
         if address == "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".parse::<Address>().unwrap() {
             return Ok("0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse::<Address>().unwrap());
         }
@@ -188,14 +101,14 @@ impl CurveCommonContract {
     }
 
 
-    pub async fn coin<M: Middleware + 'static>(client: Arc<M>, address: Address, coin_id: u32) -> Result<Address> {
-        let common_contract = ICurveCommon::new::<ethers::types::Address>(address.convert(), client.clone());
-        match common_contract.coins(coin_id.into()).await {
-            Ok(addr) => Ok(addr.convert()),
+    pub async fn coin(client: P, address: Address, coin_id: u32) -> Result<Address> {
+        let common_contract = ICurveCommonInstance::new(address, client.clone());
+        match common_contract.coins(U256::from(coin_id)).call().await {
+            Ok(addr) => Ok(addr._0),
             Err(e) => {
-                let common_contract = ICurveCommonI128::new::<ethers::types::Address>(address.convert(), client);
-                match common_contract.coins(coin_id.into()).await {
-                    Ok(addr) => Ok(addr.convert()),
+                let common_contract = ICurveCommonI128Instance::new(address, client);
+                match common_contract.coins(coin_id.into()).call().await {
+                    Ok(addr) => Ok(addr._0),
                     Err(e) => {
                         trace!("coin call error {}", e);
                         Err(eyre!("CANNOT_GET_COIN_ADDRESS"))
@@ -205,14 +118,14 @@ impl CurveCommonContract {
         }
     }
 
-    pub async fn balance<M: Middleware + 'static>(client: Arc<M>, address: Address, coin_id: u32) -> Result<U256> {
-        let common_contract = ICurveCommon::new::<ethers::types::Address>(address.convert(), client.clone());
-        match common_contract.balances(coin_id.into()).await {
-            Ok(balance) => Ok(balance.convert()),
+    pub async fn balance(client: P, address: Address, coin_id: u32) -> Result<U256> {
+        let common_contract = ICurveCommonInstance::new(address, client.clone());
+        match common_contract.balances(U256::from(coin_id)).call().await {
+            Ok(balance) => Ok(balance._0),
             Err(e) => {
-                let common_contract = ICurveCommonI128::new::<ethers::types::Address>(address.convert(), client);
-                match common_contract.balances(coin_id.into()).await {
-                    Ok(balance) => Ok(balance.convert()),
+                let common_contract = ICurveCommonI128Instance::new(address, client);
+                match common_contract.balances(coin_id as i128).call().await {
+                    Ok(balance) => Ok(balance._0),
                     Err(e) => {
                         trace!("coin call error {}", e);
                         Err(eyre!("CANNOT_GET_COIN_ADDRESS"))
@@ -221,11 +134,11 @@ impl CurveCommonContract {
             }
         }
     }
-    pub async fn coins<M: Middleware + 'static>(client: Arc<M>, address: Address) -> Result<Vec<Address>> {
+    pub async fn coins(client: P, address: Address) -> Result<Vec<Address>> {
         let mut ret: Vec<Address> = Vec::new();
         for i in 0..4 {
             match Self::coin(client.clone(), address, i).await {
-                Ok(coint_address) => ret.push(coint_address),
+                Ok(coin_address) => ret.push(coin_address),
                 Err(_) => break,
             }
         }
@@ -239,18 +152,18 @@ impl CurveCommonContract {
     }
 
 
-    pub async fn balances<M: Middleware + 'static>(client: Arc<M>, address: Address) -> Result<Vec<U256>> {
+    pub async fn balances(client: P, address: Address) -> Result<Vec<U256>> {
         let mut ret: Vec<U256> = Vec::new();
 
-        let common_contract = ICurveCommon::new::<ethers::types::Address>(address.convert(), client.clone());
-        match common_contract.get_balances().await {
-            Ok(bytes) => {
-                if bytes.len() < 64 {
+        let common_contract = ICurveCommonInstance::new(address, client.clone());
+        match common_contract.get_balances().call().await {
+            Ok(return_bytes) => {
+                if return_bytes._0.len() < 64 {
                     return Err(eyre!("CANNOT_FETCH_BALANCES"));
                 }
-                let balances_count = U256::from_be_slice(&bytes.to_vec()[0..32]);
+                let balances_count = U256::from_be_slice(&return_bytes._0.to_vec()[0..32]);
                 for i in 0usize..balances_count.to() {
-                    let balance = U256::from_be_slice(&bytes.to_vec()[32 + i * 32..64 + i * 32]);
+                    let balance = U256::from_be_slice(&return_bytes._0.to_vec()[32 + i * 32..64 + i * 32]);
                     ret.push(balance)
                 }
                 debug!("Curve Balances {:?} {:?}", address, ret);
@@ -277,247 +190,51 @@ impl CurveCommonContract {
     }
 }
 
-impl<M: Middleware + 'static> CurveContract<M> {
+impl<P, T, N> CurveContract<P, T, N>
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
+{
     pub fn get_address(&self) -> Address {
         match self {
             CurveContract::I128_2(interface) => {
-                interface.address()
+                *interface.address()
             }
+
             CurveContract::I128_2_To_Meta(interface) => {
-                interface.address()
+                *interface.address()
             }
+
             CurveContract::I128_2_To(interface) => {
-                interface.address()
+                *interface.address()
             }
             CurveContract::I128_3(interface) => {
-                interface.address()
+                *interface.address()
             }
             CurveContract::I128_4(interface) => {
-                interface.address()
+                *interface.address()
             }
             CurveContract::U256_2(interface) => {
-                interface.address()
+                *interface.address()
             }
             CurveContract::U256_2_To(interface) => {
-                interface.address()
+                *interface.address()
             }
             CurveContract::U256_2_Eth_To(interface) => {
-                interface.address()
+                *interface.address()
             }
             CurveContract::U256_3_Eth(interface) => {
-                interface.address()
+                *interface.address()
             }
             CurveContract::U256_3_Eth_To(interface) => {
-                interface.address()
+                *interface.address()
             }
             CurveContract::U256_3_Eth_To2(interface) => {
-                interface.address()
+                *interface.address()
             }
-        }.convert()
+        }
     }
-
-    /*
-        pub async fn coins(&self)->Result<Vec<Address>> {
-            let mut coins : Vec<Address> = Vec::new();
-            match &self{
-                CurveContract::I128_2(interface) => {
-                    for i in 0..2 {
-                        match interface.coins(i.into()).call().await {
-                            Ok(addr) => {
-                                coins.push(addr);
-                            }
-                            _=>{
-                                break
-                            }
-                        }
-                    }
-                }
-                CurveContract::I128_2_To_Meta(interface) => {
-                    for i in 0..2 {
-                        match interface.coins(i.into()).call().await {
-                            Ok(addr) => {
-                                coins.push(addr);
-                            }
-                            _=>{
-                                break
-                            }
-                        }
-                    }
-                }
-                CurveContract::I128_2_To(interface) => {
-                    for i in 0..2 {
-                        match interface.coins(i.into()).call().await {
-                            Ok(addr) => {
-                                coins.push(addr);
-                            }
-                            _=>{
-                                break
-                            }
-                        }
-                    }
-                }
-                CurveContract::I128_3(interface) => {
-                    for i in 0..3 {
-                        match interface.coins(i.into()).call().await {
-                            Ok(addr) => {
-                                coins.push(addr);
-                            }
-                            _=>{
-                                break
-                            }
-                        }
-                    }
-                }
-                CurveContract::U256_2_To(interface) => {
-                    for i in 0..2 {
-                        match interface.coins(i.into()).call().await {
-                            Ok(addr) => {
-                                coins.push(addr);
-                            }
-                            _=>{
-                                break
-                            }
-                        }
-                    }
-                }
-                CurveContract::U256_2_Eth_To(interface) => {
-                    for i in 0..2 {
-                        match interface.coins(i.into()).call().await {
-                            Ok(addr) => {
-                                coins.push(addr);
-                            }
-                            _=>{
-                                break
-                            }
-                        }
-                    }
-                }
-                CurveContract::U256_3_Eth(interface) => {
-                    for i in 0..3 {
-                        match interface.coins(i.into()).call().await {
-                            Ok(addr) => {
-                                coins.push(addr);
-                            }
-                            _=>{
-                                break
-                            }
-                        }
-                    }
-                }
-                CurveContract::U256_3_Eth_To(interface) => {
-                    for i in 0..3 {
-                        match interface.coins(i.into()).call().await {
-                            Ok(addr) => {
-                                coins.push(addr);
-                            }
-                            _=>{
-                                break
-                            }
-                        }
-                    }
-                }
-                _=>{
-                    return Err(eyre!("NOT_IMPLEMENTED"));
-                }
-            }
-
-            Ok(coins)
-        }
-     */
-
-    /*
-        pub async fn balances(&self)->Result<Vec<U256>> {
-            match self {
-                CurveContract::I128_3(interface)=>{
-                    let mut balances : Vec<U256> = Vec::new();
-                    for i in 0..3 {
-                        match interface.balances(i.into()).await {
-                            Ok(x)=>balances.push(x),
-                            Err(e)=>{
-                                return Err(eyre!("CURVE_BALANCE_CALL_FAILED"))
-                            }
-                        }
-                    }
-                    Ok(balances)
-
-                }
-                CurveContract::I128_2(interface)=>{
-                    let mut balances : Vec<U256> = Vec::new();
-                    for i in 0..2 {
-                        match interface.balances(i.into()).await {
-                            Ok(x)=>balances.push(x),
-                            Err(e)=>{
-                                return Err(eyre!("CURVE_BALANCE_CALL_FAILED"))
-                            }
-                        }
-                    }
-                    Ok(balances)
-                }
-                CurveContract::I128_2_To_Meta(interface)=>{
-                    match interface.get_balances().await {
-                        Ok(x)=>Ok(x.to_vec()),
-                        Err(e)=>return Err(eyre!("CURVE_BALANCE_CALL_FAILED"))
-                    }
-                }
-                CurveContract::I128_2_To(interface)=>{
-                    match interface.get_balances().await {
-                        Ok(x)=>Ok(x.to_vec()),
-                        Err(e)=>return Err(eyre!("CURVE_BALANCE_CALL_FAILED"))
-                    }
-                }
-                CurveContract::U256_2_To(interface)=>{
-                    let mut balances : Vec<U256> = Vec::new();
-                    for i in 0..2 {
-                        match interface.balances(i.into()).await {
-                            Ok(x)=>balances.push(x),
-                            Err(e)=>{
-                                return Err(eyre!("CURVE_BALANCE_CALL_FAILED"))
-                            }
-                        }
-                    }
-                    Ok(balances)
-                }
-                CurveContract::U256_2_Eth_To(interface)=>{
-                    let mut balances : Vec<U256> = Vec::new();
-                    for i in 0..2 {
-                        match interface.balances(i.into()).await {
-                            Ok(x)=>balances.push(x),
-                            Err(e)=>{
-                                return Err(eyre!("CURVE_BALANCE_CALL_FAILED"))
-                            }
-                        }
-                    }
-                    Ok(balances)
-                }
-                CurveContract::U256_3_Eth(interface)=>{
-                    let mut balances : Vec<U256> = Vec::new();
-                    for i in 0..3 {
-                        match interface.balances(i.into()).await {
-                            Ok(x)=>balances.push(x),
-                            Err(e)=>{
-                                return Err(eyre!("CURVE_BALANCE_CALL_FAILED"))
-                            }
-                        }
-                    }
-                    Ok(balances)
-                }
-                CurveContract::U256_3_Eth_To(interface)=>{
-                    let mut balances : Vec<U256> = Vec::new();
-                    for i in 0..3 {
-                        match interface.balances(i.into()).await {
-                            Ok(x)=>balances.push(x),
-                            Err(e)=>{
-                                return Err(eyre!("CURVE_BALANCE_CALL_FAILED"))
-                            }
-                        }
-                    }
-                    Ok(balances)
-                }
-            }
-
-        }
-
-     */
 
 
     pub fn can_exchange_to(&self) -> bool {
@@ -542,72 +259,71 @@ impl<M: Middleware + 'static> CurveContract<M> {
     pub async fn get_dy(&self, i: u32, j: u32, amount: U256) -> Result<U256> {
         match self {
             CurveContract::I128_2(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::I128_2_To(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(i.into(), j.into(), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
             CurveContract::I128_2_To_Meta(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(i.into(), j.into(), amount).call().await {
+                    Ok(x) => Ok(x._0),
+                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
+                }
+            }
+            CurveContract::I128_2_To(interface) => {
+                match interface.get_dy(i.into(), j.into(), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
             CurveContract::I128_3(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(i.into(), j.into(), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
             CurveContract::I128_4(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(i.into(), j.into(), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
             CurveContract::U256_2(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
             CurveContract::U256_2_To(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
             CurveContract::U256_2_Eth_To(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
             CurveContract::U256_3_Eth_To(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
             CurveContract::U256_3_Eth_To2(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
             CurveContract::U256_3_Eth(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount.convert()).call().await {
-                    Ok(x) => Ok(x.convert()),
+                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                    Ok(x) => Ok(x._0),
                     _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
                 }
             }
-
             _ => {
                 Err(eyre!("NOT_IMPLEMENTED"))
             }
@@ -615,290 +331,196 @@ impl<M: Middleware + 'static> CurveContract<M> {
     }
 
     pub fn get_dx_call_data(&self, i: u32, j: u32, amount: U256) -> Result<Bytes> {
-        let amount: ::ethers::types::U256 = amount.convert();
-        let ret: Result<::ethers::types::Bytes, Report> = match self {
-            /*CurveContract::I128_2_To_Meta(interface) => {
-                match interface.get_dx(i.into(), j.into(), amount).calldata() {
-                    Some(x)=>Ok(x),
-                    _=>Err(eyre!("CURVE_DX_CALL_DATA_ERROR"))
-                }
-            }
-             */
+        let ret: Result<Bytes, Report> = match self {
             CurveContract::I128_2_To(interface) => {
-                match interface.get_dx(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DX_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dx(i.into(), j.into(), amount).calldata().clone())
             }
             CurveContract::U256_3_Eth_To(interface) => {
-                match interface.get_dx(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DX_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dx(U256::from(i), U256::from(j), amount).calldata().clone())
             }
             CurveContract::U256_3_Eth_To2(interface) => {
-                match interface.get_dx(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DX_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dx(U256::from(i), U256::from(j), amount).calldata().clone())
             }
             _ => Err(eyre!("CURVE_CANNOT_CALC_DX"))
         };
-        ret.map(|x| x.convert())
+        ret
     }
 
 
     pub fn get_dy_underlying_call_data(&self, i: u32, j: u32, amount: U256) -> Result<Bytes> {
         match self {
             CurveContract::I128_2_To_Meta(interface) => {
-                match interface.get_dy_underlying(i.into(), j.into(), amount.convert()).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_UNDERLYING_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy_underlying(i.into(), j.into(), amount).calldata().clone())
             }
             _ => {
                 Err(eyre!("GET_DY_UNDERLYING_NOT_SUPPORTED"))
             }
-        }.map(|x| x.convert())
+        }
     }
 
     pub fn get_dy_call_data(&self, i: u32, j: u32, amount: U256) -> Result<Bytes> {
-        let amount: ::ethers::types::U256 = amount.convert();
         match self {
             CurveContract::I128_2(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
             }
             CurveContract::I128_2_To_Meta(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
             }
+
             CurveContract::I128_2_To(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
             }
             CurveContract::I128_3(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
             }
             CurveContract::I128_4(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
             }
             CurveContract::U256_2(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
             }
             CurveContract::U256_2_To(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
             }
             CurveContract::U256_2_Eth_To(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
             }
             CurveContract::U256_3_Eth(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
             }
             CurveContract::U256_3_Eth_To(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
             }
             CurveContract::U256_3_Eth_To2(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_DY_CALL_DATA_ERROR"))
-                }
+                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
             }
-        }.map(|x| x.convert())
+        }
     }
 
     pub fn calc_token_amount_call_data(&self, i: u32, amount: U256) -> Result<Bytes> {
-        let amount: ::ethers::types::U256 = amount.convert();
         match self {
             CurveContract::I128_2(interface) => {
-                let mut amounts: [::ethers::types::U256; 2] = Default::default();
+                let mut amounts: [U256; 2] = Default::default();
                 amounts[i as usize] = amount;
-                match interface.calc_token_amount(amounts, true).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_TOKEN_AMOUNT_CALL_DATA_ERROR"))
-                }
+                Ok(interface.calc_token_amount(amounts, true).calldata().clone())
             }
             CurveContract::I128_3(interface) => {
-                let mut amounts: [::ethers::types::U256; 3] = Default::default();
+                let mut amounts: [U256; 3] = Default::default();
                 amounts[i as usize] = amount;
-                match interface.calc_token_amount(amounts, true).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_TOKEN_AMOUNT_CALL_DATA_ERROR"))
-                }
+                Ok(interface.calc_token_amount(amounts, true).calldata().clone())
             }
             CurveContract::I128_4(interface) => {
-                let mut amounts: [::ethers::types::U256; 4] = Default::default();
+                let mut amounts: [U256; 4] = Default::default();
                 amounts[i as usize] = amount;
-                match interface.calc_token_amount(amounts, true).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_TOKEN_AMOUNT_CALL_DATA_ERROR"))
-                }
+                Ok(interface.calc_token_amount(amounts, true).calldata().clone())
             }
             _ => {
                 Err(eyre!("CURVE_TOKEN_AMOUNT_CALL_DATA_NOT_SUPPORTED"))
             }
-        }.map(|x| x.convert())
+        }
     }
 
     pub fn calc_withdraw_one_coin_call_data(&self, i: u32, amount: U256) -> Result<Bytes> {
         match self {
             CurveContract::I128_3(interface) => {
-                match interface.calc_withdraw_one_coin(amount.convert(), i.into()).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_WITHDRAW_ONE_COIN_CALL_DATA_ERROR"))
-                }
+                Ok(interface.calc_withdraw_one_coin(amount, i.into()).calldata().clone())
             }
             _ => {
                 Err(eyre!("CURVE_WITHDRAW_ONE_COIN_NOT_SUPPORTED"))
             }
-        }.map(|x| x.convert())
+        }
     }
 
     pub fn get_exchange_underlying_call_data(&self, i: u32, j: u32, amount: U256, min_dy: U256, to: Address) -> Result<Bytes> {
         match self {
             CurveContract::I128_2_To_Meta(interface) => {
-                match interface.exchange_underlying(i.into(), j.into(), amount.convert(), min_dy.convert(), to.convert()).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange_underlying(i.into(), j.into(), amount, min_dy, to).calldata().clone())
             }
             _ => {
                 Err(eyre!("GET_EXCHANGE_UNDERLYING_CALL_DATA_NOT_SUPPORTED"))
             }
-        }.map(|x| x.convert())
+        }
     }
 
 
     pub fn get_exchange_call_data(&self, i: u32, j: u32, amount: U256, min_dy: U256, to: Address) -> Result<Bytes> {
-        let amount: ::ethers::types::U256 = amount.convert();
-        let min_dy: ::ethers::types::U256 = min_dy.convert();
-        let to: ::ethers::types::Address = to.convert();
         match self {
             CurveContract::I128_2(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
-            }
-            CurveContract::I128_2_To(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy, to).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone())
             }
             CurveContract::I128_2_To_Meta(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy, to).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(i.into(), j.into(), amount, min_dy, to).calldata().clone())
+            }
+            CurveContract::I128_2_To(interface) => {
+                Ok(interface.exchange(i.into(), j.into(), amount, min_dy, to).calldata().clone())
             }
             CurveContract::I128_3(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone())
             }
             CurveContract::I128_4(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone())
             }
             CurveContract::U256_2(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy).calldata().clone())
             }
             CurveContract::U256_2_To(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy, to).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, to).calldata().clone())
             }
             CurveContract::U256_2_Eth_To(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy, false, to).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, false, to).calldata().clone())
             }
             CurveContract::U256_3_Eth(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy, false).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, false).calldata().clone())
             }
             CurveContract::U256_3_Eth_To(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy, false, to).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, false, to).calldata().clone())
             }
             CurveContract::U256_3_Eth_To2(interface) => {
-                match interface.exchange(i.into(), j.into(), amount, min_dy, false, to).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("CURVE_CALL_ERROR"))
-                }
+                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, false, to).calldata().clone())
             }
-        }.map(|x| x.convert())
+        }
     }
 
     pub fn get_add_liquidity_call_data(&self, i: u32, amount: U256, to: Address) -> Result<Bytes> {
         match self {
             CurveContract::I128_3(interface) => {
-                let mut amounts: [::ethers::types::U256; 3] = Default::default();
-                amounts[i as usize] = amount.convert();
-                match interface.add_liquidity(amounts, U256::ZERO.convert()).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("ADD_LIQUIDITY_CALL_ERROR"))
-                }
+                let mut amounts: [U256; 3] = Default::default();
+                amounts[i as usize] = amount;
+                Ok(interface.add_liquidity(amounts, U256::ZERO).calldata().clone())
             }
             _ => { Err(eyre!("ADD_LIQUIDITY_NOT_SUPPORTED")) }
-        }.map(|x| x.convert())
+        }
     }
 
     pub fn get_remove_liquidity_one_coin_call_data(&self, i: u32, amount: U256, to: Address) -> Result<Bytes> {
         match self {
             CurveContract::I128_3(interface) => {
-                match interface.remove_liquidity_one_coin(amount.convert(), i.into(), U256::ZERO.convert()).calldata() {
-                    Some(x) => Ok(x),
-                    _ => Err(eyre!("REMOVE_LIQUIDITY_ONE_COIN_ERROR"))
-                }
+                Ok(interface.remove_liquidity_one_coin(amount, i as i128, U256::ZERO).calldata().clone())
             }
             _ => { Err(eyre!("REMOVE_LIQUIDITY_ONE_COIN_NOT_SUPPORTED")) }
-        }.map(|x| x.convert())
+        }
     }
 }
 
 
-impl CurveProtocol {
+pub struct CurveProtocol<P, N, T>
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
+{
+    p: PhantomData<P>,
+    n: PhantomData<N>,
+    t: PhantomData<T>,
+}
+
+
+impl<P, N, T> CurveProtocol<P, N, T>
+    where
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
+{
     pub fn get_underlying_tokens(meta_token_address: Address) -> Result<Vec<Address>> {
         if meta_token_address == "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse::<Address>().unwrap() {
             Ok(
@@ -921,55 +543,57 @@ impl CurveProtocol {
     }
 
 
-    pub fn new_i128_2<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveI128_2::new::<::ethers::types::Address>(address.convert(), client);
+    pub fn new_i128_2(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveI128_2Instance::new(address, client);
         CurveContract::I128_2(contract)
     }
-
-    pub fn new_i128_2_to<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveI128_2_To::new::<::ethers::types::Address>(address.convert(), client);
-        CurveContract::I128_2_To(contract)
-    }
-    pub fn new_i128_2_to_meta<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveI128_2_To_Meta::new::<::ethers::types::Address>(address.convert(), client);
+    pub fn new_i128_2_to_meta(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveI128_2_To_MetaInstance::new(address, client);
         CurveContract::I128_2_To_Meta(contract)
     }
-    pub fn new_i128_3<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveI128_3::new::<::ethers::types::Address>(address.convert(), client);
+
+    pub fn new_i128_2_to(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveI128_2_To::new(address, client);
+        CurveContract::I128_2_To(contract)
+    }
+    pub fn new_i128_3(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveI128_3::new(address, client);
         CurveContract::I128_3(contract)
     }
-    pub fn new_i128_4<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveI128_4::new::<::ethers::types::Address>(address.convert(), client);
+    pub fn new_i128_4(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveI128_4::new(address, client);
         CurveContract::I128_4(contract)
     }
-    pub fn new_u256_2<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveU256_2::new::<::ethers::types::Address>(address.convert(), client);
+    pub fn new_u256_2(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveU256_2::new(address, client);
         CurveContract::U256_2(contract)
     }
 
-    pub fn new_u256_2_to<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveU256_2_To::new::<ethers::types::Address>(address.convert(), client);
+    pub fn new_u256_2_to(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveU256_2_To::new(address, client);
         CurveContract::U256_2_To(contract)
     }
 
-    pub fn new_u256_2_eth_to<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveU256_2_Eth_To::new::<ethers::types::Address>(address.convert(), client);
+    pub fn new_u256_2_eth_to(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveU256_2_Eth_To::new(address, client);
         CurveContract::U256_2_Eth_To(contract)
     }
 
-    pub fn new_u256_3_eth_to<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveU256_3_Eth_To::new::<ethers::types::Address>(address.convert(), client);
+    pub fn new_u256_3_eth_to(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveU256_3_Eth_To::new(address, client);
         CurveContract::U256_3_Eth_To(contract)
     }
-    pub fn new_u256_3_eth_to2<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveU256_3_Eth_To2::new::<ethers::types::Address>(address.convert(), client);
+    pub fn new_u256_3_eth_to2(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveU256_3_Eth_To2::new(address, client);
         CurveContract::U256_3_Eth_To2(contract)
     }
 
-    pub fn new_u256_3_eth<M: Middleware + 'static>(client: Arc<M>, address: Address) -> CurveContract<M> {
-        let contract = ICurveU256_3_Eth::new::<ethers::types::Address>(address.convert(), client);
+    pub fn new_u256_3_eth(client: P, address: Address) -> CurveContract<P, T, N> {
+        let contract = ICurveU256_3_Eth::new(address, client);
         CurveContract::U256_3_Eth(contract)
     }
+
+
     /*
     I128_3
     0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7 // DAI-USDT-USDC
@@ -989,26 +613,26 @@ impl CurveProtocol {
     0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4 // WETH-WBTC-USDT
      */
 
-    fn match_abi(code: &Bytes, abi: &Abi) -> bool {
+    fn match_abi(code: &Bytes, abi: Vec<[u8; 4]>) -> bool {
         //println!("Code len {}", code.len());
-        for (fn_name, fxs) in abi.functions.iter() {
-            for f in fxs.iter() {
-                if !code.as_ref().windows(4).any(|sig| sig == &f.short_signature()) {
-                    //println!("{} not found", fn_name);
-                    return false;
-                } else {
-                    //println!("{} found", fn_name);
-                }
+        for f in abi.iter() {
+            if !code.as_ref().windows(4).any(|sig| sig == f) {
+                //println!("{} not found", fn_name);
+                return false;
+            } else {
+                //println!("{} found", fn_name);
             }
         }
+
+
         true
     }
 
-    pub async fn get_factory_address<M: Middleware + 'static>(client: Arc<M>, id: u32) -> Result<Address> {
+    pub async fn get_factory_address(client: P, id: u32) -> Result<Address> {
         let address_provider_address: Address = "0x0000000022D53366457F9d5E68Ec105046FC4383".parse().unwrap();
-        let address_provider = ICurveAddressProvider::new::<ethers::types::Address>(address_provider_address.convert(), client);
-        match address_provider.get_address(id.into()).await {
-            Ok(x) => Ok(x.convert()),
+        let address_provider = ICurveAddressProviderInstance::new(address_provider_address, client);
+        match address_provider.get_address(U256::from(id)).call().await {
+            Ok(x) => Ok(x._0),
             Err(e) => {
                 error!("Error getting factory address");
                 Err(eyre!("GET__FACTORY_ADDRESS_ERROR"))
@@ -1016,10 +640,10 @@ impl CurveProtocol {
         }
     }
 
-    pub async fn get_pool_address<M: Middleware + 'static>(client: Arc<M>, factory_address: Address, pool_id: u32) -> Result<Address> {
-        let factory = ICurveFactory::new::<ethers::types::Address>(factory_address.convert(), client);
-        match factory.pool_list(pool_id.into()).await {
-            Ok(x) => Ok(x.convert()),
+    pub async fn get_pool_address(client: P, factory_address: Address, pool_id: u32) -> Result<Address> {
+        let factory = ICurveFactoryInstance::new(factory_address, client);
+        match factory.pool_list(U256::from(pool_id)).call().await {
+            Ok(x) => Ok(x._0),
             Err(e) => {
                 error!("Error getting factory address");
                 Err(eyre!("GET_POOL_ADDRESS_ERROR"))
@@ -1027,10 +651,10 @@ impl CurveProtocol {
         }
     }
 
-    pub async fn get_pool_count<M: Middleware + 'static>(client: Arc<M>, factory_address: Address) -> Result<u32> {
-        let factory = ICurveFactory::new::<ethers::types::Address>(factory_address.convert(), client);
-        match factory.pool_count().await {
-            Ok(x) => Ok(x.as_u32()),
+    pub async fn get_pool_count(client: P, factory_address: Address) -> Result<u32> {
+        let factory = ICurveFactoryInstance::new(factory_address, client);
+        match factory.pool_count().call().await {
+            Ok(x) => Ok(x._0.to()),
             Err(e) => {
                 error!("Error getting pool count");
                 Err(eyre!("GET_POOL_COUNT_ERROR"))
@@ -1039,35 +663,38 @@ impl CurveProtocol {
     }
 
 
-    pub async fn get_contract_from_code<M: Middleware>(client: Arc<M>, address: Address) -> Result<CurveContract<M>> {
+    pub async fn get_contract_from_code(client: P, address: Address) -> Result<CurveContract<P, T, N>> {
         //let sig = ICurveU256_3_EthCalls::Balances(  <ICurveU256_3_Eth<M>>::BalancesCall );
         //let sig = ICurveU256_3_EthCalls::Balances(  BalancesCall{} );
 
-        let mut code = client.get_code::<NameOrAddress>(address.convert(), Some(BlockId::from(BlockNumber::Latest))).await?;
+        let mut code = client.get_code_at(address, BlockId::Number(BlockNumberOrTag::Latest)).await?;
 
         if code.len() < 100 {
             for i in 20..code.len() - 1 {
                 if code[i] == 0x5A && code[i + 1] == 0xF4 {
                     let underlying_address = Address::from_slice(&code.to_vec()[i - 20..i]);
                     println!("Underlying address {}", underlying_address);
-                    code = client.get_code::<NameOrAddress>(underlying_address.convert(), Some(BlockId::from(BlockNumber::Latest))).await?;
+                    code = client.get_code_at(underlying_address, BlockId::Number(BlockNumberOrTag::Latest)).await?;
                     break;
                 }
             }
         }
 
-        let code: Bytes = code.convert();
+        let code: Bytes = code;
 
         if code.len() < 100 {
             return Err(eyre!("CANNOT_FIND_UNDERLYING"));
         }
 
-        if Self::match_abi(&code, &ICURVEI128_2_TO_META_ABI) {
+
+        if Self::match_abi(&code, ICurveI128_2_To_Meta::ICurveI128_2_To_MetaCalls::selectors().into_iter().map(|x| x).collect()) {
             return Ok(Self::new_i128_2_to_meta(client, address));
         }
-        if Self::match_abi(&code, &ICURVEI128_2_TO_ABI) {
+
+        if Self::match_abi(&code, ICurveI128_2_To::ICurveI128_2_ToCalls::selectors().into_iter().collect()) {
             return Ok(Self::new_i128_2_to(client, address));
         }
+        /*
         if Self::match_abi(&code, &ICURVEI128_2_ABI) {
             return Ok(Self::new_i128_2(client, address));
         }
@@ -1096,11 +723,13 @@ impl CurveProtocol {
             return Ok(Self::new_u256_3_eth_to2(client, address));
         }
 
+
+         */
         Err(eyre!("ABI_NOT_FOUND"))
     }
 
 
-    pub fn get_contracts_vec<M: Middleware>(client: Arc<M>) -> Vec<CurveContract<M>> {
+    pub fn get_contracts_vec(client: P) -> Vec<CurveContract<P, T, N>> {
         vec![
             Self::new_i128_3(client.clone(), "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".parse().unwrap()),
             Self::new_i128_2_to(client.clone(), "0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E".parse().unwrap()),
@@ -1115,13 +744,7 @@ impl CurveProtocol {
     }
 
 
-    fn get_abi<M: Middleware + 'static>(client: Arc<M>, address: Address) -> Result<CurveContract<M>> {
-        /*abigen!(ICurve2, r#"[
-            coins(uint256)
-        ]"#);
-         */
+    fn get_abi(client: P, address: Address) -> Result<CurveContract<P, T, N>> {
         Err(eyre!("NE"))
     }
 }
-
-*/

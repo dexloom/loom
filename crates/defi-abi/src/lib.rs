@@ -12,4 +12,6 @@ mod erc20;
 pub mod uniswap_periphery;
 pub mod lido;
 pub mod maverick;
+pub mod curve;
+
 

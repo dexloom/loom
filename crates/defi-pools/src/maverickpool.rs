@@ -427,11 +427,12 @@ mod tests {
     }
 
     async fn setup_ws_node() -> Result<RootProvider<BoxTransport>> {
-        std::env::set_var("RUST_LOG", "debug,defi_entities::market_state=trace,defi_entities::required_state=trace");
+        std::env::set_var("RUST_LOG", "trace");
         std::env::set_var("RUST_BACKTRACE", "1");
         env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
-        
+
         let full_node_url = std::env::var("FULL_NODE_URL").unwrap_or("ws://falcon.loop:8008/looper".to_string());
+        //let full_node_url = std::env::var("FULL_NODE_URL").unwrap_or("ws://helsi.loop:8008/looper".to_string());
         let full_node_url = url::Url::parse(full_node_url.as_str())?;
         let ws_connect = WsConnect::new(full_node_url);
         let full_node_client = ClientBuilder::default().ws(ws_connect).await.unwrap();

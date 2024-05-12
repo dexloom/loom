@@ -5,6 +5,7 @@ use alloy_provider::ext::DebugApi;
 use alloy_provider::network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionRequest};
+use alloy_rpc_types_trace::common::TraceResult;
 use alloy_rpc_types_trace::geth::{AccountState, GethDebugBuiltInTracerType, GethDebugTracerConfig, GethDebugTracerType, GethDebugTracingCallOptions, GethDebugTracingOptions, GethDefaultTracingOptions, GethTrace, PreStateConfig, PreStateFrame};
 use alloy_rpc_types_trace::geth::GethDebugBuiltInTracerType::PreStateTracer;
 use alloy_rpc_types_trace::geth::GethDebugTracerType::BuiltInTracer;
@@ -65,20 +66,22 @@ pub async fn debug_trace_block<P: Provider>(client: P, block_id: BlockId, diff_m
 
 
     for trace_result in trace_result_vec.into_iter() {
-        match trace_result.result {
-            GethTrace::PreStateTracer(geth_trace_frame) => {
-                match geth_trace_frame {
-                    PreStateFrame::Diff(diff_frame) => {
-                        pre.push(diff_frame.pre);
-                        post.push(diff_frame.post);
-                    }
-                    PreStateFrame::Default(diff_frame) => {
-                        pre.push(diff_frame.0.into_iter().collect());
+        if let TraceResult::Success { result, .. } = trace_result {
+            match result {
+                GethTrace::PreStateTracer(geth_trace_frame) => {
+                    match geth_trace_frame {
+                        PreStateFrame::Diff(diff_frame) => {
+                            pre.push(diff_frame.pre);
+                            post.push(diff_frame.post);
+                        }
+                        PreStateFrame::Default(diff_frame) => {
+                            pre.push(diff_frame.0.into_iter().collect());
+                        }
                     }
                 }
-            }
-            _ => {
-                return Err(eyre::eyre!("TRACE_RESULT_FAILED"));
+                _ => {
+                    return Err(eyre::eyre!("TRACE_RESULT_FAILED"));
+                }
             }
         }
     };
@@ -205,9 +208,11 @@ mod test {
         let block = client.get_block_by_number(blocknumber.into(), false).await?.unwrap();
         //let blockhash = block.header.hash.unwrap();
 
-        let ret = client.debug_trace_block_by_number(blocknumber.into(), tracer_opts).await?;
+        //let ret = client.debug_trace_block_by_number(blocknumber.into(), tracer_opts).await?;
         //let blockhash: BlockHash = "0xd16074b40a4cb1e0b24fea1ffb5dcadb7363d38f93a9efa9eb43fc161a7e16f6".parse()?;
         //let ret = client.debug_trace_block_by_hash(blockhash, tracer_opts).await?;
+        let ret = debug_trace_block(client, BlockId::Number(blocknumber.into()), true).await?;
+
         Ok(())
     }
 }
