@@ -19,7 +19,7 @@ use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequir
 use defi_entities::required_state::RequiredState;
 use loom_utils::evm::evm_call;
 
-use crate::protocols::{CurveCommonContract, CurveContract};
+use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};
 
 pub struct CurvePool<P, T, N>
     where
@@ -65,23 +65,6 @@ impl<P, T, N> CurvePool<P, T, N>
         N: Network,
         P: Provider<T, N> + Send + Sync + Clone + 'static
 {
-    pub fn from(pool_contract: CurveContract<P, T, N>) -> CurvePool<P, T, N> {
-        let pool_contract = Arc::new(pool_contract);
-
-        CurvePool {
-            abi_encoder: Arc::new(CurveAbiSwapEncoder::new(pool_contract.get_address(), Vec::new(), None, None, false, false, pool_contract.clone())),
-            address: pool_contract.get_address(),
-            pool_contract,
-            balances: Vec::new(),
-            tokens: Vec::new(),
-            underlying_tokens: Vec::new(),
-            lp_token: None,
-            is_meta: false,
-            is_native: false,
-        }
-    }
-
-
     pub fn get_meta_coin_idx(&self, address: Address) -> Result<u32> {
         match self.get_coin_idx(address) {
             Ok(i) => {
@@ -120,8 +103,11 @@ impl<P, T, N> CurvePool<P, T, N>
     }
 
 
-    pub async fn fetch_pool_data(client: P, address: Address) -> Result<Self> {
-        let mut tokens = CurveCommonContract::coins(client.clone(), address).await?;
+    pub async fn fetch_pool_data(client: P, pool_contract: CurveContract<P, T, N>) -> Result<Self> {
+        let pool_contract = Arc::new(pool_contract);
+
+
+        let mut tokens = CurveCommonContract::coins(client.clone(), pool_contract.get_address()).await?;
         let mut is_native = false;
 
         for tkn in tokens.iter_mut() {
@@ -132,37 +118,48 @@ impl<P, T, N> CurvePool<P, T, N>
             }
         }
 
-        let lp_token = match CurveCommonContract::lp_token(client.clone(), address).await {
+        let lp_token = match CurveCommonContract::lp_token(client.clone(), pool_contract.get_address()).await {
             Ok(lp_token_address) => {
                 Some(lp_token_address)
             }
             Err(_) => None
         };
-        //TODO Fix
-        /*
 
-        match self.pool_contract.as_ref() {
+
+        let (underlying_tokens, is_meta) = match pool_contract.as_ref() {
             CurveContract::I128_2_To_Meta(interface) => {
-                self.underlying_tokens = CurveProtocol::get_underlying_tokens(self.tokens[1])?;
-                self.is_meta = true;
+                (CurveProtocol::<P, N, T>::get_underlying_tokens(tokens[1])?, true)
             }
-            _ => {}
-        }
+            _ => {
+                (vec![], false)
+            }
+        };
 
 
+        let balances = CurveCommonContract::balances(client.clone(), pool_contract.get_address()).await?;
 
-        let balances = CurveCommonContract::balances(client.clone(), self.address).await?;
-
-        let abi_encoder = Arc::new(CurveAbiSwapEncoder::new(self.get_address(),
+        let abi_encoder = Arc::new(CurveAbiSwapEncoder::new(pool_contract.get_address(),
                                                             tokens.clone(),
-                                                            if self.underlying_tokens.len() > 0 { Some(self.underlying_tokens.clone()) } else { None },
+                                                            if underlying_tokens.len() > 0 { Some(underlying_tokens.clone()) } else { None },
                                                             lp_token,
                                                             is_meta,
                                                             is_native,
                                                             pool_contract.clone()));
 
-         */
-        Err(eyre!("NE"))
+
+        let abi_encoder = Arc::new(CurveAbiSwapEncoder::new(pool_contract.get_address(), Vec::new(), None, None, false, false, pool_contract.clone()));
+
+        Ok(CurvePool {
+            address: pool_contract.get_address(),
+            abi_encoder,
+            pool_contract,
+            balances,
+            tokens,
+            underlying_tokens,
+            lp_token,
+            is_meta,
+            is_native,
+        })
     }
 }
 

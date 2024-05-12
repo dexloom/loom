@@ -48,7 +48,7 @@ async fn curve_protocol_loader_worker<P>(
 
     let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
     for curve_contract in curve_contracts.into_iter() {
-        let curve_pool = CurvePool::from(curve_contract);
+        let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
         let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
         match fetch_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
             Err(e) => {
@@ -75,7 +75,7 @@ async fn curve_protocol_loader_worker<P>(
 
                                     match CurveProtocol::get_contract_from_code(client.clone(), addr).await {
                                         Ok(curve_contract) => {
-                                            let curve_pool = CurvePool::from(curve_contract);
+                                            let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
                                             let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
 
                                             match fetch_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
