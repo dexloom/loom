@@ -92,7 +92,7 @@ impl RequiredStateReader {
             }
         }
         for (address, slot) in required_state.slots.into_iter() {
-            let value_result = client.get_storage_at(address, slot, BlockId::Number(block_id)).await;
+            let value_result = client.get_storage_at(address, slot).block_id(BlockId::Number(block_id)).await;
             match value_result {
                 Ok(value) => {
                     let entry = ret.entry(address).or_default();

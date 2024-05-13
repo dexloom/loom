@@ -667,14 +667,14 @@ impl<P, N, T> CurveProtocol<P, N, T>
         //let sig = ICurveU256_3_EthCalls::Balances(  <ICurveU256_3_Eth<M>>::BalancesCall );
         //let sig = ICurveU256_3_EthCalls::Balances(  BalancesCall{} );
 
-        let mut code = client.get_code_at(address, BlockId::Number(BlockNumberOrTag::Latest)).await?;
+        let mut code = client.get_code_at(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await?;
 
         if code.len() < 100 {
             for i in 20..code.len() - 1 {
                 if code[i] == 0x5A && code[i + 1] == 0xF4 {
                     let underlying_address = Address::from_slice(&code.to_vec()[i - 20..i]);
                     println!("Underlying address {}", underlying_address);
-                    code = client.get_code_at(underlying_address, BlockId::Number(BlockNumberOrTag::Latest)).await?;
+                    code = client.get_code_at(underlying_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await?;
                     break;
                 }
             }

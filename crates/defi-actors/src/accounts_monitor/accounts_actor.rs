@@ -31,8 +31,8 @@ pub async fn nonce_and_balance_fetcher_worker<P>(
     loop {
         let accounts = accounts_state.read().await.get_accounts_vec();
         for addr in accounts.into_iter() {
-            let nonce = client.get_transaction_count(addr, BlockId::Number(BlockNumberOrTag::Latest)).await;
-            let balance = client.get_balance(addr, BlockId::Number(BlockNumberOrTag::Latest)).await;
+            let nonce = client.get_transaction_count(addr).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await;
+            let balance = client.get_balance(addr).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await;
 
             match accounts_state.write().await.get_mut_account(&addr) {
                 Some(acc) => {

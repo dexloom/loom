@@ -207,7 +207,7 @@ impl MarketState
         //let acc : Address = account.0.into();
 
         if let Ok(account_info) = self.state_db.load_account(account) {
-            if let Ok(value) = client.get_balance(account, BlockId::Number(BlockNumberOrTag::Latest)).await {
+            if let Ok(value) = client.get_balance(account).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await {
                 if value != account_info.info.balance {
                     trace!("Updating balance {} {} -> {}", account.to_checksum(None), account_info.info.balance, value);
                     account_info.info.balance = value;
@@ -215,7 +215,7 @@ impl MarketState
             }
 
             for (cell, v) in account_info.storage.iter_mut() {
-                if let Ok(value) = client.get_storage_at(account, *cell, BlockId::Number(BlockNumberOrTag::Latest)).await {
+                if let Ok(value) = client.get_storage_at(account, *cell).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await {
                     if value != *v {
                         trace!("Updating storage {} {} {} -> {}", account.to_checksum(None), cell, v, value);
                         *v = value;

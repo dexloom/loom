@@ -1,39 +1,45 @@
-use alloy_primitives::BlockNumber;
-use alloy_provider::{Provider, RootProvider};
+use alloy_primitives::{BlockNumber, U64};
+use alloy_provider::{Network, Provider, RootProvider};
 use alloy_provider::ext::DebugApi;
-use alloy_provider::network::Ethereum;
+use alloy_rpc_client::RpcCall;
 use alloy_rpc_types::{BlockNumberOrTag, TransactionRequest};
 use alloy_rpc_types_trace::geth::{GethDebugTracingCallOptions, GethTrace};
-use alloy_transport::{BoxTransport, TransportResult};
+use alloy_transport::{BoxTransport, Transport, TransportResult};
 use async_trait::async_trait;
 
 #[derive(Clone, Debug)]
-pub struct AnvilDebugProvider
+pub struct AnvilDebugProvider<T, N>
 {
-    _node: RootProvider<BoxTransport>,
-    _anvil: RootProvider<BoxTransport>,
+    _node: RootProvider<T, N>,
+    _anvil: RootProvider<T, N>,
     block_number: BlockNumberOrTag,
 }
 
-impl AnvilDebugProvider
+impl<T, N> AnvilDebugProvider<T, N>
+    where
+        T: Transport + Clone,
+        N: Network
 {
-    pub fn new(_node: RootProvider<BoxTransport>, _anvil: RootProvider<BoxTransport>, block_number: BlockNumberOrTag) -> Self {
+    pub fn new(_node: RootProvider<T, N>, _anvil: RootProvider<T, N>, block_number: BlockNumberOrTag) -> Self {
         Self { _node, _anvil, block_number }
     }
 }
 
 
 #[async_trait]
-impl Provider for AnvilDebugProvider
+impl<T, N> Provider<T, N> for AnvilDebugProvider<T, N>
+    where
+        T: Transport + Clone,
+        N: Network
 {
     #[inline(always)]
-    fn root(&self) -> &RootProvider<BoxTransport, Ethereum> {
+    fn root(&self) -> &RootProvider<T, N> {
         self._node.root()
     }
 
 
-    async fn get_block_number(&self) -> TransportResult<BlockNumber> {
-        self._node.get_block_number().await
+    fn get_block_number(&self) -> RpcCall<T, (), U64, BlockNumber> {
+        self._anvil.get_block_number()
     }
 }
 
@@ -52,7 +58,10 @@ impl DebugProviderExt for RootProvider<BoxTransport> {
 }
 
 #[async_trait]
-impl DebugProviderExt for AnvilDebugProvider {
+impl<T, N> DebugProviderExt for AnvilDebugProvider<T, N>
+    where
+        T: Transport + Clone, N: Network
+{
     async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
         self._node.debug_trace_call(tx, block, trace_options).await
     }

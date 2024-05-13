@@ -33,7 +33,7 @@ async fn preload_market_state<P>(
 
     let multicaller_address: Address = encoder.get_multicaller();
 
-    let multicaller_code = client.get_code_at(multicaller_address, BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
+    let multicaller_code = client.get_code_at(multicaller_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
     let mut state: GethStateUpdate = BTreeMap::new();
 
     state.insert(multicaller_address, AccountState {
@@ -49,8 +49,8 @@ async fn preload_market_state<P>(
         match signers_guard.get_signer_by_index(i) {
             Ok(s) => {
                 let signer_address = s.address();
-                let nonce = client.get_transaction_count(signer_address, BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
-                let balance = client.get_balance(signer_address, BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
+                let nonce = client.get_transaction_count(signer_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
+                let balance = client.get_balance(signer_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
                 debug!("Loading signer {signer_address} {nonce} {balance}");
 
                 state.insert(signer_address, AccountState {

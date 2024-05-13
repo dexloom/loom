@@ -31,7 +31,7 @@ async fn verify_pool_state_task<P: Provider + 'static>(
         if read_only_cell_hash_set.contains(cell) {
             continue;
         }
-        match client.get_storage_at(address, *cell, BlockNumberOrTag::Latest.into()).await {
+        match client.get_storage_at(address, *cell).block_id(BlockNumberOrTag::Latest.into()).await {
             Ok(actual_value) => {
                 if actual_value.is_zero() {
                     continue;

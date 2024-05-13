@@ -71,7 +71,7 @@ pub async fn get_affected_pools_from_code<P>(
                                     Ok(factory_address) => {
                                         if factory_address.is_zero() {
                                             for i in 5u64..8 {
-                                                match client.get_storage_at(*address, U256::from(i), BlockId::Number(BlockNumberOrTag::Latest)).await {
+                                                match client.get_storage_at(*address, U256::from(i)).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await {
                                                     Ok(data) => {
                                                         //info!("---- {} {} {:?}", address, i, data);
                                                         market_state.state_db.insert_account_storage(*address, U256::try_from(i).unwrap(), data);

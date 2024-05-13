@@ -73,28 +73,27 @@ alloy-sol-macro = { version = "0.7.2", features = ["json"] }
 
 alloy-rlp = "0.3.4"
 alloy-trie = "0.3.1"
-alloy-contract = { path = "../alloy/crates/contract" }
-alloy-rpc-client = { path = "../alloy/crates/rpc-client", features = ["ws", "reqwest", "pubsub"] }
-alloy-rpc-types = { path = "../alloy/crates/rpc-types" }
-alloy-rpc-types-anvil = { path = "../alloy/crates/rpc-types-anvil" }
-alloy-rpc-types-trace = { path = "../alloy/crates/rpc-types-trace" }
-alloy-rpc-types-engine = { path = "../alloy/crates/rpc-types-engine" }
-alloy-genesis = { path = "../alloy/crates/genesis" }
-alloy-node-bindings = { path = "../alloy/crates/node-bindings" }
-alloy-provider = { path = "../alloy/crates/provider", default-features = false, features = [
+alloy-contract = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy.git", features = ["ws", "reqwest", "pubsub"], rev = "9d3fa45" }
+alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-rpc-types-anvil = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-rpc-types-trace = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-node-bindings = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45", default-features = false, features = [
     "reqwest", "pubsub", "ws", "ipc"
 ] }
-alloy-eips = { path = "../alloy/crates/eips" }
-alloy-signer = { path = "../alloy/crates/signer" }
-alloy-signer-wallet = { path = "../alloy/crates/signer-wallet" }
-alloy-network = { path = "../alloy/crates/network" }
-alloy-consensus = { path = "../alloy/crates/consensus" }
-alloy-transport = { path = "../alloy/crates/transport" }
-alloy-pubsub = { path = "../alloy/crates/pubsub" }
-alloy-transport-ws = { path = "../alloy/crates/transport-ws" }
-alloy-transport-ipc = { path = "../alloy/crates/transport-ipc" }
-alloy-json-rpc = { path = "../alloy/crates/json-rpc" }
+alloy-eips = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-signer = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-signer-wallet = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-network = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-transport = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-pubsub = { git = "https://github.com/alloy-rs/alloy.git", rev = "9d3fa45" }
+alloy-transport-ws = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-transport-ipc = { git = "https://github.com/alloy-rs/alloy", rev = "9d3fa45" }
+alloy-json-rpc = { git = "https://github.com/alloy-rs/alloy.git", rev = "9d3fa45" }
 
 [patch.crates-io]
-
 

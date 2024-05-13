@@ -152,7 +152,7 @@ impl UniswapV2Pool {
         //let mut h = [0u8;32] = U256::from(8).to_be_bytes();
 
 
-        let storage_reserves_cell = client.get_storage_at(address, U256::from(8), BlockNumberOrTag::Latest.into()).await.unwrap();
+        let storage_reserves_cell = client.get_storage_at(address, U256::from(8)).block_id(BlockNumberOrTag::Latest.into()).await.unwrap();
 
         let storage_reserves = Self::storage_to_reserves(storage_reserves_cell);
 
