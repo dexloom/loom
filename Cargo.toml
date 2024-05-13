@@ -56,14 +56,14 @@ clap = { version = "4.5.4", features = ["derive"] }
 
 
 
-revm = { version = "8.0.0", features = [
+revm = { version = "9.0.0", features = [
     "std",
     "secp256k1",
 ], default-features = false }
 revm-primitives = { version = "3.1.0", features = [
     "std",
 ], default-features = false }
-revm-inspectors = { git = "https://github.com/paradigmxyz/evm-inspectors", rev = "735f67c" }
+revm-inspectors = { git = "https://github.com/paradigmxyz/evm-inspectors", rev = "29b5937" }
 
 alloy-chains = "0.1.15"
 alloy-primitives = "0.7.2"

@@ -63,7 +63,7 @@ pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data
 
 pub fn evm_transact(evm: &mut Evm<(), InMemoryDB>, tx: &Transaction) -> Result<()>
 {
-    let env = evm.env_mut();
+    let env = evm.context.env_mut();
 
     env.tx.transact_to = TransactTo::Call(tx.to.unwrap());
     env.tx.nonce = Some(tx.nonce);
@@ -194,6 +194,8 @@ fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
             gas_priority_fee: tx.max_priority_fee_per_gas.map(|x| U256::from(x)),
             blob_hashes: Vec::new(),
             max_fee_per_blob_gas: None,
+            eof_initcodes: vec![],
+            eof_initcodes_hashed: Default::default(),
         },
     }
 }

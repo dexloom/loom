@@ -108,7 +108,7 @@ mod test {
         let contract: Address = "0x90e7a93e0a6514cb0c84fc7acc1cb5c0793352d2".parse()?;
         let location: U256 = U256::from(0);
 
-        let cell0 = client.get_storage_at(contract, location, BlockNumberOrTag::Latest.into()).await?;
+        let cell0 = client.get_storage_at(contract, location).block_id(BlockNumberOrTag::Latest.into()).await?;
         println!("{} {}", block_number, cell0);
 
         match client.geth_debug_trace_call(TransactionRequest::default(), BlockNumberOrTag::Latest, GethDebugTracingCallOptions::default()).await {
