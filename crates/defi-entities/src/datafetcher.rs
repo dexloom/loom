@@ -4,6 +4,7 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use eyre::Result;
+use log::error;
 use tokio::sync::RwLock;
 
 use crate::FetchState::Fetching;
@@ -57,7 +58,9 @@ impl<K, V, > DataFetcher<K, V>
 
         tokio::task::spawn(async move {
             let mut write_guard = lock_clone.write().await;
-            tx.send(true);
+            if let Err(e) = tx.send(true) {
+                error!("{}", e)
+            }
             let fetched_data = fx(key).await;
 
             match fetched_data {
@@ -70,7 +73,9 @@ impl<K, V, > DataFetcher<K, V>
             }
         });
 
-        rx.await;
+        if let Err(e) = rx.await {
+            error!("{}", e)
+        };
         FetchState::Fetching(lock)
     }
 

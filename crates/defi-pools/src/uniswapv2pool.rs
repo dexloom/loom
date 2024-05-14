@@ -1,27 +1,17 @@
-use std::borrow::Borrow;
-use std::collections::BTreeMap;
-use std::error::Error;
-use std::fmt::Debug;
-use std::pin::Pin;
-use std::sync::Arc;
-
-use alloy_primitives::{Address, BlockNumber, Bytes, U256};
+use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
-use alloy_rpc_types::{BlockId, BlockNumberOrTag};
-use alloy_sol_types::{SolCall, SolInterface};
-use async_trait::async_trait;
+use alloy_rpc_types::BlockNumberOrTag;
+use alloy_sol_types::SolInterface;
 use eyre::{ErrReport, eyre, Result};
 use lazy_static::lazy_static;
 use log::debug;
-use revm::{Database, db::{CacheDB, DatabaseCommit, DatabaseRef, EmptyDB}, InMemoryDB, primitives::U256 as rU256};
-use revm::primitives::{Bytecode, Env};
+use revm::{DatabaseRef, InMemoryDB};
+use revm::primitives::Env;
 
 use defi_abi::IERC20;
 use defi_abi::uniswap2::IUniswapV2Pair;
-use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
-use defi_entities::required_state::{RequiredState, RequiredStateReader};
-use defi_types::GethStateUpdate;
-use loom_utils::evm::evm_call;
+use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use defi_entities::required_state::RequiredState;
 
 use crate::state_readers::UniswapV2StateReader;
 
@@ -238,7 +228,7 @@ impl Pool for UniswapV2Pool
                             (reserves.1, reserves.0)
                         }
                     }
-                    Err(e) => {
+                    Err(_) => {
                         return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
                     }
                 }
@@ -286,7 +276,7 @@ impl Pool for UniswapV2Pool
                             (reserves.1, reserves.0)
                         }
                     }
-                    Err(e) => {
+                    Err(_) => {
                         return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
                     }
                 }

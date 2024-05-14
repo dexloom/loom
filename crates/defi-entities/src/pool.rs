@@ -30,11 +30,11 @@ impl Pool for EmptyPool {
         self.address
     }
 
-    fn calculate_out_amount(&self, state: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(&self, _state: &InMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _in_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    fn calculate_in_amount(&self, state: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
+    fn calculate_in_amount(&self, _state: &InMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _out_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
@@ -108,7 +108,6 @@ impl Display for PoolProtocol {
             Self::LidoWstEth => "WstEth",
             Self::LidoStEth => "StEth",
             Self::RocketEth => "RocketEth",
-            _ => { "Unknown" }
         };
         write!(f, "{}", protocol_name)
     }
@@ -218,7 +217,7 @@ pub trait Pool: Sync + Send
     }
 
     fn get_swap_directions(&self) -> Vec<(Address, Address)> {
-        return Vec::new();
+        Vec::new()
     }
 
     fn calculate_out_amount(&self, state: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport>;
@@ -229,7 +228,7 @@ pub trait Pool: Sync + Send
     fn can_flash_swap(&self) -> bool;
 
     fn can_calculate_in_amount(&self) -> bool {
-        return true;
+        true
     }
 
 
@@ -272,10 +271,10 @@ pub enum PreswapRequirement {
 }
 
 pub trait AbiSwapEncoder {
-    fn encode_swap_in_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_in_amount_provided(&self, _token_from_address: Address, _token_to_address: Address, _amount: U256, _recipient: Address, _payload: Bytes) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
-    fn encode_swap_out_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_out_amount_provided(&self, _token_from_address: Address, _token_to_address: Address, _amount: U256, _recipient: Address, _payload: Bytes) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
     fn preswap_requirement(&self) -> PreswapRequirement {
@@ -286,22 +285,22 @@ pub trait AbiSwapEncoder {
         false
     }
 
-    fn swap_in_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }
-    fn swap_out_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }
-    fn swap_out_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_out_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }
-    fn swap_in_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_in_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }
-    fn swap_out_amount_return_script(&self, token_from_address: Address, token_to_address: Address) -> Option<Bytes> {
+    fn swap_out_amount_return_script(&self, _token_from_address: Address, _token_to_address: Address) -> Option<Bytes> {
         None
     }
-    fn swap_in_amount_return_script(&self, token_from_address: Address, token_to_address: Address) -> Option<Bytes> {
+    fn swap_in_amount_return_script(&self, _token_from_address: Address, _token_to_address: Address) -> Option<Bytes> {
         None
     }
 }

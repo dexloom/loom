@@ -1,20 +1,14 @@
-use std::collections::BTreeMap;
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::sync::Arc;
-
-use alloy_primitives::{Address, BlockHash, BlockNumber, U256};
-use alloy_rpc_types::{Block, Header, Log};
+use alloy_primitives::{Address, BlockHash, BlockNumber};
+use alloy_rpc_types::{Block, Header};
 use async_trait::async_trait;
-use eyre::{eyre, Result};
-use log::{debug, error, info, trace, warn};
+use eyre::Result;
+use log::{debug, error, info, trace};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
-use tokio::sync::RwLock;
 
 use defi_entities::{BlockHistory, LatestBlock, MarketState};
 use defi_events::{BlockLogsUpdate, BlockStateUpdate, MarketEvents};
-use defi_types::{ChainParameters, GethStateUpdateVec};
+use defi_types::ChainParameters;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
@@ -32,7 +26,7 @@ pub async fn new_block_history_worker(
 {
     loop {
         tokio::select! {
-            mut msg = block_header_update_rx.recv() => {
+            msg = block_header_update_rx.recv() => {
                 debug!("Block Header Update");
                 let block_update : Result<Header, RecvError>  = msg;
                 match block_update {
@@ -66,7 +60,7 @@ pub async fn new_block_history_worker(
                 }
             }
 
-            mut msg = block_update_rx.recv() => {
+            msg = block_update_rx.recv() => {
                 debug!("Block Update");
                 let block_update : Result<Block, RecvError>  = msg;
                 match block_update {
@@ -91,7 +85,7 @@ pub async fn new_block_history_worker(
                     }
                 }
             }
-            mut msg = log_update_rx.recv() => {
+            msg = log_update_rx.recv() => {
                 debug!("Log update");
 
                 let log_update : Result<BlockLogsUpdate, RecvError>  = msg;
@@ -117,18 +111,18 @@ pub async fn new_block_history_worker(
                 }
 
             }
-            mut msg = state_update_rx.recv() => {
+            msg = state_update_rx.recv() => {
                 // todo(Make getting market state from previous block)
                 debug!("Block State update");
                 let state_update_msg : Result<BlockStateUpdate, RecvError> = msg;
                 match state_update_msg {
                     Ok(msg) => {
                         let block_hash : BlockHash = msg.block_hash;
-                        let (latest_number, latest_hash) = latest_block.read().await.number_and_hash();
+                        let (latest_number, _) = latest_block.read().await.number_and_hash();
 
                         latest_block.write().await.update(latest_number, block_hash, None, None, None, Some(msg.state_update.clone()) );
 
-                        let mut new_market_state_db = market_state.read().await.state_db.clone();
+                        let new_market_state_db = market_state.read().await.state_db.clone();
 
                         let add_state_diff_result= block_history.write().await.add_state_diff(block_hash, new_market_state_db, msg.state_update.clone());
 
@@ -181,10 +175,14 @@ pub async fn new_block_history_worker(
                                         for (slot, value) in account_state.storage.iter() {
                                             if market_state.read().await.is_force_insert(&address ) {
                                                 trace!("Force slot updated {:#20x} {} {}", address, slot, value);
-                                                new_market_state_db.insert_account_storage(address, (*slot).into(), (*value).into());
+                                                if let Err(e) = new_market_state_db.insert_account_storage(address, (*slot).into(), (*value).into()) {
+                                                    error!("{}", e)
+                                                }
                                             }else if market_state.read().await.is_slot(&address, &(*slot).into() ) {
                                                 trace!("Slot updated {:#20x} {} {}", address, slot, value);
-                                                new_market_state_db.insert_account_storage(address, (*slot).into(), (*value).into());
+                                                if let Err(e) = new_market_state_db.insert_account_storage(address, (*slot).into(), (*value).into()) {
+                                                    error!("{}", e)
+                                                }
                                             }
                                         }
                                     }

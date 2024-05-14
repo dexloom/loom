@@ -6,7 +6,7 @@ use alloy_rpc_types::Transaction;
 use revm::InMemoryDB;
 use revm::primitives::Env;
 
-use defi_entities::{PoolWrapper, SwapLine};
+use defi_entities::PoolWrapper;
 use defi_types::GethStateUpdateVec;
 use loom_utils::evm::env_for_block;
 
@@ -92,26 +92,5 @@ impl MessageSearcherPoolStateUpdate
 
     pub fn stuffing_tx_hash(&self) -> TxHash {
         self.stuffing_txs_hashes.first().cloned().unwrap_or_default()
-    }
-}
-
-#[derive(Clone)]
-pub struct MessageBackrunCalculation(SwapLine, Option<Vec<TxHash>>);
-
-impl MessageBackrunCalculation {
-    pub fn new(swap_path: SwapLine, stuffing: Option<Vec<TxHash>>) -> MessageBackrunCalculation {
-        MessageBackrunCalculation(swap_path, stuffing)
-    }
-
-    pub fn swap_path(&self) -> &SwapLine {
-        &self.0
-    }
-
-    pub fn has_stuffing(&self) -> bool {
-        self.1.clone().map_or_else(|| false, |item| item.len() > 0)
-    }
-
-    pub fn stuffing_txs(&self) -> Vec<TxHash> {
-        self.1.clone().unwrap_or(Vec::new())
     }
 }

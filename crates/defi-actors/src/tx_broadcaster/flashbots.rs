@@ -5,7 +5,7 @@ use alloy_primitives::{Bytes, U256};
 use alloy_provider::Provider;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
-use log::{error, warn};
+use log::error;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
@@ -13,7 +13,7 @@ use defi_entities::LatestBlock;
 use defi_events::{MessageTxCompose, RlpState, TxCompose, TxComposeBest, TxComposeData};
 use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
-use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_actors_macros::{Accessor, Consumer};
 
 async fn broadcast_task<P>(
     broadcast_request: TxComposeData,
@@ -50,7 +50,7 @@ async fn broadcast_task<P>(
 async fn flashbots_broadcaster_worker<P>(
     client: Arc<Flashbots<P>>,
     smart_mode: bool,
-    latest_block: SharedState<LatestBlock>,
+    //latest_block: SharedState<LatestBlock>,
     mut bundle_rx: Receiver<MessageTxCompose>,
 ) -> WorkerResult
     where
@@ -125,7 +125,7 @@ impl<P> FlashbotsBroadcastActor<P>
     pub fn new(client: Flashbots<P>, smart: bool) -> FlashbotsBroadcastActor<P> {
         FlashbotsBroadcastActor {
             client: Arc::new(client),
-            smart: false,
+            smart,
             latest_block: None,
             tx_compose_channel_rx: None,
         }
@@ -142,7 +142,7 @@ impl<P> Actor for FlashbotsBroadcastActor<P>
             flashbots_broadcaster_worker(
                 self.client.clone(),
                 self.smart,
-                self.latest_block.clone().unwrap(),
+                //self.latest_block.clone().unwrap(),
                 self.tx_compose_channel_rx.clone().unwrap().subscribe().await,
             )
         );

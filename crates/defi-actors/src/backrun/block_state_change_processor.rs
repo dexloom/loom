@@ -1,11 +1,5 @@
-use std::fmt::Debug;
-use std::sync::Arc;
-
-use alloy_primitives::{BlockHash, BlockNumber, U256};
-use alloy_provider::Provider;
 use async_trait::async_trait;
 use log::{debug, error};
-use revm::db::{Database, DatabaseRef};
 use tokio::sync::broadcast::Receiver;
 
 use defi_entities::{BlockHistory, Market};
@@ -20,7 +14,7 @@ pub async fn block_state_change_worker(
     market: SharedState<Market>,
     block_history: SharedState<BlockHistory>,
     mut market_events_rx: Receiver<MarketEvents>,
-    mut state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
+    state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
 ) -> WorkerResult
 {
     //let mut block_number;
@@ -35,6 +29,7 @@ pub async fn block_state_change_worker(
                     Ok(market_event) =>{
                         match market_event {
                             MarketEvents::BlockHeaderUpdate{block_number, block_hash, timestamp, base_fee, next_base_fee } =>{
+                                debug!("Block header update {} {} ts {} base_fee {} next {} ", block_number, block_hash, timestamp, base_fee, next_base_fee);
                                 /*block_number = block_number;
                                 block_hash = block_hash;
                                 block_time = new_block_time;
@@ -89,7 +84,9 @@ pub async fn block_state_change_worker(
                             _=>{}
                         }
                     }
-                    Err(e)=>{}
+                    Err(e)=>{
+                        error!("{}",e)
+                    }
                 }
             }
         }
@@ -98,9 +95,8 @@ pub async fn block_state_change_worker(
 
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct BlockStateChangeProcessorActor<P>
+pub struct BlockStateChangeProcessorActor
 {
-    client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
@@ -111,13 +107,11 @@ pub struct BlockStateChangeProcessorActor<P>
     state_updates_tx: Option<Broadcaster<MessageSearcherPoolStateUpdate>>,
 }
 
-impl<P> BlockStateChangeProcessorActor<P>
-    where
-        P: Provider + Send + Sync + Clone + 'static,
+impl BlockStateChangeProcessorActor
 {
-    pub fn new(client: P) -> BlockStateChangeProcessorActor<P> {
+    pub fn new() -> BlockStateChangeProcessorActor {
         BlockStateChangeProcessorActor {
-            client,
+            //client,
             market: None,
             block_history: None,
             market_events_rx: None,
@@ -127,9 +121,7 @@ impl<P> BlockStateChangeProcessorActor<P>
 }
 
 #[async_trait]
-impl<P> Actor for BlockStateChangeProcessorActor<P>
-    where
-        P: Provider + Send + Sync + Clone + 'static,
+impl Actor for BlockStateChangeProcessorActor
 {
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(

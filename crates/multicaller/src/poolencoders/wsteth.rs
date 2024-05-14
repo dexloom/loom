@@ -24,7 +24,7 @@ impl WstEthSwapEncoder {
         if token_from_address == *WETH_ADDRESS && token_to_address == *WSTETH_ADDRESS {
             match amount_in {
                 SwapAmountType::Set(amount) => {
-                    let mut weth_withdraw_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
+                    let weth_withdraw_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
                     let mut swap_opcode = Opcode::new_call_with_value(pool_address,
                                                                       &pool_encoder.encode_swap_in_amount_provided(token_from_address, token_to_address, amount, multicaller, Bytes::new())?, amount);
                     if next_pool.is_some() {
@@ -101,7 +101,7 @@ impl WstEthSwapEncoder {
         {
             match amount_in {
                 SwapAmountType::Set(amount) => {
-                    let mut steth_approve_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_erc20_approve(token_to_address, amount));
+                    let steth_approve_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_erc20_approve(token_to_address, amount));
                     let mut swap_opcode = Opcode::new_call(pool_address,
                                                            &pool_encoder.encode_swap_in_amount_provided(token_from_address, token_to_address, amount, multicaller, Bytes::new())?);
 

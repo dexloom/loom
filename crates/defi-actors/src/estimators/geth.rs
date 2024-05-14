@@ -2,12 +2,11 @@ use std::sync::Arc;
 
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_eips::eip2930::AccessList;
-use alloy_primitives::{Address, Bytes, TxKind, U256};
+use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
-use alloy_rpc_types::{ConversionError, TransactionInput, TransactionRequest};
+use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use async_trait::async_trait;
-use eyre::{ContextCompat, eyre, Result};
+use eyre::{eyre, Result};
 use log::{debug, error, info};
 use rand::random;
 use tokio::sync::broadcast::error::RecvError;
@@ -16,8 +15,8 @@ use tokio::sync::broadcast::Receiver;
 use defi_entities::{GasStation, NWETH};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use flashbots::Flashbots;
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
-use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
+use loom_actors_macros::{Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 
 async fn estimator_task<P: Provider + Send + Sync + Clone + 'static>(
@@ -114,7 +113,7 @@ async fn estimator_task<P: Provider + Send + Sync + Clone + 'static>(
                         let tips_pct = estimate_request.tips_pct.unwrap_or(8000);
 
 
-                        let mut tips = (profit_eth - gas_cost) * U256::from((tips_pct + rnd)) / U256::from(10000);
+                        let mut tips = (profit_eth - gas_cost) * U256::from(tips_pct + rnd) / U256::from(10000);
                         let min_balance = token_in.calc_token_value_from_eth(gas_cost + tips).unwrap();
 
                         if !token_in.is_weth() && (tips > ((estimate_request.eth_balance * U256::from(9000)) / U256::from(10000))) {
@@ -230,7 +229,7 @@ async fn estimator_worker<P: Provider + Send + Sync + Clone + 'static>(
     }
 }
 
-#[derive(Accessor, Consumer, Producer)]
+#[derive(Consumer, Producer)]
 pub struct GethEstimatorActor<P>
 {
     client: Arc<Flashbots<P>>,

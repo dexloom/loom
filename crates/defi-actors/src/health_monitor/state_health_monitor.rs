@@ -1,8 +1,7 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
-use alloy_primitives::{Address, B256, U256};
+use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Local};
@@ -10,12 +9,11 @@ use eyre::Result;
 use log::{error, info, warn};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
-use tokio::task::JoinHandle;
 
 use defi_entities::MarketState;
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
-use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_actors_macros::{Accessor, Consumer};
 
 async fn verify_pool_state_task<P: Provider + 'static>(
     client: P,
@@ -46,7 +44,7 @@ async fn verify_pool_state_task<P: Provider + 'static>(
                 }
             }
             Err(e) => {
-                error!("Cannot read storage {:?} {:?}", account, cell)
+                error!("Cannot read storage {:?} {:?} : {}", account, cell, e)
             }
         }
     }
@@ -56,7 +54,7 @@ async fn verify_pool_state_task<P: Provider + 'static>(
 
 pub async fn state_health_monitor_worker<P: Provider + Clone + 'static>(
     client: P,
-    mut market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState>,
     mut tx_compose_channel_rx: Receiver<MessageTxCompose>,
     mut market_events_rx: Receiver<MarketEvents>,
 ) -> WorkerResult
@@ -66,7 +64,7 @@ pub async fn state_health_monitor_worker<P: Provider + Clone + 'static>(
 
     loop {
         tokio::select! {
-            mut msg = market_events_rx.recv() => {
+            msg = market_events_rx.recv() => {
                 let market_event_msg : Result<MarketEvents, RecvError> = msg;
                 match market_event_msg {
                     Ok(market_event)=>{
@@ -91,7 +89,7 @@ pub async fn state_health_monitor_worker<P: Provider + Clone + 'static>(
                 }
             },
 
-            mut msg = tx_compose_channel_rx.recv() => {
+            msg = tx_compose_channel_rx.recv() => {
                 let tx_compose_update : Result<MessageTxCompose, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
@@ -122,7 +120,6 @@ pub async fn state_health_monitor_worker<P: Provider + Clone + 'static>(
             }
         }
     }
-    WorkerResult::Ok("state_health_monitor_worker".to_string())
 }
 
 #[derive(Accessor, Consumer)]

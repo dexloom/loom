@@ -38,7 +38,7 @@ impl CurveSwapEncoder {
         match amount_in {
             SwapAmountType::Set(amount) => {
                 if in_native {
-                    let mut weth_withdraw_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
+                    let weth_withdraw_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
                     let mut swap_opcode = Opcode::new_call_with_value(pool_address,
                                                                       &pool_encoder.encode_swap_in_amount_provided(token_from_address, token_to_address, amount, multicaller, Bytes::new())?, amount);
                     if !Self::need_balance(cur_pool.get_address()) { swap_opcode.set_return_stack(true, 0, 0x0, 0x20); }
@@ -46,7 +46,7 @@ impl CurveSwapEncoder {
                         .add(weth_withdraw_opcode)
                         .add(swap_opcode);
                 } else {
-                    let mut approve_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_erc20_approve(cur_pool.get_address(), amount));
+                    let approve_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_erc20_approve(cur_pool.get_address(), amount));
                     let mut swap_opcode = Opcode::new_call(pool_address,
                                                            &pool_encoder.encode_swap_in_amount_provided(token_from_address, token_to_address, amount, multicaller, Bytes::new())?);
 

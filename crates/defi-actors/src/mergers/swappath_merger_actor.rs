@@ -1,5 +1,3 @@
-use std::fmt::{Debug, Display};
-use std::ops::Shr;
 use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
@@ -11,7 +9,7 @@ use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
-use defi_entities::{AccountNonceAndBalanceState, GasStation, LatestBlock, MarketState, NWETH, SwapStep, TxSigner, TxSigners};
+use defi_entities::{AccountNonceAndBalanceState, LatestBlock, MarketState, SwapStep, TxSigners};
 use defi_events::{MarketEvents, MessageTxCompose, SwapType, TxCompose, TxComposeData};
 use defi_types::Mempool;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
@@ -19,7 +17,6 @@ use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 
 async fn arb_swap_steps_optimizer_task(
-    encoder: SwapStepEncoder,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
     state_db: Arc<InMemoryDB>,
     evm_env: Env,
@@ -59,11 +56,11 @@ async fn arb_swap_steps_optimizer_task(
 
 async fn arb_swap_path_merger_worker(
     encoder: SwapStepEncoder,
-    signers: SharedState<TxSigners>,
-    account_monitor: SharedState<AccountNonceAndBalanceState>,
+    //signers: SharedState<TxSigners>,
+    //account_monitor: SharedState<AccountNonceAndBalanceState>,
     latest_block: SharedState<LatestBlock>,
-    mempool: SharedState<Mempool>,
-    market_state: SharedState<MarketState>,
+    //mempool: SharedState<Mempool>,
+    //market_state: SharedState<MarketState>,
     mut market_events_rx: Receiver<MarketEvents>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
@@ -150,7 +147,7 @@ async fn arb_swap_path_merger_worker(
                                     if let Some(db) = compose_data.poststate.clone() {
                                         tokio::task::spawn(
                                             arb_swap_steps_optimizer_task(
-                                                encoder.clone(),
+                                                //encoder.clone(),
                                                 compose_channel_tx.clone(),
                                                 db,
                                                 evm_env,
@@ -227,11 +224,11 @@ impl Actor for ArbSwapPathMergerActor
             arb_swap_path_merger_worker(
                 //self.client.clone(),
                 self.encoder.clone(),
-                self.signers.clone().unwrap(),
-                self.account_monitor.clone().unwrap(),
+                //self.signers.clone().unwrap(),
+                //self.account_monitor.clone().unwrap(),
                 self.latest_block.clone().unwrap(),
-                self.mempool.clone().unwrap(),
-                self.market_state.clone().unwrap(),
+                //self.mempool.clone().unwrap(),
+                //self.market_state.clone().unwrap(),
                 self.market_events.clone().unwrap().subscribe().await,
                 self.compose_channel_rx.clone().unwrap().subscribe().await,
                 self.compose_channel_tx.clone().unwrap(),

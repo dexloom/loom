@@ -139,7 +139,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsMiddleware<P> {
             return Err(FlashbotsMiddlewareError::MissingParameters);
         }
 
-        let response: SendBundleResponse = self
+        let _response: SendBundleResponse = self
             .relay
             .request("eth_sendBundle", [bundle])
             .await

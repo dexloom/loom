@@ -1,10 +1,5 @@
-use std::sync::{Arc, Mutex, RwLock};
-
-use alloy_consensus::{SignableTransaction, Signed, TxEnvelope};
-use alloy_network::{Ethereum, Network, TransactionBuilder};
-use alloy_primitives::Bytes;
+use alloy_consensus::TxEnvelope;
 use alloy_rlp::Encodable;
-use alloy_rpc_types::{Transaction, TransactionRequest};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{error, info};
@@ -13,7 +8,7 @@ use tokio::sync::broadcast::Receiver;
 
 use defi_entities::TxSigners;
 use defi_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData, TxState};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, MultiProducer, Producer, SharedState, WorkerResult};
+use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 async fn sign_task(
@@ -48,10 +43,6 @@ async fn sign_task(
             }
             TxState::ReadyForBroadcastStuffing(t) => {
                 RlpState::Stuffing(t.clone())
-            }
-            _ => {
-                error!("Cannot process bundle tx : {:?}", tx_request);
-                RlpState::None
             }
         }
     }).collect();

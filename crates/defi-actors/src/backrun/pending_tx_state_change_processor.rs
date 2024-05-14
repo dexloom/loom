@@ -1,25 +1,18 @@
-use std::collections::{BTreeMap, HashMap};
-use std::convert::Infallible;
-use std::fmt::Debug;
+use std::collections::HashMap;
 use std::sync::Arc;
 
-use alloy_consensus::TxEnvelope;
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::TransactionBuilder;
 use alloy_primitives::{Address, BlockNumber, TxHash, U256, U64};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockOverrides, TransactionRequest};
 use alloy_rpc_types::state::StateOverride;
-use alloy_rpc_types_trace::geth::{GethDebugBuiltInTracerType, GethDebugTracerConfig, GethDebugTracerType, GethDebugTracingCallOptions, GethDebugTracingOptions, GethDefaultTracingOptions, PreStateConfig};
+use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
-use revm::{Database, DatabaseCommit};
-use revm::db::{DatabaseRef, RefDBWrapper};
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
-use revm::primitives::Env;
-use revm::primitives::U256 as rU256;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 
@@ -52,7 +45,7 @@ pub async fn pending_tx_state_change_task<P: Provider + DebugProviderExt + Clone
     cur_block_time: u64,
     cur_next_base_fee: u128,
     cur_state_override: StateOverride,
-    mut state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
+    state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
 ) -> Result<()> {
     let mut state_update_vec: GethStateUpdateVec = Vec::new();
     let mut state_required_vec: GethStateUpdateVec = Vec::new();
@@ -131,13 +124,11 @@ pub async fn pending_tx_state_change_task<P: Provider + DebugProviderExt + Clone
 
 
             if let Some(latest_header) = latest_block.read().await.block_header.clone() {
-                let mut evm_env = Env::default();
                 let block_number = latest_header.number.unwrap().as_u64() + 1;
                 let block_timestamp = latest_header.timestamp.as_u64() + 12;
 
                 if affected_pools.len() > 0 {
-                    let mut cur_state = market_state.read().await.clone();
-                    //cur_state.apply_storage_update( &state_update_vec);
+                    let cur_state = market_state.read().await.clone();
                     let request = MessageSearcherPoolStateUpdate::new(
                         block_number,
                         block_timestamp,
@@ -180,8 +171,7 @@ pub async fn pending_tx_state_change_task<P: Provider + DebugProviderExt + Clone
                             let block_timestamp = latest_header.timestamp.as_u64() + 12;
 
                             if affected_pools.len() > 0 {
-                                let mut cur_state = market_state.read().await.clone();
-                                //cur_state.apply_storage_update( &state_update_vec);
+                                let cur_state = market_state.read().await.clone();
                                 let request = MessageSearcherPoolStateUpdate::new(
                                     block_number,
                                     block_timestamp,
@@ -230,13 +220,13 @@ pub async fn pending_tx_state_change_worker<P>(
     market_state: SharedState<MarketState>,
     mut mempool_events_rx: Receiver<MempoolEvents>,
     mut market_events_rx: Receiver<MarketEvents>,
-    mut state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
+    state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
 ) -> WorkerResult
     where
         P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
 {
-    let mut affecting_tx: Arc<RwLock<HashMap<TxHash, bool>>> = Arc::new(RwLock::new(HashMap::new()));
-    let mut cur_base_fee: u128 = 0;
+    let affecting_tx: Arc<RwLock<HashMap<TxHash, bool>>> = Arc::new(RwLock::new(HashMap::new()));
+    //let mut cur_base_fee: u128 = 0;
     let mut cur_next_base_fee: u128 = 0;
     let mut cur_block_number: Option<BlockNumber> = None;
     let mut cur_block_time: Option<u64> = None;
@@ -254,10 +244,9 @@ pub async fn pending_tx_state_change_worker<P>(
                             cur_block_number = Some( block_number.as_u64() + 1);
                             cur_block_time = Some(timestamp + 12 );
                             cur_next_base_fee = next_base_fee;
-                            cur_base_fee = base_fee;
+                            //cur_base_fee = base_fee;
 
-                            let mut counter = 0;
-                            for counter in 0..5  {
+                            for _counter in 0..5  {
                                 if let Ok(msg) = market_events_rx.recv().await {
                                     if matches!(msg, MarketEvents::BlockStateUpdate{..} ) {
                                         cur_state_override = latest_block.read().await.node_state_override();

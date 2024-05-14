@@ -1,6 +1,3 @@
-use std::sync::Arc;
-use std::time::Duration;
-
 use alloy_provider::Provider;
 use async_trait::async_trait;
 use eyre::Result;
@@ -72,7 +69,7 @@ async fn broadcast_task<P>(
 
 async fn hardhat_broadcaster_worker<P>(
     client: P,
-    latest_block: SharedState<LatestBlock>,
+    //latest_block: SharedState<LatestBlock>,
     mut bundle_rx: Receiver<MessageTxCompose>,
 ) -> WorkerResult
     where
@@ -136,7 +133,7 @@ impl<P> Actor for HardhatBroadcastActor<P>
         let task = tokio::task::spawn(
             hardhat_broadcaster_worker(
                 self.client.clone(),
-                self.latest_block.clone().unwrap(),
+                //self.latest_block.clone().unwrap(),
                 self.broadcast_rx.clone().unwrap().subscribe().await,
             )
         );

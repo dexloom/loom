@@ -125,10 +125,10 @@ pub fn tips_and_value_for_swap_type(swap: &SwapType, tips_pct: Option<u32>, gas_
 
                 let profit_eth = token_in.calc_eth_value(profit).ok_or_eyre("CALC_ETH_VALUE_FAILED")?;
 
-                let mut tips = profit_eth.checked_sub(gas_cost_per_record).ok_or_eyre("SUBTRACTION_OVERFLOWN")? * U256::from(tips_pct) / U256::from(10000);
+                let tips = profit_eth.checked_sub(gas_cost_per_record).ok_or_eyre("SUBTRACTION_OVERFLOWN")? * U256::from(tips_pct) / U256::from(10000);
                 let min_change = token_in.calc_token_value_from_eth(tips + gas_cost_per_record).unwrap();
 
-                let mut entry = tips_hashset.entry(token_in.get_address()).or_insert(
+                let entry = tips_hashset.entry(token_in.get_address()).or_insert(
                     Tips {
                         token_in,
                         profit: U256::ZERO,

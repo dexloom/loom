@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 
 use alloy_primitives::BlockHash;
-use alloy_provider::network::Ethereum;
 use alloy_provider::Provider;
-use alloy_pubsub::{PubSubConnect, PubSubFrontend};
+use alloy_pubsub::PubSubConnect;
 use alloy_rpc_types::{Block, Header};
-use alloy_transport::BoxTransport;
-use chrono::{DateTime, Utc};
+use chrono::Utc;
 use eyre::Result;
 use futures::StreamExt;
 use log::{error, info};

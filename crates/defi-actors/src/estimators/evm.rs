@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, BlockNumber, Bytes, TxKind, U256};
+use alloy_primitives::{Bytes, TxKind};
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
@@ -12,8 +12,8 @@ use tokio::sync::broadcast::Receiver;
 
 use defi_entities::{GasStation, NWETH};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
-use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
+use loom_actors_macros::{Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 use loom_utils::evm::{env_for_block, evm_access_list};
 
@@ -208,7 +208,7 @@ async fn estimator_worker(
     }
 }
 
-#[derive(Accessor, Consumer, Producer)]
+#[derive(Consumer, Producer)]
 pub struct EvmEstimatorActor
 {
     encoder: Arc<SwapStepEncoder>,

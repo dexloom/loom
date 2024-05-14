@@ -1,31 +1,24 @@
-use std::collections::BTreeMap;
-use std::error::Error;
 use std::fmt::Debug;
 use std::ops::Sub;
-use std::pin::Pin;
-use std::sync::Arc;
 
-use alloy_primitives::{Address, address, B256, BlockNumber, Bytes, I256, U256};
+use alloy_primitives::{Address, Bytes, I256, U256};
 use alloy_provider::Provider;
 use alloy_sol_types::{SolCall, SolInterface};
-use async_trait::async_trait;
 use eyre::{ErrReport, eyre, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info};
-use revm::{db::{CacheDB, DatabaseCommit, DatabaseRef, EmptyDB}, InMemoryDB, primitives::U256 as rU256};
-use revm::primitives::{Bytecode, Env};
+use log::debug;
+use revm::InMemoryDB;
+use revm::primitives::Env;
 
 use defi_abi::IERC20;
 use defi_abi::uniswap3::IUniswapV3Pool;
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
-use defi_abi::uniswap_periphery::{IQuoterV2, ITickLens};
-use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
-use defi_entities::required_state::{RequiredState, RequiredStateReader};
-use defi_types::GethStateUpdate;
-use loom_utils::evm::evm_call;
+use defi_abi::uniswap_periphery::ITickLens;
+use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use defi_entities::required_state::RequiredState;
 
 use crate::protocols::UniswapV3Protocol;
-use crate::state_readers::{UniswapCustomQuoterEncoder, UniswapCustomQuoterStateReader, UniswapV3QuoterEncoder, UniswapV3StateReader};
+use crate::state_readers::{UniswapCustomQuoterStateReader, UniswapV3QuoterEncoder, UniswapV3StateReader};
 
 lazy_static! {
     //pub static ref CUSTOM_QUOTER_ADDRESS : Address = "0x0000000000000000000000000000000000003333".parse().unwrap();
@@ -321,13 +314,13 @@ impl Pool for UniswapV3Pool
 
 
         if self.protocol == PoolProtocol::UniswapV3 {
-            let amount = (self.liquidity0 / U256::from(100));
+            let amount = self.liquidity0 / U256::from(100);
             let price_limit = UniswapV3Pool::get_price_limit(&self.token0, &self.token1);
             let quoter_swap_0_1_call = UniswapV3QuoterEncoder::quote_exact_input_encode(self.token0, self.token1, self.fee, price_limit, amount);
 
 
             let price_limit = UniswapV3Pool::get_price_limit(&self.token1, &self.token0);
-            let amount = (self.liquidity1 / U256::from(100));
+            let amount = self.liquidity1 / U256::from(100);
 
             let quoter_swap_1_0_call = UniswapV3QuoterEncoder::quote_exact_input_encode(self.token1, self.token0, self.fee, price_limit, amount);
 
@@ -382,11 +375,11 @@ impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
         Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
     }
 
-    fn swap_out_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }
 
-    fn swap_in_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }
 
@@ -402,7 +395,7 @@ impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
         }
     }
 
-    fn swap_in_amount_return_script(&self, token_from_address: Address, token_to_address: Address) -> Option<Bytes> {
+    fn swap_in_amount_return_script(&self, _token_from_address: Address, _token_to_address: Address) -> Option<Bytes> {
         Some(Bytes::from(vec![0x8, 0x2A, 0x00]))
     }
 }

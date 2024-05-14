@@ -24,9 +24,9 @@ impl StEthSwapEncoder {
         if token_from_address == *WETH_ADDRESS && token_to_address == *STETH_ADDRESS {
             match amount_in {
                 SwapAmountType::Set(amount) => {
-                    let mut weth_withdraw_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
-                    let mut swap_opcode = Opcode::new_call_with_value(pool_address,
-                                                                      &pool_encoder.encode_swap_in_amount_provided(token_from_address, token_to_address, amount, multicaller, Bytes::new())?, amount);
+                    let weth_withdraw_opcode = Opcode::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
+                    let swap_opcode = Opcode::new_call_with_value(pool_address,
+                                                                  &pool_encoder.encode_swap_in_amount_provided(token_from_address, token_to_address, amount, multicaller, Bytes::new())?, amount);
 
                     //let steth_balance_opcode = Opcode::new_static_call( token_to_address, &EncoderHelper::encode_erc20_balance_of(multicaller) );
 

@@ -1,7 +1,3 @@
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::sync::Arc;
-
 use alloy_primitives::Address;
 use alloy_primitives::Log as EVMLog;
 use alloy_provider::Provider;
@@ -118,10 +114,13 @@ pub async fn process_log_entries<P>(
 
     for task in tasks {
         match task.await {
-            Err(e) => { error!("Fetching pool task error") }
+            Err(e) => { error!("Fetching pool task error : {}", e) }
             _ => {}
         }
     }
-
-    Ok(pool_address_vec)
+    if pool_address_vec.len() > 0 {
+        Ok(pool_address_vec)
+    } else {
+        Err(eyre!("NO_POOLS_ADDED"))
+    }
 }

@@ -1,8 +1,6 @@
-use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use alloy_eips::BlockNumberOrTag;
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use async_trait::async_trait;
@@ -15,7 +13,7 @@ use defi_entities::{LatestBlock, NWETH, Token};
 use defi_events::{MarketEvents, MessageTxCompose, SwapType, TxCompose};
 use defi_types::debug_trace_transaction;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
-use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_actors_macros::{Accessor, Consumer};
 
 #[derive(Clone, Debug)]
 struct TxToCheck {
@@ -41,7 +39,7 @@ async fn check_mf_tx<P: Provider + 'static>(client: P, tx_hash: TxHash, coinbase
 
 pub async fn stuffing_tx_monitor_worker<P: Provider + Clone + 'static>(
     client: P,
-    mut latest_block: SharedState<LatestBlock>,
+    latest_block: SharedState<LatestBlock>,
     mut tx_compose_channel_rx: Receiver<MessageTxCompose>,
     mut market_events_rx: Receiver<MarketEvents>,
 ) -> WorkerResult
@@ -50,7 +48,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider + Clone + 'static>(
 
     loop {
         tokio::select! {
-            mut msg = market_events_rx.recv() => {
+            msg = market_events_rx.recv() => {
                 let market_event_msg : Result<MarketEvents, RecvError> = msg;
                 match market_event_msg {
                     Ok(market_event)=>{
@@ -93,7 +91,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider + Clone + 'static>(
                 }
             },
 
-            mut msg = tx_compose_channel_rx.recv() => {
+            msg = tx_compose_channel_rx.recv() => {
                 let tx_compose_update : Result<MessageTxCompose, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
@@ -105,7 +103,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider + Clone + 'static>(
                                         Arc::new(Token::new(Address::repeat_byte(0x11))), |x| x.clone()
                                     );
 
-                                    let mut entry = txs_to_check.entry(*stuffing_tx_hash).or_insert(
+                                    let entry = txs_to_check.entry(*stuffing_tx_hash).or_insert(
                                             TxToCheck{
                                                     block : broadcast_data.block,
                                                     token_in : token_in.as_ref().clone(),

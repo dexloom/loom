@@ -3,11 +3,10 @@ use alloy_rpc_types::{AccessList, AccessListItem, Header, Transaction, Transacti
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, trace};
-use revm::{Context, EvmContext, Handler, InMemoryDB};
-use revm::db::WrapDatabaseRef;
 use revm::Evm;
+use revm::InMemoryDB;
 use revm::interpreter::Host;
-use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, ExecutionResult, Output, SHANGHAI, ShanghaiSpec, SpecId, TransactTo, TxEnv};
+use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, ExecutionResult, Output, SHANGHAI, SpecId, TransactTo, TxEnv};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::fmt::Debug;
 
 use alloy_primitives::Address;
 use async_trait::async_trait;
@@ -10,11 +9,11 @@ use tokio::sync::broadcast::Receiver;
 
 use defi_entities::Market;
 use defi_events::{HealthEvent, MessageHealthEvent};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
-use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
+use loom_actors_macros::{Accessor, Consumer};
 
 pub async fn pool_health_monitor_worker(
-    mut market: SharedState<Market>,
+    market: SharedState<Market>,
     mut pool_health_monitor_rx: Receiver<MessageHealthEvent>,
 ) -> WorkerResult
 {
@@ -24,7 +23,7 @@ pub async fn pool_health_monitor_worker(
 
     loop {
         tokio::select! {
-            mut msg = pool_health_monitor_rx.recv() => {
+            msg = pool_health_monitor_rx.recv() => {
 
                 let pool_health_update : Result<MessageHealthEvent, RecvError>  = msg;
                 match pool_health_update {
@@ -32,7 +31,7 @@ pub async fn pool_health_monitor_worker(
                         match pool_health_message.inner {
                             HealthEvent::PoolSwapError(swap_error) => {
                                 debug!("Pool health_monitor message update: {:?} {} {} ", swap_error.pool, swap_error.msg, swap_error.amount);
-                                let mut entry = pool_errors_map.entry(swap_error.pool).or_insert(0);
+                                let entry = pool_errors_map.entry(swap_error.pool).or_insert(0);
                                 *entry += 1;
                                 if *entry == 100 {
                                     let mut market_guard = market.write().await;

@@ -1,6 +1,3 @@
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::sync::Arc;
 use std::time::Duration;
 
 use alloy_eips::{BlockId, BlockNumberOrTag};
@@ -11,7 +8,6 @@ use async_trait::async_trait;
 use log::debug;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
-use tokio::sync::RwLock;
 use tokio::time::sleep;
 
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory};
@@ -64,7 +60,7 @@ pub async fn nonce_and_balance_monitor_worker(
                 match market_event_msg {
                     Ok(market_event) => {
                         match market_event {
-                            MarketEvents::BlockTxUpdate{ block_number, block_hash } => {
+                            MarketEvents::BlockTxUpdate{ block_hash, .. } => {
                                 if let Some(block_entry) = block_history_state.read().await.get_market_history_entry(&block_hash).cloned() {
                                     if let Some(block) = block_entry.block {
                                         if let BlockTransactions::Full(txs) = block.transactions {

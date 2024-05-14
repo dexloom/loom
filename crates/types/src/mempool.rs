@@ -112,7 +112,7 @@ impl Mempool {
         self.txs.get(tx_hash)
     }
 
-    pub fn get_or_fetch_pre_state(&mut self, tx_hash: &TxHash) -> Result<FetchState<GethStateUpdate>> {
+    pub fn get_or_fetch_pre_state(&mut self, _tx_hash: &TxHash) -> Result<FetchState<GethStateUpdate>> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 }

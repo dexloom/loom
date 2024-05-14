@@ -153,6 +153,7 @@ impl SwapPaths {
 
 #[cfg(test)]
 mod test {
+    use log::error;
     use tokio::task::JoinHandle;
 
     use super::*;
@@ -207,7 +208,9 @@ mod test {
         }
 
         for t in tasks {
-            t.await;
+            if let Err(e) = t.await {
+                error!("{}", e)
+            }
         }
     }
 }

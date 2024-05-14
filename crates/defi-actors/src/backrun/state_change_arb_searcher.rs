@@ -1,22 +1,16 @@
 use std::collections::BTreeMap;
-use std::convert::Infallible;
-use std::fmt::Debug;
 use std::sync::Arc;
-use std::time::Duration;
 
-use alloy_primitives::{Address, TxHash, U256};
+use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
-use log::{debug, error, info, warn};
+use log::{error, warn};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use rayon::prelude::*;
-use revm::{Database, InMemoryDB};
-use revm::db::{CacheDB, DatabaseRef, EmptyDB, RefDBWrapper};
+use revm::InMemoryDB;
 use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
-use tokio::sync::mpsc::{Receiver as MpscReceiver, Sender as MpscSender};
-use tokio::sync::RwLock;
 
 use defi_entities::{GasStation, Market, MarketState, PoolWrapper, SwapLine, SwapPath};
 use defi_events::{HealthEvent, Message, MessageHealthEvent, MessageTxCompose, SwapType, TxComposeBest, TxComposeData};
@@ -110,12 +104,8 @@ async fn state_change_arb_searcher_task(
                         }
                     }
                 }
-
-                //tx.try_send(mut_item);
-                drop(req);
             });
         });
-        //drop(swap_path_tx);
         warn!("Calculation iteration finished {}", chrono::Local::now() - start_time);
     });
 
@@ -199,51 +189,10 @@ pub async fn state_change_arb_searcher_worker(
     }
 }
 
-struct Calculator
-    where
-{
-    id: usize,
-    //market : Arc<RwLock<Market<M>>>,
-    rx: Arc<RwLock<MpscReceiver<(SwapLine, MessageSearcherPoolStateUpdate)>>>,
-}
+struct Calculator {}
 
 impl Calculator
 {
-    /*
-    pub async fn run(id : usize, db : Arc<CacheDB<D>>, env : Env, rx : Arc<RwLock<MpscReceiver<(SwapPath, Vec<H256>)>>>, tx : Broadcaster<MessageSwapPathEncodeRequest>) -> Result<()>{
-        info!("Calculator run started {}", id);
-        let calc_start_time = chrono::Local::now();
-        while let Some(message) = rx.write().await.recv().await {
-            let start_time = chrono::Local::now();
-            let mut path = message;
-            //let mut db = &message.1.market_state as &dyn DatabaseRef<Error = Infallible>;
-
-            match Calculator::<D>::calculate(&mut path.0,&db, env.clone() ) {
-                Ok(result)=>{
-                    if let Ok(profit) = result.profit()  {
-                        if profit.is_positive() {
-                            info!("{} positive result. sending to swap_path_encoder", id);
-                            let msg  = MessageSwapPathEncodeRequest::new(result.clone(), path.1 );
-                            match tx.send(msg).await {
-                                Err(e)=>{error!("{}",e)}
-                                _=>{}
-                            }
-                        }
-                    }
-                }
-                Err(e)=>{
-
-
-                }
-            }
-            //info!("{} {} {}", id, chrono::Local::now() - start_time, result);
-        }
-        debug!("Calculator Finished {} {}", id, chrono::Local::now() - calc_start_time);
-        Ok(())
-    }
-
-     */
-
     pub fn calculate<'a>(path: &'a mut SwapLine, state: &InMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
         //let mut db = state as EVM<&dyn DatabaseRef<Error = Infallible>>;
         let first_token = path.get_first_token().unwrap();

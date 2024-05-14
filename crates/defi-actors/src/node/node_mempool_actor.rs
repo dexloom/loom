@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use alloy_primitives::TxHash;
 use alloy_provider::Provider;
 use async_trait::async_trait;

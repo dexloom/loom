@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fmt::Debug;
 use std::sync::Arc;
 
 use alloy_eips::{BlockId, BlockNumberOrTag};
@@ -8,12 +7,12 @@ use alloy_provider::Provider;
 use alloy_rpc_types_trace::geth::AccountState;
 use async_trait::async_trait;
 use eyre::Result;
-use log::{debug, error, info};
+use log::{debug, error};
 
-use defi_entities::{MarketState, TxSigner, TxSigners};
+use defi_entities::{MarketState, TxSigners};
 use defi_pools::protocols::UniswapV3Protocol;
 use defi_types::GethStateUpdate;
-use loom_actors::{Accessor, Actor, ActorResult, Producer, SharedState};
+use loom_actors::{Accessor, Actor, ActorResult, SharedState};
 use loom_actors_macros::Accessor;
 use loom_multicaller::SwapStepEncoder;
 
@@ -27,7 +26,7 @@ async fn preload_market_state<P>(
 {
     let mut market_state_guard = market_state.write().await;
 
-    market_state_guard.add_state(&UniswapV3Protocol::get_quoter_v3_state());
+    let _ = market_state_guard.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
     debug!("Loading multicaller");
 
@@ -60,7 +59,7 @@ async fn preload_market_state<P>(
                     storage: BTreeMap::new(),
                 });
             }
-            Err(e) => { error!("Cannot get signer {i}") }
+            Err(e) => { error!("Cannot get signer {i} : {e}") }
         }
     }
 

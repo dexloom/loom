@@ -1,9 +1,6 @@
-use std::ops::Add;
-
 use alloy_primitives::{Address, B256, Bytes, keccak256};
 use alloy_provider::Provider;
 use eyre::Result;
-use revm::primitives::bitvec::view::BitViewSized;
 
 use defi_abi::uniswap2::IUniswapV2Pair;
 use defi_abi::uniswap3::IUniswapV3Pool;

@@ -1,17 +1,9 @@
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::pin::Pin;
-use std::sync::Arc;
-
-use alloy_primitives::TxHash;
 use alloy_provider::Provider;
-use alloy_rpc_types::Log;
 use async_trait::async_trait;
-use eyre::{eyre, Result};
+use eyre::Result;
 use log::{debug, error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
-use tokio::sync::RwLock;
 
 use debug_provider::DebugProviderExt;
 use defi_entities::{Market, MarketState};
@@ -20,8 +12,6 @@ use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedSta
 use loom_actors_macros::{Accessor, Consumer};
 
 use crate::market::logs_parser::process_log_entries;
-
-use super::pool_loader::fetch_and_add_pool_by_address;
 
 pub async fn new_pool_worker<P>(
     client: P,
@@ -34,20 +24,20 @@ pub async fn new_pool_worker<P>(
 {
     loop {
         tokio::select! {
-            mut msg = log_update_rx.recv() => {
+            msg = log_update_rx.recv() => {
                 debug!("Log update");
 
                 let log_update : Result<BlockLogsUpdate, RecvError>  = msg;
                 match log_update {
                     Ok(log_update_msg)=>{
-
-                        let pool_address_vec = process_log_entries(
+                        if let Ok(pool_address_vec) = process_log_entries(
                                 client.clone(),
                                 market.clone(),
                                 market_state.clone(),
                                 log_update_msg.logs,
-                        ).await;
-
+                        ).await {
+                            info!("Pools added : {:?}", pool_address_vec)
+                        }
                     }
                     Err(e)=>{
                         error!("block_update error {}", e)

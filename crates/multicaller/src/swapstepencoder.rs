@@ -3,7 +3,7 @@ use eyre::Result;
 use lazy_static::lazy_static;
 use log::debug;
 
-use defi_entities::{PreswapRequirement, SwapAmountType, SwapStep};
+use defi_entities::{SwapAmountType, SwapStep};
 use defi_types::{Opcode, Opcodes};
 
 use crate::helpers::EncoderHelper;
@@ -50,7 +50,6 @@ impl SwapStepEncoder {
     }
 
     pub fn encode_balancer_flash_loan(&self, steps: Vec<SwapStep>) -> Result<Opcodes> {
-        let funds_after_flash: Address = self.multicaller;
         let flash_funds_to = self.multicaller;
 
         let mut swap_opcodes = Opcodes::new();
@@ -93,20 +92,10 @@ impl SwapStepEncoder {
     }
 
     pub fn encode_in_amount(&self, step0: SwapStep, step1: SwapStep) -> Result<Opcodes> {
-        let funds_after_flash: Address = self.multicaller;
-
-        let mut flash = step0.clone();
+        let flash = step0.clone();
         let mut swap = step1.clone();
 
 
-        /*let flash_funds_to = match swap.get_preswap_requirement() {
-            PreswapRequirement::Transfer(swap_from) => {
-                swap_from
-            }
-            _=>self.multicaller
-        };
-
-         */
         let flash_funds_to = self.multicaller;
 
         if flash.len() > 1 || swap.len() > 1 {
@@ -144,22 +133,9 @@ impl SwapStepEncoder {
 
 
     pub fn encode_out_amount(&self, step0: SwapStep, step1: SwapStep) -> Result<Opcodes> {
-        let funds_after_flash: Address = self.multicaller;
+        let flash = step1.clone();
+        let swap = step0.clone();
 
-        let mut flash = step1.clone();
-        let mut swap = step0.clone();
-
-
-        /*let flash_funds_to = match swap.get_preswap_requirement() {
-            PreswapRequirement::Transfer(swap_from) => {
-                swap_from
-            }
-            _=>self.multicaller
-        };
-
-         */
-
-        //let flash_funds_to = if flash.len() == 1 { flash.swap_path_vec()[0].get_first_pool().unwrap().get_address() } else { self.multicaller};
 
         let flash_funds_to = self.multicaller;
 

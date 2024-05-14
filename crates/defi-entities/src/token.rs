@@ -100,26 +100,17 @@ impl Token {
     }
 
     pub fn set_eth_price(&self, price: Option<U256>) {
-        match self.eth_price.write() {
-            Ok(mut x) => {
-                *x = price;
-            }
-            _ => {}
+        if let Ok(mut x) = self.eth_price.write() {
+            *x = price;
         }
     }
 
     pub fn calc_eth_value(&self, value: U256) -> Option<U256> {
-        match self.get_eth_price() {
-            None => None,
-            Some(x) => Some(value.mul(*ONE_ETHER).div(x))
-        }
+        self.get_eth_price().map(|x| value.mul(*ONE_ETHER).div(x))
     }
 
     pub fn calc_token_value_from_eth(&self, eth_value: U256) -> Option<U256> {
-        match self.get_eth_price() {
-            None => None,
-            Some(x) => Some(eth_value.mul(x).div(*ONE_ETHER))
-        }
+        self.get_eth_price().map(|x| eth_value.mul(x).div(*ONE_ETHER))
     }
 
 
@@ -169,7 +160,7 @@ impl Token {
             let div = u64::try_from(ret.0);
             let rem = u64::try_from(ret.1);
 
-            if !div.is_ok() || !rem.is_ok() {
+            if div.is_err() || rem.is_err() {
                 0f64
             } else {
                 div.unwrap_or_default() as f64 + ((rem.unwrap_or_default() as f64) / ((10u64.pow(decimals as u32)) as f64))
@@ -178,7 +169,6 @@ impl Token {
     }
 
     pub fn to_float_sign(&self, value: I256) -> f64 {
-        let sign = value.is_positive();
         let r: U256 = if value.is_positive() {
             value.into_raw()
         } else {
@@ -216,7 +206,7 @@ impl NWETH {
 
     pub fn from_float(value: f64) -> U256 {
         let multiplier = U256::from(value as i64);
-        let modulus = U256::from((value - value.abs()) as i64 * (10_i64.pow(18) as i64));
+        let modulus = U256::from((value - value.abs()) as i64 * 10_i64.pow(18));
         multiplier.mul(U256::from(10).pow(U256::from(18))).add(modulus)
     }
 }
@@ -233,11 +223,11 @@ mod test {
         let dai_address: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();
         let wbtc_address: Address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".parse().unwrap();
 
-        let mut weth_token = Token::new_with_data(weth_address, Some("WETH".to_string()), None, Some(18), true, false);
-        let mut usdc_token = Token::new_with_data(usdc_address, Some("USDC".to_string()), None, Some(6), false, false);
-        let mut usdt_token = Token::new_with_data(usdt_address, Some("USDT".to_string()), None, Some(6), false, false);
-        let mut dai_token = Token::new_with_data(dai_address, Some("DAI".to_string()), None, Some(18), false, false);
-        let mut wbtc_token = Token::new_with_data(wbtc_address, Some("WBTC".to_string()), None, Some(8), false, false);
+        let weth_token = Token::new_with_data(weth_address, Some("WETH".to_string()), None, Some(18), true, false);
+        let usdc_token = Token::new_with_data(usdc_address, Some("USDC".to_string()), None, Some(6), false, false);
+        let usdt_token = Token::new_with_data(usdt_address, Some("USDT".to_string()), None, Some(6), false, false);
+        let dai_token = Token::new_with_data(dai_address, Some("DAI".to_string()), None, Some(18), false, false);
+        let wbtc_token = Token::new_with_data(wbtc_address, Some("WBTC".to_string()), None, Some(8), false, false);
 
         let one_ether = U256::from(10).pow(U256::from(15));
 

@@ -31,13 +31,13 @@ pub trait Consumer<T>
     where
         T: Sync + Send + Clone
 {
-    fn consume(&mut self, receiver: Broadcaster<T>) -> &mut Self {
+    fn consume(&mut self, _receiver: Broadcaster<T>) -> &mut Self {
         panic!("Not implemented");
     }
 }
 
 pub trait Accessor<T> {
-    fn access(&mut self, data: SharedState<T>) -> &mut Self {
+    fn access(&mut self, _data: SharedState<T>) -> &mut Self {
         panic!("Not implemented");
     }
 }

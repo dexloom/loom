@@ -1,6 +1,5 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::HashMap;
 use std::ops::Deref;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
@@ -10,12 +9,11 @@ use alloy_rpc_types::{BlockOverrides, Transaction};
 use alloy_rpc_types::state::StateOverride;
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use async_trait::async_trait;
-use eyre::{eyre, OptionExt, Result};
+use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
-use revm::{Context, Evm, EvmContext, Handler, InMemoryDB};
-use revm::db::WrapDatabaseRef;
-use revm::primitives::{BlockEnv, Env, SHANGHAI, ShanghaiSpec};
+use revm::{Evm, InMemoryDB};
+use revm::primitives::{BlockEnv, Env, SHANGHAI};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
@@ -26,7 +24,6 @@ use defi_events::{MarketEvents, MessageTxCompose, SwapType, TxCompose, TxCompose
 use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
-use loom_multicaller::SwapStepEncoder;
 use loom_utils::evm::evm_transact;
 
 lazy_static! {
@@ -44,7 +41,7 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a HashMap<TxHash, V
     let swap_stuffing_hash = request.first_stuffing_hash();
 
     let mut ret: Vec<&TxComposeData> =
-        swap_paths.iter().filter(|(k, _)| **k != swap_stuffing_hash).map(|(k, v)|
+        swap_paths.iter().filter(|(k, _)| **k != swap_stuffing_hash).map(|(_k, v)|
             v.iter().find(|a| {
                 if let SwapType::BackrunSwapLine(a_line) = &a.swap {
                     a_line.path == swap_line.path
@@ -95,7 +92,7 @@ async fn same_path_merger_task<P>
         let tx_hash: TxHash = tx.hash;
         let call_opts_clone = call_opts.clone();
 
-        let lock = prestate_guard.fetch(tx_hash, |tx_hash| async move {
+        let lock = prestate_guard.fetch(tx_hash, |_tx_hash| async move {
             debug_trace_call_pre_state(client_clone, tx_clone, BlockNumberOrTag::Latest, Some(call_opts_clone)).await
         }).await;
 
@@ -123,7 +120,6 @@ async fn same_path_merger_task<P>
     let mut tx_order: Vec<usize> = (0..stuffing_states.len()).into_iter().collect();
 
 
-    let mut ok = false;
     let mut changing: Option<usize> = None;
     let mut counter = 0;
     let rdb: Option<InMemoryDB> = loop {
@@ -132,13 +128,13 @@ async fn same_path_merger_task<P>
             break None;
         }
 
-        ok = true;
+        let mut ok = true;
 
         let tx_and_state: Vec<&(Transaction, GethStateUpdate)> = tx_order.iter().map(|i| stuffing_states.get(*i).unwrap()).collect();
 
-        let mut db = market_state.read().await.state_db.clone();
+        let db = market_state.read().await.state_db.clone();
 
-        let states: GethStateUpdateVec = tx_and_state.iter().map(|(tx, state)| state.clone()).collect();
+        let states: GethStateUpdateVec = tx_and_state.iter().map(|(_tx, state)| state.clone()).collect();
 
         let mut market_db = MarketState::new(db);
 
@@ -152,7 +148,7 @@ async fn same_path_merger_task<P>
             let tx = &stuffing_states[*tx_idx].0;
 
             match evm_transact(&mut evm, tx) {
-                Ok(c) => {
+                Ok(_c) => {
                     info!("Transaction committed successfully {:?}", tx.hash);
                 }
                 Err(e) => {
@@ -207,7 +203,7 @@ async fn same_path_merger_task<P>
             let first_token = swap_line.get_first_token().unwrap();
             let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
             match swap_line.optimize_swap_path_in_amount_provided(&db, env.clone(), amount_in) {
-                Ok(r) => {
+                Ok(_r) => {
                     let arc_db = Arc::new(db);
                     let encode_request = MessageTxCompose::encode(
                         TxComposeData {
@@ -251,11 +247,11 @@ async fn same_path_merger_task<P>
 
 async fn same_path_merger_worker<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static>(
     client: P,
-    encoder: SwapStepEncoder,
-    signers: SharedState<TxSigners>,
-    account_monitor: SharedState<AccountNonceAndBalanceState>,
+    //encoder: SwapStepEncoder,
+    //signers: SharedState<TxSigners>,
+    //account_monitor: SharedState<AccountNonceAndBalanceState>,
     latest_block: SharedState<LatestBlock>,
-    mempool: SharedState<Mempool>,
+    //mempool: SharedState<Mempool>,
     market_state: SharedState<MarketState>,
     mut market_events_rx: Receiver<MarketEvents>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
@@ -264,10 +260,10 @@ async fn same_path_merger_worker<P: Provider + DebugProviderExt + Send + Sync + 
 {
     let mut swap_paths: HashMap<TxHash, Vec<TxComposeData>> = HashMap::new();
 
-    let mut prestate = Arc::new(RwLock::new(DataFetcher::<TxHash, GethStateUpdate>::new()));
+    let prestate = Arc::new(RwLock::new(DataFetcher::<TxHash, GethStateUpdate>::new()));
 
-    let mut affecting_tx: HashMap<TxHash, bool> = HashMap::new();
-    let mut cur_base_fee: u128 = 0;
+    //let mut affecting_tx: HashMap<TxHash, bool> = HashMap::new();
+    //let mut cur_base_fee: u128 = 0;
     let mut cur_next_base_fee: u128 = 0;
     let mut cur_block_number: Option<alloy_primitives::BlockNumber> = None;
     let mut cur_block_time: Option<u64> = None;
@@ -285,12 +281,11 @@ async fn same_path_merger_worker<P: Provider + DebugProviderExt + Send + Sync + 
                             cur_block_number = Some( block_number + 1);
                             cur_block_time = Some(timestamp + 12 );
                             cur_next_base_fee = next_base_fee;
-                            cur_base_fee = base_fee;
+                            //cur_base_fee = base_fee;
                             *prestate.write().await = DataFetcher::<TxHash, GethStateUpdate>::new();
                             swap_paths = HashMap::new();
 
-                            let mut counter = 0;
-                            for counter in 0..5  {
+                            for _counter in 0..5  {
                                 if let Ok(msg) = market_events_rx.recv().await {
                                     if matches!(msg, MarketEvents::BlockStateUpdate{block_hash} ) {
                                         cur_state_override = latest_block.read().await.node_state_override();
@@ -313,7 +308,7 @@ async fn same_path_merger_worker<P: Provider + DebugProviderExt + Send + Sync + 
                         if let TxCompose::Sign(sign_request) = compose_request.inner() {
 
                             if sign_request.stuffing_txs_hashes.len() == 1 {
-                                if let SwapType::BackrunSwapLine( swap_line ) = &sign_request.swap {
+                                if let SwapType::BackrunSwapLine( _swap_line ) = &sign_request.swap {
                                     let stuffing_tx_hash = sign_request.first_stuffing_hash();
 
                                     let requests_vec = get_merge_list(&sign_request, &swap_paths);
@@ -363,14 +358,13 @@ async fn same_path_merger_worker<P: Provider + DebugProviderExt + Send + Sync + 
             }
         }
     };
-    Err(eyre!("Finished"))
 }
 
 #[derive(Consumer, Producer, Accessor)]
 pub struct SamePathMergerActor<P>
 {
     client: P,
-    encoder: SwapStepEncoder,
+    //encoder: SwapStepEncoder,
     #[accessor]
     mempool: Option<SharedState<Mempool>>,
     #[accessor]
@@ -391,10 +385,10 @@ pub struct SamePathMergerActor<P>
 
 impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> SamePathMergerActor<P>
 {
-    pub fn new(multicaller: Address, client: P) -> Self {
+    pub fn new(client: P) -> Self {
         Self {
             client,
-            encoder: SwapStepEncoder::new(multicaller),
+            //encoder: SwapStepEncoder::new(multicaller),
             mempool: None,
             market_state: None,
             signers: None,
@@ -414,11 +408,11 @@ impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> Actor for S
         let task = tokio::task::spawn(
             same_path_merger_worker(
                 self.client.clone(),
-                self.encoder.clone(),
-                self.signers.clone().unwrap(),
-                self.account_monitor.clone().unwrap(),
+                //self.encoder.clone(),
+                //self.signers.clone().unwrap(),
+                //self.account_monitor.clone().unwrap(),
                 self.latest_block.clone().unwrap(),
-                self.mempool.clone().unwrap(),
+                //self.mempool.clone().unwrap(),
                 self.market_state.clone().unwrap(),
                 self.market_events.clone().unwrap().subscribe().await,
                 self.compose_channel_rx.clone().unwrap().subscribe().await,

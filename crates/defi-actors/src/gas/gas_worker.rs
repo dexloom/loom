@@ -1,13 +1,6 @@
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::sync::Arc;
-
-use alloy_primitives::U256;
 use async_trait::async_trait;
-use eyre::Result;
 use log::{error, info};
 use tokio::sync::broadcast::Receiver;
-use tokio::sync::RwLock;
 
 use defi_entities::{BlockHistory, GasStation};
 use defi_events::MarketEvents;
@@ -36,8 +29,14 @@ pub async fn new_gas_worker(
                                         if let Some(cur_base_fee) = block.header.base_fee_per_gas {
                                             let next_block_base_fee : u128 = chain_parameters.calc_next_block_base_fee(block.header.gas_used, block.header.gas_limit, cur_base_fee);
                                             gas_station.write().await.next_block_base_fee = next_block_base_fee;
-                                            broadcaster.send(MarketEvents::GasUpdate{ next_block_base_fee}).await;
-                                            info!("Gas updated block: {} next base fee : {}", block_number, next_block_base_fee)
+                                            match broadcaster.send(MarketEvents::GasUpdate{ next_block_base_fee}).await {
+                                                Ok(_)=>{
+                                                    info!("Gas updated block: {} next base fee : {}", block_number, next_block_base_fee)
+                                                }
+                                                Err(e)=>{
+                                                    error!("{e}")
+                                                }
+                                            }
                                         }
                                     }
                                 }

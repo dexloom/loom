@@ -1,4 +1,3 @@
-use std::fmt::Debug;
 use std::sync::Arc;
 
 use alloy_provider::Provider;
@@ -12,7 +11,7 @@ use defi_pools::protocols::CurveProtocol;
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
-use crate::market::fetch_and_add_pool;
+use crate::market::fetch_state_and_add_pool;
 
 async fn curve_protocol_loader_worker<P>(
     client: P,
@@ -50,7 +49,7 @@ async fn curve_protocol_loader_worker<P>(
     for curve_contract in curve_contracts.into_iter() {
         let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
         let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
-        match fetch_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
+        match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
             Err(e) => {
                 error!("Curve pool loading error : {}", e)
             }
@@ -78,7 +77,7 @@ async fn curve_protocol_loader_worker<P>(
                                             let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
                                             let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
 
-                                            match fetch_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
+                                            match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
                                                 Err(e) => {
                                                     error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
                                                 }

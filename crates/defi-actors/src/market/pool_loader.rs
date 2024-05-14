@@ -1,57 +1,54 @@
 use std::collections::BTreeMap;
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info};
+use log::{error, info};
 
 use debug_provider::DebugProviderExt;
-use defi_entities::{Market, MarketState, Pool, PoolClass, PoolProtocol, PoolWrapper};
+use defi_entities::{Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
 use defi_entities::required_state::RequiredStateReader;
-use defi_pools::{UniswapV2Pool, UniswapV3Pool};
+use defi_pools::{MaverickPool, UniswapV2Pool, UniswapV3Pool};
 use defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory};
 use loom_actors::SharedState;
 
 lazy_static! {
-    static ref uniswapv2_factory: Address = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f".parse().unwrap();
-    static ref nomiswap_stable_factory: Address = "0x818339b4E536E707f14980219037c5046b049dD4".parse().unwrap();
-    static ref sushiswap_factory: Address = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac".parse().unwrap();
-    static ref dooarswap_factory: Address = "0x1e895bFe59E3A5103e8B7dA3897d1F2391476f3c".parse().unwrap();
-    static ref safeswap_factory: Address = "0x7F09d4bE6bbF4b0fF0C97ca5c486a166198aEAeE".parse().unwrap();
-    static ref uniswapv3_factory :Address = "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
-    static ref pancakev3_factory: Address =  "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865".parse().unwrap();
-    static ref miniswap_factory: Address =  "0x2294577031F113DF4782B881cF0b140e94209a6F".parse().unwrap();
-    static ref shibaswap_factory: Address =  "0x115934131916C8b277DD010Ee02de363c09d037c".parse().unwrap();
-    static ref maverick_factory: Address =  "0xEb6625D65a0553c9dBc64449e56abFe519bd9c9B".parse().unwrap();
+    static ref UNISWAPV2_FACTORY: Address = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f".parse().unwrap();
+    static ref NOMISWAP_STABLE_FACTORY: Address = "0x818339b4E536E707f14980219037c5046b049dD4".parse().unwrap();
+    static ref SUSHISWAP_FACTORY: Address = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac".parse().unwrap();
+    static ref DOOARSWAP_FACTORY: Address = "0x1e895bFe59E3A5103e8B7dA3897d1F2391476f3c".parse().unwrap();
+    static ref SAFESWAP_FACTORY: Address = "0x7F09d4bE6bbF4b0fF0C97ca5c486a166198aEAeE".parse().unwrap();
+    static ref UNISWAPV3_FACTORY :Address = "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
+    static ref PANCAKEV3_FACTORY: Address =  "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865".parse().unwrap();
+    static ref MINISWAP_FACTORY: Address =  "0x2294577031F113DF4782B881cF0b140e94209a6F".parse().unwrap();
+    static ref SHIBASWAP_FACTORY: Address =  "0x115934131916C8b277DD010Ee02de363c09d037c".parse().unwrap();
+    static ref MAVERICK_FACTORY: Address =  "0xEb6625D65a0553c9dBc64449e56abFe519bd9c9B".parse().unwrap();
 }
 
 
 
 pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
-    if factory_address == *uniswapv2_factory {
+    if factory_address == *UNISWAPV2_FACTORY {
         PoolProtocol::UniswapV2
-    } else if factory_address == *uniswapv3_factory {
+    } else if factory_address == *UNISWAPV3_FACTORY {
         PoolProtocol::UniswapV3
-    } else if factory_address == *pancakev3_factory {
+    } else if factory_address == *PANCAKEV3_FACTORY {
         PoolProtocol::PancakeV3
-    } else if factory_address == *nomiswap_stable_factory {
+    } else if factory_address == *NOMISWAP_STABLE_FACTORY {
         PoolProtocol::NomiswapStable
-    } else if factory_address == *sushiswap_factory {
+    } else if factory_address == *SUSHISWAP_FACTORY {
         PoolProtocol::Sushiswap
-    } else if factory_address == *dooarswap_factory {
+    } else if factory_address == *DOOARSWAP_FACTORY {
         PoolProtocol::DooarSwap
-    } else if factory_address == *safeswap_factory {
+    } else if factory_address == *SAFESWAP_FACTORY {
         PoolProtocol::Safeswap
-    } else if factory_address == *miniswap_factory {
+    } else if factory_address == *MINISWAP_FACTORY {
         PoolProtocol::Miniswap
-    } else if factory_address == *shibaswap_factory {
+    } else if factory_address == *SHIBASWAP_FACTORY {
         PoolProtocol::Shibaswap
-    } else if factory_address == *maverick_factory {
+    } else if factory_address == *MAVERICK_FACTORY {
         PoolProtocol::Maverick
     } else {
         PoolProtocol::Unknown
@@ -79,13 +76,14 @@ pub async fn fetch_and_add_pool_by_address<P>(
                 /*PoolProtocol::NomiswapStable => {
                     fetch_and_add_pool(client, market, market_state, NomiswapStablePool::new(pool_address)).await
                 }
-                PoolProtocol::Miniswap | PoolProtocol::Integral | PoolProtocol::Safeswap => {
+                 */
+                PoolProtocol::NomiswapStable | PoolProtocol::Miniswap | PoolProtocol::Integral | PoolProtocol::Safeswap => {
                     Err(eyre!("POOL_PROTOCOL_NOT_SUPPORTED"))
                 }
-                 */
+
                 _ => {
                     let pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
-                    fetch_and_add_pool(client.clone(), market.clone(), market_state.clone(), PoolWrapper::new(Arc::new(pool))).await
+                    fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), PoolWrapper::new(Arc::new(pool))).await
                 }
             };
 
@@ -98,19 +96,19 @@ pub async fn fetch_and_add_pool_by_address<P>(
             let factory_address_result = fetch_uni3_factory(client.clone(), pool_address).await;
             match factory_address_result {
                 Ok(factory_address) => {
-                    let fetch_result = match get_protocol_by_factory(factory_address) {
+                    let pool_wrapped = match get_protocol_by_factory(factory_address) {
                         /*PoolProtocol::PancakeV3 => {
                             fetch_and_add_pool(client, market, market_state, PancakeV3Pool::new(pool_address)).await
-                        }
-                        PoolProtocol::Maverick => {
-                            fetch_and_add_pool(client, market, market_state, MaverickPool::new(pool_address)).await
                         }*/
+                        PoolProtocol::Maverick => {
+                            PoolWrapper::new(Arc::new(MaverickPool::fetch_pool_data(client.clone(), pool_address).await?))
+                        }
                         _ => {
-                            let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
-                            fetch_and_add_pool(client, market, market_state, PoolWrapper::new(Arc::new(pool))).await
+                            PoolWrapper::new(Arc::new(UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?))
                         }
                     };
-                    match fetch_result {
+
+                    match fetch_state_and_add_pool(client, market, market_state, pool_wrapped).await {
                         Err(e) => { error!("fetch_and_add_pool uni3 error {:#20x} : {}", pool_address, e) }
                         _ => {}
                     }
@@ -129,7 +127,7 @@ pub async fn fetch_and_add_pool_by_address<P>(
     Ok(())
 }
 
-pub async fn fetch_and_add_pool<P>(
+pub async fn fetch_state_and_add_pool<P>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
@@ -159,10 +157,12 @@ pub async fn fetch_and_add_pool<P>(
 
                         directions_tree.insert(pool_wrapped.clone(), directions_vec);
 
-                        //todo directions
+                        //TODO :  directions
 
                         let mut market_write_guard = market.write().await;
-                        market_write_guard.add_pool(pool_wrapped);
+                        if let Err(e) = market_write_guard.add_pool(pool_wrapped) {
+                            error!("{}", e)
+                        }
 
                         let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
                         market_write_guard.add_paths(swap_paths);

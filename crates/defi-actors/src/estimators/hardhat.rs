@@ -2,24 +2,24 @@ use std::sync::Arc;
 
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{BlockNumber, Bytes, TxKind, U256};
+use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
-use log::{debug, error, info};
+use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use debug_provider::DebugProviderExt;
 use defi_entities::GasStation;
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
-use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
+use loom_actors_macros::{Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 
 async fn estimator_worker<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static>(
-    client: P,
+    //client: P,
     encoder: Arc<SwapStepEncoder>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
@@ -53,7 +53,7 @@ async fn estimator_worker<P: Provider + DebugProviderExt + Send + Sync + Clone +
 
                                 let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
 
-                                let mut tx_request = TransactionRequest {
+                                let tx_request = TransactionRequest {
                                     transaction_type : Some(2),
                                     chain_id : Some(1),
                                     from: Some(tx_signer.address()),
@@ -106,7 +106,7 @@ async fn estimator_worker<P: Provider + DebugProviderExt + Send + Sync + Clone +
     }
 }
 
-#[derive(Accessor, Consumer, Producer)]
+#[derive(Consumer, Producer)]
 pub struct HardhatEstimatorActor<P>
 {
     client: P,
@@ -132,8 +132,8 @@ impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> HardhatEsti
 impl<P: Provider + DebugProviderExt + Clone + Send + Sync + 'static> Actor for HardhatEstimatorActor<P> {
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(
-            estimator_worker(
-                self.client.clone(),
+            estimator_worker::<P>(
+                //self.client.clone(),
                 self.encoder.clone(),
                 self.compose_channel_rx.clone().unwrap().subscribe().await,
                 self.compose_channel_tx.clone().unwrap(),

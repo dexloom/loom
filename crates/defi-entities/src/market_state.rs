@@ -5,7 +5,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag};
 use alloy_rpc_types_trace::geth::AccountState;
 use eyre::Result;
-use log::{debug, error, info, trace};
+use log::{debug, error, trace};
 use revm::db::{AccountState as DbAccountState, Database};
 use revm::InMemoryDB;
 use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
@@ -155,7 +155,9 @@ impl MarketState
             for (cell, value) in &account.storage {
                 if !self.is_slot(address, cell) || self.state_db.storage(*address, *cell).unwrap_or(U256::ZERO) != *value {
                     debug!("inserting cell {address} {cell} {value}");
-                    self.state_db.insert_account_storage(*address, *cell, *value);
+                    if let Err(e) = self.state_db.insert_account_storage(*address, *cell, *value) {
+                        error!("{}", e)
+                    }
                 }
             }
         }
@@ -170,7 +172,7 @@ impl MarketState
         self
     }
 
-    pub fn add_state(&mut self, state: &GethStateUpdate) -> Result<()> {
+    pub fn add_state(&mut self, state: &GethStateUpdate) {
         for (address, account_state) in state.iter() {
             let hex_code = account_state.code.as_ref().map(|code_bytes| Bytecode::new_raw(code_bytes.clone()));
 
@@ -197,12 +199,10 @@ impl MarketState
         }
 
         //debug!("Added state : {}", state.len());
-
-        Ok(())
     }
 
 
-    pub async fn fetch_state<P: Provider + 'static>(&mut self, account: Address, client: P) -> Result<()> {
+    pub async fn fetch_state<P: Provider + 'static>(&mut self, account: Address, client: P) {
 
         //let acc : Address = account.0.into();
 
@@ -223,17 +223,13 @@ impl MarketState
                 }
             }
         }
-
-        Ok(())
     }
 
     pub async fn fetch_all_states<P: Provider + Clone + 'static>(&mut self, client: P) -> Result<()> {
         let addresses: Vec<Address> = self.state_db.accounts.keys().copied().collect();
         for account in addresses {
             let acc: Address = account;
-            if let Err(e) = self.fetch_state(acc, client.clone()).await {
-                error!("{e}")
-            }
+            self.fetch_state(acc, client.clone()).await;
         }
         Ok(())
     }

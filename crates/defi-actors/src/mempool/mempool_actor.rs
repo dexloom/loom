@@ -1,4 +1,4 @@
-use alloy_primitives::{BlockNumber, U256};
+use alloy_primitives::BlockNumber;
 use alloy_rpc_types::BlockTransactions;
 use async_trait::async_trait;
 use chrono::{Duration, Utc};

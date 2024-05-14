@@ -1,26 +1,16 @@
-use std::collections::BTreeMap;
-use std::convert::Infallible;
-use std::error::Error;
-use std::fmt::Debug;
-use std::ops::Sub;
-use std::pin::Pin;
-use std::sync::Arc;
-
 use alloy_primitives::{Address, Bytes, U128, U256};
 use alloy_provider::Provider;
 use alloy_sol_types::{SolCall, SolInterface};
-use async_trait::async_trait;
 use eyre::{ErrReport, eyre, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info};
-use revm::{db::{CacheDB, DatabaseCommit, DatabaseRef, EmptyDB}, InMemoryDB};
-use revm::primitives::{Bytes as rBytes, Env, ExecutionResult, Output, TransactTo};
+use log::error;
+use revm::InMemoryDB;
+use revm::primitives::Env;
 
 use defi_abi::IERC20;
 use defi_abi::maverick::{IMaverickPool, IMaverickQuoter, State};
-use defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaverickPoolInstance, swapCall};
-use defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, calculateSwapReturn, getBinsAtTickCall, IMaverickQuoterCalls};
-use defi_abi::maverick::IMaverickQuoter::IMaverickQuoterCalls::calculateSwap;
+use defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaverickPoolInstance};
+use defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuoterCalls};
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
 use loom_utils::evm::evm_call;
@@ -93,7 +83,7 @@ impl MaverickPool {
     }
 
 
-    fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
+    fn get_protocol_by_factory(_factory_address: Address) -> PoolProtocol {
         PoolProtocol::Maverick
     }
 
@@ -352,7 +342,7 @@ impl AbiSwapEncoder for MaverickAbiSwapEncoder {
     }
 
     fn encode_swap_in_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
-        let sqrt_price_limit_x96 = MaverickPool::get_price_limit(&token_from_address, &token_to_address);
+        //let sqrt_price_limit_x96 = MaverickPool::get_price_limit(&token_from_address, &token_to_address);
 
         let token_a_in = MaverickPool::get_zero_for_one(&token_from_address, &token_to_address);
 
@@ -373,16 +363,16 @@ impl AbiSwapEncoder for MaverickAbiSwapEncoder {
         PreswapRequirement::Callback
     }
 
-    fn swap_in_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_in_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x20)
     }
-    fn swap_out_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_out_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x20)
     }
-    fn swap_in_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x24)
     }
-    fn swap_out_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x24)
     }
 }

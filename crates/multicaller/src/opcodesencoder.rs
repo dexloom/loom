@@ -1,7 +1,6 @@
-use std::io::Read;
-use std::ops::{Add, BitOrAssign, Shl};
+use std::ops::{BitOrAssign, Shl};
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Bytes, U256};
 use alloy_sol_types::SolInterface;
 use eyre::{ErrReport, Result};
 use lazy_static::lazy_static;
@@ -31,8 +30,8 @@ impl OpcodesEncoderV2 {
     fn pack_opcode(opcode: &Opcode) -> Result<Vec<u8>> {
         let mut ret: Vec<u8> = Vec::new();
         let mut selector = U256::ZERO;
-        let mut selector_bytes_len = 0x20;
-        let mut selector_call = match opcode.opcode_type {
+        //let mut selector_bytes_len = 0x20;
+        let selector_call = match opcode.opcode_type {
             OpcodeType::Call => {
                 if opcode.value.is_none() {
                     *ZERO_VALUE_CALL_SELECTOR
@@ -44,14 +43,14 @@ impl OpcodesEncoderV2 {
                 *DELEGATE_CALL_SELECTOR
             }
             OpcodeType::InternalCall => {
-                selector_bytes_len = 0xC;
+                //selector_bytes_len = 0xC;
                 *INTERNAL_CALL_SELECTOR
             }
             OpcodeType::StaticCall => {
                 *STATIC_CALL_SELECTOR
             }
             OpcodeType::CalculationCall => {
-                selector_bytes_len = 0xC;
+                //selector_bytes_len = 0xC;
                 *CALCULATION_CALL_SELECTOR
             }
             _ => {
@@ -71,7 +70,7 @@ impl OpcodesEncoderV2 {
             selector.bitor_assign(U256::from(opcode.return_stack & 0xFFFFFF).shl(40));
         }
 
-        let mut selector_bytes = selector.to_be_bytes::<32>();
+        let selector_bytes = selector.to_be_bytes::<32>();
         ret.append(&mut selector_bytes[20..32].to_vec());
 
 

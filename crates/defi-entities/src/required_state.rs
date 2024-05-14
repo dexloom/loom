@@ -6,10 +6,10 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_rpc_types_trace::geth::AccountState;
 use eyre::{eyre, Result};
-use log::{error, info, trace};
+use log::{error, trace};
 
 use debug_provider::DebugProviderExt;
-use defi_types::{debug_trace_call_diff, debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec};
+use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec};
 
 #[derive(Clone, Debug, Default)]
 pub struct RequiredState {

@@ -1,28 +1,19 @@
-use std::collections::{BTreeMap, HashMap};
-use std::ops::Deref;
-use std::pin::Pin;
 use std::sync::Arc;
 
-use alloy_primitives::{Address, TxHash, U256};
-use alloy_rpc_types::state::StateOverride;
+use alloy_primitives::{Address, TxHash};
 use alloy_rpc_types::Transaction;
 use async_trait::async_trait;
-use eyre::{eyre, OptionExt, Result};
+use eyre::{OptionExt, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
-use revm::{Context, Evm, EvmContext, Handler, InMemoryDB};
-use revm::db::WrapDatabaseRef;
-use revm::primitives::{BlockEnv, Env, SHANGHAI, ShanghaiSpec};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
-use tokio::sync::RwLock;
 
 use defi_entities::{AccountNonceAndBalanceState, LatestBlock, MarketState, NWETH, TxSigners};
 use defi_events::{MarketEvents, MessageTxCompose, SwapType, TxCompose, TxComposeData};
 use defi_types::Mempool;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
-use loom_multicaller::SwapStepEncoder;
 
 lazy_static! {
     static ref COINBASE : Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
@@ -42,12 +33,12 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a Vec<TxComposeData
 
 
 async fn diff_path_merger_worker(
-    encoder: SwapStepEncoder,
-    signers: SharedState<TxSigners>,
-    account_monitor: SharedState<AccountNonceAndBalanceState>,
-    latest_block: SharedState<LatestBlock>,
-    mempool: SharedState<Mempool>,
-    market_state: SharedState<MarketState>,
+    //encoder: SwapStepEncoder,
+    //signers: SharedState<TxSigners>,
+    //account_monitor: SharedState<AccountNonceAndBalanceState>,
+    //latest_block: SharedState<LatestBlock>,
+    //mempool: SharedState<Mempool>,
+    //market_state: SharedState<MarketState>,
     mut market_events_rx: Receiver<MarketEvents>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
@@ -55,12 +46,12 @@ async fn diff_path_merger_worker(
 {
     let mut swap_paths: Vec<TxComposeData> = Vec::new();
 
-    let mut affecting_tx: HashMap<TxHash, bool> = HashMap::new();
-    let mut cur_base_fee: u128 = 0;
-    let mut cur_next_base_fee: u128 = 0;
-    let mut cur_block_number: Option<alloy_primitives::BlockNumber> = None;
-    let mut cur_block_time: Option<u64> = None;
-    let mut cur_state_override: StateOverride = StateOverride::default();
+    //let mut affecting_tx: HashMap<TxHash, bool> = HashMap::new();
+    //let mut cur_base_fee: u128 = 0;
+    //let mut cur_next_base_fee: u128 = 0;
+    //let mut cur_block_number: Option<alloy_primitives::BlockNumber> = None;
+    //let mut cur_block_time: Option<u64> = None;
+    //let mut cur_state_override: StateOverride = StateOverride::default();
 
 
     loop {
@@ -70,23 +61,22 @@ async fn diff_path_merger_worker(
                     let market_event_msg : MarketEvents = msg;
                     match market_event_msg {
                         MarketEvents::BlockHeaderUpdate{block_number, block_hash, timestamp, base_fee, next_base_fee} =>{
-                            debug!("Block header update {} {} base_fee {} ", block_number, block_hash, base_fee);
-                            cur_block_number = Some( block_number + 1);
-                            cur_block_time = Some(timestamp + 12 );
-                            cur_next_base_fee = next_base_fee;
-                            cur_base_fee = base_fee;
+                            debug!("Block header update {} {} ts {} base_fee {} next {} ", block_number, block_hash, timestamp, base_fee, next_base_fee);
+                            //cur_block_number = Some( block_number + 1);
+                            //cur_block_time = Some(timestamp + 12 );
+                            //cur_next_base_fee = next_base_fee;
+                            //cur_base_fee = base_fee;
                             swap_paths = Vec::new();
 
-                            let mut counter = 0;
-                            for counter in 0..5  {
-                                if let Ok(msg) = market_events_rx.recv().await {
-                                    if matches!(msg, MarketEvents::BlockStateUpdate{ block_hash } ) {
-                                        cur_state_override = latest_block.read().await.node_state_override();
-                                        debug!("Block state update received {} {}", block_number, block_hash);
-                                        break;
-                                    }
-                                }
-                            }
+                            // for _counter in 0..5  {
+                            //     if let Ok(msg) = market_events_rx.recv().await {
+                            //         if matches!(msg, MarketEvents::BlockStateUpdate{ block_hash } ) {
+                            //             cur_state_override = latest_block.read().await.node_state_override();
+                            //             debug!("Block state update received {} {}", block_number, block_hash);
+                            //             break;
+                            //         }
+                            //     }
+                            // }
                         }
                         _=>{}
                     }
@@ -159,13 +149,12 @@ async fn diff_path_merger_worker(
 
         }
     };
-    Err(eyre!("Finished"))
 }
 
 #[derive(Consumer, Producer, Accessor)]
 pub struct DiffPathMergerActor
 {
-    encoder: SwapStepEncoder,
+    //encoder: SwapStepEncoder,
     #[accessor]
     mempool: Option<SharedState<Mempool>>,
     #[accessor]
@@ -186,9 +175,9 @@ pub struct DiffPathMergerActor
 
 impl DiffPathMergerActor
 {
-    pub fn new(multicaller: Address) -> Self {
+    pub fn new() -> Self {
         Self {
-            encoder: SwapStepEncoder::new(multicaller),
+            //encoder: SwapStepEncoder::new(multicaller),
             mempool: None,
             market_state: None,
             signers: None,
@@ -207,12 +196,12 @@ impl Actor for DiffPathMergerActor
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(
             diff_path_merger_worker(
-                self.encoder.clone(),
-                self.signers.clone().unwrap(),
-                self.account_monitor.clone().unwrap(),
-                self.latest_block.clone().unwrap(),
-                self.mempool.clone().unwrap(),
-                self.market_state.clone().unwrap(),
+                //self.encoder.clone(),
+                //self.signers.clone().unwrap(),
+                //self.account_monitor.clone().unwrap(),
+                //self.latest_block.clone().unwrap(),
+                //self.mempool.clone().unwrap(),
+                //self.market_state.clone().unwrap(),
                 self.market_events.clone().unwrap().subscribe().await,
                 self.compose_channel_rx.clone().unwrap().subscribe().await,
                 self.compose_channel_tx.clone().unwrap(),

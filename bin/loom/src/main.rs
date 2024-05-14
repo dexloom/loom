@@ -1,15 +1,11 @@
-use std::sync::Arc;
-
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use eyre::Result;
 use log::{error, info, LevelFilter};
 
-use defi_actors::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, DiffPathMergerActor, FlashbotsBroadcastActor, SamePathMergerActor, StateHealthMonitorActor, StuffingTxMonitorActor};
+use defi_actors::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 use defi_events::MarketEvents;
-use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, Consumer, Producer};
-use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_topology::{Topology, TopologyConfig};
 
 #[tokio::main]
@@ -21,7 +17,7 @@ async fn main() -> Result<()> {
 
 
     let topology_config = TopologyConfig::load_from_file("config.toml".to_string())?;
-    let (mut topology, mut worker_task_vec) = Topology::from(topology_config).await?;
+    let (topology, mut worker_task_vec) = Topology::from(topology_config).await?;
 
     let client = topology.get_client(Some("local".to_string()).as_ref())?;
     let blockchain = topology.get_blockchain(Some("mainnet".to_string()).as_ref())?;
@@ -110,7 +106,7 @@ async fn main() -> Result<()> {
     }
 
     let mut same_path_merger_actor = SamePathMergerActor::new(
-        multicaller, client.clone(),
+        client.clone(),
     );
 
     match same_path_merger_actor
@@ -133,9 +129,7 @@ async fn main() -> Result<()> {
     }
 
 
-    let mut diff_path_merger_actor = DiffPathMergerActor::new(
-        multicaller
-    );
+    let mut diff_path_merger_actor = DiffPathMergerActor::new();
 
     match diff_path_merger_actor
         .access(blockchain.mempool())
@@ -233,7 +227,4 @@ async fn main() -> Result<()> {
             _ => {}
         }
     }
-
-
-    Ok(())
 }

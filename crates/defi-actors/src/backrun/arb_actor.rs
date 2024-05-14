@@ -1,12 +1,6 @@
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::sync::Arc;
-
 use alloy_provider::Provider;
 use async_trait::async_trait;
-use log::{error, info};
-use revm::{Database, DatabaseCommit};
-use revm::db::DatabaseRef;
+use log::info;
 use tokio::task::JoinHandle;
 
 use debug_provider::DebugProviderExt;
@@ -120,7 +114,7 @@ impl<P> Actor for StateChangeArbActor<P>
 
 
         if self.market_events_tx.is_some() && self.use_blocks {
-            let mut block_state_processor = BlockStateChangeProcessorActor::new(self.client.clone());
+            let mut block_state_processor = BlockStateChangeProcessorActor::new();
             match block_state_processor
                 .access(self.market.clone().unwrap())
                 .access(self.block_history.clone().unwrap())

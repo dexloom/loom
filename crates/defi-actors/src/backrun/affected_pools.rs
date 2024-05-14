@@ -2,13 +2,12 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use alloy_eips::{BlockId, BlockNumberOrTag};
-use alloy_primitives::{Address, hex};
+use alloy_primitives::Address;
 use alloy_provider::Provider;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
-use revm::db::{CacheDB, DatabaseCommit, EmptyDB};
-use revm::precompile::Bytes;
-use revm::primitives::{Bytecode, Env, U256};
+use revm::db::{CacheDB, EmptyDB};
+use revm::primitives::{Env, U256};
 
 use defi_entities::{Market, MarketState, Pool, PoolProtocol, PoolWrapper};
 use defi_pools::{MaverickPool, UniswapV2Pool, UniswapV3Pool};
@@ -29,7 +28,7 @@ pub async fn get_affected_pools(
     let mut affected_pools: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
 
     for state_update_record in state_update.iter() {
-        for (address, state_update_entry) in state_update_record.iter() {
+        for (address, _state_update_entry) in state_update_record.iter() {
             if let Some(pool) = market_guard.get_pool(address) {
                 if affected_pools.contains_key(pool) || !market_guard.is_pool(address) {
                     continue;
@@ -40,7 +39,7 @@ pub async fn get_affected_pools(
         }
     }
 
-    Ok((affected_pools))
+    Ok(affected_pools)
 }
 
 
@@ -74,7 +73,9 @@ pub async fn get_affected_pools_from_code<P>(
                                                 match client.get_storage_at(*address, U256::from(i)).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await {
                                                     Ok(data) => {
                                                         //info!("---- {} {} {:?}", address, i, data);
-                                                        market_state.state_db.insert_account_storage(*address, U256::try_from(i).unwrap(), data);
+                                                        if let Err(e) = market_state.state_db.insert_account_storage(*address, U256::try_from(i).unwrap(), data) {
+                                                            error!("{}", e)
+                                                        }
                                                     }
                                                     _ => {}
                                                 }
@@ -108,7 +109,7 @@ pub async fn get_affected_pools_from_code<P>(
                                 let env = Env::default();
                                 match UniswapV3StateReader::factory(&market_state.state_db, env.clone(), *address) {
                                     Ok(factory_address) => {
-                                        let fetch_result = match get_protocol_by_factory(factory_address) {
+                                        let _fetch_result = match get_protocol_by_factory(factory_address) {
                                             PoolProtocol::PancakeV3 => {
                                                 //TODO : Add pancake v3
                                                 /*let mut pool = PancakeV3Pool::new(*address);
@@ -126,7 +127,7 @@ pub async fn get_affected_pools_from_code<P>(
                                                  */
                                             }
                                             PoolProtocol::Maverick => {
-                                                let mut pool = MaverickPool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
+                                                let pool = MaverickPool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
                                                 match pool {
                                                     Ok(pool) => {
                                                         info!("Maverick Pool loaded {address:?} {}", pool.get_protocol() );
@@ -176,7 +177,7 @@ pub fn is_pool_code(
 ) -> bool
 {
     for state_update_record in state_update.iter() {
-        for (address, state_update_entry) in state_update_record.iter() {
+        for (_address, state_update_entry) in state_update_record.iter() {
             match &state_update_entry.code {
                 Some(code) => {
                     if UniswapV3Protocol::is_code(code) {

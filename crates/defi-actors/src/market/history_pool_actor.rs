@@ -1,17 +1,12 @@
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::sync::Arc;
-
 use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
 use async_trait::async_trait;
-use eyre::Result;
-use log::{error, info, Log};
+use log::{error, info};
 
 use debug_provider::DebugProviderExt;
 use defi_entities::{Market, MarketState};
-use loom_actors::{Accessor, Actor, ActorResult, Consumer, SharedState, WorkerResult};
-use loom_actors_macros::{Accessor, Consumer};
+use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
+use loom_actors_macros::Accessor;
 
 use crate::market::logs_parser::process_log_entries;
 
@@ -28,7 +23,7 @@ async fn history_pool_loader_worker<P>(
     //let mut current_block = U64::from(17836224);
     let block_size: u64 = 5;
 
-    for i in 1..1000 {
+    for _ in 1..10000 {
         current_block -= block_size;
         info!("Loading blocks {} {}", current_block, current_block + block_size);
         let filter = Filter::new().from_block(current_block).to_block(current_block + block_size - 1);
@@ -51,7 +46,7 @@ async fn history_pool_loader_worker<P>(
 }
 
 
-#[derive(Accessor, Consumer)]
+#[derive(Accessor)]
 pub struct HistoryPoolLoaderActor<P>
 {
     client: P,

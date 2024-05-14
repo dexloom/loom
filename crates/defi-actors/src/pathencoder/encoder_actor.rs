@@ -1,9 +1,7 @@
-use std::fmt::{Display, Formatter};
-
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use eyre::{eyre, OptionExt, Result};
-use log::{debug, error, info};
+use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
@@ -71,7 +69,6 @@ async fn encoder_task(
     encoder: SwapStepEncoder,
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
-    latest_block: SharedState<LatestBlock>,
 ) -> Result<()> {
     info!("Encoding started {}", encode_request.swap);
 
@@ -151,10 +148,10 @@ async fn arb_swap_path_encoder_worker(
     encoder: SwapStepEncoder,
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
-    latest_block: SharedState<LatestBlock>,
-    mempool: SharedState<Mempool>,
+    //latest_block: SharedState<LatestBlock>,
+    //mempool: SharedState<Mempool>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
-    mut compose_channel_tx: Broadcaster<MessageTxCompose>,
+    compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult
 {
     loop {
@@ -173,7 +170,7 @@ async fn arb_swap_path_encoder_worker(
                                         encoder.clone(),
                                         signers.clone(),
                                         account_monitor.clone(),
-                                        latest_block.clone(),
+                                        //latest_block.clone(),
                                         //mempool.clone(),
                                     )
                                 );
@@ -229,8 +226,8 @@ impl Actor for ArbSwapPathEncoderActor {
                 self.encoder.clone(),
                 self.signers.clone().unwrap(),
                 self.account_monitor.clone().unwrap(),
-                self.latest_block.clone().unwrap(),
-                self.mempool.clone().unwrap(),
+                //self.latest_block.clone().unwrap(),
+                //self.mempool.clone().unwrap(),
                 self.compose_channel_rx.clone().unwrap().subscribe().await,
                 self.compose_channel_tx.clone().unwrap(),
             )

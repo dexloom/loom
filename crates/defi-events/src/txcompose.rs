@@ -1,6 +1,5 @@
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
-use std::hash::Hash;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -118,7 +117,7 @@ impl SwapType {
             SwapType::BackrunSwapLine(swap_path) => {
                 swap_path.get_first_token()
             }
-            SwapType::BackrunSwapSteps((sp0, sp1)) => {
+            SwapType::BackrunSwapSteps((sp0, _sp1)) => {
                 sp0.get_first_token()
             }
             SwapType::Multiple(_) => None,
@@ -131,7 +130,7 @@ impl SwapType {
             SwapType::BackrunSwapLine(swap_path) => {
                 vec![swap_path.get_first_token().ok_or_eyre("NO_FIRST_TOKEN")].into_iter().collect()
             }
-            SwapType::BackrunSwapSteps((sp0, sp1)) => {
+            SwapType::BackrunSwapSteps((sp0, _sp1)) => {
                 vec![sp0.get_first_token().ok_or_eyre("NO_FIRST_TOKEN")].into_iter().collect()
             }
             SwapType::Multiple(s) => {
@@ -147,7 +146,7 @@ impl SwapType {
 
     pub fn get_pool_address_vec(&self) -> Vec<Address> {
         match self {
-            SwapType::BackrunSwapSteps((sp0, sp1)) => {
+            SwapType::BackrunSwapSteps((sp0, _sp1)) => {
                 sp0.swap_line_vec().iter().flat_map(|item| item.pools().iter().map(|p| p.get_address()).collect::<Vec<_>>()).collect()
             }
             SwapType::BackrunSwapLine(swap_line) => {

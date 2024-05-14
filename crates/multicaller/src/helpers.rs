@@ -174,7 +174,7 @@ impl EncoderHelper {
         Bytes::from(call.abi_encode())
     }
 
-    pub fn encode_steth_submit(amount: U256) -> Bytes {
+    pub fn encode_steth_submit(_amount: U256) -> Bytes {
         let call = IStEth::IStEthCalls::submit(
             IStEth::submitCall {
                 _referral: Address::ZERO

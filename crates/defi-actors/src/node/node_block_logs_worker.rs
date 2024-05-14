@@ -1,14 +1,8 @@
-use std::convert::Infallible;
-use std::fmt::Debug;
-use std::sync::Arc;
-
 use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
-use eyre::Result;
 use log::error;
 use tokio::sync::broadcast::Receiver;
-use tokio::sync::RwLock;
 
 use defi_events::BlockLogsUpdate;
 use loom_actors::{Broadcaster, WorkerResult};

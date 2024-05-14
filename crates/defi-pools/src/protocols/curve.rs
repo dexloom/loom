@@ -1,16 +1,13 @@
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
-use std::sync::Arc;
 
-use alloy_primitives::{Address, BlockNumber, Bytes, U256};
+use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::{Network, Provider};
-use alloy_provider::network::Ethereum;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag};
-use alloy_sol_types::sol_data::Function;
 use alloy_sol_types::SolInterface;
-use alloy_transport::{BoxTransport, Transport};
+use alloy_transport::Transport;
 use eyre::{eyre, Report, Result};
-use log::{debug, error, trace, warn};
+use log::{debug, error, trace};
 
 use defi_abi::curve::{ICurveI128_2, ICurveI128_2_To, ICurveI128_2_To_Meta, ICurveI128_3, ICurveI128_4, ICurveU256_2, ICurveU256_2_Eth_To, ICurveU256_2_To, ICurveU256_3_Eth, ICurveU256_3_Eth_To, ICurveU256_3_Eth_To2};
 use defi_abi::curve::ICurveAddressProvider::ICurveAddressProviderInstance;
@@ -695,6 +692,7 @@ impl<P, N, T> CurveProtocol<P, N, T>
             return Ok(Self::new_i128_2_to(client, address));
         }
         /*
+        TODO : Add
         if Self::match_abi(&code, &ICURVEI128_2_ABI) {
             return Ok(Self::new_i128_2(client, address));
         }
