@@ -45,7 +45,7 @@ impl UniswapV3QuoterEncoder {
             Ok(r) => {
                 Ok(r.amountOut)
             }
-            Err(e) => {
+            Err(_) => {
                 Err(eyre!("CANNOT_DECODE_EXACT_INPUT_RETURN"))
             }
         }
@@ -56,7 +56,7 @@ impl UniswapV3QuoterEncoder {
             Ok(r) => {
                 Ok(r.amountIn)
             }
-            Err(e) => {
+            Err(_) => {
                 Err(eyre!("CANNOT_DECODE_EXACT_INPUT_RETURN"))
             }
         }

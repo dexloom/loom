@@ -1,24 +1,21 @@
 use std::collections::HashMap;
-use std::convert::Infallible;
-use std::fmt::Debug;
 use std::sync::Arc;
-use std::time::Duration;
 
 use alloy_primitives::Address;
-use alloy_provider::{Provider, ProviderBuilder, RootProvider};
+use alloy_provider::{ProviderBuilder, RootProvider};
 use alloy_rpc_client::ClientBuilder;
 use alloy_transport::BoxTransport;
 use alloy_transport_ws::WsConnect;
 use eyre::{eyre, Result};
 use log::{error, info};
-use revm::db::{CacheDB, DatabaseRef, EmptyDB, EmptyDBTyped};
+use revm::db::{CacheDB, EmptyDB};
 use tokio::task::JoinHandle;
 
 use defi_actors::{BlockHistoryActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, SignersActor};
 use defi_entities::TxSigners;
 use defi_types::ChainParameters;
 use flashbots::Flashbots;
-use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors::{Accessor, Actor, Consumer, Producer, SharedState, WorkerResult};
 use loom_multicaller::SwapStepEncoder;
 
 use crate::blockchain::Blockchain;
@@ -52,7 +49,7 @@ impl Topology
 
         let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
 
-        let timeout_duration = Duration::from_secs(10);
+        //let timeout_duration = Duration::from_secs(10);
 
         for (name, v) in config.clients.clone().iter() {
             info!("Connecting to {name}");
@@ -91,7 +88,7 @@ impl Topology
         let chain_params = ChainParameters::ethereum();
 
         for (k, params) in config.blockchains.iter() {
-            let mut db = CacheDB::new(EmptyDB::default());
+            let db = CacheDB::new(EmptyDB::default());
             let blockchain = Blockchain::new(params.chain_id.unwrap_or(1), db);
 
 
@@ -209,7 +206,6 @@ impl Topology
                     topology.signers.insert(name.clone(), signers);
                     topology.default_signer_name = Some(name.clone());
                 }
-                _ => panic!("Unsupported signer type")
             }
         }
 
@@ -279,7 +275,7 @@ impl Topology
                     }
                 }
                 Err(e) => {
-                    error!("Skipping mempool actor for {} @ {}", name, blockchain.chain_id())
+                    error!("Skipping mempool actor for {} @ {} : {}", name, blockchain.chain_id(), e)
                 }
             }
         }

@@ -287,7 +287,7 @@ async fn same_path_merger_worker<P: Provider + DebugProviderExt + Send + Sync + 
 
                             for _counter in 0..5  {
                                 if let Ok(msg) = market_events_rx.recv().await {
-                                    if matches!(msg, MarketEvents::BlockStateUpdate{block_hash} ) {
+                                    if matches!(msg, MarketEvents::BlockStateUpdate{block_hash}) {
                                         cur_state_override = latest_block.read().await.node_state_override();
                                         debug!("Block state update received {} {}", block_number, block_hash);
                                         break;

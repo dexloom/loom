@@ -66,7 +66,7 @@ impl<P, T, N> Display for CurveContract<P, T, N>
             CurveContract::U256_3_Eth(_) => "U256_3_Eth",
             CurveContract::U256_3_Eth_To(_) => "U256_3_Eth_To",
             CurveContract::U256_3_Eth_To2(_) => "U256_3_Eth_To2",
-            _ => "CurveUnknown"
+            //_ => "CurveUnknown"
         };
         write!(f, "{}", contract_type)
     }
@@ -489,7 +489,7 @@ impl<P, T, N> CurveContract<P, T, N>
         }
     }
 
-    pub fn get_remove_liquidity_one_coin_call_data(&self, i: u32, amount: U256, to: Address) -> Result<Bytes> {
+    pub fn get_remove_liquidity_one_coin_call_data(&self, i: u32, amount: U256, _to: Address) -> Result<Bytes> {
         match self {
             CurveContract::I128_3(interface) => {
                 Ok(interface.remove_liquidity_one_coin(amount, i as i128, U256::ZERO).calldata().clone())

@@ -1,8 +1,6 @@
 use std::collections::HashMap;
 use std::fs;
 
-use revm::primitives::alloy_primitives::private::derive_more::Display;
-
 use eyre::Result;
 use serde::Deserialize;
 

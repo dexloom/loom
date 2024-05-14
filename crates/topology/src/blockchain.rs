@@ -1,5 +1,3 @@
-use std::fmt::Debug;
-
 use alloy_primitives::{Address, BlockHash};
 use alloy_rpc_types::{Block, Header};
 use revm::InMemoryDB;
@@ -64,12 +62,12 @@ impl Blockchain
         let wbtc_token = Token::new_with_data(wbtc_address, Some("WBTC".to_string()), None, Some(8), true, false);
         let threecrv_token = Token::new_with_data(threecrv_address, Some("3Crv".to_string()), None, Some(18), false, true);
 
-        market_instance.add_token(weth_token);
-        market_instance.add_token(usdc_token);
-        market_instance.add_token(usdt_token);
-        market_instance.add_token(dai_token);
-        market_instance.add_token(wbtc_token);
-        market_instance.add_token(threecrv_token);
+        market_instance.add_token(weth_token).unwrap();
+        market_instance.add_token(usdc_token).unwrap();
+        market_instance.add_token(usdt_token).unwrap();
+        market_instance.add_token(dai_token).unwrap();
+        market_instance.add_token(wbtc_token).unwrap();
+        market_instance.add_token(threecrv_token).unwrap();
 
         Blockchain {
             chain_id: chain_id,
