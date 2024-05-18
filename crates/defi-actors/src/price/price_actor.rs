@@ -1,4 +1,8 @@
+use std::marker::PhantomData;
+
+use alloy_network::Network;
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::eyre;
 
@@ -10,7 +14,7 @@ use loom_actors_macros::Accessor;
 //use market::contracts::CurvePool;
 
 //TODO : Implement curve
-async fn price_worker<P: Provider + Clone + 'static>(_client: P, _market: SharedState<Market>) -> WorkerResult {
+async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(_client: P, _market: SharedState<Market>) -> WorkerResult {
     /*
     let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
     let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
@@ -86,29 +90,37 @@ async fn price_worker<P: Provider + Clone + 'static>(_client: P, _market: Shared
 }
 
 #[derive(Accessor)]
-pub struct PriceActor<P>
+pub struct PriceActor<P, T, N>
 {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<P> PriceActor<P>
+impl<P, T, N> PriceActor<P, T, N>
     where
-        P: Provider + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
             client,
             market: None,
+            _t: PhantomData::default(),
+            _n: PhantomData::default(),
         }
     }
 }
 
 #[async_trait]
-impl<P> Actor for PriceActor<P>
+impl<P, T, N> Actor for PriceActor<P, T, N>
     where
-        P: Provider + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(

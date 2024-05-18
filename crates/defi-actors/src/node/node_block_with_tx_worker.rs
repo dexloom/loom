@@ -1,13 +1,18 @@
+use alloy_network::Network;
 use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_rpc_types::Block;
+use alloy_transport::Transport;
 use log::error;
 use tokio::sync::broadcast::Receiver;
 
 use loom_actors::{Broadcaster, WorkerResult};
 
-pub async fn new_block_with_tx_worker<P>(client: P, mut block_hash_receiver: Receiver<BlockHash>, sender: Broadcaster<Block>) -> WorkerResult
-    where P: Provider + Send + Sync + 'static,
+pub async fn new_block_with_tx_worker<P, T, N>(client: P, mut block_hash_receiver: Receiver<BlockHash>, sender: Broadcaster<Block>) -> WorkerResult
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + 'static,
 {
     loop {
         if let Ok(block_hash) = block_hash_receiver.recv().await {

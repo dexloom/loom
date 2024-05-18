@@ -1,7 +1,8 @@
 use alloy_primitives::{Address, Bytes, U256};
-use alloy_provider::Provider;
+use alloy_provider::{Network, Provider};
 use alloy_rpc_types::BlockNumberOrTag;
 use alloy_sol_types::SolInterface;
+use alloy_transport::Transport;
 use eyre::{ErrReport, eyre, Result};
 use lazy_static::lazy_static;
 use log::debug;
@@ -131,7 +132,7 @@ impl UniswapV2Pool {
     }
 
 
-    pub async fn fetch_pool_data<P: Provider + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
+    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
         let uni2_pool = IUniswapV2Pair::IUniswapV2PairInstance::new(address, client.clone());
 
         let token0: Address = uni2_pool.token0().call().await?._0.clone();

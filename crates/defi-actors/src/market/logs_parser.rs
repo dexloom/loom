@@ -1,8 +1,10 @@
+use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_primitives::Log as EVMLog;
 use alloy_provider::Provider;
 use alloy_rpc_types::Log;
 use alloy_sol_types::SolEventInterface;
+use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use log::error;
 use tokio::task::JoinHandle;
@@ -75,14 +77,16 @@ fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
     }
 }
 
-pub async fn process_log_entries<P>(
+pub async fn process_log_entries<P, T, N>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
     log_entries: Vec<Log>,
 ) -> Result<Vec<Address>>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     let mut tasks: Vec<JoinHandle<_>> = Vec::new();
     let mut pool_address_vec: Vec<Address> = Vec::new();

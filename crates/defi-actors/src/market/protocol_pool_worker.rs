@@ -1,6 +1,9 @@
+use std::marker::PhantomData;
 use std::sync::Arc;
 
+use alloy_network::Network;
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use log::{error, info};
 
@@ -13,13 +16,15 @@ use loom_actors_macros::{Accessor, Consumer};
 
 use crate::market::fetch_state_and_add_pool;
 
-async fn curve_protocol_loader_worker<P>(
+async fn curve_protocol_loader_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
 ) -> WorkerResult
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     /*
     let steth_pool = StEthPool::new();
@@ -107,31 +112,39 @@ async fn curve_protocol_loader_worker<P>(
 
 
 #[derive(Accessor, Consumer)]
-pub struct ProtocolPoolLoaderActor<P>
+pub struct ProtocolPoolLoaderActor<P, T, N>
 {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
     market_state: Option<SharedState<MarketState>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<P> ProtocolPoolLoaderActor<P>
+impl<P, T, N> ProtocolPoolLoaderActor<P, T, N>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
             client,
             market: None,
             market_state: None,
+            _n: PhantomData::default(),
+            _t: PhantomData::default(),
         }
     }
 }
 
 #[async_trait]
-impl<P> Actor for ProtocolPoolLoaderActor<P>
+impl<P, T, N> Actor for ProtocolPoolLoaderActor<P, T, N>
     where
+        T: Transport + Clone,
+        N: Network,
         P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
 {
     async fn start(&mut self) -> ActorResult {

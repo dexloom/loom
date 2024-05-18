@@ -1,8 +1,10 @@
 use std::collections::BTreeMap;
 use std::sync::Arc;
 
+use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{error, info};
@@ -56,7 +58,7 @@ pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
 }
 
 
-pub async fn fetch_and_add_pool_by_address<P>(
+pub async fn fetch_and_add_pool_by_address<P, T, N>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
@@ -64,7 +66,9 @@ pub async fn fetch_and_add_pool_by_address<P>(
     pool_class: PoolClass,
 ) -> Result<()>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     info!("Fetching pool {:#20x}", pool_address);
 
@@ -127,14 +131,16 @@ pub async fn fetch_and_add_pool_by_address<P>(
     Ok(())
 }
 
-pub async fn fetch_state_and_add_pool<P>(
+pub async fn fetch_state_and_add_pool<P, T, N>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
     pool_wrapped: PoolWrapper,
 ) -> Result<()>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     match pool_wrapped.get_state_required() {
         Ok(required_state) => {

@@ -2,6 +2,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use alloy_network::Network;
 use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header, Log};
@@ -9,6 +10,7 @@ use eyre::{ErrReport, OptionExt, Result};
 use revm::InMemoryDB;
 use tokio::sync::RwLock;
 
+use alloy_transport::Transport;
 use defi_types::GethStateUpdateVec;
 
 use crate::MarketState;
@@ -63,8 +65,8 @@ impl BlockHistory
     }
 
 
-    pub async fn fetch<P>(client: P, current_state: Arc<RwLock<MarketState>>, depth: usize) -> Result<BlockHistory>
-        where P: Provider + 'static
+    pub async fn fetch<P, T, N>(client: P, current_state: Arc<RwLock<MarketState>>, depth: usize) -> Result<BlockHistory>
+        where N: Network, T: Transport + Clone, P: Provider<T, N> + Send + Sync + Clone + 'static
     {
 
         //let market_guard = current_market.read().await;

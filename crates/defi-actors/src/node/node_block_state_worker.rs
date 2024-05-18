@@ -1,19 +1,25 @@
+use alloy_network::Network;
 use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockId;
+use alloy_transport::Transport;
 use log::error;
 use tokio::sync::broadcast::Receiver;
 
+use debug_provider::DebugProviderExt;
 use defi_events::BlockStateUpdate;
 use defi_types::debug_trace_block;
 use loom_actors::{Broadcaster, WorkerResult};
 
-pub async fn new_node_block_state_worker<P>(
+pub async fn new_node_block_state_worker<P, T, N>(
     client: P,
     mut block_hash_receiver: Receiver<BlockHash>,
     sender: Broadcaster<BlockStateUpdate>,
 ) -> WorkerResult
-    where P: Provider + Send + Sync + Clone + 'static
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static
 {
     loop {
         if let Ok(block_hash) = block_hash_receiver.recv().await {

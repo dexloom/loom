@@ -1,3 +1,4 @@
+pub use arb_actor::StateChangeArbActor;
 pub use pending_tx_state_change_processor::PendingTxStateChangeProcessorActor;
 pub use state_change_arb_searcher::StateChangeArbSearcherActor;
 

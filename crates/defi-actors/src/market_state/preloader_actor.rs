@@ -1,10 +1,13 @@
 use std::collections::BTreeMap;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use alloy_eips::{BlockId, BlockNumberOrTag};
+use alloy_network::Network;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types_trace::geth::AccountState;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::Result;
 use log::{debug, error};
@@ -16,13 +19,16 @@ use loom_actors::{Accessor, Actor, ActorResult, SharedState};
 use loom_actors_macros::Accessor;
 use loom_multicaller::SwapStepEncoder;
 
-async fn preload_market_state<P>(
+async fn preload_market_state<P, T, N>(
     client: P,
     encoder: Arc<SwapStepEncoder>,
     signers: SharedState<TxSigners>,
     market_state: SharedState<MarketState>,
 ) -> Result<()>
-    where P: Provider + Send + Sync + Clone + 'static
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
 {
     let mut market_state_guard = market_state.write().await;
 
@@ -70,7 +76,7 @@ async fn preload_market_state<P>(
 }
 
 #[derive(Accessor)]
-pub struct MarketStatePreloadedActor<P>
+pub struct MarketStatePreloadedActor<P, T, N>
 {
     client: P,
     encoder: Arc<SwapStepEncoder>,
@@ -78,10 +84,15 @@ pub struct MarketStatePreloadedActor<P>
     market_state: Option<SharedState<MarketState>>,
     #[accessor]
     signers: Option<SharedState<TxSigners>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<P> MarketStatePreloadedActor<P>
-    where P: Provider + Send + Sync + Clone + 'static
+impl<P, T, N> MarketStatePreloadedActor<P, T, N>
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
 {
     pub fn new(client: P, encoder: Arc<SwapStepEncoder>) -> Self {
         Self {
@@ -89,14 +100,19 @@ impl<P> MarketStatePreloadedActor<P>
             encoder,
             market_state: None,
             signers: None,
+            _t: PhantomData::default(),
+            _n: PhantomData::default(),
         }
     }
 }
 
 
 #[async_trait]
-impl<P> Actor for MarketStatePreloadedActor<P>
-    where P: Provider + Send + Sync + Clone + 'static
+impl<P, T, N> Actor for MarketStatePreloadedActor<P, T, N>
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
 {
     async fn start(&mut self) -> ActorResult
     {

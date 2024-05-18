@@ -1,4 +1,8 @@
+use std::marker::PhantomData;
+
+use alloy_network::Network;
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use log::info;
 use tokio::task::JoinHandle;
@@ -15,7 +19,7 @@ use crate::backrun::block_state_change_processor::BlockStateChangeProcessorActor
 use super::{PendingTxStateChangeProcessorActor, StateChangeArbSearcherActor};
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct StateChangeArbActor<P>
+pub struct StateChangeArbActor<P, T, N>
 {
     client: P,
     use_blocks: bool,
@@ -38,14 +42,19 @@ pub struct StateChangeArbActor<P>
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
     pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
+
 }
 
 
-impl<P> StateChangeArbActor<P>
+impl<P, T, N> StateChangeArbActor<P, T, N>
     where
-        P: Provider + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, use_blocks: bool, use_mempool: bool) -> StateChangeArbActor<P> {
+    pub fn new(client: P, use_blocks: bool, use_mempool: bool) -> StateChangeArbActor<P, T, N> {
         StateChangeArbActor {
             client,
             use_blocks,
@@ -59,15 +68,19 @@ impl<P> StateChangeArbActor<P>
             market_events_tx: None,
             compose_channel_tx: None,
             pool_health_monitor_tx: None,
+            _t: PhantomData::default(),
+            _n: PhantomData::default(),
         }
     }
 }
 
 
 #[async_trait]
-impl<P> Actor for StateChangeArbActor<P>
+impl<P, T, N> Actor for StateChangeArbActor<P, T, N>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&mut self) -> ActorResult {
         let searcher_pool_update_channel = Broadcaster::new(100);

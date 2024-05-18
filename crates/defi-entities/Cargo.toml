@@ -9,6 +9,7 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
+alloy-transport.workspace = true
 alloy-provider.workspace = true
 alloy-primitives.workspace = true
 alloy-rpc-types.workspace = true
@@ -31,7 +32,10 @@ async-trait.workspace = true
 rand.workspace = true
 sha2.workspace = true
 aes.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
 
 defi-types.workspace = true
 loom-utils.workspace = true
 debug-provider.workspace = true
+serde = { version = "1.0.198", features = ["derive"] }

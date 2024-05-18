@@ -1,15 +1,15 @@
 use std::collections::BTreeMap;
 
 use alloy_primitives::{Address, TxHash};
+use alloy_provider::{Network, Provider};
 use alloy_provider::ext::DebugApi;
 use alloy_provider::network::Ethereum;
-use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionRequest};
 use alloy_rpc_types_trace::common::TraceResult;
 use alloy_rpc_types_trace::geth::{AccountState, GethDebugBuiltInTracerType, GethDebugTracerConfig, GethDebugTracerType, GethDebugTracingCallOptions, GethDebugTracingOptions, GethDefaultTracingOptions, GethTrace, PreStateConfig, PreStateFrame};
 use alloy_rpc_types_trace::geth::GethDebugBuiltInTracerType::PreStateTracer;
 use alloy_rpc_types_trace::geth::GethDebugTracerType::BuiltInTracer;
-use alloy_transport::BoxTransport;
+use alloy_transport::{BoxTransport, Transport};
 use eyre::Result;
 use lazy_static::lazy_static;
 use log::{info, trace};
@@ -42,7 +42,7 @@ pub static ref TRACING_CALL_OPTS: GethDebugTracingCallOptions = GethDebugTracing
 }
 
 
-pub async fn debug_trace_block<P: Provider>(client: P, block_id: BlockId, diff_mode: bool) -> eyre::Result<(GethStateUpdateVec, GethStateUpdateVec)> {
+pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugProviderExt<T, N>>(client: P, block_id: BlockId, diff_mode: bool) -> eyre::Result<(GethStateUpdateVec, GethStateUpdateVec)> {
     let tracer_opts = GethDebugTracingOptions {
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()
@@ -50,11 +50,11 @@ pub async fn debug_trace_block<P: Provider>(client: P, block_id: BlockId, diff_m
 
     let trace_result_vec = match block_id {
         BlockId::Number(block_number) => {
-            client.debug_trace_block_by_number(block_number, tracer_opts).await?
+            client.geth_debug_trace_block_by_number(block_number, tracer_opts).await?
         }
         BlockId::Hash(rpc_block_hash) => {
             //client.debug_trace_block_by_number(BlockNumber::from(19776525u32), tracer_opts).await?
-            client.debug_trace_block_by_hash(rpc_block_hash.block_hash, tracer_opts).await?
+            client.geth_debug_trace_block_by_hash(rpc_block_hash.block_hash, tracer_opts).await?
         }
     };
 
@@ -89,7 +89,7 @@ pub async fn debug_trace_block<P: Provider>(client: P, block_id: BlockId, diff_m
 }
 
 
-async fn debug_trace_call<C: DebugProviderExt, T: Into<TransactionRequest> + Send + Sync>(client: C, req: T, block: BlockNumberOrTag, opts: Option<GethDebugTracingCallOptions>, diff_mode: bool) -> Result<(GethStateUpdate, GethStateUpdate)> {
+async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(client: C, req: TR, block: BlockNumberOrTag, opts: Option<GethDebugTracingCallOptions>, diff_mode: bool) -> Result<(GethStateUpdate, GethStateUpdate)> {
     let tracer_opts = GethDebugTracingOptions {
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()
@@ -129,21 +129,21 @@ async fn debug_trace_call<C: DebugProviderExt, T: Into<TransactionRequest> + Sen
 }
 
 
-pub async fn debug_trace_call_pre_state<C: DebugProviderExt, T: Into<TransactionRequest> + Send + Sync>(client: C, req: T, block: BlockNumberOrTag, opts: Option<GethDebugTracingCallOptions>) -> eyre::Result<GethStateUpdate> {
+pub async fn debug_trace_call_pre_state<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(client: C, req: TR, block: BlockNumberOrTag, opts: Option<GethDebugTracingCallOptions>) -> eyre::Result<GethStateUpdate> {
     Ok(debug_trace_call(client, req, block, opts, false).await?.0)
 }
 
 
-pub async fn debug_trace_call_post_state<C: DebugProviderExt, T: Into<TransactionRequest> + Send + Sync>(client: C, req: T, block: BlockNumberOrTag, opts: Option<GethDebugTracingCallOptions>) -> eyre::Result<GethStateUpdate> {
+pub async fn debug_trace_call_post_state<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(client: C, req: TR, block: BlockNumberOrTag, opts: Option<GethDebugTracingCallOptions>) -> eyre::Result<GethStateUpdate> {
     Ok(debug_trace_call(client, req, block, opts, true).await?.1)
 }
 
-pub async fn debug_trace_call_diff<C: DebugProviderExt, T: Into<TransactionRequest> + Send + Sync>(client: C, req: T, block: BlockNumberOrTag, call_opts: Option<GethDebugTracingCallOptions>) -> eyre::Result<(GethStateUpdate, GethStateUpdate)> {
+pub async fn debug_trace_call_diff<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(client: C, req: TR, block: BlockNumberOrTag, call_opts: Option<GethDebugTracingCallOptions>) -> eyre::Result<(GethStateUpdate, GethStateUpdate)> {
     debug_trace_call(client, req, block, call_opts, true).await
 }
 
 
-pub async fn debug_trace_transaction<P: Provider + DebugApi<Ethereum, BoxTransport>>(client: P, req: TxHash, diff_mode: bool) -> Result<(GethStateUpdate, GethStateUpdate)> {
+pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugApi<N, T>>(client: P, req: TxHash, diff_mode: bool) -> Result<(GethStateUpdate, GethStateUpdate)> {
     let tracer_opts = GethDebugTracingOptions {
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()

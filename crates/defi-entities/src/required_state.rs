@@ -1,6 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
+use alloy_network::Network;
 use alloy_primitives::{Address, BlockNumber, Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRequest};
@@ -8,6 +9,7 @@ use alloy_rpc_types_trace::geth::AccountState;
 use eyre::{eyre, Result};
 use log::{error, trace};
 
+use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec};
 
@@ -66,7 +68,7 @@ impl RequiredState {
 pub struct RequiredStateReader {}
 
 impl RequiredStateReader {
-    pub async fn fetch_calls_and_slots<C: DebugProviderExt + Provider + Clone + 'static>(client: C, required_state: RequiredState, block_number: Option<BlockNumber>) -> Result<GethStateUpdate> {
+    pub async fn fetch_calls_and_slots<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N> + Provider<T, N> + Clone + 'static>(client: C, required_state: RequiredState, block_number: Option<BlockNumber>) -> Result<GethStateUpdate> {
         let block_id = if block_number.is_none() { BlockNumberOrTag::Latest } else { BlockNumberOrTag::Number(block_number.unwrap_or_default()) };
 
         let mut ret: GethStateUpdate = GethStateUpdate::new();

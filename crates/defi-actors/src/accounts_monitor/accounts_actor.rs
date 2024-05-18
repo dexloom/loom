@@ -1,9 +1,12 @@
+use std::marker::PhantomData;
 use std::time::Duration;
 
 use alloy_eips::{BlockId, BlockNumberOrTag};
+use alloy_network::Network;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockTransactions;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use log::debug;
 use tokio::sync::broadcast::error::RecvError;
@@ -15,12 +18,14 @@ use defi_events::MarketEvents;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
-pub async fn nonce_and_balance_fetcher_worker<P>(
+pub async fn nonce_and_balance_fetcher_worker<P, T, N>(
     client: P,
     accounts_state: SharedState<AccountNonceAndBalanceState>,
 ) -> WorkerResult
     where
-        P: Provider + Send + Sync + Clone + 'static
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
 {
     let eth_addr = Address::ZERO;
 
@@ -104,7 +109,7 @@ pub async fn nonce_and_balance_monitor_worker(
 }
 
 #[derive(Accessor, Consumer)]
-pub struct NonceAndBalanceMonitorActor<P>
+pub struct NonceAndBalanceMonitorActor<P, T, N>
 {
     client: P,
     #[accessor]
@@ -113,26 +118,34 @@ pub struct NonceAndBalanceMonitorActor<P>
     block_history: Option<SharedState<BlockHistory>>,
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<P> NonceAndBalanceMonitorActor<P>
+impl<P, T, N> NonceAndBalanceMonitorActor<P, T, N>
     where
-        P: Provider + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P) -> NonceAndBalanceMonitorActor<P> {
+    pub fn new(client: P) -> NonceAndBalanceMonitorActor<P, T, N> {
         NonceAndBalanceMonitorActor {
             client,
             accounts_state: None,
             block_history: None,
             market_events: None,
+            _t: PhantomData::default(),
+            _n: PhantomData::default(),
         }
     }
 }
 
 #[async_trait]
-impl<P> Actor for NonceAndBalanceMonitorActor<P>
+impl<P, T, N> Actor for NonceAndBalanceMonitorActor<P, T, N>
     where
-        P: Provider + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&mut self) -> ActorResult {
         let monitor_task = tokio::task::spawn(

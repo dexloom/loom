@@ -1,4 +1,8 @@
+use std::marker::PhantomData;
+
+use alloy_network::Network;
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::Result;
 use log::{error, info};
@@ -10,12 +14,14 @@ use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
-async fn broadcast_task<P>(
+async fn broadcast_task<P, T, N>(
     client: P,
     request: TxComposeData,
 ) -> Result<()>
     where
-        P: Provider + Clone + Send + Sync + 'static
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Clone + Send + Sync + 'static
 {
     info!("Hardhat broadcast request received : {}", request.origin.unwrap_or("UNKNOWN_ORIGIN".to_string()));
     //let snap = client.dev_rpc().snapshot().await?;
@@ -67,13 +73,15 @@ async fn broadcast_task<P>(
     Ok(())
 }
 
-async fn hardhat_broadcaster_worker<P>(
+async fn hardhat_broadcaster_worker<P, T, N>(
     client: P,
     //latest_block: SharedState<LatestBlock>,
     mut bundle_rx: Receiver<MessageTxCompose>,
 ) -> WorkerResult
     where
-        P: Provider + Send + Sync + Clone + 'static
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
 {
     loop {
         tokio::select! {
@@ -102,32 +110,40 @@ async fn hardhat_broadcaster_worker<P>(
 }
 
 #[derive(Accessor, Consumer)]
-pub struct HardhatBroadcastActor<P>
+pub struct HardhatBroadcastActor<P, T, N>
 {
     client: P,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
     broadcast_rx: Option<Broadcaster<MessageTxCompose>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<P> HardhatBroadcastActor<P>
+impl<P, T, N> HardhatBroadcastActor<P, T, N>
     where
-        P: Provider + Send + Sync + Clone + 'static
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
 {
-    pub fn new(client: P) -> HardhatBroadcastActor<P> {
+    pub fn new(client: P) -> HardhatBroadcastActor<P, T, N> {
         Self {
             client,
             latest_block: None,
             broadcast_rx: None,
+            _t: PhantomData::default(),
+            _n: PhantomData::default(),
         }
     }
 }
 
 #[async_trait]
-impl<P> Actor for HardhatBroadcastActor<P>
+impl<P, T, N> Actor for HardhatBroadcastActor<P, T, N>
     where
-        P: Provider + Send + Sync + Clone + 'static
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
 {
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(

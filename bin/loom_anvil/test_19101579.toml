@@ -1,0 +1,16 @@
+[settings]
+block = 19101579
+coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
+multicaller = "0x3dd35b4da6534230ff53048f7477f17f7f4e7a70"
+skip_default = false
+
+[pools]
+weth_syn_uni3 = { address = "0x2dd35b4da6534230ff53048f7477f17f7f4e7a70", class = "uniswap3" }
+weth_syn_sushi = { address = "0x4a86c01d67965f8cb3d0aaa2c655705e64097c31", class = "uniswap2" }
+
+[txs]
+tx_1 = { hash = "0xf9fb98fe76dc5f4e836cdc3d80cd7902150a8609c617064f1447c3980fd6776b", send = "mempool" }
+tx_2 = { hash = "0x1ec982c2d4eb5475192b26f7208b797328eab88f8e5be053f797f74bcb87a20c", send = "mempool" }
+
+[tokens]
+weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }

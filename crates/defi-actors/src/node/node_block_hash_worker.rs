@@ -1,9 +1,11 @@
 use std::collections::HashMap;
 
+use alloy_network::Network;
 use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_pubsub::PubSubConnect;
 use alloy_rpc_types::{Block, Header};
+use alloy_transport::Transport;
 use chrono::Utc;
 use eyre::Result;
 use futures::StreamExt;
@@ -41,13 +43,15 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
 }
 
 
-pub async fn new_node_block_header_worker<P>(
+pub async fn new_node_block_header_worker<P, T, N>(
     client: P,
     block_hash_channel: Broadcaster<BlockHash>,
     block_header_channel: Broadcaster<Header>)
     -> WorkerResult
     where
-        P: Provider + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     info!("Starting node block hash worker");
     let sub = client.subscribe_blocks().await?;

@@ -3,7 +3,7 @@ use alloy_provider::Provider;
 use eyre::Result;
 use log::{error, info, LevelFilter};
 
-use defi_actors::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateHealthMonitorActor, StuffingTxMonitorActor};
+use defi_actors::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateChangeArbActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 use defi_events::MarketEvents;
 use loom_actors::{Accessor, Actor, Consumer, Producer};
 use loom_topology::{Topology, TopologyConfig};
@@ -31,7 +31,7 @@ async fn main() -> Result<()> {
     info!("Creating shared state");
 
 
-    /*info!("Starting state change arb actor");
+    info!("Starting state change arb actor");
     let mut state_change_arb_actor = StateChangeArbActor::new(client.clone(), true, true);
     match state_change_arb_actor
         .access(blockchain.mempool())
@@ -50,8 +50,6 @@ async fn main() -> Result<()> {
             info!("State change arb actor started successfully")
         }
     }
-    
-     */
 
 
     info!("Starting swap path encoder actor");

@@ -2,8 +2,9 @@ use std::fmt::Debug;
 use std::ops::Sub;
 
 use alloy_primitives::{Address, Bytes, I256, U256};
-use alloy_provider::Provider;
+use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
+use alloy_transport::Transport;
 use eyre::{ErrReport, eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use log::debug;
@@ -164,7 +165,7 @@ impl UniswapV3Pool {
         Ok(ret)
     }
 
-    pub async fn fetch_pool_data<P: Provider + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
+    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
         let uni3_pool = IUniswapV3Pool::IUniswapV3PoolInstance::new(address, client.clone());
 
         let token0: Address = uni3_pool.token0().call().await?._0;

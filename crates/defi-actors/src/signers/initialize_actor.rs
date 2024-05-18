@@ -1,4 +1,4 @@
-use alloy_primitives::hex;
+use alloy_primitives::{Bytes, hex};
 use async_trait::async_trait;
 use log::{error, info};
 
@@ -8,6 +8,7 @@ use loom_actors_macros::Accessor;
 
 #[derive(Accessor)]
 pub struct InitializeSignersActor {
+    key: Option<Vec<u8>>,
     #[accessor]
     signers: Option<SharedState<TxSigners>>,
     #[accessor]
@@ -15,8 +16,26 @@ pub struct InitializeSignersActor {
 }
 
 impl InitializeSignersActor {
-    pub fn new() -> InitializeSignersActor {
+    pub fn new(key: Option<Vec<u8>>) -> InitializeSignersActor {
         InitializeSignersActor {
+            key,
+            signers: None,
+            monitor: None,
+        }
+    }
+
+    pub fn new_from_encrypted_env() -> InitializeSignersActor {
+        let key = match std::env::var("DATA") {
+            Ok(priv_key_enc) => {
+                let keystore = KeyStore::new();
+                let key = keystore.encrypt_once(hex::decode(priv_key_enc).unwrap().as_slice()).unwrap();
+                Some(key)
+            }
+            _ => None
+        };
+
+        InitializeSignersActor {
+            key,
             signers: None,
             monitor: None,
         }
@@ -26,13 +45,9 @@ impl InitializeSignersActor {
 #[async_trait]
 impl Actor for InitializeSignersActor {
     async fn start(&mut self) -> ActorResult {
-        match std::env::var("DATA") {
-            Ok(priv_key_enc) => {
-                let keystore = KeyStore::new();
-
-                let priv_key = keystore.encrypt_once(hex::decode(priv_key_enc).unwrap().as_slice()).unwrap();
-
-                let new_signer = self.signers.clone().unwrap().write().await.add_privkey(priv_key.into());
+        match self.key.clone() {
+            Some(key) => {
+                let new_signer = self.signers.clone().unwrap().write().await.add_privkey(Bytes::from(key));
                 self.monitor.clone().unwrap().write().await.add_account(new_signer.address());
                 info!("New signer added {:?}", new_signer.address() );
             }

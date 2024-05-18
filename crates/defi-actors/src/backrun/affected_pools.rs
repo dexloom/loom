@@ -2,8 +2,10 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use alloy_eips::{BlockId, BlockNumberOrTag};
+use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
 use revm::db::{CacheDB, EmptyDB};
@@ -43,12 +45,15 @@ pub async fn get_affected_pools(
 }
 
 
-pub async fn get_affected_pools_from_code<P>(
+pub async fn get_affected_pools_from_code<P, T, N>(
     client: P,
     market: SharedState<Market>,
     state_update: &GethStateUpdateVec,
 ) -> Result<BTreeMap<PoolWrapper, Vec<(Address, Address)>>>
-    where P: Provider + Send + Sync + Clone + 'static
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static
 {
     let db = CacheDB::new(EmptyDB::new());
     let mut market_state = MarketState::new(db);

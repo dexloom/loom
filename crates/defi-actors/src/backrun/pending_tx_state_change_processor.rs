@@ -1,13 +1,15 @@
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
-use alloy_network::TransactionBuilder;
+use alloy_network::{Network, TransactionBuilder};
 use alloy_primitives::{Address, BlockNumber, TxHash, U256, U64};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockOverrides, TransactionRequest};
 use alloy_rpc_types::state::StateOverride;
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
@@ -33,7 +35,7 @@ lazy_static! {
 
 
 
-pub async fn pending_tx_state_change_task<P: Provider + DebugProviderExt + Clone + 'static>(
+pub async fn pending_tx_state_change_task<P, T, N>(
     client: P,
     tx_hash: TxHash,
     market: SharedState<Market>,
@@ -46,7 +48,13 @@ pub async fn pending_tx_state_change_task<P: Provider + DebugProviderExt + Clone
     cur_next_base_fee: u128,
     cur_state_override: StateOverride,
     state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
-) -> Result<()> {
+) -> Result<()>
+    where
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static
+
+{
     let mut state_update_vec: GethStateUpdateVec = Vec::new();
     let mut state_required_vec: GethStateUpdateVec = Vec::new();
 
@@ -212,7 +220,7 @@ pub async fn pending_tx_state_change_task<P: Provider + DebugProviderExt + Clone
 }
 
 
-pub async fn pending_tx_state_change_worker<P>(
+pub async fn pending_tx_state_change_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
     mempool: SharedState<Mempool>,
@@ -223,7 +231,9 @@ pub async fn pending_tx_state_change_worker<P>(
     state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
 ) -> WorkerResult
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     let affecting_tx: Arc<RwLock<HashMap<TxHash, bool>>> = Arc::new(RwLock::new(HashMap::new()));
     //let mut cur_base_fee: u128 = 0;
@@ -291,7 +301,7 @@ pub async fn pending_tx_state_change_worker<P>(
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct PendingTxStateChangeProcessorActor<P>
+pub struct PendingTxStateChangeProcessorActor<P, T, N>
 {
     client: P,
     #[accessor]
@@ -308,13 +318,17 @@ pub struct PendingTxStateChangeProcessorActor<P>
     mempool_events_rx: Option<Broadcaster<MempoolEvents>>,
     #[producer]
     state_updates_tx: Option<Broadcaster<MessageSearcherPoolStateUpdate>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<P> PendingTxStateChangeProcessorActor<P>
+impl<P, T, N> PendingTxStateChangeProcessorActor<P, T, N>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P) -> PendingTxStateChangeProcessorActor<P> {
+    pub fn new(client: P) -> PendingTxStateChangeProcessorActor<P, T, N> {
         PendingTxStateChangeProcessorActor {
             client,
             market: None,
@@ -324,14 +338,18 @@ impl<P> PendingTxStateChangeProcessorActor<P>
             market_events_rx: None,
             mempool_events_rx: None,
             state_updates_tx: None,
+            _t: PhantomData::default(),
+            _n: PhantomData::default(),
         }
     }
 }
 
 #[async_trait]
-impl<P> Actor for PendingTxStateChangeProcessorActor<P>
+impl<P, T, N> Actor for PendingTxStateChangeProcessorActor<P, T, N>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(

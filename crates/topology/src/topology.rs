@@ -175,7 +175,7 @@ impl Topology
                     info!("Starting initialize env signers actor {name}");
                     let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
 
-                    let mut initialize_signers_actor = InitializeSignersActor::new();
+                    let mut initialize_signers_actor = InitializeSignersActor::new_from_encrypted_env();
                     match initialize_signers_actor
                         .access(signers.clone())
                         .access(blockchain.nonce_and_balance())

@@ -1,5 +1,9 @@
+use std::marker::PhantomData;
+
+use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use log::{error, info};
 
@@ -10,13 +14,15 @@ use loom_actors_macros::Accessor;
 
 use crate::market::logs_parser::process_log_entries;
 
-async fn history_pool_loader_worker<P>(
+async fn history_pool_loader_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
 ) -> WorkerResult
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     let mut current_block = client.get_block_number().await.unwrap();
 
@@ -47,32 +53,40 @@ async fn history_pool_loader_worker<P>(
 
 
 #[derive(Accessor)]
-pub struct HistoryPoolLoaderActor<P>
+pub struct HistoryPoolLoaderActor<P, T, N>
 {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
     market_state: Option<SharedState<MarketState>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<P> HistoryPoolLoaderActor<P>
+impl<P, T, N> HistoryPoolLoaderActor<P, T, N>
     where
-        P: Provider + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
             client,
             market: None,
             market_state: None,
+            _t: PhantomData::default(),
+            _n: PhantomData::default(),
         }
     }
 }
 
 #[async_trait]
-impl<P> Actor for HistoryPoolLoaderActor<P>
+impl<P, T, N> Actor for HistoryPoolLoaderActor<P, T, N>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(

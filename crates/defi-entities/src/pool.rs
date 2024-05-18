@@ -2,66 +2,58 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
+use std::str::FromStr;
+use std::string::ToString;
 use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{ErrReport, eyre, Result};
 use revm::InMemoryDB;
 use revm::primitives::Env;
+use serde::{Deserialize, Serialize};
+use strum_macros::{Display, EnumString, VariantNames};
 
 use crate::required_state::RequiredState;
 
-#[derive(Clone)]
-pub struct EmptyPool {
-    address: Address,
-}
-
-impl EmptyPool {
-    pub fn new(address: Address) -> Self {
-        EmptyPool {
-            address
-        }
-    }
-}
-
-
-impl Pool for EmptyPool {
-    fn get_address(&self) -> Address {
-        self.address
-    }
-
-    fn calculate_out_amount(&self, _state: &InMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _in_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
-        Err(eyre!("NOT_IMPLEMENTED"))
-    }
-
-    fn calculate_in_amount(&self, _state: &InMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _out_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
-        Err(eyre!("NOT_IMPLEMENTED"))
-    }
-
-    fn can_flash_swap(&self) -> bool {
-        false
-    }
-
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
-        &DefaultAbiSwapEncoder {}
-    }
-
-    fn get_state_required(&self) -> Result<RequiredState> {
-        Ok(RequiredState::new())
-    }
-}
-
-#[derive(Copy, Clone, PartialEq)]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    PartialEq,
+    EnumString,
+    VariantNames,
+    Display,
+    Default,
+    Deserialize,
+    Serialize
+)]
+#[strum(ascii_case_insensitive, serialize_all = "lowercase")]
 pub enum PoolClass {
+    #[default]
+    #[serde(rename = "unknown")]
+    #[strum(serialize = "unknown")]
     Unknown,
+    #[serde(rename = "uniswap2")]
+    #[strum(serialize = "uniswap2")]
     UniswapV2,
+    #[serde(rename = "uniswap3")]
+    #[strum(serialize = "uniswap3")]
     UniswapV3,
+    #[serde(rename = "curve")]
+    #[strum(serialize = "curve")]
     Curve,
+    #[serde(rename = "steth")]
+    #[strum(serialize = "steth")]
     LidoStEth,
+    #[serde(rename = "wsteth")]
+    #[strum(serialize = "wsteth")]
     LidoWstEth,
+    #[serde(rename = "rocketpool")]
+    #[strum(serialize = "rocketpool")]
     RocketPool,
     //NomiswapStable,
 }
+
 
 #[derive(Copy, Clone, Debug, PartialEq)]
 pub enum PoolProtocol {
@@ -112,6 +104,47 @@ impl Display for PoolProtocol {
         write!(f, "{}", protocol_name)
     }
 }
+
+#[derive(Clone)]
+pub struct EmptyPool {
+    address: Address,
+}
+
+impl EmptyPool {
+    pub fn new(address: Address) -> Self {
+        EmptyPool {
+            address
+        }
+    }
+}
+
+
+impl Pool for EmptyPool {
+    fn get_address(&self) -> Address {
+        self.address
+    }
+
+    fn calculate_out_amount(&self, _state: &InMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _in_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
+        Err(eyre!("NOT_IMPLEMENTED"))
+    }
+
+    fn calculate_in_amount(&self, _state: &InMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _out_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
+        Err(eyre!("NOT_IMPLEMENTED"))
+    }
+
+    fn can_flash_swap(&self) -> bool {
+        false
+    }
+
+    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
+        &DefaultAbiSwapEncoder {}
+    }
+
+    fn get_state_required(&self) -> Result<RequiredState> {
+        Ok(RequiredState::new())
+    }
+}
+
 
 pub struct PoolWrapper {
     pub pool: Arc<dyn Pool>,
@@ -302,5 +335,20 @@ pub trait AbiSwapEncoder {
     }
     fn swap_in_amount_return_script(&self, _token_from_address: Address, _token_to_address: Address) -> Option<Bytes> {
         None
+    }
+}
+
+#[cfg(test)]
+mod test
+{
+    use crate::PoolClass;
+
+    use super::*;
+
+    #[test]
+    fn test_strum() {
+        println!("{}", PoolClass::Unknown.to_string());
+        println!("{}", PoolClass::UniswapV2.to_string());
+        println!("{:?}", PoolClass::from_str("uniswap2"));
     }
 }

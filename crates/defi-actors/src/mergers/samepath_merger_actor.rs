@@ -1,13 +1,16 @@
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::ops::Deref;
 use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
+use alloy_network::Network;
 use alloy_primitives::{Address, TxHash, U256, U64};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockOverrides, Transaction};
 use alloy_rpc_types::state::StateOverride;
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
@@ -57,7 +60,7 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a HashMap<TxHash, V
     ret
 }
 
-async fn same_path_merger_task<P>
+async fn same_path_merger_task<P, T, N>
 (
     client: P,
     stuffing_txes: Vec<Transaction>,
@@ -68,7 +71,9 @@ async fn same_path_merger_task<P>
     swap_request_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     info!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len() );
 
@@ -245,7 +250,7 @@ async fn same_path_merger_task<P>
 }
 
 
-async fn same_path_merger_worker<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static>(
+async fn same_path_merger_worker<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static>(
     client: P,
     //encoder: SwapStepEncoder,
     //signers: SharedState<TxSigners>,
@@ -361,7 +366,7 @@ async fn same_path_merger_worker<P: Provider + DebugProviderExt + Send + Sync + 
 }
 
 #[derive(Consumer, Producer, Accessor)]
-pub struct SamePathMergerActor<P>
+pub struct SamePathMergerActor<P, T, N>
 {
     client: P,
     //encoder: SwapStepEncoder,
@@ -381,9 +386,15 @@ pub struct SamePathMergerActor<P>
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> SamePathMergerActor<P>
+impl<P, T, N> SamePathMergerActor<P, T, N>
+    where
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -397,12 +408,18 @@ impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> SamePathMer
             market_events: None,
             compose_channel_rx: None,
             compose_channel_tx: None,
+            _t: PhantomData::default(),
+            _n: PhantomData::default(),
         }
     }
 }
 
 #[async_trait]
-impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> Actor for SamePathMergerActor<P>
+impl<P, T, N> Actor for SamePathMergerActor<P, T, N>
+    where
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static
 {
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(

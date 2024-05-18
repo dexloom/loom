@@ -1,6 +1,7 @@
 use alloy_primitives::{Address, Bytes, U128, U256};
-use alloy_provider::Provider;
+use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
+use alloy_transport::Transport;
 use eyre::{ErrReport, eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use log::error;
@@ -88,7 +89,7 @@ impl MaverickPool {
     }
 
 
-    pub async fn fetch_pool_data<P: Provider + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
+    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
         let pool = IMaverickPoolInstance::new(address, client.clone());
 
         let token0: Address = pool.tokenA().call().await?._0;

@@ -1,5 +1,6 @@
 use alloy_primitives::{Address, B256, Bytes, keccak256};
-use alloy_provider::Provider;
+use alloy_provider::{Network, Provider};
+use alloy_transport::Transport;
 use eyre::Result;
 
 use defi_abi::uniswap2::IUniswapV2Pair;
@@ -64,13 +65,13 @@ pub fn get_uniswap3pool_address(token0: Address, token1: Address, fee: u32, fact
 }
 
 
-pub async fn fetch_uni2_factory<P: Provider>(client: P, address: Address) -> Result<Address> {
+pub async fn fetch_uni2_factory<T: Transport + Clone, N: Network, P: Provider<T, N>>(client: P, address: Address) -> Result<Address> {
     let pool = IUniswapV2Pair::IUniswapV2PairInstance::new(address, client);
     let factory = pool.factory().call().await?;
     Ok(factory._0)
 }
 
-pub async fn fetch_uni3_factory<P: Provider>(client: P, address: Address) -> Result<Address> {
+pub async fn fetch_uni3_factory<T: Transport + Clone, N: Network, P: Provider<T, N>>(client: P, address: Address) -> Result<Address> {
     let pool = IUniswapV3Pool::IUniswapV3PoolInstance::new(address, client);
     let factory = pool.factory().call().await?;
     Ok(factory._0)

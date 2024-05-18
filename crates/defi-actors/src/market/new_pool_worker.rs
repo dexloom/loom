@@ -1,4 +1,8 @@
+use std::marker::PhantomData;
+
+use alloy_network::Network;
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::Result;
 use log::{debug, error, info};
@@ -13,14 +17,16 @@ use loom_actors_macros::{Accessor, Consumer};
 
 use crate::market::logs_parser::process_log_entries;
 
-pub async fn new_pool_worker<P>(
+pub async fn new_pool_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
     mut log_update_rx: Receiver<BlockLogsUpdate>,
 ) -> WorkerResult
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     loop {
         tokio::select! {
@@ -50,9 +56,7 @@ pub async fn new_pool_worker<P>(
 }
 
 #[derive(Accessor, Consumer)]
-pub struct NewPoolLoaderActor<P>
-    where
-        P: Provider + Send + Sync + Clone + 'static,
+pub struct NewPoolLoaderActor<P, T, N>
 {
     client: P,
     #[accessor]
@@ -61,11 +65,15 @@ pub struct NewPoolLoaderActor<P>
     market_state: Option<SharedState<MarketState>>,
     #[consumer]
     log_update_rx: Option<Broadcaster<BlockLogsUpdate>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<P> NewPoolLoaderActor<P>
+impl<P, T, N> NewPoolLoaderActor<P, T, N>
     where
-        P: Provider + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         NewPoolLoaderActor {
@@ -73,15 +81,19 @@ impl<P> NewPoolLoaderActor<P>
             market: None,
             market_state: None,
             log_update_rx: None,
+            _t: PhantomData::default(),
+            _n: PhantomData::default(),
         }
     }
 }
 
 
 #[async_trait]
-impl<P> Actor for NewPoolLoaderActor<P>
+impl<P, T, N> Actor for NewPoolLoaderActor<P, T, N>
     where
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+        T: Transport + Clone,
+        N: Network,
+        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(
