@@ -12,7 +12,7 @@ pub use node::{NodeBlockActor, NodeMempoolActor};
 pub use pathencoder::ArbSwapPathEncoderActor;
 pub use price::PriceActor;
 pub use signers::{InitializeSignersActor, SignersActor};
-pub use tx_broadcaster::{FlashbotsBroadcastActor, HardhatBroadcastActor};
+pub use tx_broadcaster::{AnvilBroadcastActor, FlashbotsBroadcastActor};
 
 mod node;
 mod mempool;

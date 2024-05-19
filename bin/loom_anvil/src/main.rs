@@ -21,12 +21,7 @@ use revm::db::EmptyDB;
 use revm::InMemoryDB;
 
 use debug_provider::{AnvilControl, AnvilDebugProvider, DebugProviderExt};
-use defi_actors::{
-    ArbSwapPathEncoderActor, BlockHistoryActor, DiffPathMergerActor,
-    EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor,
-    HardhatBroadcastActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor,
-    NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, StateChangeArbSearcherActor,
-};
+use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, SignersActor, StateChangeArbActor, StateChangeArbSearcherActor};
 use defi_entities::{
     AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Pool,
     PoolClass, PoolWrapper, Token, TxSigners,
@@ -332,7 +327,7 @@ async fn main() -> Result<()> {
 
     let tx_compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
 
-    let mut broadcast_actor = HardhatBroadcastActor::new(client.clone());
+    let mut broadcast_actor = AnvilBroadcastActor::new(client.clone());
     match broadcast_actor
         .access(latest_block.clone())
         .consume(tx_compose_channel.clone())
@@ -359,7 +354,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    /*
+
     info!("Starting signers actor");
     let mut signers_actor = SignersActor::new();
     match signers_actor
@@ -367,34 +362,13 @@ async fn main() -> Result<()> {
         .consume(tx_compose_channel.clone())
         .produce(tx_compose_channel.clone())
         .start().await {
-        Err(e)=>{
+        Err(e) => {
             error!("{}",e);
             panic!("Cannot start signers");
         }
-        _=>info!("Signers actor started")
-    }
-     */
-
-    /*
-    info!("Starting state change arb actor");
-    let mut state_change_arb_actor = StateChangeArbSearcherActor::new(true);
-    match state_change_arb_actor
-        .access(market_instance.clone())
-        .consume()
-        .produce(tx_compose_channel.clone())
-        .produce(pool_health_monitor_channel.clone())
-        .start()
-        .await
-    {
-        Err(e) => {
-            error!("{}", e)
-        }
-        _ => {
-            info!("State change arb actor started successfully")
-        }
+        _ => info!("Signers actor started")
     }
 
-     */
 
     info!("Starting state change arb actor");
     let mut state_change_arb_actor = StateChangeArbActor::new(client.clone(), false, true);
@@ -438,8 +412,7 @@ async fn main() -> Result<()> {
 
     info!("Starting swap path merger actor");
 
-    /*
-    Merger
+
     let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(
         multicaller_address
     );
@@ -447,17 +420,16 @@ async fn main() -> Result<()> {
         .access(mempool_instance.clone())
         .access(market_state.clone())
         .access(tx_signers.clone())
-        .access( accounts_state.clone())
-        .access( latest_block.clone())
-        .consume( tx_compose_channel.clone())
-        .consume( market_events_channel.clone())
-        .produce( tx_compose_channel.clone())
+        .access(accounts_state.clone())
+        .access(latest_block.clone())
+        .consume(tx_compose_channel.clone())
+        .consume(market_events_channel.clone())
+        .produce(tx_compose_channel.clone())
         .start().await {
-        Err(e)=>{error!("{}",e)}
-        _=>{info!("Swap path merger actor started successfully")}
+        Err(e) => { error!("{}",e) }
+        _ => { info!("Swap path merger actor started successfully") }
     }
 
-     */
 
     let mut same_path_merger_actor = SamePathMergerActor::new(client.clone());
     match same_path_merger_actor
@@ -581,72 +553,6 @@ async fn main() -> Result<()> {
                 Err(e) => { error!("Cannot get tx : {e}") }
             }
         }
-
-
-        /*
-        for tx_hash in txs_hash.iter() {
-            match client_clone.get_transaction_by_hash(*tx_hash).await {
-                Ok(tx_option) => {
-                    match tx_option {
-                        Some(tx) => {
-                            info!("tx_found {:?}", tx);
-                            {
-                                let tx_hash: TxHash = tx.hash;
-                                //let typed_tx: TypedTransaction = (&tx).into();
-                                let mut mempool_guard = mempool_instance.write().await;
-                                mempool_guard.add_tx(tx);
-                                mempool_events_channel
-                                    .send(MempoolEvents::MempoolActualTxUpdate { tx_hash })
-                                    .await;
-                                /*
-                                match trace_call_diff(client_clone.clone(), typed_tx, Some(BlockNumber::Number(block_nr))).await {
-                                    Ok(tx_diff)=> {
-                                        info!("trace_call_diff {:?}", tx_diff);
-                                        mempool_guard.add_tx_state_change(tx_hash, tx_diff);
-                                        mempool_events_channel.send(MempoolEvents::MempoolStateUpdate(tx_hash)).await;
-                                    }
-                                    Err(e)=>{error!("{e}")}
-                                }
-                                 */
-                            }
-
-                            /*
-
-                            let typed_tx : TypedTransaction = (&tx).into();
-                            match client.send_raw_transaction(tx.rlp()).await {
-                            //match client.trace_call(typed_tx, vec![TraceType::Trace], None).await {
-                            //match client.debug_trace_call(typed_tx, None, TRACING_CALL_OPTS ).await {
-                            //match debugtrace_call_diff(client.clone(), typed_tx, BlockNumber::Latest).await {
-                                Ok(pending_tx)=> {
-                                    info!("pending_tx {:?}", pending_tx);
-                                }
-                                Err(e)=>{error!("{e}")}
-                            }
-
-                             */
-                        }
-                        None => {
-                            error!("tx not found {tx_hash}");
-                        }
-                    }
-                }
-                Err(e) => {
-                    error!("Transaction not found {} : {}", tx_hash, e)
-                }
-            }
-        }
-
-         */
-
-        tokio::time::sleep(Duration::from_millis(30000)).await;
-
-        /*
-        match client.dev_rpc().revert_to_snapshot(snap_id).await {
-            Ok(..)=>{debug!("Reverted to snapshot {}", snap_id)}
-            Err(e)=>{error!("{e}")}
-        }
-
-         */
     });
 
     println!("Test is started!");

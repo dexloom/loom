@@ -1,5 +1,6 @@
+pub use flashbots::FlashbotsBroadcastActor;
+pub use hardhat::AnvilBroadcastActor;
+
 mod flashbots;
 mod hardhat;
 
-pub use flashbots::FlashbotsBroadcastActor;
-pub use hardhat::HardhatBroadcastActor;

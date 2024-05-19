@@ -14,17 +14,16 @@ pub trait AnvilProviderExt<T, N>
         N: Network,
         T: Transport + Clone,
 {
-    async fn snapshot(&self) -> TransportResult<u64>;
-    async fn revert(&self, snap_id: u64) -> TransportResult<bool>;
-
-    async fn reset(&self) -> TransportResult<bool>;
-
-    async fn mine(&self) -> TransportResult<u64>;
-
-    async fn set_automine(&self, to_mine: bool) -> TransportResult<()>;
+    fn snapshot(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send;
+    fn revert(&self, snap_id: u64) -> impl std::future::Future<Output=TransportResult<bool>> + Send;
 
 
-    async fn set_code(&self, address: Address, code: Bytes) -> TransportResult<()>;
+    fn mine(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send;
+
+    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output=TransportResult<()>> + Send;
+
+
+    fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output=TransportResult<()>> + Send;
 
     fn set_balance(&self, address: Address, balance: U256) -> impl std::future::Future<Output=TransportResult<()>> + Send;
 }
@@ -38,30 +37,27 @@ impl<PN, PA, TN, TA, N> AnvilProviderExt<TA, N> for AnvilDebugProvider<PN, PA, T
         PN: Provider<TN, N> + Send + Sync + Clone + 'static,
         PA: Provider<TA, N> + Send + Sync + Clone + 'static
 {
-    async fn snapshot(&self) -> TransportResult<u64> {
-        self.anvil().client().request("evm_snapshot", ()).map_resp(|x| convert_u64(x)).await
+    fn snapshot(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
+        self.anvil().client().request("evm_snapshot", ()).map_resp(|x| convert_u64(x))
     }
-    async fn revert(&self, snap_id: u64) -> TransportResult<bool> {
-        self.anvil().client().request("evm_revert", (U64::from(snap_id), )).await
-    }
-    async fn reset(&self) -> TransportResult<bool> {
-        self.anvil().client().request("anvil_reset", ()).await
+    fn revert(&self, snap_id: u64) -> impl std::future::Future<Output=TransportResult<bool>> + Send {
+        self.anvil().client().request("evm_revert", (U64::from(snap_id), ))
     }
 
-    async fn set_automine(&self, to_mine: bool) -> TransportResult<()> {
-        self.anvil().client().request("evm_setAutomine", to_mine).await
+    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output=TransportResult<()>> + Send {
+        self.anvil().client().request("evm_setAutomine", (to_mine, ))
     }
 
-    async fn mine(&self) -> TransportResult<u64> {
-        self.anvil().client().request("evm_mine", ()).map_resp(|x| convert_u64(x)).await
+    fn mine(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
+        self.anvil().client().request("evm_mine", ()).map_resp(|x| convert_u64(x))
     }
 
-    async fn set_code(&self, address: Address, code: Bytes) -> TransportResult<()> {
-        self.anvil().client().request("anvil_setCode", (address, code)).await
+    fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output=TransportResult<()>> + Send {
+        self.anvil().client().request("anvil_setCode", (address, code))
     }
 
-    async fn set_balance(&self, address: Address, balance: U256) -> TransportResult<()> {
-        self.anvil().client().request("anvil_setBalance", (address, balance)).await
+    fn set_balance(&self, address: Address, balance: U256) -> impl std::future::Future<Output=TransportResult<()>> + Send {
+        self.anvil().client().request("anvil_setBalance", (address, balance))
     }
 }
 
@@ -103,9 +99,9 @@ mod test {
 
         let snap = client.snapshot().await?;
         let revert_result = client.revert(snap).await?;
-        client.set_automine(false);
+        client.set_automine(false).await?;
         let mine_result = client.mine().await;
-        client.set_automine(true);
+        client.set_automine(true).await?;
         //let reset_result = client.reset().await?;
 
 

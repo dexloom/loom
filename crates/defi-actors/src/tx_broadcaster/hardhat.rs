@@ -1,14 +1,20 @@
 use std::marker::PhantomData;
 
-use alloy_network::Network;
+use alloy_consensus::{ReceiptEnvelope, TxEnvelope};
+use alloy_eips::BlockNumberOrTag;
+use alloy_network::{Ethereum, Network};
+use alloy_network::eip2718::Decodable2718;
 use alloy_provider::Provider;
+use alloy_rlp::Decodable;
+use alloy_rpc_types::BlockTransactions;
 use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::Result;
-use log::{error, info};
+use log::{debug, error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use debug_provider::AnvilProviderExt;
 use defi_entities::LatestBlock;
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
@@ -21,67 +27,37 @@ async fn broadcast_task<P, T, N>(
     where
         N: Network,
         T: Transport + Clone,
-        P: Provider<T, N> + Clone + Send + Sync + 'static
+        P: Provider<T, N> + AnvilProviderExt<T, N> + Clone + Send + Sync + 'static
 {
     info!("Hardhat broadcast request received : {}", request.origin.unwrap_or("UNKNOWN_ORIGIN".to_string()));
     //let snap = client.dev_rpc().snapshot().await?;
     //info!("Hardhat snapshot created {snap}");
 
     for tx_rlp in request.rlp_bundle.unwrap_or_default().iter() {
-        match client.send_raw_transaction(tx_rlp.clone().unwrap().as_ref()).await {
+        let mut tx_bytes = tx_rlp.clone().unwrap().clone();
+
+        //let envelope = TxEnvelope::decode_2718(&mut tx_bytes.as_ref())?;
+        //debug!("sending tx to anvil: {} {:?}", tx_bytes.len(), envelope);
+
+        match client.send_raw_transaction(&tx_bytes).await {
             Err(e) => error!("send_raw_transaction error : {e}"),
             Ok(_) => {
-                info!("Hardhat transaction broadcast successfully",);
-                //TODO : Fix rlp decode
-                /*
-                let tx_bytes = tx_rlp.clone().unwrap();
-                let rlp = Rlp::new(&tx_bytes);
-                let tx = Transaction::decode(&rlp)?;
-                for i in 0..10 {
-                    match client.get_transaction_receipt(tx.hash).await {
-                        Ok(receipt) => {
-                            match receipt {
-                                Some(receipt) => {
-                                    let status = receipt.status.unwrap_or_default();
-
-                                    if status.as_u64() == 1 {
-                                        info!("Hardhat tx receipt success {:?} gas used {} status {}", receipt.transaction_hash, receipt.gas_used.unwrap_or_default(), status);
-                                    } else {
-                                        error!("Hardhat tx receipt error {:?} gas used {} status {}", receipt.transaction_hash, receipt.gas_used.unwrap_or_default(), status);
-                                    }
-                                    break;
-                                }
-                                None => tokio::time::sleep(Duration::from_millis(200)).await,
-                            }
-                        }
-                        Err(e) => tokio::time::sleep(Duration::from_millis(200)).await,
-                    }
-                }
-                 */
+                info!("send_raw_transaction error : Hardhat transaction broadcast successfully",);
             }
         }
     }
 
-    /*
-    match client.dev_rpc().revert_to_snapshot(snap).await {
-        Ok(_) => { info!("Hardhat reverted to snapshot {snap} successfully") }
-        Err(e) => { error!("Error reverting to snapshot : {e}") }
-    }
-
-     */
-
     Ok(())
 }
 
-async fn hardhat_broadcaster_worker<P, T, N>(
+async fn anvil_broadcaster_worker<P, T>(
     client: P,
     //latest_block: SharedState<LatestBlock>,
     mut bundle_rx: Receiver<MessageTxCompose>,
 ) -> WorkerResult
     where
-        N: Network,
         T: Transport + Clone,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+        P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static
 {
     loop {
         tokio::select! {
@@ -92,10 +68,32 @@ async fn hardhat_broadcaster_worker<P, T, N>(
                         match compose_request.inner {
                             TxCompose::Broadcast(broadcast_request) => {
                                 info!("Broadcasting to hardhat:" );
+                                let snap_shot = client.snapshot().await?;
+                                client.set_automine(false).await?;
                                 match broadcast_task(client.clone(), broadcast_request).await{
                                     Err(e)=>error!("{e}"),
                                     Ok(_)=>info!("Hardhat broadcast successful")
                                 }
+                                client.mine().await?;
+
+                                let block = client.get_block_by_number(BlockNumberOrTag::Latest, false).await?.unwrap_or_default();
+                                match block.transactions {
+                                    BlockTransactions::Hashes(hashes) => {
+                                        for tx_hash in hashes {
+                                            let reciept = client.get_transaction_receipt(tx_hash).await?.unwrap();
+                                            info!("Block : {} Mined: {} hash:  {} gas : {}", reciept.block_number.unwrap_or_default(), reciept.status(), tx_hash, reciept.gas_used, );
+                                        }
+
+                                    }
+                                    _=>{
+
+                                    }
+                                }
+
+
+
+                                client.revert(snap_shot).await?;
+                                //client.set_automine(true).await?;
                             }
                             _=>{}
                         }
@@ -110,7 +108,7 @@ async fn hardhat_broadcaster_worker<P, T, N>(
 }
 
 #[derive(Accessor, Consumer)]
-pub struct HardhatBroadcastActor<P, T, N>
+pub struct AnvilBroadcastActor<P, T>
 {
     client: P,
     #[accessor]
@@ -118,36 +116,32 @@ pub struct HardhatBroadcastActor<P, T, N>
     #[consumer]
     broadcast_rx: Option<Broadcaster<MessageTxCompose>>,
     _t: PhantomData<T>,
-    _n: PhantomData<N>,
 }
 
-impl<P, T, N> HardhatBroadcastActor<P, T, N>
+impl<P, T> AnvilBroadcastActor<P, T>
     where
-        N: Network,
         T: Transport + Clone,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+        P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static
 {
-    pub fn new(client: P) -> HardhatBroadcastActor<P, T, N> {
+    pub fn new(client: P) -> AnvilBroadcastActor<P, T> {
         Self {
             client,
             latest_block: None,
             broadcast_rx: None,
             _t: PhantomData::default(),
-            _n: PhantomData::default(),
         }
     }
 }
 
 #[async_trait]
-impl<P, T, N> Actor for HardhatBroadcastActor<P, T, N>
+impl<P, T> Actor for AnvilBroadcastActor<P, T>
     where
-        N: Network,
         T: Transport + Clone,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+        P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static
 {
     async fn start(&mut self) -> ActorResult {
         let task = tokio::task::spawn(
-            hardhat_broadcaster_worker(
+            anvil_broadcaster_worker(
                 self.client.clone(),
                 //self.latest_block.clone().unwrap(),
                 self.broadcast_rx.clone().unwrap().subscribe().await,

@@ -1,7 +1,8 @@
 use std::fmt;
 
-use alloy_consensus::SignableTransaction;
-use alloy_network::{TxSigner as AlloyTxSigner, TxSignerSync};
+use alloy_consensus::{SignableTransaction, TxEnvelope};
+use alloy_network::{TransactionBuilder, TxSigner as AlloyTxSigner, TxSignerSync};
+use alloy_network::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, TxHash};
 use alloy_primitives::private::alloy_rlp::Encodable;
 use alloy_rpc_types::TransactionRequest;
@@ -58,13 +59,17 @@ impl TxSigner {
     }
 
     pub fn sign_sync(&self, tx_req: TransactionRequest) -> Result<(TxHash, Bytes)> {
-        let mut typed_tx = tx_req.build_typed_tx().map_err(|_| eyre!("CANNOT_BUILD_TX"))?.eip1559().ok_or_eyre("CANNOT_BUILD_EIP1559")?.clone();
+        let mut typed_tx = tx_req.build_unsigned().map_err(|e| {
+            eyre!("CANNOT_BUILD_UNSIGNED")
+        })?.eip1559().ok_or_eyre("NOT_EIP_1599")?.clone();
+
         let signature = self.wallet.sign_transaction_sync(&mut typed_tx)?;
         let signed_tx = typed_tx.clone().into_signed(signature);
 
+
         let hash = signed_tx.signature_hash();
-        let mut tx_data: Vec<u8> = Vec::new();
-        typed_tx.encode(&mut tx_data);
+        let tx_env: TxEnvelope = signed_tx.try_into()?;
+        let tx_data = tx_env.encoded_2718();
         Ok((hash, Bytes::from(tx_data)))
     }
 }
