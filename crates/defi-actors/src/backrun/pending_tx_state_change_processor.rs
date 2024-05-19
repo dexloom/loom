@@ -26,7 +26,8 @@ use defi_types::{debug_trace_call_diff, GethStateUpdateVec, Mempool, TRACING_CAL
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
-use super::affected_pools::{get_affected_pools, get_affected_pools_from_code, is_pool_code};
+use super::affected_pools::get_affected_pools;
+use super::affected_pools_code::{get_affected_pools_from_code, is_pool_code};
 use super::messages::MessageSearcherPoolStateUpdate;
 
 lazy_static! {
@@ -73,15 +74,16 @@ pub async fn pending_tx_state_change_task<P, T, N>(
 
     let source = mempool_tx.source.clone();
 
-    let mut typed_tx: TransactionRequest = tx.clone().try_into()?;
+    let mut typed_tx: TransactionRequest = tx.clone().into_request();
 
-    match typed_tx.gas_price() {
+    match typed_tx.max_fee_per_gas {
         Some(g) => {
             if g < cur_next_base_fee {
-                typed_tx.set_gas_price(cur_next_base_fee);
+                typed_tx.set_max_fee_per_gas(cur_next_base_fee);
             }
         }
         None => {
+            error!("No base fee {:?} {:?} {:?}", typed_tx.gas_price, typed_tx.max_fee_per_gas, typed_tx.max_priority_fee_per_gas);
             return Err(eyre!("NO_BASE_FEE"));
         }
     }

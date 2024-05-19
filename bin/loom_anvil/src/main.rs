@@ -37,7 +37,7 @@ use defi_events::{
 };
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
-use defi_types::{ChainParameters, debug_trace_block, GethStateUpdateVec, Mempool};
+use defi_types::{ChainParameters, debug_trace_block, debug_trace_call_diff, GethStateUpdateVec, Mempool};
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom_multicaller::{MulticallerDeployer, SwapStepEncoder};
 
@@ -76,7 +76,8 @@ async fn main() -> Result<()> {
 
     let priv_key = client.privkey()?;
 
-    let multicaller_address = MulticallerDeployer::new().deploy(client.clone(), priv_key.clone()).await?.address().ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
+    //let multicaller_address = MulticallerDeployer::new().deploy(client.clone(), priv_key.clone()).await?.address().ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
+    let multicaller_address = MulticallerDeployer::new().set_code(client.clone(), Address::repeat_byte(0x78)).await?.address().ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     info!("Multicaller deployed at {:?}", multicaller_address);
 
     let encoder = Arc::new(SwapStepEncoder::new(multicaller_address));
@@ -500,45 +501,40 @@ async fn main() -> Result<()> {
         }
     }
 
+    let next_block_base_fee = ChainParameters::ethereum().calc_next_block_base_fee(block_header.gas_used, block_header.gas_limit, block_header.base_fee_per_gas.unwrap_or_default());
+
     let market_events_channel_clone = market_events_channel.clone();
+
+    // Sending block header update message
+    if let Err(e) = market_events_channel_clone
+        .send(MarketEvents::BlockHeaderUpdate {
+            block_number: block_header.number.unwrap_or_default(),
+            block_hash: block_header.hash.unwrap_or_default(),
+            timestamp: block_header.timestamp,
+            base_fee: block_header.base_fee_per_gas.unwrap_or_default(),
+            next_base_fee: next_block_base_fee,
+        })
+        .await
+    {
+        error!("{}", e);
+    }
+
+    // Sending block state update message
+    if let Err(e) = market_events_channel_clone
+        .send(MarketEvents::BlockStateUpdate {
+            block_hash: block_header.hash.unwrap_or_default(),
+        })
+        .await
+    {
+        error!("{}", e);
+    }
+
+    //starting broadcasting transactions from eth to anvil
     let client_clone = client.clone();
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_millis(1000)).await;
-        info!("rebroadcaster");
+        info!("Re-broadcaster task started");
 
-
-        //let tx_hash : H256 = "0x912c5773a432559796a3b35e49ceaef2420884e2a67165fadb81c0e4538c1ce2".parse().unwrap();
-        //let tx_hash : H256 = "0xefdd9c15c418d689e43d0356131339ed214a0122264573dfe8421733368e878f".parse().unwrap();
-        //let txs_hash : Vec<H256> = vec!["0x1114432ef38437dde663aeb868f553e0ec0ca973120e472687957223efeda331".parse().unwrap()]; //18498188
-        //let tx_hash : H256 = "0x26177953373b45fa2abac4dee9634c7db65a9e0aaf64b99c7095f51d229f24b7".parse().unwrap(); //18498188
-        //let tx_hash : H256 = "0x26177953373b45fa2abac4dee9634c7db65a9e0aaf64b99c7095f51d229f24b7".parse().unwrap(); //18498188
-        /*
-        let txs_hash : Vec<H256> = vec![
-            "0x037c66ae5e0e893c4f47ef47d21f0afc18fdad334f92e898cae1f2a3da92f9b3".parse().unwrap(),
-            "0x054a3f0c4ff3cf582c167669ed845f50b39f92007683c03b2ea53c522749d215".parse().unwrap(),
-        ]; //18567699
-         */
-        //let txs_send_19101579 = vec!["0xce5ff199495cb0e47cb4e35749ba8263fbe8428ef5b895676dfb07c784d127d8"];
-
-        let txs_19101579 = vec![
-            "0x57593a2ca17101536d5b0a98afa17d5bb24eff8370b4d43859f45c27043184a1",
-            "0xa77549d2a9fe1e7fcf54619af4f79fd36cdb76f287dfd1926f5d4dca92d7147e",
-            "0xc8fa479a462b43545fe7dd05b375b6ff57c9d961c76e8955e44b9f604b7e60a4",
-            "0x46081e7e9feed67e378cf743fb56355ce510441f6dad16f69f47e5dbb13ddd50",
-            "0x0def9bd26edcd94ad3d9a7269de062d2bf34682f25c2fdcae91360241fd82351",
-            "0x505ef4f817f97da840ca09a811d2d6a185bbb889f5afb9817ad74dc86b5419f7",
-        ];
-
-        let txs_19109955 = vec![
-            "0xf9fb98fe76dc5f4e836cdc3d80cd7902150a8609c617064f1447c3980fd6776b",
-            "0x1ec982c2d4eb5475192b26f7208b797328eab88f8e5be053f797f74bcb87a20c",
-        ];
-
-        //let snap_id = client.dev_rpc().snapshot().await.unwrap();
-
-        let txs_hash = parse_tx_hashes(txs_19109955).unwrap();
-
-        //let txs_send = parse_tx_hashes(txs_send_19101579).unwrap();
 
         for (_, tx_config) in test_config.txs.iter() {
             debug!("Fetching original tx {}", tx_config.hash);
@@ -546,22 +542,34 @@ async fn main() -> Result<()> {
                 Ok(tx_option) => {
                     match tx_option {
                         Some(tx) => {
-                            let from_balance = client.get_balance(tx.from).await.unwrap_or_default();
                             let from = tx.from;
-                            if let Ok(tx_env) = TryInto::<TxEnvelope>::try_into(tx) {
-                                debug!("Sending tx to anvil: {} from {} with balance {} ", tx_env.tx_hash(), from, from_balance );
+                            let to = tx.to.unwrap_or_default();
+                            if let Ok(tx_env) = TryInto::<TxEnvelope>::try_into(tx.clone()) {
+                                match tx_config.send.to_lowercase().as_str() {
+                                    "mempool" => {
+                                        let mut mempool_guard = mempool_instance.write().await;
+                                        let tx_hash: TxHash = tx.hash;
 
-
-                                match client_clone.send_raw_transaction(tx_env.encoded_2718().as_slice()).await {
-                                    Ok(p) => {
-                                        debug!("Transaction sent {}", p.tx_hash());
+                                        mempool_guard.add_tx(tx.clone());
+                                        if let Err(e) = mempool_events_channel
+                                            .send(MempoolEvents::MempoolActualTxUpdate { tx_hash })
+                                            .await {
+                                            error!("{e}");
+                                        }
                                     }
-                                    Err(e) => {
-                                        error!("Error sending transaction : {e}");
+                                    "block" => {
+                                        match client_clone.send_raw_transaction(tx_env.encoded_2718().as_slice()).await {
+                                            Ok(p) => {
+                                                debug!("Transaction sent {}", p.tx_hash());
+                                            }
+                                            Err(e) => {
+                                                error!("Error sending transaction : {e}");
+                                            }
+                                        }
                                     }
-                                }
-                                while client_clone.get_transaction_receipt(*tx_env.tx_hash()).await.ok().is_none() {
-                                    tokio::time::sleep(Duration::from_secs(1)).await;
+                                    _ => {
+                                        debug!("Incorrect action {} for : hash {} from {} to {}  ", tx_config.send,  tx_env.tx_hash(), from, to );
+                                    }
                                 }
                             }
                         }
@@ -574,31 +582,6 @@ async fn main() -> Result<()> {
             }
         }
 
-
-        //TODO : next_base_fee
-        let next_block_base_fee = 1u128;
-
-        if let Err(e) = market_events_channel_clone
-            .send(MarketEvents::BlockHeaderUpdate {
-                block_number: block_header.number.unwrap_or_default(),
-                block_hash: block_header.hash.unwrap_or_default(),
-                timestamp: block_header.timestamp,
-                base_fee: block_header.base_fee_per_gas.unwrap_or_default(),
-                next_base_fee: next_block_base_fee,
-            })
-            .await
-        {
-            error!("{}", e);
-        }
-
-        if let Err(e) = market_events_channel_clone
-            .send(MarketEvents::BlockStateUpdate {
-                block_hash: block_header.hash.unwrap_or_default(),
-            })
-            .await
-        {
-            error!("{}", e);
-        }
 
         /*
         for tx_hash in txs_hash.iter() {
@@ -666,7 +649,7 @@ async fn main() -> Result<()> {
          */
     });
 
-    println!("Hello, test is started!");
+    println!("Test is started!");
 
     let mut s = market_events_channel.clone().subscribe().await;
     loop {

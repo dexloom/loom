@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 
 use alloy_network::Network;
+use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use async_trait::async_trait;
@@ -15,8 +16,8 @@ use loom_actors_macros::Accessor;
 
 //TODO : Implement curve
 async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(_client: P, _market: SharedState<Market>) -> WorkerResult {
-    /*
     let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
+    /*
     let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
     let usdt_address: Address = "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap();
     let dai_address: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();

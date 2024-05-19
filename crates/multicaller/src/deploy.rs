@@ -134,11 +134,10 @@ impl MulticallerDeployer {
     }
 
 
-    pub async fn set_code<P, T, S>(self, client: P, address: Address) -> Result<Self>
+    pub async fn set_code<P, T>(self, client: P, address: Address) -> Result<Self>
         where
             T: Transport + Clone,
             P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-            S: NetworkSigner<Ethereum>
     {
         AnvilProviderExt::set_code(&client, address, self.code.clone()).await.map_err(|_| eyre!("CANNOT_SET_CODE"))?;
 

@@ -5,7 +5,7 @@ use std::sync::Arc;
 use alloy_primitives::{Address, I256, U256};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::debug;
+use log::{debug, trace};
 use revm::InMemoryDB;
 use revm::primitives::Env;
 
@@ -482,7 +482,7 @@ impl SwapLine {
             } else {
                 next_amount = current_in_amount - (current_in_amount * current_step / denominator);
             }
-            //debug!("opt step : {} direction {} first_step {} step : {} current_in_amount : {} next_amount: {} profit : {} {}", counter, inc_direction, first_step_change,  current_step, current_in_amount , next_amount, current_profit, bestprofit.unwrap());
+            trace!("opt step : {} direction {} first_step {} step : {} current_in_amount : {} next_amount: {} profit : {} {}", counter, inc_direction, first_step_change,  current_step, current_in_amount , next_amount, current_profit, bestprofit.unwrap());
         }
 
 

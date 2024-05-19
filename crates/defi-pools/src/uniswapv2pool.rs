@@ -400,6 +400,7 @@ mod tests {
     use env_logger::Env as EnvLog;
 
     use defi_entities::MarketState;
+    use defi_entities::required_state::RequiredStateReader;
 
     use crate::protocols::UniswapV2Protocol;
 
@@ -435,7 +436,7 @@ mod tests {
 
         let state_required = RequiredStateReader::fetch_calls_and_slots(provider.clone(), state_required, None).await?;
 
-        market_state.add_state(&state_required)?;
+        market_state.add_state(&state_required);
 
         let evm_env = Env::default();
 

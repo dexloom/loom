@@ -35,8 +35,10 @@ pub struct AnvilDebugProvider<PN, PA, TN, TA, N>
 
 pub struct AnvilControl {}
 
+pub type AnvilDebugProviderType = AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>;
+
 impl AnvilControl {
-    pub async fn from_node_on_block(node_url: String, block: BlockNumber) -> Result<AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>> {
+    pub async fn from_node_on_block(node_url: String, block: BlockNumber) -> Result<AnvilDebugProviderType> {
         let node_ws = WsConnect::new(node_url.clone());
         let node_provider = ProviderBuilder::new().on_ws(node_ws).await?.boxed();
 
@@ -179,6 +181,15 @@ impl<PN, PA, TN, TA, N> DebugProviderExt<TA, N> for AnvilDebugProvider<PN, PA, T
         PA: Provider<TA, N> + Send + Sync + Clone + 'static,
 {
     async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
+        let block = match block {
+            BlockNumberOrTag::Number(n) => {
+                block
+            }
+            BlockNumberOrTag::Latest => {
+                self.block_number
+            }
+            _ => { block }
+        };
         self._node.debug_trace_call(tx, block, trace_options).await
     }
     async fn geth_debug_trace_block_by_number(&self, block: BlockNumberOrTag, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {

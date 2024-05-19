@@ -91,11 +91,15 @@ impl Token {
 
 
     pub fn get_eth_price(&self) -> Option<U256> {
-        match self.eth_price.read() {
-            Ok(x) => {
-                *x
+        if self.is_weth() {
+            Some(*ONE_ETHER)
+        } else {
+            match self.eth_price.read() {
+                Ok(x) => {
+                    *x
+                }
+                _ => None
             }
-            _ => None
         }
     }
 
@@ -110,7 +114,8 @@ impl Token {
     }
 
     pub fn calc_token_value_from_eth(&self, eth_value: U256) -> Option<U256> {
-        self.get_eth_price().map(|x| eth_value.mul(x).div(*ONE_ETHER))
+        let x = self.get_eth_price();
+        x.map(|x| eth_value.mul(x).div(*ONE_ETHER))
     }
 
 

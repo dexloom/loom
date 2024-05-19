@@ -113,7 +113,7 @@ pub fn evm_access_list(state_db: &InMemoryDB, env: &Env, tx: &TransactionRequest
     env.tx.chain_id = tx.chain_id;
     env.tx.transact_to = TransactTo::Call(txto);
     env.tx.nonce = tx.nonce;
-    env.tx.data = tx.input.clone().data.unwrap();
+    env.tx.data = tx.input.clone().input.unwrap();
     env.tx.value = tx.value.unwrap_or_default();
     env.tx.caller = tx.from.unwrap_or_default();
     env.tx.gas_limit = tx.gas.unwrap_or_default() as u64;
