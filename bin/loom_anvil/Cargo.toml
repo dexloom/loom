@@ -31,8 +31,10 @@ defi-actors.workspace = true
 defi-pools.workspace = true
 defi-events.workspace = true
 
+
 loom-multicaller.workspace = true
 
+alloy-consensus.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-transport-ws.workspace = true

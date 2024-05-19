@@ -5,20 +5,22 @@ use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
+use alloy_consensus::TxEnvelope;
 use alloy_node_bindings::Anvil;
 use alloy_primitives::{Address, BlockHash, BlockNumber, TxHash, U256};
 use alloy_provider::{Provider, ProviderBuilder, ProviderLayer};
 use alloy_provider::layers::AnvilLayer;
+use alloy_provider::network::eip2718::Encodable2718;
 use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, Header, Log};
 use alloy_transport_http::reqwest::Url;
 use alloy_transport_ws::WsConnect;
 use clap::Parser;
-use eyre::Result;
+use eyre::{OptionExt, Result};
 use log::{debug, error, info, LevelFilter};
 use revm::db::EmptyDB;
 use revm::InMemoryDB;
 
-use debug_provider::{AnvilDebugProvider, DebugProviderExt};
+use debug_provider::{AnvilControl, AnvilDebugProvider, DebugProviderExt};
 use defi_actors::{
     ArbSwapPathEncoderActor, BlockHistoryActor, DiffPathMergerActor,
     EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor,
@@ -37,7 +39,7 @@ use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
 use defi_types::{ChainParameters, debug_trace_block, GethStateUpdateVec, Mempool};
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
-use loom_multicaller::SwapStepEncoder;
+use loom_multicaller::{MulticallerDeployer, SwapStepEncoder};
 
 use crate::test_config::TestConfig;
 
@@ -66,39 +68,18 @@ async fn main() -> Result<()> {
         .filter_level(LevelFilter::Debug)
         .init();
 
-
-    let multicaller_address: Address = "0x0000000000000000000000000000000000000000"
-        .parse()
-        .unwrap(); // ETH values
-    let encoder = Arc::new(SwapStepEncoder::new(multicaller_address));
-
-
     let args = Commands::parse();
     let test_config = TestConfig::from_file(args.config).await?;
-    info!("{:?}", test_config);
 
 
-    let node_url = Url::parse("ws://falcon.loop:8008/looper")?;
-    //let anvil_ws = WsConnect::new(Url::parse("ws://127.0.0.1:8545")?);
-    let node_ws = WsConnect::new(node_url.clone());
+    let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), test_config.settings.block).await?;
 
-    let anvil = Anvil::new().fork_block_number(test_config.settings.block).fork(node_url.clone()).chain_id(1);
+    let priv_key = client.privkey()?;
 
-    let priv_key = anvil.clone().spawn().keys()[0].clone();
+    let multicaller_address = MulticallerDeployer::new().deploy(client.clone(), priv_key.clone()).await?.address().ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
+    info!("Multicaller deployed at {:?}", multicaller_address);
 
-
-    let anvil_layer = AnvilLayer::from(anvil.clone());
-    let anvil_url = anvil_layer.ws_endpoint_url();
-    let anvil_ws = WsConnect::new(anvil_url.clone());
-
-
-    let anvil_provider = ProviderBuilder::new().on_ws(anvil_ws).await?;
-
-    //let anvil_provider = ProviderBuilder::new().on_http(anvil_provider.root()).await?.boxed();
-
-    let node_provider = ProviderBuilder::new().on_ws(node_ws).await?.boxed();
-    let provider = AnvilDebugProvider::new(node_provider, anvil_provider, BlockNumberOrTag::Latest);
-    let client = provider;
+    let encoder = Arc::new(SwapStepEncoder::new(multicaller_address));
 
     let block_nr = client.get_block_number().await?;
     info!("Block : {}", block_nr);
@@ -524,6 +505,8 @@ async fn main() -> Result<()> {
     tokio::spawn(async move {
         tokio::time::sleep(Duration::from_millis(1000)).await;
         info!("rebroadcaster");
+
+
         //let tx_hash : H256 = "0x912c5773a432559796a3b35e49ceaef2420884e2a67165fadb81c0e4538c1ce2".parse().unwrap();
         //let tx_hash : H256 = "0xefdd9c15c418d689e43d0356131339ed214a0122264573dfe8421733368e878f".parse().unwrap();
         //let txs_hash : Vec<H256> = vec!["0x1114432ef38437dde663aeb868f553e0ec0ca973120e472687957223efeda331".parse().unwrap()]; //18498188
@@ -557,33 +540,40 @@ async fn main() -> Result<()> {
 
         //let txs_send = parse_tx_hashes(txs_send_19101579).unwrap();
 
-        /*for tx_hash in txs_send.iter() {
-            match client_clone.get_transaction(*tx_hash).await {
+        for (_, tx_config) in test_config.txs.iter() {
+            debug!("Fetching original tx {}", tx_config.hash);
+            match client_clone.get_transaction_by_hash(tx_config.hash).await {
                 Ok(tx_option) => {
                     match tx_option {
-                        Some(tx)=>{
-                            match client_clone.send_raw_transaction(tx.rlp()).await {
-                                Ok(p)=>{
-                                    debug!("Transaction sent {}", p.tx_hash());
+                        Some(tx) => {
+                            let from_balance = client.get_balance(tx.from).await.unwrap_or_default();
+                            let from = tx.from;
+                            if let Ok(tx_env) = TryInto::<TxEnvelope>::try_into(tx) {
+                                debug!("Sending tx to anvil: {} from {} with balance {} ", tx_env.tx_hash(), from, from_balance );
+
+
+                                match client_clone.send_raw_transaction(tx_env.encoded_2718().as_slice()).await {
+                                    Ok(p) => {
+                                        debug!("Transaction sent {}", p.tx_hash());
+                                    }
+                                    Err(e) => {
+                                        error!("Error sending transaction : {e}");
+                                    }
                                 }
-                                Err(e)=>{
-                                    error!("Error sending transaction : {e}");
+                                while client_clone.get_transaction_receipt(*tx_env.tx_hash()).await.ok().is_none() {
+                                    tokio::time::sleep(Duration::from_secs(1)).await;
                                 }
-                            }
-                            while client_clone.get_transaction_receipt(tx.hash).await.ok().is_none() {
-                                tokio::time::sleep(Duration::from_secs(1)).await;
                             }
                         }
-                        None=>{
+                        None => {
                             error!("Tx is none")
                         }
                     }
                 }
-                Err(e)=>{error!("Cannot get tx : {e}")}
+                Err(e) => { error!("Cannot get tx : {e}") }
             }
-
         }
-        */
+
 
         //TODO : next_base_fee
         let next_block_base_fee = 1u128;

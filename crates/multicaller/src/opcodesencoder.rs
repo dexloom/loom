@@ -108,6 +108,8 @@ impl OpcodesEncoder for OpcodesEncoderV2 {
 
 #[cfg(test)]
 mod test {
+    use alloy_primitives::Address;
+
     use super::*;
 
     #[test]

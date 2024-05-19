@@ -1,14 +1,18 @@
 use std::marker::PhantomData;
+use std::sync::Arc;
 
+use alloy_node_bindings::{Anvil, AnvilInstance};
 use alloy_primitives::{BlockHash, BlockNumber, U64};
-use alloy_provider::{Network, Provider, RootProvider};
+use alloy_provider::{Network, Provider, ProviderBuilder, RootProvider};
 use alloy_provider::ext::DebugApi;
 use alloy_provider::network::Ethereum;
-use alloy_rpc_client::RpcCall;
+use alloy_rpc_client::{RpcCall, WsConnect};
 use alloy_rpc_types::{BlockNumberOrTag, TransactionRequest};
 use alloy_rpc_types_trace::geth::{GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, TraceResult};
 use alloy_transport::{BoxTransport, Transport, TransportResult};
 use async_trait::async_trait;
+use eyre::{eyre, Result};
+use k256::SecretKey;
 
 #[derive(Clone, Debug)]
 pub struct AnvilDebugProvider<PN, PA, TN, TA, N>
@@ -21,12 +25,70 @@ pub struct AnvilDebugProvider<PN, PA, TN, TA, N>
 {
     _node: PN,
     _anvil: PA,
+    _anvil_instance: Option<Arc<AnvilInstance>>,
     block_number: BlockNumberOrTag,
     _ta: PhantomData<TA>,
     _tn: PhantomData<TN>,
     _n: PhantomData<N>,
 }
 
+
+pub struct AnvilControl {}
+
+impl AnvilControl {
+    pub async fn from_node_on_block(node_url: String, block: BlockNumber) -> Result<AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>> {
+        let node_ws = WsConnect::new(node_url.clone());
+        let node_provider = ProviderBuilder::new().on_ws(node_ws).await?.boxed();
+
+        let anvil = Anvil::new().fork_block_number(block).fork(node_url.clone()).chain_id(1).spawn();
+
+        //let anvil_layer = AnvilLayer::from(anvil.clone());
+        let anvil_url = anvil.ws_endpoint_url();
+        let anvil_ws = WsConnect::new(anvil_url.clone());
+
+        let anvil_provider = ProviderBuilder::new().on_ws(anvil_ws).await?.boxed();
+
+        let curblock = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
+
+        match curblock {
+            Some(curblock) => {
+                if curblock.header.number.unwrap_or_default() != block {
+                    return Err(eyre!("INCORRECT_BLOCK_NUMBER"));
+                }
+            }
+            _ => {
+                return Err(eyre!("CANNOT_GET_BLOCK"));
+            }
+        }
+
+
+        let ret = AnvilDebugProvider {
+            _node: node_provider,
+            _anvil: anvil_provider,
+            _anvil_instance: Some(Arc::new(anvil)),
+            block_number: BlockNumberOrTag::Number(block),
+            _ta: PhantomData::<BoxTransport>::default(),
+            _tn: PhantomData::<BoxTransport>::default(),
+            _n: PhantomData::<Ethereum>::default(),
+        };
+
+        let curblock = ret.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
+
+        match curblock {
+            Some(curblock) => {
+                if curblock.header.number.unwrap_or_default() != block {
+                    return Err(eyre!("INCORRECT_BLOCK_NUMBER"));
+                }
+            }
+            _ => {
+                return Err(eyre!("CANNOT_GET_BLOCK"));
+            }
+        }
+
+
+        Ok(ret)
+    }
+}
 
 impl<PN, PA, TN, TA, N> AnvilDebugProvider<PN, PA, TN, TA, N>
     where
@@ -37,14 +99,26 @@ impl<PN, PA, TN, TA, N> AnvilDebugProvider<PN, PA, TN, TA, N>
         PN: Provider<TN, N> + Send + Sync + Clone + 'static
 {
     pub fn new(_node: PN, _anvil: PA, block_number: BlockNumberOrTag) -> Self {
-        Self { _node, _anvil, block_number, _ta: PhantomData::default(), _tn: PhantomData::default(), _n: PhantomData::default() }
+        Self { _node, _anvil, _anvil_instance: None, block_number, _ta: PhantomData::default(), _tn: PhantomData::default(), _n: PhantomData::default() }
     }
+
 
     pub fn node(&self) -> &PN {
         &self._node
     }
     pub fn anvil(&self) -> &PA {
         &self._anvil
+    }
+
+    pub fn privkey(&self) -> Result<SecretKey> {
+        match &self._anvil_instance {
+            Some(anvil) => {
+                Ok(anvil.clone().keys()[0].clone())
+            }
+            _ => {
+                Err(eyre!("NO_ANVIL_INSTANCE"))
+            }
+        }
     }
 }
 

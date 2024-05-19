@@ -1,4 +1,4 @@
-use alloy_primitives::U64;
+use alloy_primitives::{Address, Bytes, U256, U64};
 use alloy_provider::{Network, Provider};
 use alloy_rpc_types::BlockNumberOrTag;
 use alloy_transport::{Transport, TransportResult};
@@ -20,7 +20,15 @@ pub trait AnvilProviderExt<T, N>
     async fn reset(&self) -> TransportResult<bool>;
 
     async fn mine(&self) -> TransportResult<u64>;
+
+    async fn set_automine(&self, to_mine: bool) -> TransportResult<()>;
+
+
+    async fn set_code(&self, address: Address, code: Bytes) -> TransportResult<()>;
+
+    fn set_balance(&self, address: Address, balance: U256) -> impl std::future::Future<Output=TransportResult<()>> + Send;
 }
+
 
 impl<PN, PA, TN, TA, N> AnvilProviderExt<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N>
     where
@@ -40,8 +48,20 @@ impl<PN, PA, TN, TA, N> AnvilProviderExt<TA, N> for AnvilDebugProvider<PN, PA, T
         self.anvil().client().request("anvil_reset", ()).await
     }
 
+    async fn set_automine(&self, to_mine: bool) -> TransportResult<()> {
+        self.anvil().client().request("evm_setAutomine", to_mine).await
+    }
+
     async fn mine(&self) -> TransportResult<u64> {
         self.anvil().client().request("evm_mine", ()).map_resp(|x| convert_u64(x)).await
+    }
+
+    async fn set_code(&self, address: Address, code: Bytes) -> TransportResult<()> {
+        self.anvil().client().request("anvil_setCode", (address, code)).await
+    }
+
+    async fn set_balance(&self, address: Address, balance: U256) -> TransportResult<()> {
+        self.anvil().client().request("anvil_setBalance", (address, balance)).await
     }
 }
 
@@ -83,8 +103,10 @@ mod test {
 
         let snap = client.snapshot().await?;
         let revert_result = client.revert(snap).await?;
+        client.set_automine(false);
         let mine_result = client.mine().await;
-        let reset_result = client.reset().await?;
+        client.set_automine(true);
+        //let reset_result = client.reset().await?;
 
 
         Ok(())
