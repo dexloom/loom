@@ -145,8 +145,9 @@ impl UniswapV3Pool {
         let token0 = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1 = UniswapV3StateReader::token1(db, env.clone(), address)?;
         let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
-        let factory = UniswapV3StateReader::factory(db, env.clone(), address)?;
+        let factory = UniswapV3StateReader::factory(db, env.clone(), address).unwrap_or_default();
         let protocol = UniswapV3Pool::get_protocol_by_factory(factory);
+
 
         let ret = UniswapV3Pool {
             address,

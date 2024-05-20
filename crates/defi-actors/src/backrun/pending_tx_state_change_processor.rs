@@ -1,3 +1,4 @@
+use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -165,13 +166,15 @@ pub async fn pending_tx_state_change_task<P, T, N>(
                 info!("Pool code found");
                 match get_affected_pools_from_code(client, market.clone(), &merged_state_update_vec).await {
                     Ok(affected_pools) => {
-                        match affecting_tx.read().await.get(&tx_hash) {
-                            Some(v) => {
-                                if !*v {
-                                    affecting_tx.write().await.insert(tx_hash, affected_pools.len() > 0);
+                        match affecting_tx.write().await.entry(tx_hash) {
+                            Entry::Occupied(mut v) => {
+                                if !v.get() {
+                                    v.insert(affected_pools.len() > 0);
                                 }
                             }
-                            None => { affecting_tx.write().await.insert(tx_hash, affected_pools.len() > 0); }
+                            Entry::Vacant(v) => {
+                                v.insert(affected_pools.len() > 0);
+                            }
                         };
 
                         debug!("Mempool code pools {} {} update len : {}", tx_hash, source, affected_pools.len());

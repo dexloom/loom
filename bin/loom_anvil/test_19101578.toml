@@ -1,0 +1,26 @@
+#WETH N ARB CASE WITH MULTIPLE STUFFING
+[modules]
+signer = false
+
+
+[settings]
+block = 19101578
+coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
+multicaller = "0x3dd35b4da6534230ff53048f7477f17f7f4e7a70"
+skip_default = false
+
+[pools]
+weth_n_uni3 = { address = "0x90e7a93e0a6514cb0c84fc7acc1cb5c0793352d2", class = "uniswap3" }
+weth_n_uni2 = { address = "0x177a9b475f55b6b7b25204e2562a39308bba2a54", class = "uniswap2" }
+
+[txs]
+
+tx_1 = { hash = "0x57593a2ca17101536d5b0a98afa17d5bb24eff8370b4d43859f45c27043184a1", send = "mempool" }
+tx_2 = { hash = "0xa77549d2a9fe1e7fcf54619af4f79fd36cdb76f287dfd1926f5d4dca92d7147e", send = "mempool" }
+tx_3 = { hash = "0xc8fa479a462b43545fe7dd05b375b6ff57c9d961c76e8955e44b9f604b7e60a4", send = "mempool" }
+tx_4 = { hash = "0x46081e7e9feed67e378cf743fb56355ce510441f6dad16f69f47e5dbb13ddd50", send = "mempool" }
+tx_5 = { hash = "0x0def9bd26edcd94ad3d9a7269de062d2bf34682f25c2fdcae91360241fd82351", send = "mempool" }
+tx_6 = { hash = "0x505ef4f817f97da840ca09a811d2d6a185bbb889f5afb9817ad74dc86b5419f7", send = "mempool" }
+
+[tokens]
+weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }

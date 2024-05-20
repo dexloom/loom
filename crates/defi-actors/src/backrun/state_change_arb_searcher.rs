@@ -4,7 +4,7 @@ use std::sync::Arc;
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
-use log::{error, warn};
+use log::{error, trace, warn};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use rayon::prelude::*;
 use revm::InMemoryDB;
@@ -35,7 +35,7 @@ async fn state_change_arb_searcher_task(
     let db = msg.market_state().clone();
     let mut market_state = MarketState::new(db);
 
-    market_state.apply_state_update(msg.state_update(), false, false);
+    market_state.apply_state_update(msg.state_update(), true, false);
 
     let start_time = chrono::Local::now();
     let mut swap_path_vec: Vec<Arc<SwapPath>> = Vec::new();
@@ -98,8 +98,8 @@ async fn state_change_arb_searcher_task(
                     }
                     Err(e) => {
                         let pool_health_tx = req.3;
-                        match pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e))) {
-                            Err(e) => { error!("try_send to pool_health_monitor error : {e}") }
+                        match pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {
+                            Err(se) => { error!("try_send to pool_health_monitor error : {e:?}") }
                             _ => {}
                         }
                     }
@@ -194,9 +194,9 @@ struct Calculator {}
 impl Calculator
 {
     pub fn calculate<'a>(path: &'a mut SwapLine, state: &InMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
-        //let mut db = state as EVM<&dyn DatabaseRef<Error = Infallible>>;
         let first_token = path.get_first_token().unwrap();
         let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
+        trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
         path.optimize_swap_path_in_amount_provided(state, env, amount_in)
     }
 }

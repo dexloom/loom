@@ -78,8 +78,6 @@ async fn main() -> Result<()> {
     }
 
     info!("Starting swap path merger actor");
-
-
     let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(
         multicaller,
     );

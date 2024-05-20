@@ -97,7 +97,7 @@ impl MarketState
                 let account_info = AccountInfo {
                     balance: account_updated_state.balance.unwrap_or_default(),
                     nonce: account_updated_state.nonce.unwrap_or_default().as_u64(),
-                    code_hash: KECCAK_EMPTY,
+                    code_hash: if code.is_some() { KECCAK_EMPTY } else { Default::default() },
                     code,
                 };
 

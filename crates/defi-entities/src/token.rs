@@ -131,6 +131,16 @@ impl Token {
         self.decimals
     }
 
+    pub fn get_exp(&self) -> U256 {
+        let decimals = self.decimals.unwrap_or(18);
+        if decimals == 18 {
+            *ONE_ETHER
+        } else {
+            U256::from(10).pow(U256::from(self.decimals.unwrap_or(18)))
+        }
+    }
+
+
     pub fn get_address(&self) -> Address {
         self.address
     }
@@ -159,7 +169,7 @@ impl Token {
         if decimals == 0 {
             0f64
         } else {
-            let divider = U256::from(10).pow(U256::from(decimals));
+            let divider = self.get_exp();
             let ret = value.div_rem(divider);
 
             let div = u64::try_from(ret.0);
@@ -190,7 +200,7 @@ impl Token {
 
     pub fn from_float(&self, value: f64) -> U256 {
         let multiplier = U256::from(value as i64);
-        let modulus = U256::from((value - value.abs()) as i64 * (10 ^ self.decimals.unwrap() as i64));
+        let modulus = U256::from(((value - value.round()) * (10 ^ self.decimals.unwrap() as i64) as f64) as u64);
         multiplier.mul(U256::from(10).pow(U256::from(self.decimals.unwrap()))).add(modulus)
     }
 
@@ -211,8 +221,12 @@ impl NWETH {
 
     pub fn from_float(value: f64) -> U256 {
         let multiplier = U256::from(value as i64);
-        let modulus = U256::from((value - value.abs()) as i64 * 10_i64.pow(18));
+        let modulus = U256::from(((value - value.round()) * 10_i64.pow(18) as f64) as u64);
         multiplier.mul(U256::from(10).pow(U256::from(18))).add(modulus)
+    }
+
+    pub fn get_exp() -> U256 {
+        *ONE_ETHER
     }
 }
 

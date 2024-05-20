@@ -1,0 +1,22 @@
+#WETH PEPE ARB CASE WITH TWO STUFFING
+[modules]
+signer = false
+
+
+[settings]
+block = 18567709
+coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
+multicaller = "0x3dd35b4da6534230ff53048f7477f17f7f4e7a70"
+skip_default = false
+
+[pools]
+weth_pepe_uni3 = { address = "0xa84181f223a042949e9040e42b44c50021802db6", class = "uniswap3" }
+weth_pepe_uni2 = { address = "0xaa9b647f42858f2db441f0aa75843a8e7fd5aff2", class = "uniswap2" }
+
+[txs]
+
+tx_1 = { hash = "0x037c66ae5e0e893c4f47ef47d21f0afc18fdad334f92e898cae1f2a3da92f9b3", send = "mempool" }
+tx_2 = { hash = "0x054a3f0c4ff3cf582c167669ed845f50b39f92007683c03b2ea53c522749d215", send = "mempool" }
+
+[tokens]
+weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }

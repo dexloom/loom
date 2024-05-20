@@ -2,7 +2,7 @@ use alloy_primitives::{Address, B256, Bytes, U256};
 use alloy_rpc_types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, trace};
+use log::{debug, error, info, trace};
 use revm::Evm;
 use revm::InMemoryDB;
 use revm::interpreter::Host;
@@ -26,11 +26,7 @@ pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data
         .with_db(state_db.clone()).with_env(Box::new(env))
         .build();
 
-
-    //let mut evm = Evm::new(
-    //    Context { evm: EvmContext::new_with_env(WrapDatabaseRef(state_db), Box::new(env)), external: () }, Handler::mainnet::<ShanghaiSpec>());
-
-
+    
     let ref_tx = evm.transact()?;
     let result = ref_tx.result;
 

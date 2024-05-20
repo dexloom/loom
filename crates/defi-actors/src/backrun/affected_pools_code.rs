@@ -32,7 +32,7 @@ pub async fn get_affected_pools_from_code<P, T, N>(
 {
     let db = CacheDB::new(EmptyDB::new());
     let mut market_state = MarketState::new(db);
-    market_state.apply_state_update(&state_update, false, false);
+    market_state.apply_state_update(&state_update, true, false);
 
 
     let mut ret: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
@@ -82,11 +82,13 @@ pub async fn get_affected_pools_from_code<P, T, N>(
                     }
 
 
+                    //TODO : Fix Maverick
                     if UniswapV3Protocol::is_code(code) {
                         match market.read().await.get_pool(address) {
                             None => {
                                 info!("Loading UniswapV3 class pool : {address:?}");
                                 let env = Env::default();
+                                // TODO : Fix factory
                                 match UniswapV3StateReader::factory(&market_state.state_db, env.clone(), *address) {
                                     Ok(factory_address) => {
                                         let _fetch_result = match get_protocol_by_factory(factory_address) {

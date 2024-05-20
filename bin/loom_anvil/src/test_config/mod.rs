@@ -9,11 +9,37 @@ use defi_entities::PoolClass;
 
 #[derive(Deserialize, Debug)]
 pub struct TestConfig {
+    pub modules: Modules,
     pub settings: Settings,
     pub pools: HashMap<String, PoolConfig>,
     pub txs: HashMap<String, TransactionConfig>,
     pub tokens: HashMap<String, TokenConfig>,
 }
+
+fn default_true() -> bool {
+    true
+}
+
+#[derive(Deserialize, Debug)]
+pub struct Modules {
+    #[serde(default = "default_true")]
+    pub price: bool,
+    #[serde(default = "default_true")]
+    pub signer: bool,
+    #[serde(default = "default_true")]
+    pub encoder: bool,
+    #[serde(default = "default_true")]
+    pub arb_path_merger: bool,
+    #[serde(default = "default_true")]
+    pub same_path_merger: bool,
+    #[serde(default = "default_true")]
+    pub diff_path_merger: bool,
+    #[serde(default)]
+    pub arb_block: bool,
+    #[serde(default = "default_true")]
+    pub arb_mempool: bool,
+}
+
 
 #[derive(Deserialize, Debug)]
 pub struct Settings {
@@ -44,6 +70,7 @@ pub struct TokenConfig {
     pub decimals: Option<i32>,
     pub basic: Option<bool>,
     pub middle: Option<bool>,
+    pub price: Option<f64>,
 }
 
 

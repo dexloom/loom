@@ -1,5 +1,6 @@
 use std::collections::BTreeMap;
 use std::convert::Infallible;
+use std::fmt::{Display, Formatter};
 use std::panic::panic_any;
 use std::str::FromStr;
 use std::sync::Arc;
@@ -15,6 +16,7 @@ use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, Header, Log};
 use alloy_transport_http::reqwest::Url;
 use alloy_transport_ws::WsConnect;
 use clap::Parser;
+use env_logger::Env as EnvLog;
 use eyre::{OptionExt, Result};
 use log::{debug, error, info, LevelFilter};
 use revm::db::EmptyDB;
@@ -22,14 +24,8 @@ use revm::InMemoryDB;
 
 use debug_provider::{AnvilControl, AnvilDebugProvider, DebugProviderExt};
 use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, SignersActor, StateChangeArbActor, StateChangeArbSearcherActor};
-use defi_entities::{
-    AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Pool,
-    PoolClass, PoolWrapper, Token, TxSigners,
-};
-use defi_events::{
-    BlockLogsUpdate, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent,
-    MessageMempoolDataUpdate, MessageTxCompose,
-};
+use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, Pool, PoolClass, PoolWrapper, Token, TxSigners};
+use defi_events::{BlockLogsUpdate, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, SwapType, TxCompose};
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
 use defi_types::{ChainParameters, debug_trace_block, debug_trace_call_diff, GethStateUpdateVec, Mempool};
@@ -40,6 +36,36 @@ use crate::test_config::TestConfig;
 
 mod test_config;
 mod default;
+
+
+#[derive(Clone, Default, Debug)]
+struct Stat {
+    encode_counter: usize,
+    sign_counter: usize,
+    best_profit_eth: U256,
+    best_swap: Option<SwapType>,
+}
+
+impl Display for Stat {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match &self.best_swap {
+            Some(swap) => {
+                match swap.get_first_token() {
+                    Some(token) => {
+                        write!(f, "Encoded: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ",
+                               self.encode_counter, self.sign_counter, token.to_float(swap.abs_profit()), NWETH::to_float(swap.abs_profit_eth()), swap)
+                    }
+                    None => {
+                        write!(f, "Encoded: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ", self.encode_counter, self.sign_counter, swap.abs_profit(), swap.abs_profit_eth(), swap)
+                    }
+                }
+            }
+            _ => {
+                write!(f, "NO BEST SWAP")
+            }
+        }
+    }
+}
 
 
 fn parse_tx_hashes(tx_hash_vec: Vec<&str>) -> Result<Vec<TxHash>> {
@@ -58,12 +84,11 @@ struct Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::builder()
-        .format_timestamp_micros()
-        .filter_level(LevelFilter::Debug)
-        .init();
+    env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
+
 
     let args = Commands::parse();
+
     let test_config = TestConfig::from_file(args.config).await?;
 
 
@@ -149,6 +174,28 @@ async fn main() -> Result<()> {
         Some(post),
     );
 
+    for (token_name, token_config) in test_config.tokens {
+        let symbol = token_config
+            .symbol
+            .unwrap_or(token_config.address.to_checksum(None));
+        let name = token_config.name.unwrap_or(symbol.clone());
+        let token = Token::new_with_data(
+            token_config.address,
+            Some(symbol),
+            Some(name),
+            Some(token_config.decimals.map_or(18, |x| x)),
+            token_config.basic.unwrap_or_default(),
+            token_config.middle.unwrap_or_default(),
+        );
+        if let Some(price_float) = token_config.price {
+            let price_u256 = NWETH::from_float(price_float) * token.get_exp() / NWETH::get_exp();
+            debug!("Setting price : {} -> {} ({})", token_name, price_u256, price_u256.to::<u128>());
+
+            token.set_eth_price(Some(price_u256));
+        };
+
+        market_instance.write().await.add_token(token);
+    }
 
     for (pool_name, pool_config) in test_config.pools {
         match pool_config.class {
@@ -188,25 +235,11 @@ async fn main() -> Result<()> {
         }
     }
 
-    for (token_name, token_config) in test_config.tokens {
-        let symbol = token_config
-            .symbol
-            .unwrap_or(token_config.address.to_checksum(None));
-        let name = token_config.name.unwrap_or(symbol.clone());
-        let token = Token::new_with_data(
-            token_config.address,
-            Some(symbol),
-            Some(name),
-            Some(token_config.decimals.map_or(18, |x| x)),
-            token_config.basic.unwrap_or_default(),
-            token_config.middle.unwrap_or_default(),
-        );
-        market_instance.write().await.add_token(token);
-    }
 
     let chain_params = ChainParameters::ethereum();
 
     info!("Starting initialize signers actor");
+
 
     let mut initialize_signers_actor = InitializeSignersActor::new(Some(priv_key.to_bytes().to_vec()));
     match initialize_signers_actor
@@ -221,6 +254,7 @@ async fn main() -> Result<()> {
         }
         _ => info!("Signers have been initialized"),
     }
+
 
     info!("Starting market state preload actor");
     let mut market_state_preload_actor =
@@ -327,6 +361,7 @@ async fn main() -> Result<()> {
 
     let tx_compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
 
+
     let mut broadcast_actor = AnvilBroadcastActor::new(client.clone());
     match broadcast_actor
         .access(latest_block.clone())
@@ -354,104 +389,119 @@ async fn main() -> Result<()> {
         }
     }
 
-
-    info!("Starting signers actor");
-    let mut signers_actor = SignersActor::new();
-    match signers_actor
-        .access(tx_signers.clone())
-        .consume(tx_compose_channel.clone())
-        .produce(tx_compose_channel.clone())
-        .start().await {
-        Err(e) => {
-            error!("{}",e);
-            panic!("Cannot start signers");
-        }
-        _ => info!("Signers actor started")
-    }
+    // Start actor that encodes paths found
+    if test_config.modules.encoder {
+        info!("Starting swap path encoder actor");
 
 
-    info!("Starting state change arb actor");
-    let mut state_change_arb_actor = StateChangeArbActor::new(client.clone(), false, true);
-    match state_change_arb_actor
-        .access(mempool_instance.clone())
-        .access(latest_block.clone())
-        .access(market_instance.clone())
-        .access(market_state.clone())
-        .access(block_history_state.clone())
-        .consume(market_events_channel.clone())
-        .consume(mempool_events_channel.clone())
-        .produce(tx_compose_channel.clone())
-        .produce(pool_health_monitor_channel.clone())
-        .start().await {
-        Err(e) => { error!("{}",e) }
-        _ => { info!("State change arb actor started successfully") }
-    }
+        let mut swap_path_encoder_actor = ArbSwapPathEncoderActor::new(multicaller_address);
 
-    info!("Starting swap path encoder actor");
-
-    let mut swap_path_encoder_actor = ArbSwapPathEncoderActor::new(multicaller_address);
-
-    match swap_path_encoder_actor
-        .access(mempool_instance.clone())
-        //.access(market_state.clone())
-        .access(tx_signers.clone())
-        .access(accounts_state.clone())
-        .access(latest_block.clone())
-        .consume(tx_compose_channel.clone())
-        .produce(tx_compose_channel.clone())
-        .start()
-        .await
-    {
-        Err(e) => {
-            error!("{}", e)
-        }
-        _ => {
-            info!("Swap path encoder actor started successfully")
+        match swap_path_encoder_actor
+            .access(mempool_instance.clone())
+            //.access(market_state.clone())
+            .access(tx_signers.clone())
+            .access(accounts_state.clone())
+            .access(latest_block.clone())
+            .consume(tx_compose_channel.clone())
+            .produce(tx_compose_channel.clone())
+            .start()
+            .await
+        {
+            Err(e) => {
+                error!("{}", e)
+            }
+            _ => {
+                info!("Swap path encoder actor started successfully")
+            }
         }
     }
 
-    info!("Starting swap path merger actor");
 
-
-    let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(
-        multicaller_address
-    );
-    match swap_path_merger_actor
-        .access(mempool_instance.clone())
-        .access(market_state.clone())
-        .access(tx_signers.clone())
-        .access(accounts_state.clone())
-        .access(latest_block.clone())
-        .consume(tx_compose_channel.clone())
-        .consume(market_events_channel.clone())
-        .produce(tx_compose_channel.clone())
-        .start().await {
-        Err(e) => { error!("{}",e) }
-        _ => { info!("Swap path merger actor started successfully") }
-    }
-
-
-    let mut same_path_merger_actor = SamePathMergerActor::new(client.clone());
-    match same_path_merger_actor
-        .access(mempool_instance.clone())
-        .access(market_state.clone())
-        .access(tx_signers.clone())
-        .access(accounts_state.clone())
-        .access(latest_block.clone())
-        .consume(tx_compose_channel.clone())
-        .consume(market_events_channel.clone())
-        .produce(tx_compose_channel.clone())
-        .start()
-        .await
-    {
-        Err(e) => {
-            error!("{}", e)
-        }
-        _ => {
-            info!("Same path merger actor started successfully")
+    // Start signer actor that signs paths before broadcasting
+    if test_config.modules.signer {
+        info!("Starting signers actor");
+        let mut signers_actor = SignersActor::new();
+        match signers_actor
+            .access(tx_signers.clone())
+            .consume(tx_compose_channel.clone())
+            .produce(tx_compose_channel.clone())
+            .start().await {
+            Err(e) => {
+                error!("{}",e);
+                panic!("Cannot start signers");
+            }
+            _ => info!("Signers actor started")
         }
     }
 
+
+    //
+    if test_config.modules.arb_block || test_config.modules.arb_mempool {
+        info!("Starting state change arb actor");
+        let mut state_change_arb_actor = StateChangeArbActor::new(client.clone(), test_config.modules.arb_block, test_config.modules.arb_mempool);
+        match state_change_arb_actor
+            .access(mempool_instance.clone())
+            .access(latest_block.clone())
+            .access(market_instance.clone())
+            .access(market_state.clone())
+            .access(block_history_state.clone())
+            .consume(market_events_channel.clone())
+            .consume(mempool_events_channel.clone())
+            .produce(tx_compose_channel.clone())
+            .produce(pool_health_monitor_channel.clone())
+            .start().await {
+            Err(e) => { error!("{}",e) }
+            _ => { info!("State change arb actor started successfully") }
+        }
+    }
+
+
+    // Swap path merger tries to build swap steps from swap lines
+    if test_config.modules.arb_path_merger {
+        info!("Starting swap path merger actor");
+        let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(
+            multicaller_address
+        );
+        match swap_path_merger_actor
+            .access(mempool_instance.clone())
+            .access(market_state.clone())
+            .access(tx_signers.clone())
+            .access(accounts_state.clone())
+            .access(latest_block.clone())
+            .consume(tx_compose_channel.clone())
+            .consume(market_events_channel.clone())
+            .produce(tx_compose_channel.clone())
+            .start().await {
+            Err(e) => { error!("{}",e) }
+            _ => { info!("Swap path merger actor started successfully") }
+        }
+    }
+
+    // Same path merger tries to merge different stuffing tx to optimize swap line
+    if test_config.modules.same_path_merger {
+        let mut same_path_merger_actor = SamePathMergerActor::new(client.clone());
+        match same_path_merger_actor
+            .access(mempool_instance.clone())
+            .access(market_state.clone())
+            .access(tx_signers.clone())
+            .access(accounts_state.clone())
+            .access(latest_block.clone())
+            .consume(tx_compose_channel.clone())
+            .consume(market_events_channel.clone())
+            .produce(tx_compose_channel.clone())
+            .start()
+            .await
+        {
+            Err(e) => {
+                error!("{}", e)
+            }
+            _ => {
+                info!("Same path merger actor started successfully")
+            }
+        }
+    }
+
+    // Diff path merger tries to merge all found swaplines into one transaction s
     let mut diff_path_merger_actor = DiffPathMergerActor::new();
     match diff_path_merger_actor
         .access(mempool_instance.clone())
@@ -469,7 +519,7 @@ async fn main() -> Result<()> {
             error!("{}", e)
         }
         _ => {
-            info!("Same path merger actor started successfully")
+            info!("Diff path merger actor started successfully")
         }
     }
 
@@ -557,26 +607,45 @@ async fn main() -> Result<()> {
 
     println!("Test is started!");
 
-    let mut s = market_events_channel.clone().subscribe().await;
+    let mut s = tx_compose_channel.subscribe().await;
+
+
+    let mut stat = Stat::default();
+    let timeout_duration = Duration::from_secs(10);
+
     loop {
-        let msg = s.recv().await;
-        match msg {
-            Ok(msg) => match msg {
-                MarketEvents::BlockTxUpdate {
-                    block_number,
-                    block_hash,
-                } => {
-                    info!("New block received {} {}", block_number, block_hash);
+        tokio::select! {
+            msg = s.recv() => {
+                match msg {
+                    Ok(msg) => match msg.inner {
+                        TxCompose::Sign(sign_message) => {
+                            info!("Sign message. Swap : {}", sign_message.swap);
+                            stat.sign_counter += 1;
+                            if stat.best_profit_eth < sign_message.swap.abs_profit_eth() {
+                                stat.best_profit_eth = sign_message.swap.abs_profit_eth();
+                                stat.best_swap = Some(sign_message.swap.clone());
+                            }
+                        }
+                        TxCompose::Encode(encode_message) => {
+                            info!("Encode message. Swap : {}", encode_message.swap);
+                            stat.encode_counter +=1;
+                        }
+                        _ => {}
+                    },
+                    Err(e) => {
+                        error!("{e}")
+                    }
                 }
-                _ => {
-                    debug!("event: {:?}", msg)
-                }
-            },
-            Err(e) => {
-                error!("{e}")
+            }
+            msg = tokio::time::sleep(timeout_duration) => {
+                info!("Timed out");
+                break;
+
             }
         }
     }
+
+    println!("Stat : {}", stat);
 
     Ok(())
 }

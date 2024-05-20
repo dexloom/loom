@@ -1,3 +1,8 @@
+# WETH SYM ARB CASE
+[modules]
+signer = false
+
+
 [settings]
 block = 19109955
 coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
