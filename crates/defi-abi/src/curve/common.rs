@@ -21,7 +21,7 @@ sol! {
     #[sol(abi = true, rpc)]
     #[derive(Debug, PartialEq, Eq)]
     interface ICurveCommon {
-        function coins(uint256) external view returns (address);
+        function coins(uint256) external view returns (bytes);
         function balances(uint256) external view returns (uint256);
         function get_balances() external view returns (bytes);
     }
@@ -31,7 +31,7 @@ sol! {
     #[sol(abi = true, rpc)]
     #[derive(Debug, PartialEq, Eq)]
     interface ICurveCommonI128 {
-        function coins(int128) external view returns (address);
+        function coins(int128) external view returns (bytes);
         function balances(int128) external view returns (uint256);
     }
 }

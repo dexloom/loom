@@ -506,18 +506,44 @@ impl<P, T, N> AbiSwapEncoder for CurveAbiSwapEncoder<P, T, N>
 
 #[cfg(test)]
 mod tests {
+    use alloy_primitives::U256;
+    use alloy_provider::{Provider, ProviderBuilder};
+    use alloy_provider::network::Ethereum;
+    use alloy_rpc_client::{ClientBuilder, WsConnect};
+    use alloy_rpc_types::BlockNumberOrTag;
+    use alloy_transport::BoxTransport;
+    use env_logger::Env as EnvLog;
+    use log::info;
+    use revm::db::EmptyDB;
+    use revm::InMemoryDB;
+    use revm::primitives::Env;
+
+    use debug_provider::{AnvilControl, AnvilDebugProviderType};
+    use defi_entities::{MarketState, Pool};
+    use defi_entities::required_state::RequiredStateReader;
+
+    use crate::CurvePool;
+    use crate::protocols::CurveProtocol;
+
     #[tokio::test]
     async fn test_pool() {
-        /*std::env::set_var("RUST_LOG", "uniswapv3pool=trace,market_state=trace,debug");
+        std::env::set_var("RUST_LOG", "debug");
         std::env::set_var("RUST_BACKTRACE", "1");
         env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
 
+        let node_url = std::env::var("TEST_NODE_URL").unwrap_or("ws://falcon.loop:8008/looper".to_string());
+        let ws_connect = WsConnect::new(node_url);
+        let client = ClientBuilder::default().ws(ws_connect).await.unwrap();
 
-        let provider = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19109956).await?;
+        let client = ProviderBuilder::new().on_client(client).boxed();
 
-        let client = Arc::new(provider);
 
-        let mut market_state = MarketState::new(CacheDB::new(EmptyDB::default()));
+        //let provider = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19109956).await.unwrap();
+
+        //let client = Arc::new(provider);
+        //let client = provider;
+
+        let mut market_state = MarketState::new(InMemoryDB::new(EmptyDB::default()));
 
         //let pool_address : Address = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".parse().unwrap(); //
 
@@ -526,37 +552,32 @@ mod tests {
         let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
 
         for curve_contract in curve_contracts.into_iter() {
-            let mut pool = CurvePool::(curve_contract);
+            info!("Loading Pool : {} {:?}", curve_contract.get_address(), curve_contract);
+            let pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await.unwrap();
+            let state_required = pool.get_state_required().unwrap();
 
-            let fetch_result = pool.fetch_pool_data(client.clone()).await.unwrap();
-
-            let state_required = pool.fetch_state_required(client.clone(), None).await;
-
-            let state_required = Pin::into_inner(state_required).unwrap();
+            let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await.unwrap();
+            info!("Pool state fetched {} {}", pool.address, state_required.len());
 
             market_state.add_state(&state_required);
-            println!("Accs : {} Storage : {}", market_state.accounts_len(), market_state.storage_len());
+            info!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.accounts_len(), market_state.storage_len());
 
             let mut evm_env = Env::default();
 
-            let block_header = client.get_block_by_number(BlockNumberOrTag::Latest).await?.unwrap().header;
-            println!("Block {} {}", block_header.number.unwrap(), block_header.timestamp);
+            let block_header = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.unwrap().unwrap().header;
+            info!("Block {} {}", block_header.number.unwrap(), block_header.timestamp);
 
             let mut evm_env = revm::primitives::Env::default();
 
             //evm_env.block.number = U256::from(block_header.number.unwrap().as_u64() + 1).into();
-            evm_env.block.number = rU256::try_from(block_header.number.unwrap().as_u64() + 0).unwrap();
-            let timestamp = block_header.timestamp.as_u64() as i64;
+            evm_env.block.number = U256::from(block_header.number.unwrap_or_default() + 0);
+
+            let timestamp = block_header.timestamp;
 
             //evm_env.block.timestamp = (block_header.timestamp + U256::from(12)).into();
-            evm_env.block.timestamp = rU256::try_from(block_header.timestamp.as_u64() + 0).unwrap();
+            evm_env.block.timestamp = U256::from(timestamp);
 
-            let mut pools_vec: Vec<CurvePool<Provider<Ws>>> = Vec::new();
-
-            /*for i in 0..10000 {
-                pools_vec.push(pool.clone());
-            }
-             */
+            let mut pools_vec: Vec<CurvePool<AnvilDebugProviderType, BoxTransport, Ethereum>> = Vec::new();
 
 
             let tokens = pool.tokens.clone();
@@ -570,11 +591,11 @@ mod tests {
                     //let in_amount = U256::from(10).pow(U256::from(17));
                     let token_in = tokens[i];
                     let token_out = tokens[j];
-                    let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount).unwrap();
-                    println!("{:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), tokens[i], tokens[j], in_amount, out_amount, gas_used);
+                    let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount).unwrap_or_default();
+                    info!("{:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), tokens[i], tokens[j], in_amount, out_amount, gas_used);
 
                     let out_amount_fetched = pool.fetch_out_amount(token_in, token_out, in_amount).await.unwrap();
-                    println!("Fetched {:?} {} -> {} : {} -> {}", pool.get_address(), tokens[i], tokens[j], in_amount, out_amount_fetched);
+                    info!("Fetched {:?} {} -> {} : {} -> {}", pool.get_address(), tokens[i], tokens[j], in_amount, out_amount_fetched);
                 }
             }
 
@@ -582,10 +603,10 @@ mod tests {
                 for i in 0..tokens.len() {
                     let in_amount = balances[i] / U256::from(1000);
                     let token_in = tokens[i];
-                    let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &lp_token, in_amount).unwrap();
-                    println!("LP {:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), token_in, lp_token, in_amount, out_amount, gas_used);
-                    let (out_amount2, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &lp_token, &token_in, out_amount).unwrap();
-                    println!("LP {:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), lp_token, token_in, out_amount, out_amount2, gas_used);
+                    let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &lp_token, in_amount).unwrap_or_default();
+                    info!("LP {:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), token_in, lp_token, in_amount, out_amount, gas_used);
+                    let (out_amount2, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &lp_token, &token_in, out_amount).unwrap_or_default();
+                    info!("LP {:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), lp_token, token_in, out_amount, out_amount2, gas_used);
                 }
             }
 
@@ -595,14 +616,12 @@ mod tests {
                     let in_amount = balances[0] / U256::from(1000);
                     let token_in = tokens[0];
                     let token_out = underlying_tokens[j];
-                    let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount).unwrap();
-                    println!("Meta {:?} {} -> {} : {} -> {} gas: {}", pool.get_address(), token_in, token_out, in_amount, out_amount, gas_used);
-                    let (out_amount2, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_out, &token_in, out_amount).unwrap();
-                    println!("Meta {:?} {} -> {} : {} -> {} gas : {} ", pool.get_address(), token_out, token_in, out_amount, out_amount2, gas_used);
+                    let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount).unwrap_or_default();
+                    info!("Meta {:?} {} -> {} : {} -> {} gas: {}", pool.get_address(), token_in, token_out, in_amount, out_amount, gas_used);
+                    let (out_amount2, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_out, &token_in, out_amount).unwrap_or_default();
+                    info!("Meta {:?} {} -> {} : {} -> {} gas : {} ", pool.get_address(), token_out, token_in, out_amount, out_amount2, gas_used);
                 }
             }
         }
-
-         */
     }
 }

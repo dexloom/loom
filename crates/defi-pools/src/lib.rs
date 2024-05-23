@@ -1,5 +1,8 @@
+extern crate core;
+
 pub use curvepool::CurvePool;
 pub use maverickpool::MaverickPool;
+pub use pancakev3pool::PancakeV3Pool;
 pub use uniswapv2pool::UniswapV2Pool;
 pub use uniswapv3pool::UniswapV3Pool;
 
@@ -10,3 +13,5 @@ pub mod state_readers;
 
 pub mod protocols;
 mod curvepool;
+
+mod pancakev3pool;

@@ -2,7 +2,7 @@
 # 0x67857131Ae32f72739a2c8d0bd0e812793D8BB24 UNI3 CRV-WBTC Pool created
 [modules]
 signer = false
-price = false
+price = true
 
 
 [settings]
@@ -24,4 +24,4 @@ tx_2 = { hash = "0x1114432ef38437dde663aeb868f553e0ec0ca973120e472687957223efeda
 
 [tokens]
 weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
-wbtc = { address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", symbol = "WBTC", decimals = 8, basic = true, middle = false, price = 0.05 }
+wbtc = { address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", symbol = "WBTC", decimals = 8, basic = true, middle = false }

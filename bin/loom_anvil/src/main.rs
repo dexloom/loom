@@ -84,7 +84,7 @@ struct Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
+    env_logger::init_from_env(EnvLog::default().default_filter_or("debug,alloy_rpc_client=off"));
 
 
     let args = Commands::parse();

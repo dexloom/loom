@@ -14,4 +14,6 @@ pub mod lido;
 pub mod maverick;
 pub mod curve;
 
+pub mod pancake;
+
 

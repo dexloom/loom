@@ -12,7 +12,7 @@ use revm::db::{CacheDB, EmptyDB};
 use revm::primitives::Env;
 
 use defi_entities::{Market, MarketState, Pool, PoolProtocol, PoolWrapper};
-use defi_pools::{MaverickPool, UniswapV2Pool, UniswapV3Pool};
+use defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use defi_pools::protocols::{UniswapV2Protocol, UniswapV3Protocol};
 use defi_pools::state_readers::{UniswapV2StateReader, UniswapV3StateReader};
 use defi_types::GethStateUpdateVec;
@@ -93,8 +93,7 @@ pub async fn get_affected_pools_from_code<P, T, N>(
                                     Ok(factory_address) => {
                                         let _fetch_result = match get_protocol_by_factory(factory_address) {
                                             PoolProtocol::PancakeV3 => {
-                                                //TODO : Add pancake v3
-                                                /*let mut pool = PancakeV3Pool::new(*address);
+                                                let mut pool = PancakeV3Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
                                                 match pool.fetch_pool_data_evm(&market_state.state_db, env.clone()) {
                                                     Ok(_) => {
                                                         info!("PancakeV3 Pool loaded {address:?} {}", pool.get_protocol());
@@ -105,8 +104,6 @@ pub async fn get_affected_pools_from_code<P, T, N>(
                                                         error!("Error loading PancakeV3 pool @{address:?}: {e}");
                                                     }
                                                 }
-
-                                                 */
                                             }
                                             PoolProtocol::Maverick => {
                                                 let pool = MaverickPool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);

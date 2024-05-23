@@ -12,7 +12,7 @@ use log::{error, info};
 use debug_provider::DebugProviderExt;
 use defi_entities::{Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
 use defi_entities::required_state::RequiredStateReader;
-use defi_pools::{MaverickPool, UniswapV2Pool, UniswapV3Pool};
+use defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory};
 use loom_actors::SharedState;
 
@@ -74,13 +74,8 @@ pub async fn fetch_and_add_pool_by_address<P, T, N>(
 
     match pool_class {
         PoolClass::UniswapV2 => {
-            //TODO fix
             let factory_address = fetch_uni2_factory(client.clone(), pool_address).await?;
             let fetch_result = match get_protocol_by_factory(factory_address) {
-                /*PoolProtocol::NomiswapStable => {
-                    fetch_and_add_pool(client, market, market_state, NomiswapStablePool::new(pool_address)).await
-                }
-                 */
                 PoolProtocol::NomiswapStable | PoolProtocol::Miniswap | PoolProtocol::Integral | PoolProtocol::Safeswap => {
                     Err(eyre!("POOL_PROTOCOL_NOT_SUPPORTED"))
                 }
@@ -101,9 +96,9 @@ pub async fn fetch_and_add_pool_by_address<P, T, N>(
             match factory_address_result {
                 Ok(factory_address) => {
                     let pool_wrapped = match get_protocol_by_factory(factory_address) {
-                        /*PoolProtocol::PancakeV3 => {
-                            fetch_and_add_pool(client, market, market_state, PancakeV3Pool::new(pool_address)).await
-                        }*/
+                        PoolProtocol::PancakeV3 => {
+                            PoolWrapper::new(Arc::new(PancakeV3Pool::fetch_pool_data(client.clone(), pool_address).await?))
+                        }
                         PoolProtocol::Maverick => {
                             PoolWrapper::new(Arc::new(MaverickPool::fetch_pool_data(client.clone(), pool_address).await?))
                         }

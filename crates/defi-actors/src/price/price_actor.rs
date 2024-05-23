@@ -1,13 +1,19 @@
+use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::ops::{Div, Mul};
+use std::time::Duration;
 
 use alloy_network::Network;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::eyre;
+use log::{error, info};
 
 use defi_entities::Market;
+use defi_pools::CurvePool;
+use defi_pools::protocols::CurveProtocol;
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 
@@ -15,9 +21,9 @@ use loom_actors_macros::Accessor;
 //use market::contracts::CurvePool;
 
 //TODO : Implement curve
-async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(_client: P, _market: SharedState<Market>) -> WorkerResult {
+async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(client: P, market: SharedState<Market>) -> WorkerResult {
     let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-    /*
+
     let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
     let usdt_address: Address = "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap();
     let dai_address: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();
@@ -27,14 +33,11 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
     let curve_tricrypto_usdc = CurveProtocol::new_u256_3_eth_to(client.clone(), "0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B".parse().unwrap());
     let curve_tricrypto_usdt = CurveProtocol::new_u256_3_eth_to(client.clone(), "0xf5f5b97624542d72a9e06f04804bf81baa15e2b4".parse().unwrap());
 
-    let mut coins_hash_map: HashMap<Address, CurvePool<M>> = HashMap::new();
+    let mut coins_hash_map: HashMap<Address, CurvePool<P, T, N>> = HashMap::new();
 
-    let mut curve_tricrypto_usdc_pool = CurvePool::from(curve_tricrypto_usdc);
-    //(curve_tricrypto_usdc_pool as PoolSetup<M>).fetch_pool_data(client.clone());
-    curve_tricrypto_usdc_pool.fetch_pool_data(client.clone()).await;
+    let mut curve_tricrypto_usdc_pool = CurvePool::fetch_pool_data(client.clone(), curve_tricrypto_usdc).await?;
 
-    let mut curve_tricrypto_usdt_pool = CurvePool::from(curve_tricrypto_usdt);
-    curve_tricrypto_usdt_pool.fetch_pool_data(client.clone()).await;
+    let mut curve_tricrypto_usdt_pool = CurvePool::fetch_pool_data(client.clone(), curve_tricrypto_usdt).await?;
 
     coins_hash_map.insert(usdc_address, curve_tricrypto_usdc_pool.clone());
     coins_hash_map.insert(usdt_address, curve_tricrypto_usdt_pool.clone());
@@ -61,7 +64,7 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
                         _ => { error!("Token {token_address:#20x} not found"); }
                     }
                 }
-                Err(e) => { error!("{e}") }
+                Err(e) => { error!("fetch_out_amount : {e}") }
             }
         }
 
@@ -83,11 +86,8 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
         }
 
 
-        let _ = tokio::time::sleep(Duration::from_secs(60)).await;
+        let _ = tokio::time::sleep(Duration::new(60, 0)).await;
     }
-
-     */
-    WorkerResult::Err(eyre!("NE"))
 }
 
 #[derive(Accessor)]

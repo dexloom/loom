@@ -103,11 +103,11 @@ mod test {
     use super::*;
 
     lazy_static! {
-            static ref weth_address : Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-            static ref  usdc_address : Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
-            static ref  usdt_address : Address = "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap();
-            static ref  dai_address : Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();
-            static ref  wbtc_address : Address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".parse().unwrap();
+            static ref WETH_ADDRESS : Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
+            static ref USDC_ADDRESS : Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
+            static ref USDT_ADDRESS : Address = "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap();
+            static ref DAI_ADDRESS : Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();
+            static ref WBTC_ADDRESS : Address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".parse().unwrap();
 
     }
 
@@ -117,7 +117,7 @@ mod test {
         let init_code: B256 = "96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f".parse().unwrap();
 
 
-        let pair_address = get_uniswap2pool_address(*weth_address, *usdc_address, uni2_factory_address, init_code);
+        let pair_address = get_uniswap2pool_address(*WETH_ADDRESS, *USDC_ADDRESS, uni2_factory_address, init_code);
         println!("{:?}", pair_address)
     }
 
@@ -127,7 +127,7 @@ mod test {
         let init_code: B256 = "e34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54".parse().unwrap();
 
 
-        let pair_address = get_uniswap3pool_address(*weth_address, *usdc_address, 3000, uni3_factory_address, init_code);
+        let pair_address = get_uniswap3pool_address(*WETH_ADDRESS, *USDC_ADDRESS, 3000, uni3_factory_address, init_code);
         println!("{:?}", pair_address)
     }
 }

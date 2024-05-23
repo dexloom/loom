@@ -61,6 +61,7 @@ impl Market
 
         let pool_address = pool_contract.get_address();
 
+        let mut token_from_entry_len = 0;
         let mut token_to_entry_len = 0;
         let mut token_from_len = 0;
         let mut token_to_len = 0;
@@ -70,22 +71,23 @@ impl Market
             let token_to_entry = token_from_entry.entry(*token_address_to).or_default();
             if !token_to_entry.contains(&pool_address) {
                 token_to_entry.push(pool_address);
-                token_to_entry_len = token_to_entry.len();
             }
+            token_to_entry_len = token_to_entry.len();
+            token_from_entry_len = token_from_entry.len();
 
             let token_token_entry = self.token_tokens.entry(*token_address_from).or_default();
             if !token_token_entry.contains(token_address_to) {
                 token_token_entry.push(*token_address_to);
-                token_from_len = token_token_entry.len();
             }
+            token_from_len = token_token_entry.len();
             let token_token_entry = self.token_tokens.entry(*token_address_to).or_default();
             if !token_token_entry.contains(token_address_from) {
                 token_token_entry.push(*token_address_from);
-                token_to_len = token_token_entry.len();
             }
+            token_to_len = token_token_entry.len();
         }
 
-        debug!("Added pool {:?} {} Len :  {token_to_entry_len} {token_from_len} {token_to_len}", pool_contract.get_address(), pool_contract.get_protocol());
+        debug!("Added pool {:?} {} TokenFromPools {token_from_entry_len} TokenToPools {token_to_entry_len} TokenFromToken {token_from_len} TokenToToken {token_to_len}", pool_contract.get_address(), pool_contract.get_protocol());
         self.pools.insert(pool_address, pool_contract);
 
         Ok(())

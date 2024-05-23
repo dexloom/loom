@@ -17,16 +17,16 @@ use defi_abi::curve::ICurveFactory::{ICurveFactoryCalls, ICurveFactoryInstance};
 use defi_abi::curve::ICurveI128_2::{ICurveI128_2Calls, ICurveI128_2Instance};
 use defi_abi::curve::ICurveI128_2_To::{ICurveI128_2_ToCalls, ICurveI128_2_ToInstance};
 use defi_abi::curve::ICurveI128_2_To_Meta::ICurveI128_2_To_MetaInstance;
-use defi_abi::curve::ICurveI128_3::ICurveI128_3Instance;
-use defi_abi::curve::ICurveI128_4::ICurveI128_4Instance;
-use defi_abi::curve::ICurveU256_2::ICurveU256_2Instance;
-use defi_abi::curve::ICurveU256_2_Eth_To::ICurveU256_2_Eth_ToInstance;
-use defi_abi::curve::ICurveU256_2_To::ICurveU256_2_ToInstance;
-use defi_abi::curve::ICurveU256_3_Eth::ICurveU256_3_EthInstance;
-use defi_abi::curve::ICurveU256_3_Eth_To2::ICurveU256_3_Eth_To2Instance;
-use defi_abi::curve::ICurveU256_3_Eth_To::ICurveU256_3_Eth_ToInstance;
+use defi_abi::curve::ICurveI128_3::{ICurveI128_3Calls, ICurveI128_3Instance};
+use defi_abi::curve::ICurveI128_4::{ICurveI128_4Calls, ICurveI128_4Instance};
+use defi_abi::curve::ICurveU256_2::{ICurveU256_2Calls, ICurveU256_2Instance};
+use defi_abi::curve::ICurveU256_2_Eth_To::{ICurveU256_2_Eth_ToCalls, ICurveU256_2_Eth_ToInstance};
+use defi_abi::curve::ICurveU256_2_To::{ICurveU256_2_ToCalls, ICurveU256_2_ToInstance};
+use defi_abi::curve::ICurveU256_3_Eth::{ICurveU256_3_EthCalls, ICurveU256_3_EthInstance};
+use defi_abi::curve::ICurveU256_3_Eth_To::{ICurveU256_3_Eth_ToCalls, ICurveU256_3_Eth_ToInstance};
+use defi_abi::curve::ICurveU256_3_Eth_To2::{ICurveU256_3_Eth_To2Calls, ICurveU256_3_Eth_To2Instance};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum CurveContract<P, T, N>
     where
         T: Transport + Clone,
@@ -97,20 +97,32 @@ impl<P, T, N> CurveCommonContract<P, T, N>
         Err(eyre!("NO_LP_TOKEN"))
     }
 
+    pub async fn coin128(client: P, address: Address, coin_id: u32) -> Result<Address> {
+        let common_contract = ICurveCommonI128Instance::new(address, client);
+        match common_contract.coins(coin_id.into()).call_raw().await {
+            Ok(addr) => {
+                if addr.len() >= 32 { Ok(Address::from_slice(&addr[12..32])) } else { Err(eyre!("CANNOT_GET_COIN_ADDRESS")) }
+            }
+            Err(e) => {
+                trace!("coin call error {}", e);
+                Err(eyre!("CANNOT_GET_COIN_ADDRESS"))
+            }
+        }
+    }
 
     pub async fn coin(client: P, address: Address, coin_id: u32) -> Result<Address> {
         let common_contract = ICurveCommonInstance::new(address, client.clone());
-        match common_contract.coins(U256::from(coin_id)).call().await {
-            Ok(addr) => Ok(addr._0),
-            Err(e) => {
-                let common_contract = ICurveCommonI128Instance::new(address, client);
-                match common_contract.coins(coin_id.into()).call().await {
-                    Ok(addr) => Ok(addr._0),
-                    Err(e) => {
-                        trace!("coin call error {}", e);
-                        Err(eyre!("CANNOT_GET_COIN_ADDRESS"))
-                    }
+        match common_contract.coins(U256::from(coin_id)).call_raw().await {
+            Ok(addr) => {
+                if addr.len() >= 32 {
+                    Ok(Address::from_slice(&addr[12..32]))
+                } else {
+                    Self::coin128(client, address, coin_id).await
                 }
+            }
+            Err(e) => {
+                trace!("{e}");
+                Self::coin128(client, address, coin_id).await
             }
         }
     }
@@ -688,56 +700,54 @@ impl<P, N, T> CurveProtocol<P, N, T>
             return Ok(Self::new_i128_2_to_meta(client, address));
         }
 
-        if Self::match_abi(&code, ICurveI128_2_To::ICurveI128_2_ToCalls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveI128_2_ToCalls::selectors().into_iter().collect()) {
             return Ok(Self::new_i128_2_to(client, address));
         }
-        /*
-        TODO : Add
-        if Self::match_abi(&code, &ICURVEI128_2_ABI) {
+        if Self::match_abi(&code, ICurveI128_2Calls::selectors().into_iter().collect()) {
             return Ok(Self::new_i128_2(client, address));
         }
-        if Self::match_abi(&code, &ICURVEI128_3_ABI) {
+        if Self::match_abi(&code, ICurveI128_3Calls::selectors().into_iter().collect()) {
             return Ok(Self::new_i128_3(client, address));
         }
-        if Self::match_abi(&code, &ICURVEI128_4_ABI) {
+        if Self::match_abi(&code, ICurveI128_4Calls::selectors().into_iter().collect()) {
             return Ok(Self::new_i128_4(client, address));
         }
-        if Self::match_abi(&code, &ICURVEU256_2_TO_ABI) {
+        if Self::match_abi(&code, ICurveU256_2_ToCalls::selectors().into_iter().collect()) {
             return Ok(Self::new_u256_2_to(client, address));
         }
-        if Self::match_abi(&code, &ICURVEU256_2_ABI) {
+        if Self::match_abi(&code, ICurveU256_2Calls::selectors().into_iter().collect()) {
             return Ok(Self::new_u256_2_to(client, address));
         }
-        if Self::match_abi(&code, &ICURVEU256_2_ETH_TO_ABI) {
+        if Self::match_abi(&code, ICurveU256_2_Eth_ToCalls::selectors().into_iter().collect()) {
             return Ok(Self::new_u256_2_eth_to(client, address));
         }
-        if Self::match_abi(&code, &ICURVEU256_3_ETH_ABI) {
+        if Self::match_abi(&code, ICurveU256_3_EthCalls::selectors().into_iter().collect()) {
             return Ok(Self::new_u256_3_eth(client, address));
         }
-        if Self::match_abi(&code, &ICURVEU256_3_ETH_TO_ABI) {
+        if Self::match_abi(&code, ICurveU256_3_Eth_ToCalls::selectors().into_iter().collect()) {
             return Ok(Self::new_u256_3_eth_to(client, address));
         }
-        if Self::match_abi(&code, &ICURVEU256_3_ETH_TO2_ABI) {
+        if Self::match_abi(&code, ICurveU256_3_Eth_To2Calls::selectors().into_iter().collect()) {
             return Ok(Self::new_u256_3_eth_to2(client, address));
         }
 
 
-         */
         Err(eyre!("ABI_NOT_FOUND"))
     }
 
 
     pub fn get_contracts_vec(client: P) -> Vec<CurveContract<P, T, N>> {
         vec![
+            Self::new_u256_3_eth_to(client.clone(), "0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4".parse().unwrap()),
+            //Self::new_u256_3_eth_to(client.clone(), "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse().unwrap()),
             Self::new_i128_3(client.clone(), "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".parse().unwrap()),
             Self::new_i128_2_to(client.clone(), "0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E".parse().unwrap()),
             Self::new_u256_2_eth_to(client.clone(), "0x9409280DC1e6D33AB7A8C6EC03e5763FB61772B5".parse().unwrap()),
             Self::new_u256_3_eth(client.clone(), "0xD51a44d3FaE010294C616388b506AcdA1bfAAE46".parse().unwrap()),
             Self::new_u256_3_eth_to(client.clone(), "0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B".parse().unwrap()),
-            Self::new_u256_3_eth_to(client.clone(), "0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4".parse().unwrap()),
-            Self::new_i128_2_to_meta(client.clone(), "0xEd279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA".parse().unwrap()),
             Self::new_i128_2(client.clone(), "0xDC24316b9AE028F1497c275EB9192a3Ea0f67022".parse().unwrap()),
             Self::new_i128_2_to(client.clone(), "0x828b154032950C8ff7CF8085D841723Db2696056".parse().unwrap()),
+            //Self::new_i128_2_to_meta(client.clone(), "0xEd279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA".parse().unwrap()),
         ]
     }
 

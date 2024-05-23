@@ -75,17 +75,31 @@ pub async fn pending_tx_state_change_task<P, T, N>(
 
     let source = mempool_tx.source.clone();
 
-    let mut typed_tx: TransactionRequest = tx.clone().into_request();
+    let mut transaction_request: TransactionRequest = tx.clone().into_request();
 
-    match typed_tx.max_fee_per_gas {
-        Some(g) => {
-            if g < cur_next_base_fee {
-                typed_tx.set_max_fee_per_gas(cur_next_base_fee);
+    if transaction_request.transaction_type.unwrap_or_default() == 0 {
+        match transaction_request.gas_price {
+            Some(g) => {
+                if g < cur_next_base_fee {
+                    transaction_request.set_gas_price(cur_next_base_fee);
+                }
+            }
+            None => {
+                error!("No gas price{:?} {:?} {:?}", transaction_request.gas_price, transaction_request.max_fee_per_gas, transaction_request.max_priority_fee_per_gas);
+                return Err(eyre!("NO_GAS_PRICE"));
             }
         }
-        None => {
-            error!("No base fee {:?} {:?} {:?}", typed_tx.gas_price, typed_tx.max_fee_per_gas, typed_tx.max_priority_fee_per_gas);
-            return Err(eyre!("NO_BASE_FEE"));
+    } else {
+        match transaction_request.max_fee_per_gas {
+            Some(g) => {
+                if g < cur_next_base_fee {
+                    transaction_request.set_max_fee_per_gas(cur_next_base_fee);
+                }
+            }
+            None => {
+                error!("No base fee {:?} {:?} {:?}", transaction_request.gas_price, transaction_request.max_fee_per_gas, transaction_request.max_priority_fee_per_gas);
+                return Err(eyre!("NO_BASE_FEE"));
+            }
         }
     }
 
@@ -108,7 +122,7 @@ pub async fn pending_tx_state_change_task<P, T, N>(
     }
 
 
-    let diff_trace_result = debug_trace_call_diff(client.clone(), typed_tx, BlockNumberOrTag::Latest, Some(call_opts)).await;
+    let diff_trace_result = debug_trace_call_diff(client.clone(), transaction_request, BlockNumberOrTag::Latest, Some(call_opts)).await;
     match diff_trace_result {
         Ok((pre, post)) => {
             state_required_vec.push(pre.clone());
@@ -210,7 +224,7 @@ pub async fn pending_tx_state_change_task<P, T, N>(
                         }
                     }
                     Err(e) => {
-                        error!("code affected pools error : {e}")
+                        debug!("code affected pools error : {e}")
                     }
                 }
             }

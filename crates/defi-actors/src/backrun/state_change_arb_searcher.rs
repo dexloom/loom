@@ -4,7 +4,7 @@ use std::sync::Arc;
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
-use log::{error, trace, warn};
+use log::{debug, error, trace, warn};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use rayon::prelude::*;
 use revm::InMemoryDB;
@@ -28,7 +28,7 @@ async fn state_change_arb_searcher_task(
     swap_request_tx: Broadcaster<MessageTxCompose>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> Result<()> {
-    warn!("Message received {} {:?}", msg.origin, msg.stuffing_tx_hash() );
+    debug!("Message received {} stuffing : {:?}", msg.origin, msg.stuffing_tx_hash() );
     //let msg_time = chrono::Local::now();
 
 
