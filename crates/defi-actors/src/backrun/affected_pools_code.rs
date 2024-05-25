@@ -94,11 +94,11 @@ pub async fn get_affected_pools_from_code<P, T, N>(
                                         let _fetch_result = match get_protocol_by_factory(factory_address) {
                                             PoolProtocol::PancakeV3 => {
                                                 let mut pool = PancakeV3Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
-                                                match pool.fetch_pool_data_evm(&market_state.state_db, env.clone()) {
-                                                    Ok(_) => {
+                                                match pool {
+                                                    Ok(pool) => {
                                                         info!("PancakeV3 Pool loaded {address:?} {}", pool.get_protocol());
                                                         let swap_directions = pool.get_swap_directions();
-                                                        ret.insert(Arc::new(PoolWrapper::new(Arc::new(pool))), swap_directions);
+                                                        ret.insert(PoolWrapper::new(Arc::new(pool)), swap_directions);
                                                     }
                                                     Err(e) => {
                                                         error!("Error loading PancakeV3 pool @{address:?}: {e}");

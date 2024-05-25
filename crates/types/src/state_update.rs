@@ -177,8 +177,12 @@ pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provid
 
 #[cfg(test)]
 mod test {
+    use std::collections::HashMap;
+
+    use alloy_primitives::{B256, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::{ClientBuilder, WsConnect};
+    use alloy_rpc_types::state::{AccountOverride, StateOverride};
     use env_logger::Env as EnvLog;
 
     use super::*;
@@ -214,5 +218,26 @@ mod test {
         let ret = debug_trace_block(client, BlockId::Number(blocknumber.into()), true).await?;
 
         Ok(())
+    }
+
+    #[test]
+    fn test_encode_override() {
+        let mut state_override: StateOverride = StateOverride::new();
+        let address = Address::default();
+        let mut account_override: AccountOverride = AccountOverride::default();
+        let mut state_update_hashmap: HashMap<B256, U256> = HashMap::new();
+        state_update_hashmap.insert(B256::from(U256::from(1)), U256::from(3));
+        account_override.state_diff = Some(state_update_hashmap);
+
+        state_override.insert(address, account_override);
+
+        match serde_json::to_string_pretty(&state_override) {
+            Ok(data) => {
+                println!("{}", data)
+            }
+            Err(e) => {
+                println!("{}", e)
+            }
+        }
     }
 }
