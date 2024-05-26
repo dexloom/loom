@@ -52,10 +52,9 @@ toml = "^0.8.12"
 url = "2.4.1"
 reqwest = { version = "0.12.4", features = ["trust-dns", "json"] }
 clap = { version = "4.5.4", features = ["derive"] }
+strum = { version = "0.26.2" }
+strum_macros = { version = "0.26.2" }
 k256 = "0.13.3"
-strum = "0.26.2"
-strum_macros = "0.26.2"
-
 
 
 
@@ -66,7 +65,7 @@ revm = { version = "9.0.0", features = [
 revm-primitives = { version = "3.1.0", features = [
     "std",
 ], default-features = false }
-revm-inspectors = { git = "https://github.com/paradigmxyz/evm-inspectors", rev = "735f67c" }
+revm-inspectors = { git = "https://github.com/paradigmxyz/evm-inspectors", rev = "0d3f1f4" }
 
 alloy-chains = "0.1.15"
 alloy-primitives = "0.7.2"
@@ -76,30 +75,28 @@ alloy-sol-macro = { version = "0.7.2", features = ["json"] }
 
 alloy-rlp = "0.3.4"
 alloy-trie = "0.3.1"
-alloy-contract = { path = "../alloy/crates/contract" }
-alloy-rpc-client = { path = "../alloy/crates/rpc-client", features = ["ws", "reqwest", "pubsub"] }
-alloy-rpc-types = { path = "../alloy/crates/rpc-types" }
-alloy-rpc-types-anvil = { path = "../alloy/crates/rpc-types-anvil" }
-alloy-rpc-types-trace = { path = "../alloy/crates/rpc-types-trace" }
-alloy-rpc-types-engine = { path = "../alloy/crates/rpc-types-engine" }
-alloy-genesis = { path = "../alloy/crates/genesis" }
-alloy-node-bindings = { path = "../alloy/crates/node-bindings" }
-alloy-provider = { path = "../alloy/crates/provider", default-features = false, features = [
-    "reqwest", "pubsub", "ws", "ipc"
+alloy-contract = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-rpc-client = { git = "https://github.com/alloy-rs/alloy.git", features = ["ws", "reqwest", "pubsub"], rev = "83af23f" }
+alloy-rpc-types = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-rpc-types-anvil = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-rpc-types-trace = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-rpc-types-engine = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-genesis = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-node-bindings = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-provider = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f", default-features = false, features = [
+    "reqwest", "pubsub", "ws", "ipc", "anvil"
 ] }
-alloy-eips = { path = "../alloy/crates/eips" }
-alloy-signer = { path = "../alloy/crates/signer" }
-alloy-signer-wallet = { path = "../alloy/crates/signer-wallet" }
-alloy-network = { path = "../alloy/crates/network" }
-alloy-consensus = { path = "../alloy/crates/consensus" }
-alloy-transport = { path = "../alloy/crates/transport" }
-alloy-pubsub = { path = "../alloy/crates/pubsub" }
-alloy-transport-ws = { path = "../alloy/crates/transport-ws" }
-alloy-transport-http = { path = "../alloy/crates/transport-http" }
-alloy-transport-ipc = { path = "../alloy/crates/transport-ipc" }
-alloy-json-rpc = { path = "../alloy/crates/json-rpc" }
-
+alloy-eips = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-signer = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-signer-wallet = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-network = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-consensus = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-transport = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-pubsub = { git = "https://github.com/alloy-rs/alloy.git", rev = "83af23f" }
+alloy-transport-ws = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-transport-ipc = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-transport-http = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
+alloy-json-rpc = { git = "https://github.com/alloy-rs/alloy.git", rev = "83af23f" }
 
 [patch.crates-io]
-
 

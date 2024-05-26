@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
+use chrono::{Duration, TimeDelta};
 use eyre::{eyre, Result};
 use log::{debug, error, trace, warn};
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -85,11 +86,18 @@ async fn state_change_arb_searcher_task(
                     path: item.as_ref().clone(),
                     ..Default::default()
                 };
-                match Calculator::calculate(&mut mut_item, req.1, req.2.clone()) {
+                let start_time = chrono::Local::now();
+                let calc_result = Calculator::calculate(&mut mut_item, req.1, req.2.clone());
+                let took_time = chrono::Local::now() - start_time;
+
+                match calc_result {
                     Ok(_) => {
+                        if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                            warn!("Took longer than expected {} {}", took_time,  mut_item.clone())
+                        }
                         if let Ok(profit) = mut_item.profit() {
                             if profit.is_positive() && msg.gas_fee != 0 && mut_item.abs_profit_eth() > GasStation::calc_gas_cost(200000u128, msg.gas_fee) {
-                                match swap_path_tx.try_send(mut_item) {
+                                match swap_path_tx.try_send(mut_item.clone()) {
                                     Err(e) => { error!("try_send 1 error : {e}") }
                                     _ => {}
                                 }
@@ -97,6 +105,10 @@ async fn state_change_arb_searcher_task(
                         }
                     }
                     Err(e) => {
+                        if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                            warn!("Took longer than expected {:?} {}", e, mut_item.clone())
+                        }
+
                         let pool_health_tx = req.3;
                         match pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {
                             Err(se) => { error!("try_send to pool_health_monitor error : {e:?}") }
@@ -196,7 +208,7 @@ impl Calculator
     pub fn calculate<'a>(path: &'a mut SwapLine, state: &InMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
         let first_token = path.get_first_token().unwrap();
         let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
-        trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
+        //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
         path.optimize_swap_path_in_amount_provided(state, env, amount_in)
     }
 }

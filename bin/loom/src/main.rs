@@ -52,8 +52,8 @@ async fn main() -> Result<()> {
     }
 
 
-    info!("Starting swap path encoder actor");
-    let multicaller: Address = Address::ZERO; // ETH values
+    let multicaller = topology.get_encoder(None).unwrap().get_multicaller();
+    info!("Starting swap path encoder actor with multicaller at : {}", multicaller);
 
 
     let mut swap_path_encoder_actor = ArbSwapPathEncoderActor::new(

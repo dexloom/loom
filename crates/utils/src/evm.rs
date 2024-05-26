@@ -23,7 +23,7 @@ pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data
 
     let mut evm = Evm::builder()
         .with_spec_id(SpecId::SHANGHAI)
-        .with_db(state_db.clone()).with_env(Box::new(env))
+        .with_ref_db(state_db).with_env(Box::new(env))
         .build();
 
 

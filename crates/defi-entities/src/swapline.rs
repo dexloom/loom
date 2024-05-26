@@ -424,6 +424,7 @@ impl SwapLine {
                 return Err(current_out_amount_result.err().unwrap());
             }
             let (current_out_amount, current_gas_used) = current_out_amount_result.unwrap_or_default();
+
             //let mut next_profit = I256::zero();
 
 
@@ -482,7 +483,7 @@ impl SwapLine {
             } else {
                 next_amount = current_in_amount - (current_in_amount * current_step / denominator);
             }
-            trace!("opt step : {} direction {} first_step {} step : {} current_in_amount : {} next_amount: {} profit : {} {}", counter, inc_direction, first_step_change,  current_step, current_in_amount , next_amount, current_profit, bestprofit.unwrap());
+            //trace!("opt step : {} direction {} first_step {} step : {} current_in_amount : {} next_amount: {} profit : {} {}", counter, inc_direction, first_step_change,  current_step, current_in_amount , next_amount, current_profit, bestprofit.unwrap());
         }
 
 

@@ -219,7 +219,7 @@ impl<P, T, N> Pool for CurvePool<P, T, N>
 
     fn calculate_out_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64)> {
         let mut env = env;
-        env.tx.gas_limit = 1_000_000;
+        env.tx.gas_limit = 500_000;
 
 
         let call_data = if self.is_meta {
@@ -272,7 +272,7 @@ impl<P, T, N> Pool for CurvePool<P, T, N>
     fn calculate_in_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64)> {
         if self.pool_contract.can_calculate_in_amount() {
             let mut env = env;
-            env.tx.gas_limit = 1_000_000;
+            env.tx.gas_limit = 500_000;
 
 
             let i: u32 = self.get_coin_idx(*token_address_from)?;

@@ -20,10 +20,10 @@ use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use debug_provider::AnvilControl;
-use defi_entities::{MarketState, Pool};
+use defi_entities::{MarketState, Pool, PoolWrapper};
 use defi_entities::required_state::RequiredStateReader;
+use defi_pools::{UniswapV2Pool, UniswapV3Pool};
 use defi_pools::protocols::UniswapV3Protocol;
-use defi_pools::UniswapV3Pool;
 
 async fn performance_test() {
     let mut rng = StdRng::from_entropy();
@@ -51,7 +51,7 @@ async fn performance_test() {
 }
 
 
-async fn fetch_data_and_pool() -> Result<(MarketState, UniswapV3Pool)> {
+async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
     //let provider = Provider::<Ws>::connect_with_reconnects("ws://honey3.loop:8008/looper", 10).await.unwrap();
 
     let block_number: BlockNumber = 19948348;
@@ -64,7 +64,13 @@ async fn fetch_data_and_pool() -> Result<(MarketState, UniswapV3Pool)> {
 
 
     let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
+    //let pool_address: Address = "0x5777d92f208679db4b9778590fa3cab3ac9e2168".parse().unwrap();
     let mut pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
+
+    //let pool_address: Address = "0x9c2dc3d5ffcecf61312c5f4c00660695b32fb3d1".parse().unwrap();
+    //let pool_address: Address = "0xa478c2975ab1ea89e8196811f51a7b7ade33eb11".parse().unwrap();
+    //let mut pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
+
 
     let state_required = pool.get_state_required()?;
 
@@ -72,7 +78,7 @@ async fn fetch_data_and_pool() -> Result<(MarketState, UniswapV3Pool)> {
 
     market_state.add_state(&state_required);
 
-    Ok((market_state, pool))
+    Ok((market_state, PoolWrapper::new(Arc::new(pool))))
 }
 
 async fn sync_run(state_db: &CacheDB<EmptyDB>, pool: UniswapV3Pool) {
@@ -90,10 +96,13 @@ async fn sync_run(state_db: &CacheDB<EmptyDB>, pool: UniswapV3Pool) {
     //println!("{}", out_amount);
 }
 
-async fn rayon_run(state_db: &CacheDB<EmptyDB>, pool: UniswapV3Pool, threadpool: Arc<ThreadPool>) {
+async fn rayon_run(state_db: &CacheDB<EmptyDB>, pool: PoolWrapper, threadpool: Arc<ThreadPool>) {
+    let start_time = chrono::Local::now();
     let evm_env = Env::default();
     let mut step = U256::from(U256::from(10).pow(U256::from(16)));
     let mut in_amount = U256::from(U256::from(10).pow(U256::from(18)));
+    //let mut step = U256::from(U256::from(10).pow(U256::from(7)));
+    //let mut in_amount = U256::from(U256::from(10).pow(U256::from(8)));
 
     const ITER_COUNT: usize = 10000;
 
@@ -106,15 +115,19 @@ async fn rayon_run(state_db: &CacheDB<EmptyDB>, pool: UniswapV3Pool, threadpool:
 
     let state_db_clone = state_db.clone();
 
-    ;
+    let tokens = pool.get_tokens();
+    let token_from = tokens[1];
+    let token_to = tokens[0];
+
 
     tokio::task::spawn(async move {
         threadpool.install(|| {
             in_vec.into_par_iter().for_each_with((&state_db_clone, &evm_env, &result_tx), |req, in_amount| {
-                let mut rng = thread_rng();
-                let random_number: u32 = rng.gen();
-                let in_amount = in_amount + U256::from(random_number);
-                let out_amount = pool.calculate_out_amount(req.0, req.1.clone(), &pool.token1, &pool.token0, in_amount).unwrap();
+                //let mut rng = thread_rng();
+                //let random_number: u32 = rng.gen();
+                //let in_amount = in_amount + U256::from(random_number);
+
+                let out_amount = pool.calculate_out_amount(req.0, req.1.clone(), &token_from, &token_to, in_amount).unwrap();
                 match req.2.try_send(out_amount.0) {
                     Err(e) => { error!("{e}") }
                     _ => {}
@@ -126,18 +139,20 @@ async fn rayon_run(state_db: &CacheDB<EmptyDB>, pool: UniswapV3Pool, threadpool:
 
     //drop(result_tx);
 
-    let mut counter = 0;
+    let mut counter: usize = 0;
 
 
     while let Some(result) = result_rx.recv().await {
         counter += 1;
     }
-    println!("{counter}");
+    let time_spent = chrono::Local::now() - start_time;
+    let calc_per_sec = time_spent / (counter as i32);
+    println!("Iterations : {counter} Took: {time_spent} Per sec: {calc_per_sec}");
     assert_eq!(counter, ITER_COUNT, "NOT_ALL_RESULTS");
 }
 
 
-async fn rayon_parallel_run<'a>(state_db: &CacheDB<EmptyDB>, pool: UniswapV3Pool) {
+async fn rayon_parallel_run<'a>(state_db: &CacheDB<EmptyDB>, pool: PoolWrapper) {
     const TASKS_COUNT: u32 = 3;
     let mut tasks: Vec<JoinHandle<_>> = Vec::new();
 
