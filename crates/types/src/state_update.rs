@@ -46,7 +46,7 @@ pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, 
     let tracer_opts = GethDebugTracingOptions {
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()
-    }.with_tracer(BuiltInTracer(PreStateTracer)).prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
+    }.with_tracer(BuiltInTracer(PreStateTracer)).with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
 
     let trace_result_vec = match block_id {
         BlockId::Number(block_number) => {
@@ -93,7 +93,7 @@ async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<
     let tracer_opts = GethDebugTracingOptions {
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()
-    }.with_tracer(BuiltInTracer(PreStateTracer)).prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
+    }.with_tracer(BuiltInTracer(PreStateTracer)).with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
 
 
     let tracer_call_opts = GethDebugTracingCallOptions {
@@ -147,7 +147,7 @@ pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provid
     let tracer_opts = GethDebugTracingOptions {
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()
-    }.with_tracer(BuiltInTracer(PreStateTracer)).prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
+    }.with_tracer(BuiltInTracer(PreStateTracer)).with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
 // TODO : Fix parameters
 
 
@@ -206,7 +206,7 @@ mod test {
         let tracer_opts = GethDebugTracingOptions {
             config: GethDefaultTracingOptions::default(),
             ..GethDebugTracingOptions::default()
-        }.with_tracer(BuiltInTracer(PreStateTracer)).prestate_config(PreStateConfig { diff_mode: Some(true) });
+        }.with_tracer(BuiltInTracer(PreStateTracer)).with_prestate_config(PreStateConfig { diff_mode: Some(true) });
 
         let blocknumber = client.get_block_number().await?;
         let block = client.get_block_by_number(blocknumber.into(), false).await?.unwrap();
@@ -225,8 +225,8 @@ mod test {
         let mut state_override: StateOverride = StateOverride::new();
         let address = Address::default();
         let mut account_override: AccountOverride = AccountOverride::default();
-        let mut state_update_hashmap: HashMap<B256, U256> = HashMap::new();
-        state_update_hashmap.insert(B256::from(U256::from(1)), U256::from(3));
+        let mut state_update_hashmap: HashMap<B256, B256> = HashMap::new();
+        state_update_hashmap.insert(B256::from(U256::from(1)), B256::from(U256::from(3)));
         account_override.state_diff = Some(state_update_hashmap);
 
         state_override.insert(address, account_override);

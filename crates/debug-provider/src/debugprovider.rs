@@ -124,8 +124,7 @@ impl<PN, PA, TN, TA, N> AnvilDebugProvider<PN, PA, TN, TA, N>
     }
 }
 
-
-#[async_trait]
+/*
 impl<PN, PA, TN, TA, N> Provider<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N>
     where
         TN: Transport + Clone,
@@ -140,11 +139,29 @@ impl<PN, PA, TN, TA, N> Provider<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N
     }
 
 
-    fn get_block_number(&self) -> RpcCall<TA, (), U64, BlockNumber> {
+    fn get_block_number(&self) -> RpcCall<TA, (), u64> {
         self._anvil.get_block_number()
     }
 }
 
+ */
+
+
+impl<PN, PA> Provider<BoxTransport, Ethereum> for AnvilDebugProvider<PN, PA, BoxTransport, BoxTransport, Ethereum>
+    where
+        PN: Provider<BoxTransport, Ethereum> + Send + Sync + Clone + 'static,
+        PA: Provider<BoxTransport, Ethereum> + Send + Sync + Clone + 'static
+{
+    #[inline(always)]
+    fn root(&self) -> &RootProvider<BoxTransport, Ethereum> {
+        self._anvil.root()
+    }
+
+
+    fn get_block_number(&self) -> RpcCall<BoxTransport, (), U64, u64> {
+        self._anvil.get_block_number()
+    }
+}
 
 #[async_trait]
 pub trait DebugProviderExt<T = BoxTransport, N = Ethereum>

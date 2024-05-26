@@ -26,7 +26,7 @@ pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data
         .with_db(state_db.clone()).with_env(Box::new(env))
         .build();
 
-    
+
     let ref_tx = evm.transact()?;
     let result = ref_tx.result;
 

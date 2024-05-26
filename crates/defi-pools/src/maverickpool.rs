@@ -188,7 +188,7 @@ impl Pool for MaverickPool
         //let sqrt_price_limit = MaverickPool::get_price_limit(token_address_from, token_address_to);
 
         let mut env = env;
-        env.tx.gas_limit = 1_500_000;
+        env.tx.gas_limit = 500_000;
 
         let call_data_vec = IMaverickQuoterCalls::calculateSwap(
             calculateSwapCall {
@@ -438,7 +438,8 @@ mod tests {
     async fn test_pool() -> Result<()> {
         let client = setup_ws_node().await?;
 
-        let pool_address: Address = "0x352B186090068Eb35d532428676cE510E17AB581".parse().unwrap();
+        let pool_address: Address = "0xcD4098B8E61De15d0C2e416D3a14442f35CE910e".parse().unwrap();
+        //let pool_address: Address = "0x352B186090068Eb35d532428676cE510E17AB581".parse().unwrap();
 
 
         let pool = MaverickPool::fetch_pool_data(client.clone(), pool_address).await.unwrap();

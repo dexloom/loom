@@ -46,4 +46,14 @@ alloy-node-bindings.workspace = true
 
 revm.workspace = true
 
+[dev-dependencies]
+criterion = { version = "0.5.1", features = ["async_tokio"] }
+num_cpus.workspace = true
+chrono.workspace = true
+rand.workspace = true
+rayon.workspace = true
+futures.workspace = true
 
+[[bench]]
+name = "benchmark"
+harness = false

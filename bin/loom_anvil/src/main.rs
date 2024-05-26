@@ -10,7 +10,6 @@ use alloy_consensus::TxEnvelope;
 use alloy_node_bindings::Anvil;
 use alloy_primitives::{Address, BlockHash, BlockNumber, TxHash, U256};
 use alloy_provider::{Provider, ProviderBuilder, ProviderLayer};
-use alloy_provider::layers::AnvilLayer;
 use alloy_provider::network::eip2718::Encodable2718;
 use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, Header, Log};
 use alloy_transport_http::reqwest::Url;
