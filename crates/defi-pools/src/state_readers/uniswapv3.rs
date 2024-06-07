@@ -4,6 +4,7 @@ use revm::InMemoryDB;
 use revm::primitives::Env;
 
 use defi_abi::uniswap3::IUniswapV3Pool;
+use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use loom_utils::evm::evm_call;
 
 pub struct UniswapV3StateReader {}
@@ -39,6 +40,11 @@ impl UniswapV3StateReader {
         Ok(call_return._0 as u32)
     }
 
+    pub fn slot0(db: &InMemoryDB, env: Env, pool: Address) -> eyre::Result<slot0Return> {
+        let call_data_result = evm_call(db, env, pool, IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())?.0;
+        let call_return = IUniswapV3Pool::slot0Call::abi_decode_returns(&call_data_result, false)?;
+        Ok(call_return)
+    }
 
     /*
 

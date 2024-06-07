@@ -6,10 +6,10 @@ use alloy_primitives::{Address, BlockNumber, Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_rpc_types_trace::geth::AccountState;
+use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use log::{error, trace};
 
-use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec};
 
@@ -95,6 +95,7 @@ impl RequiredStateReader {
         }
         for (address, slot) in required_state.slots.into_iter() {
             let value_result = client.get_storage_at(address, slot).block_id(BlockId::Number(block_id)).await;
+            trace!("get_storage_at_result {} slot {} :  {:?}", address, slot, value_result);
             match value_result {
                 Ok(value) => {
                     let entry = ret.entry(address).or_default();

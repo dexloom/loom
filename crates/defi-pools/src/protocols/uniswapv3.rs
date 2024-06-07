@@ -69,3 +69,4 @@ impl Protocol for UniswapV3Protocol {
         vec![pair_address0, pair_address1, pair_address2, pair_address3]
     }
 }
+

@@ -10,6 +10,7 @@ mod uniswapv2pool;
 mod uniswapv3pool;
 mod maverickpool;
 pub mod state_readers;
+pub mod db_reader;
 
 pub mod protocols;
 mod curvepool;

@@ -55,7 +55,7 @@ clap = { version = "4.5.4", features = ["derive"] }
 strum = { version = "0.26.2" }
 strum_macros = { version = "0.26.2" }
 k256 = "0.13.3"
-
+thiserror = "1.0.61"
 
 
 revm = { version = "9.0.0", features = [
@@ -97,6 +97,9 @@ alloy-transport-ws = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f
 alloy-transport-ipc = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
 alloy-transport-http = { git = "https://github.com/alloy-rs/alloy", rev = "83af23f" }
 alloy-json-rpc = { git = "https://github.com/alloy-rs/alloy.git", rev = "83af23f" }
+
+
+uniswap_v3_math = { git = "https://github.com/0xKitsune/uniswap-v3-math.git", rev = "1120ff6" }
 
 [patch.crates-io]
 

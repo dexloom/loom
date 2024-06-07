@@ -30,6 +30,8 @@ revm.workspace = true
 eyre.workspace = true
 log.workspace = true
 
+uniswap_v3_math.workspace = true
+
 [dev-dependencies]
 tokio.workspace = true
 env_logger.workspace = true

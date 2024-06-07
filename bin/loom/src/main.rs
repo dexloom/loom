@@ -1,4 +1,3 @@
-use alloy_primitives::Address;
 use alloy_provider::Provider;
 use eyre::Result;
 use log::{error, info, LevelFilter};

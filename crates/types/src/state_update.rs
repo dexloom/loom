@@ -104,8 +104,8 @@ async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<
     };
 
 
-    let trace_result = client.geth_debug_trace_call(req.into(), block, tracer_call_opts).await?;
-    trace!("{} {} {:?}", tracer_opts.config.is_stack_enabled(), tracer_opts.config.is_storage_enabled(),trace_result);
+    let trace_result = client.geth_debug_trace_call(req.into(), block, tracer_call_opts.clone()).await?;
+    trace!("{} {} {:?} {:?}", tracer_opts.config.is_stack_enabled(), tracer_opts.config.is_storage_enabled(),tracer_call_opts.clone(), trace_result);
 
     match trace_result {
         GethTrace::PreStateTracer(geth_trace_frame) => {
