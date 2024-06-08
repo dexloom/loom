@@ -30,18 +30,6 @@ pub enum SwapAmountType {
 }
 
 
-/*
-impl TryInto<Report> for SwapError {
-    type Error = Report;
-
-    fn try_into(self) -> std::result::Result<Report, Self::Error> {
-        todo!()
-    }
-}
-
- */
-
-
 impl SwapAmountType {
     pub fn unwrap(&self) -> U256 {
         match &self {

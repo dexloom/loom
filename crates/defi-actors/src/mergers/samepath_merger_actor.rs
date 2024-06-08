@@ -164,7 +164,8 @@ async fn same_path_merger_task<P, T, N>
                                 tx_order.remove(changing_idx);
                                 debug!("Removing Some {idx} {changing_idx}");
                                 changing = None;
-                            } else if idx < tx_order.len() { // Next
+                                //TODO : Check idx > 1 condition
+                            } else if idx < tx_order.len() && idx > 0 { // Next
                                 tx_order.swap(idx, idx - 1);
                                 debug!("Swapping Some {idx} {changing_idx}");
                                 changing = Some(idx - 1)

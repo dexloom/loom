@@ -148,7 +148,6 @@ pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provid
         config: GethDefaultTracingOptions::default(),
         ..GethDebugTracingOptions::default()
     }.with_tracer(BuiltInTracer(PreStateTracer)).with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
-// TODO : Fix parameters
 
 
     let trace_result = client.debug_trace_transaction(req, tracer_opts).await?;

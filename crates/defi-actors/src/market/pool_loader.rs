@@ -157,9 +157,7 @@ pub async fn fetch_state_and_add_pool<P, T, N>(
                         let mut directions_tree: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
 
                         directions_tree.insert(pool_wrapped.clone(), directions_vec);
-
-                        //TODO :  directions
-
+                        
                         let mut market_write_guard = market.write().await;
                         if let Err(e) = market_write_guard.add_pool(pool_wrapped) {
                             error!("{}", e)

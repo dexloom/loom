@@ -323,6 +323,7 @@ impl Pool for PancakeV3Pool
         let mut state_required = RequiredState::new();
         state_required
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
+            .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode())
             .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 4 }).abi_encode())
             .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 3 }).abi_encode())
             .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 2 }).abi_encode())

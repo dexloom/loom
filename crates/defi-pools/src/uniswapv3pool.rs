@@ -7,9 +7,10 @@ use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
 use eyre::{ErrReport, eyre, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::debug;
+use log::{debug, error};
 use revm::InMemoryDB;
 use revm::primitives::Env;
+use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
 
 use defi_abi::IERC20;
 use defi_abi::uniswap3::IUniswapV3Pool;
@@ -20,6 +21,7 @@ use defi_entities::required_state::RequiredState;
 
 use crate::protocols::UniswapV3Protocol;
 use crate::state_readers::{UniswapCustomQuoterStateReader, UniswapV3QuoterEncoder, UniswapV3StateReader};
+use crate::virtual_impl::UniswapV3PoolVirtual;
 
 lazy_static! {
     //pub static ref CUSTOM_QUOTER_ADDRESS : Address = "0x0000000000000000000000000000000000003333".parse().unwrap();
@@ -65,10 +67,11 @@ pub struct UniswapV3Pool {
     address: Address,
     pub token0: Address,
     pub token1: Address,
+    pub liquidity: u128,
+    pub fee: u32,
+    pub slot0: Option<Slot0>,
     liquidity0: U256,
     liquidity1: U256,
-    fee: u32,
-    slot0: Option<Slot0>,
     factory: Address,
     protocol: PoolProtocol,
     encoder: UniswapV3AbiSwapEncoder,
@@ -81,6 +84,7 @@ impl UniswapV3Pool {
             address: address,
             token0: Address::ZERO,
             token1: Address::ZERO,
+            liquidity: 0,
             liquidity0: U256::ZERO,
             liquidity1: U256::ZERO,
             fee: 0,
@@ -89,6 +93,10 @@ impl UniswapV3Pool {
             protocol: PoolProtocol::UniswapV3Like,
             encoder: UniswapV3AbiSwapEncoder::new(address),
         }
+    }
+
+    pub fn tick_spacing(&self) -> u32 {
+        Self::get_price_step(self.fee)
     }
 
 
@@ -145,14 +153,16 @@ impl UniswapV3Pool {
         let token0 = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1 = UniswapV3StateReader::token1(db, env.clone(), address)?;
         let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
+        let liquidity = UniswapV3StateReader::liquidity(db, env.clone(), address)?;
         let factory = UniswapV3StateReader::factory(db, env.clone(), address).unwrap_or_default();
         let protocol = UniswapV3Pool::get_protocol_by_factory(factory);
 
 
         let ret = UniswapV3Pool {
             address,
-            token0: token0,
-            token1: token1,
+            token0,
+            token1,
+            liquidity,
             liquidity0: Default::default(),
             liquidity1: Default::default(),
             fee,
@@ -172,6 +182,7 @@ impl UniswapV3Pool {
         let token0: Address = uni3_pool.token0().call().await?._0;
         let token1: Address = uni3_pool.token1().call().await?._0;
         let fee: u32 = uni3_pool.fee().call().await?._0;
+        let liquidity: u128 = uni3_pool.liquidity().call().await?._0;
         let slot0 = uni3_pool.slot0().call().await?;
         let factory: Address = uni3_pool.factory().call().await?._0;
 
@@ -189,6 +200,7 @@ impl UniswapV3Pool {
             token0,
             token1,
             fee,
+            liquidity,
             slot0: Some(slot0.into()),
             liquidity0,
             liquidity1,
@@ -198,144 +210,6 @@ impl UniswapV3Pool {
         };
 
         Ok(ret)
-    }
-
-
-    fn simulate_swap(
-        &self,
-        token_in: Address,
-        amount_in: U256,
-    ) -> Result<U256> {
-        if amount_in.is_zero() {
-            return Ok(U256::ZERO);
-        }
-
-        let zero_for_one = token_in == self.token0;
-
-        // Set sqrt_price_limit_x_96 to the max or min sqrt price in the pool depending on zero_for_one
-        let sqrt_price_limit_x_96 = if zero_for_one {
-            MIN_SQRT_RATIO + U256_1
-        } else {
-            MAX_SQRT_RATIO - U256_1
-        };
-
-        // Initialize a mutable state state struct to hold the dynamic simulated state of the pool
-        let mut current_state = CurrentState {
-            sqrt_price_x_96: self.sqrt_price, //Active price on the pool
-            amount_calculated: I256::ZERO,    //Amount of token_out that has been calculated
-            amount_specified_remaining: I256::from_raw(amount_in), //Amount of token_in that has not been swapped
-            tick: self.tick,                                       //Current i24 tick of the pool
-            liquidity: self.liquidity, //Current available liquidity in the tick range
-        };
-
-        while current_state.amount_specified_remaining != I256::ZERO
-            && current_state.sqrt_price_x_96 != sqrt_price_limit_x_96
-        {
-            // Initialize a new step struct to hold the dynamic state of the pool at each step
-            let mut step = StepComputations {
-                // Set the sqrt_price_start_x_96 to the current sqrt_price_x_96
-                sqrt_price_start_x_96: current_state.sqrt_price_x_96,
-                ..Default::default()
-            };
-
-            // Get the next tick from the current tick
-            (step.tick_next, step.initialized) =
-                uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(
-                    &self.tick_bitmap,
-                    current_state.tick,
-                    self.tick_spacing,
-                    zero_for_one,
-                )?;
-
-            // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
-            // Note: this could be removed as we are clamping in the batch contract
-            step.tick_next = step.tick_next.clamp(MIN_TICK, MAX_TICK);
-
-            // Get the next sqrt price from the input amount
-            step.sqrt_price_next_x96 =
-                uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
-
-            // Target spot price
-            let swap_target_sqrt_ratio = if zero_for_one {
-                if step.sqrt_price_next_x96 < sqrt_price_limit_x_96 {
-                    sqrt_price_limit_x_96
-                } else {
-                    step.sqrt_price_next_x96
-                }
-            } else if step.sqrt_price_next_x96 > sqrt_price_limit_x_96 {
-                sqrt_price_limit_x_96
-            } else {
-                step.sqrt_price_next_x96
-            };
-
-            // Compute swap step and update the current state
-            (
-                current_state.sqrt_price_x_96,
-                step.amount_in,
-                step.amount_out,
-                step.fee_amount,
-            ) = uniswap_v3_math::swap_math::compute_swap_step(
-                current_state.sqrt_price_x_96,
-                swap_target_sqrt_ratio,
-                current_state.liquidity,
-                current_state.amount_specified_remaining,
-                self.fee,
-            )?;
-
-            // Decrement the amount remaining to be swapped and amount received from the step
-            current_state.amount_specified_remaining = current_state
-                .amount_specified_remaining
-                .overflowing_sub(I256::from_raw(
-                    step.amount_in.overflowing_add(step.fee_amount).0,
-                ))
-                .0;
-
-            current_state.amount_calculated -= I256::from_raw(step.amount_out);
-
-            // If the price moved all the way to the next price, recompute the liquidity change for the next iteration
-            if current_state.sqrt_price_x_96 == step.sqrt_price_next_x96 {
-                if step.initialized {
-                    let mut liquidity_net = if let Some(info) = self.ticks.get(&step.tick_next) {
-                        info.liquidity_net
-                    } else {
-                        0
-                    };
-
-                    // we are on a tick boundary, and the next tick is initialized, so we must charge a protocol fee
-                    if zero_for_one {
-                        liquidity_net = -liquidity_net;
-                    }
-
-                    current_state.liquidity = if liquidity_net < 0 {
-                        if current_state.liquidity < (-liquidity_net as u128) {
-                            return Err(SwapSimulationError::LiquidityUnderflow);
-                        } else {
-                            current_state.liquidity - (-liquidity_net as u128)
-                        }
-                    } else {
-                        current_state.liquidity + (liquidity_net as u128)
-                    };
-                }
-                // Increment the current tick
-                current_state.tick = if zero_for_one {
-                    step.tick_next.wrapping_sub(1)
-                } else {
-                    step.tick_next
-                }
-                // If the current_state sqrt price is not equal to the step sqrt price, then we are not on the same tick.
-                // Update the current_state.tick to the tick at the current_state.sqrt_price_x_96
-            } else if current_state.sqrt_price_x_96 != step.sqrt_price_start_x_96 {
-                current_state.tick = uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(
-                    current_state.sqrt_price_x_96,
-                )?;
-            }
-        }
-
-        let amount_out = (-current_state.amount_calculated).into_raw();
-
-        log::trace!(?amount_out);
-
-        Ok(amount_out)
     }
 }
 
@@ -371,14 +245,28 @@ impl Pool for UniswapV3Pool
         env.tx.gas_limit = 1_000_000;
 
 
-        let (ret, gas_used) = UniswapCustomQuoterStateReader::quote_exact_input(state_db,
-                                                                                env,
-                                                                                UniswapV3Protocol::get_custom_quoter_address(),
-                                                                                self.get_address(),
-                                                                                *token_address_from,
-                                                                                *token_address_to,
-                                                                                self.fee,
-                                                                                in_amount)?;
+        let gas_used = 150000;
+
+        let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(
+            state_db, self, *token_address_from, in_amount,
+        )?;
+
+        #[cfg(any(test, debug_assertions))] {
+            let (ret_evm, gas_used) = UniswapCustomQuoterStateReader::quote_exact_input(state_db,
+                                                                                        env,
+                                                                                        UniswapV3Protocol::get_custom_quoter_address(),
+                                                                                        self.get_address(),
+                                                                                        *token_address_from,
+                                                                                        *token_address_to,
+                                                                                        self.fee,
+                                                                                        in_amount)?;
+
+
+            if ret != ret_evm {
+                error!("calculate_out_amount RETURN_RESULT_IS_INCORRECT : {ret} need {ret_evm}");
+                return Err(eyre!("RETURN_RESULT_IS_INCORRECT"));
+            }
+        }
 
 
         if ret.is_zero() {
@@ -393,14 +281,30 @@ impl Pool for UniswapV3Pool
         let mut env = env;
         env.tx.gas_limit = 1_000_000;
 
-        let (ret, gas_used) = UniswapCustomQuoterStateReader::quote_exact_output(state_db,
-                                                                                 env,
-                                                                                 UniswapV3Protocol::get_custom_quoter_address(),
-                                                                                 self.get_address(),
-                                                                                 *token_address_from,
-                                                                                 *token_address_to,
-                                                                                 self.fee,
-                                                                                 out_amount + U256::from(10))?;
+        let gas_used = 150000;
+
+        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(
+            state_db, self, *token_address_from, out_amount + U256::from(0),
+        )?;
+
+
+        #[cfg(any(test, debug_assertions))] {
+            let (ret_evm, gas_used) = UniswapCustomQuoterStateReader::quote_exact_output(state_db,
+                                                                                         env,
+                                                                                         UniswapV3Protocol::get_custom_quoter_address(),
+                                                                                         self.get_address(),
+                                                                                         *token_address_from,
+                                                                                         *token_address_to,
+                                                                                         self.fee,
+                                                                                         out_amount + U256::from(0))?;
+
+
+            if ret != ret_evm {
+                error!("calculate_in_amount RETURN_RESULT_IS_INCORRECT : {ret} need {ret_evm}");
+                return Err(eyre!("RETURN_RESULT_IS_INCORRECT"));
+            }
+        }
+
 
         if ret.is_zero() {
             return Err(eyre!("RETURN_RESULT_IS_ZERO"));
@@ -434,6 +338,7 @@ impl Pool for UniswapV3Pool
 
         state_required
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
+            .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode())
             .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 4 }).abi_encode())
             .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 3 }).abi_encode())
             .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 2 }).abi_encode())
@@ -560,17 +465,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_pool() -> Result<()> {
-        std::env::set_var("RUST_LOG", "trace");
         std::env::set_var("RUST_BACKTRACE", "1");
-        env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
+        env_logger::init_from_env(EnvLog::default().default_filter_or("debug,defi_pools=trace"));
 
-        let client = AnvilControl::from_node_on_block("http://falcon.loop:8008/rpc".to_string(), 19931897).await?;
+        //let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19931897).await?;
+        let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20045799).await?;
 
         let mut market_state = MarketState::new(InMemoryDB::default());
 
         market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
-        let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
+        //let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
+        let pool_address: Address = "0x48DA0965ab2d2cbf1C17C09cFB5Cbe67Ad5B1406".parse().unwrap();
 
         let mut pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
 
@@ -583,13 +489,13 @@ mod tests {
         let evm_env = Env::default();
 
 
-        let in_amount = U256::from(pool.liquidity0 / U256::from(100));
+        let in_amount = U256::from(pool.liquidity0 / U256::from(10));
         let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, in_amount).unwrap();
         println!("out {} -> {} {}", in_amount, out_amount, gas_used);
         let (in_amount2, gas_used) = pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, out_amount).unwrap();
         println!("in {} -> {} {} {} ", out_amount, in_amount2, in_amount2 >= in_amount, gas_used);
 
-        let in_amount = U256::from(pool.liquidity1 / U256::from(100));
+        let in_amount = U256::from(pool.liquidity1 / U256::from(10));
         let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, in_amount).unwrap();
         println!("out {} -> {} {}", in_amount, out_amount, gas_used);
         let (in_amount2, gas_used) = pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, out_amount).unwrap();
@@ -599,9 +505,9 @@ mod tests {
         //market_state.fetch_state(pool.get_address(), client.clone()).await;
         //market_state.fetch_state(pool.get_address(), client.clone()).await;
 
-        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, U256::from(pool.liquidity0 / U256::from(100))).unwrap();
+        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, U256::from(pool.liquidity0 / U256::from(10))).unwrap();
         println!("{} {}", out_amount, gas_used);
-        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, U256::from(pool.liquidity1 / U256::from(100))).unwrap();
+        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, U256::from(pool.liquidity1 / U256::from(10))).unwrap();
         println!("{} {}", out_amount, gas_used);
         Ok(())
     }

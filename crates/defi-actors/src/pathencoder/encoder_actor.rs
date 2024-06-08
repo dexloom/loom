@@ -105,41 +105,47 @@ async fn encoder_task(
     };
 
     let signer = signers.read().await.get_randon_signer();
-
-    let nonce = account_monitor.read().await.get_account(&signer.address()).unwrap().get_nonce();
-    let eth_balance = account_monitor.read().await.get_account(&signer.address()).unwrap().get_eth_balance();
-
-
-    let gas_fee: u128 = encode_request.gas_fee;
-
-    if gas_fee == 0 {
-        Err(eyre!("NO_BLOCK_GAS_FEE"))
-    } else {
-        let gas = 3_000_000;
-        let value = U256::ZERO;
-        let priority_gas_fee: u128 = 10_u128.pow(9);
+    match signer {
+        Some(signer) => {
+            let nonce = account_monitor.read().await.get_account(&signer.address()).unwrap().get_nonce();
+            let eth_balance = account_monitor.read().await.get_account(&signer.address()).unwrap().get_eth_balance();
 
 
-        let estimate_request = TxComposeData {
-            signer: Some(signer),
-            nonce,
-            eth_balance,
-            gas,
-            gas_fee,
-            priority_gas_fee,
-            value,
-            opcodes: Some(swap_opcodes),
-            ..encode_request
-        };
+            let gas_fee: u128 = encode_request.gas_fee;
 
-        let estimate_request = MessageTxCompose::estimate(estimate_request);
+            if gas_fee == 0 {
+                Err(eyre!("NO_BLOCK_GAS_FEE"))
+            } else {
+                let gas = 3_000_000;
+                let value = U256::ZERO;
+                let priority_gas_fee: u128 = 10_u128.pow(9);
 
-        match compose_channel_tx.send(estimate_request).await {
-            Err(e) => {
-                error!("{e}");
-                Err(eyre!(e))
+
+                let estimate_request = TxComposeData {
+                    signer: Some(signer),
+                    nonce,
+                    eth_balance,
+                    gas,
+                    gas_fee,
+                    priority_gas_fee,
+                    value,
+                    opcodes: Some(swap_opcodes),
+                    ..encode_request
+                };
+
+                let estimate_request = MessageTxCompose::estimate(estimate_request);
+
+                match compose_channel_tx.send(estimate_request).await {
+                    Err(e) => {
+                        error!("{e}");
+                        Err(eyre!(e))
+                    }
+                    Ok(_) => { Ok(()) }
+                }
             }
-            Ok(_) => { Ok(()) }
+        }
+        None => {
+            Err(eyre!("NO_SIGNER_AVAILABLE"))
         }
     }
 }

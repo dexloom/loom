@@ -11,7 +11,7 @@ use alloy_node_bindings::Anvil;
 use alloy_primitives::{Address, BlockHash, BlockNumber, TxHash, U256};
 use alloy_provider::{Provider, ProviderBuilder, ProviderLayer};
 use alloy_provider::network::eip2718::Encodable2718;
-use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, Header, Log};
+use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, BlockTransactionsKind, Header, Log};
 use alloy_transport_http::reqwest::Url;
 use alloy_transport_ws::WsConnect;
 use clap::Parser;
@@ -105,14 +105,14 @@ async fn main() -> Result<()> {
     info!("Block : {}", block_nr);
 
     let block_header = client
-        .get_block(block_nr.into(), false)
+        .get_block(block_nr.into(), BlockTransactionsKind::Hashes)
         .await
         .unwrap()
         .unwrap()
         .header;
 
     let block_header_with_txes = client
-        .get_block(block_nr.into(), true)
+        .get_block(block_nr.into(), BlockTransactionsKind::Full)
         .await
         .unwrap()
         .unwrap();

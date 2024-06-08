@@ -16,11 +16,17 @@
 - [types](./crates/types) - defi types crate
 - [utils](./crates/utils) - various helpers
 
+## Bins
+
+- [loom](./bin/loom) - backrun bot
+- [loom_anvil](./bin/loom_anvil) - testing framework
+- [keys](./bin/keys) - keys encryption tool
+
 Telegram chat : https://t.me/dexloom_com
 
 ## Starting
 
-### Setting topology
+### Setting up topology
 
 config.toml example
 
@@ -110,6 +116,13 @@ cargo run --bin keys encrypt --key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbe
 ```sh
 DATA=<ENCRYPTED_PRIVATE_KEY> cargo run --bin loom
 ```
+
+# GREETINGS
+
+- [Pradigm](https://github.com/paradigmxyz) - Paradigm. All those inspiring products : RETH / REVM / Alloy / Ethers
+- [darkforestry](https://github.com/darkforestry/amms-rs) - AMM Crate
+- [0xKitsune](https://github.com/0xKitsune) - Uniswap Math crate
+- [Onbjerg](https://github.com/onbjerg) - Flashbots crate
 
 # DISCLAMER
 

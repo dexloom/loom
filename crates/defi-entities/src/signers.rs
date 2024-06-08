@@ -106,9 +106,13 @@ impl TxSigners {
     }
 
 
-    pub fn get_randon_signer(&self) -> TxSigner {
-        let rnd: usize = rand::thread_rng().gen();
-        self.signers_vec.get(rnd % self.len()).cloned().unwrap()
+    pub fn get_randon_signer(&self) -> Option<TxSigner> {
+        if self.len() == 0 {
+            None
+        } else {
+            let rnd: usize = rand::thread_rng().gen();
+            self.signers_vec.get(rnd % self.len()).cloned()
+        }
     }
 
     pub fn get_signer_by_index(&self, index: usize) -> Result<TxSigner> {

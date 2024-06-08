@@ -1,9 +1,10 @@
 use std::ops::{BitAnd, Shl, Shr};
 
-use alloy_primitives::{Address, B256};
+use alloy_primitives::{Address, B256, I256, Signed, Uint};
 use alloy_primitives::U256;
 use eyre::Result;
 use lazy_static::lazy_static;
+use log::{debug, trace};
 use revm::InMemoryDB;
 
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
@@ -12,8 +13,11 @@ use crate::db_reader::dbreader::{try_read_cell, try_read_hashmap_cell};
 
 pub struct UniswapV3DBReader {}
 
+
+
 lazy_static! {
     static ref BITS160MASK : U256 = U256::from(1).shl(160) - U256::from(1);
+    static ref BITS128MASK : U256 = U256::from(1).shl(128) - U256::from(1);
     static ref BITS24MASK : U256 = U256::from(1).shl(24) - U256::from(1);
     static ref BITS16MASK : U256 = U256::from(1).shl(16) - U256::from(1);
     static ref BITS8MASK : U256 = U256::from(1).shl(8) - U256::from(1);
@@ -35,19 +39,27 @@ impl UniswapV3DBReader {
         Ok(cell)
     }
 
-    pub fn liquidity(db: &InMemoryDB, address: Address) -> Result<U256> {
+    pub fn liquidity(db: &InMemoryDB, address: Address) -> Result<u128> {
         let cell = try_read_cell(db, &address, &U256::from(4))?;
+        let cell: u128 = cell.saturating_to();
         Ok(cell)
     }
 
-    pub fn ticks(db: &InMemoryDB, address: Address, tick: i32) -> Result<U256> {
+    pub fn ticks_liquidity_net(db: &InMemoryDB, address: Address, tick: i32) -> Result<i128> {
         //i24
-        let cell = try_read_hashmap_cell(db, &address, &U256::from(5), &U256::ZERO)?;
-        Ok(cell)
+        let cell = try_read_hashmap_cell(db, &address, &U256::from(5), &U256::from_be_bytes(I256::try_from(tick)?.to_be_bytes::<32>()))?;
+        let unsigned_liqudity: Uint<128, 2> = cell.shr(U256::from(128)).to();
+        let signed_liquidity: Signed<128, 2> = Signed::<128, 2>::from_raw(unsigned_liqudity);
+        let lu128: u128 = unsigned_liqudity.to();
+        let li128: i128 = lu128 as i128;
+        trace!("ticks_liquidity_net {address} {tick} {cell} -> {signed_liquidity}");
+
+        Ok(li128)
     }
-    pub fn tickBitmap(db: &InMemoryDB, address: Address, tick: i32) -> Result<U256> {
+    pub fn tickBitmap(db: &InMemoryDB, address: Address, tick: i16) -> Result<U256> {
         //i16
-        let cell = try_read_hashmap_cell(db, &address, &U256::from(6), &U256::ZERO)?;
+        let cell = try_read_hashmap_cell(db, &address, &U256::from(6), &U256::from_be_bytes(I256::try_from(tick)?.to_be_bytes::<32>()))?;
+        trace!("tickBitmap {address} {tick} {cell}");
         Ok(cell)
     }
 
@@ -67,11 +79,14 @@ impl UniswapV3DBReader {
 
     pub fn slot0(db: &InMemoryDB, address: Address) -> Result<slot0Return> {
         let cell = try_read_cell(db, &address, &U256::from(0))?;
-        println!("Cell : {cell:x}");
+        let tick: Uint<24, 1> = ((Shr::<U256>::shr(cell, U256::from(160))) & *BITS24MASK).to();
+        let tick: Signed<24, 1> = Signed::<24, 1>::from_raw(tick);
+        let tick: i32 = tick.as_i32();
+
         Ok(
             slot0Return {
                 sqrtPriceX96: cell.bitand(*BITS160MASK),
-                tick: ((Shr::<U256>::shr(cell, U256::from(160))) & *BITS24MASK).to(),
+                tick: tick,
                 observationIndex: ((Shr::<U256>::shr(cell, U256::from(160 + 24))) & *BITS16MASK).to(),
                 observationCardinality: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16))) & *BITS16MASK).to(),
                 observationCardinalityNext: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16))) & *BITS16MASK).to(),

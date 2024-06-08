@@ -20,7 +20,6 @@ use loom_actors_macros::Accessor;
 //use market::{CurveProtocol, Market, PoolSetup};
 //use market::contracts::CurvePool;
 
-//TODO : Implement curve
 async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(client: P, market: SharedState<Market>) -> WorkerResult {
     let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
 

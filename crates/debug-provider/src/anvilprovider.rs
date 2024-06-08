@@ -1,9 +1,8 @@
 use alloy_primitives::{Address, Bytes, U256, U64};
 use alloy_provider::{Network, Provider};
-use alloy_rpc_types::BlockNumberOrTag;
 use alloy_transport::{Transport, TransportResult};
 
-use crate::{AnvilDebugProvider, DebugProviderExt};
+use crate::AnvilDebugProvider;
 
 pub(crate) fn convert_u64(r: U64) -> u64 {
     r.to::<u64>()

@@ -16,3 +16,4 @@ pub mod protocols;
 mod curvepool;
 
 mod pancakev3pool;
+mod virtual_impl;

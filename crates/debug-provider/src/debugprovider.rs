@@ -199,7 +199,7 @@ impl<PN, PA, TN, TA, N> DebugProviderExt<TA, N> for AnvilDebugProvider<PN, PA, T
 {
     async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
         let block = match block {
-            BlockNumberOrTag::Number(n) => {
+            BlockNumberOrTag::Number(_) => {
                 block
             }
             BlockNumberOrTag::Latest => {
