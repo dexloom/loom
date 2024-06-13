@@ -3,7 +3,7 @@ use alloy_rpc_types::{Block, Header};
 use revm::InMemoryDB;
 
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Token};
-use defi_events::{BlockLogsUpdate, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose};
+use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate};
 use defi_types::Mempool;
 use loom_actors::{Broadcaster, SharedState};
 
@@ -20,8 +20,8 @@ pub struct Blockchain
 
     new_block_headers_channel: Broadcaster<Header>,
     new_block_with_tx_channel: Broadcaster<Block>,
-    new_block_state_update_channel: Broadcaster<BlockStateUpdate>,
-    new_block_logs_channel: Broadcaster<BlockLogsUpdate>,
+    new_block_state_update_channel: Broadcaster<NodeBlockStateUpdate>,
+    new_block_logs_channel: Broadcaster<NodeBlockLogsUpdate>,
     new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate>,
     market_events_channel: Broadcaster<MarketEvents>,
     mempool_events_channel: Broadcaster<MempoolEvents>,
@@ -34,8 +34,8 @@ impl Blockchain
     pub fn new(chain_id: i64, db: InMemoryDB) -> Blockchain {
         let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
-        let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
-        let new_block_logs_channel: Broadcaster<BlockLogsUpdate> = Broadcaster::new(10);
+        let new_block_state_update_channel: Broadcaster<NodeBlockStateUpdate> = Broadcaster::new(10);
+        let new_block_logs_channel: Broadcaster<NodeBlockLogsUpdate> = Broadcaster::new(10);
 
         let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(1000);
 
@@ -131,11 +131,11 @@ impl Blockchain
         self.new_block_with_tx_channel.clone()
     }
 
-    pub fn new_block_state_update_channel(&self) -> Broadcaster<BlockStateUpdate> {
+    pub fn new_block_state_update_channel(&self) -> Broadcaster<NodeBlockStateUpdate> {
         self.new_block_state_update_channel.clone()
     }
 
-    pub fn new_block_logs_channel(&self) -> Broadcaster<BlockLogsUpdate> {
+    pub fn new_block_logs_channel(&self) -> Broadcaster<NodeBlockLogsUpdate> {
         self.new_block_logs_channel.clone()
     }
 

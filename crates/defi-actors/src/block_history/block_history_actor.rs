@@ -7,7 +7,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_entities::{BlockHistory, LatestBlock, MarketState};
-use defi_events::{BlockLogsUpdate, BlockStateUpdate, MarketEvents};
+use defi_events::{MarketEvents, NodeBlockLogsUpdate, NodeBlockStateUpdate};
 use defi_types::ChainParameters;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -19,8 +19,8 @@ pub async fn new_block_history_worker(
     block_history: SharedState<BlockHistory>,
     mut block_header_update_rx: Receiver<Header>,
     mut block_update_rx: Receiver<Block>,
-    mut log_update_rx: Receiver<BlockLogsUpdate>,
-    mut state_update_rx: Receiver<BlockStateUpdate>,
+    mut log_update_rx: Receiver<NodeBlockLogsUpdate>,
+    mut state_update_rx: Receiver<NodeBlockStateUpdate>,
     sender: Broadcaster<MarketEvents>,
 ) -> WorkerResult
 {
@@ -88,7 +88,7 @@ pub async fn new_block_history_worker(
             msg = log_update_rx.recv() => {
                 debug!("Log update");
 
-                let log_update : Result<BlockLogsUpdate, RecvError>  = msg;
+                let log_update : Result<NodeBlockLogsUpdate, RecvError>  = msg;
                 match log_update {
                     Ok(msg) =>{
                         let block_hash : BlockHash = msg.block_hash;
@@ -114,7 +114,7 @@ pub async fn new_block_history_worker(
             msg = state_update_rx.recv() => {
                 // todo(Make getting market state from previous block)
                 debug!("Block State update");
-                let state_update_msg : Result<BlockStateUpdate, RecvError> = msg;
+                let state_update_msg : Result<NodeBlockStateUpdate, RecvError> = msg;
                 match state_update_msg {
                     Ok(msg) => {
                         let block_hash : BlockHash = msg.block_hash;
@@ -220,9 +220,9 @@ pub struct BlockHistoryActor
     #[consumer]
     block_update_rx: Option<Broadcaster<Block>>,
     #[consumer]
-    log_update_rx: Option<Broadcaster<BlockLogsUpdate>>,
+    log_update_rx: Option<Broadcaster<NodeBlockLogsUpdate>>,
     #[consumer]
-    state_update_rx: Option<Broadcaster<BlockStateUpdate>>,
+    state_update_rx: Option<Broadcaster<NodeBlockStateUpdate>>,
     #[producer]
     market_events_tx: Option<Broadcaster<MarketEvents>>,
 }

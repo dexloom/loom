@@ -11,7 +11,7 @@ use tokio::sync::broadcast::Receiver;
 
 use debug_provider::DebugProviderExt;
 use defi_entities::{Market, MarketState};
-use defi_events::BlockLogsUpdate;
+use defi_events::NodeBlockLogsUpdate;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
@@ -21,7 +21,7 @@ pub async fn new_pool_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
-    mut log_update_rx: Receiver<BlockLogsUpdate>,
+    mut log_update_rx: Receiver<NodeBlockLogsUpdate>,
 ) -> WorkerResult
     where
         T: Transport + Clone,
@@ -33,7 +33,7 @@ pub async fn new_pool_worker<P, T, N>(
             msg = log_update_rx.recv() => {
                 debug!("Log update");
 
-                let log_update : Result<BlockLogsUpdate, RecvError>  = msg;
+                let log_update : Result<NodeBlockLogsUpdate, RecvError>  = msg;
                 match log_update {
                     Ok(log_update_msg)=>{
                         if let Ok(pool_address_vec) = process_log_entries(
@@ -64,7 +64,7 @@ pub struct NewPoolLoaderActor<P, T, N>
     #[accessor]
     market_state: Option<SharedState<MarketState>>,
     #[consumer]
-    log_update_rx: Option<Broadcaster<BlockLogsUpdate>>,
+    log_update_rx: Option<Broadcaster<NodeBlockLogsUpdate>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }

@@ -242,9 +242,8 @@ impl Actor for ArbSwapPathMergerActor
 mod test {
     use alloy_primitives::{Address, U256};
 
-    use market::{SwapAmountType, SwapLine, Token};
-
-    use crate::messages::{SwapType, TxComposeData};
+    use defi_entities::{SwapAmountType, SwapLine, Token};
+    use defi_events::{SwapType, TxComposeData};
 
     #[test]
     pub fn test_sort() {

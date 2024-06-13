@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use futures::StreamExt;
 use log::error;
 
-use defi_events::{MempoolDataUpdate, MessageMempoolDataUpdate};
+use defi_events::{MessageMempoolDataUpdate, NodeMempoolDataUpdate};
 use defi_types::MempoolTx;
 use loom_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_actors_macros::*;
@@ -22,7 +22,7 @@ pub async fn new_node_mempool_worker<P>(
 
     while let Some(tx) = stream.next().await {
         let tx_hash: TxHash = tx.hash;
-        let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(MempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, name.clone());
+        let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, name.clone());
         match mempool_tx.send(update_msg).await {
             Err(e) => {
                 error!("{}", e);

@@ -36,7 +36,11 @@ mode = "ws"
 
 # Nodes. 
 [clients]
-local = { url = "ws://localhost:8545" }
+local = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ipc", db_path = "PATH_TO_RETH_DATA_FOLDER/db", node = "reth" }
+#another way to connect to WS
+#local = { url = "ws://localhost:8545" }
+
+#remote node
 remote = { url = "ws://8.8.8.8:8545" }
 
 [blockchains]
@@ -119,7 +123,7 @@ DATA=<ENCRYPTED_PRIVATE_KEY> cargo run --bin loom
 
 # GREETINGS
 
-- [Pradigm](https://github.com/paradigmxyz) - Paradigm. All those inspiring products : RETH / REVM / Alloy / Ethers
+- [Paradigm](https://github.com/paradigmxyz) - Paradigm. All those inspiring products : RETH / REVM / Alloy / Ethers
 - [darkforestry](https://github.com/darkforestry/amms-rs) - AMM Crate
 - [0xKitsune](https://github.com/0xKitsune) - Uniswap Math crate
 - [Onbjerg](https://github.com/onbjerg) - Flashbots crate

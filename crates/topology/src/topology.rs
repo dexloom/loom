@@ -5,8 +5,9 @@ use alloy_primitives::Address;
 use alloy_provider::{ProviderBuilder, RootProvider};
 use alloy_rpc_client::ClientBuilder;
 use alloy_transport::BoxTransport;
+use alloy_transport_ipc::IpcConnect;
 use alloy_transport_ws::WsConnect;
-use eyre::{eyre, Result};
+use eyre::{eyre, OptionExt, Result};
 use log::{error, info};
 use revm::db::{CacheDB, EmptyDB};
 use tokio::task::JoinHandle;
@@ -19,11 +20,12 @@ use loom_actors::{Accessor, Actor, Consumer, Producer, SharedState, WorkerResult
 use loom_multicaller::SwapStepEncoder;
 
 use crate::blockchain::Blockchain;
-use crate::topology_config::{BroadcasterConfig, EncoderConfig, EstimatorConfig, SignersConfig, TopologyConfig};
+use crate::topology_config::{BroadcasterConfig, ClientConfigParams, EncoderConfig, EstimatorConfig, SignersConfig, TopologyConfig};
+use crate::topology_config::TransportType;
 
 pub struct Topology
 {
-    clients: HashMap<String, RootProvider<BoxTransport>>,
+    clients: HashMap<String, ClientConfigParams>,
     blockchains: HashMap<String, Blockchain>,
     signers: HashMap<String, SharedState<TxSigners>>,
     encoders: HashMap<String, Arc<SwapStepEncoder>>,
@@ -52,11 +54,23 @@ impl Topology
         //let timeout_duration = Duration::from_secs(10);
 
         for (name, v) in config.clients.clone().iter() {
-            info!("Connecting to {name}");
+            let config_params = v.config_params();
 
-            let transport = WsConnect { url: v.url(), auth: None };
+            info!("Connecting to {name} : {v:?}");
 
-            let client = ClientBuilder::default().ws(transport).await;
+            let client = match config_params.transport {
+                TransportType::Ipc => {
+                    info!("Starting IPC connection");
+
+                    let transport = IpcConnect::from(config_params.url);
+                    ClientBuilder::default().ipc(transport).await
+                }
+                _ => {
+                    info!("Starting WS connection");
+                    let transport = WsConnect { url: config_params.url, auth: None };
+                    ClientBuilder::default().ws(transport).await
+                }
+            };
 
             let client = if client.is_err() {
                 error!("Error connecting to {name} error : {}", client.err().unwrap());
@@ -65,8 +79,12 @@ impl Topology
                 client.unwrap()
             };
 
-            let provider = ProviderBuilder::new().on_client(client).boxed();
-            topology.clients.insert(name.clone(), provider);
+            let provider = Some(ProviderBuilder::new().on_client(client).boxed());
+
+            topology.clients.insert(name.clone(), ClientConfigParams {
+                provider,
+                ..v.config_params()
+            });
         }
 
         if topology.clients.is_empty() {
@@ -237,9 +255,10 @@ impl Topology
         for (name, params) in config.actors.node {
             let client = topology.get_client(params.client.as_ref()).unwrap();
             let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
+            let client_config = topology.get_client_config(params.client.as_ref()).unwrap();
 
             info!("Starting node actor {name}");
-            let mut node_block_actor = NodeBlockActor::new(client);
+            let mut node_block_actor = NodeBlockActor::new(client, client_config.db_path);
             match node_block_actor
                 .produce(blockchain.new_block_headers_channel())
                 .produce(blockchain.new_block_with_tx_channel())
@@ -448,10 +467,22 @@ impl Topology
 
     pub fn get_client(&self, name: Option<&String>) -> Result<RootProvider<BoxTransport>> {
         match self.clients.get(name.unwrap_or(&"local".to_string())) {
-            Some(a) => { Ok(a.clone()) }
+            Some(a) => {
+                Ok(a.client().ok_or_eyre("CLIENT_NOT_SET")?.clone())
+            }
             None => { Err(eyre!("CLIENT_NOT_FOUND")) }
         }
     }
+
+    pub fn get_client_config(&self, name: Option<&String>) -> Result<ClientConfigParams> {
+        match self.clients.get(name.unwrap_or(&"local".to_string())) {
+            Some(a) => {
+                Ok(a.clone())
+            }
+            None => { Err(eyre!("CLIENT_NOT_FOUND")) }
+        }
+    }
+
 
     pub fn get_blockchain(&self, name: Option<&String>) -> Result<&Blockchain> {
         match self.blockchains.get(name.unwrap_or(&self.default_blockchain_name.clone().unwrap())) {

@@ -1,0 +1,130 @@
+@startuml
+'https://plantuml.com/component-diagram
+
+package "Loom" {
+  [StateChangeArbActor] <-up- mempool
+  [StateChangeArbActor] <-up- latest_block
+  [StateChangeArbActor] <-up- market
+  [StateChangeArbActor] <-up- market_state
+  [StateChangeArbActor] <-up- block_history
+  [StateChangeArbActor] <-- market_events_channel
+  [StateChangeArbActor] --> mempool_events_channel
+  [StateChangeArbActor] -up-> compose_channel
+  [StateChangeArbActor] --> pool_health_monitor_channel
+
+  [ArbSwapPathEncoderActor] <-- mempool
+  [ArbSwapPathEncoderActor] <-- tx_signers
+  [ArbSwapPathEncoderActor] <-- nonce_and_balance
+  [ArbSwapPathEncoderActor] <-- latest_block
+  [ArbSwapPathEncoderActor] <-- compose_channel
+  [ArbSwapPathEncoderActor] --> compose_channel
+
+  [ArbSwapPathMergerActor] <-- mempool
+  [ArbSwapPathMergerActor] <-- market_state
+  [ArbSwapPathMergerActor] <-- tx_signers
+  [ArbSwapPathMergerActor] <-- nonce_and_balance
+  [ArbSwapPathMergerActor] <-- latest_block
+  [ArbSwapPathMergerActor] <-- market_events_channel
+  [ArbSwapPathMergerActor] <-- compose_channel
+  [ArbSwapPathMergerActor] --> compose_channel
+
+  [SamePathMergerActor] <-- mempool
+    [SamePathMergerActor] <-- market_state
+    [SamePathMergerActor] <-- tx_signers
+    [SamePathMergerActor] <-- nonce_and_balance
+    [SamePathMergerActor] <-- latest_block
+    [SamePathMergerActor] <-- market_events_channel
+    [SamePathMergerActor] <-- compose_channel
+    [SamePathMergerActor] --> compose_channel
+
+  [DiffPathMergerActor] <-- mempool
+    [DiffPathMergerActor] <-- market_state
+    [DiffPathMergerActor] <-- tx_signers
+    [DiffPathMergerActor] <-- nonce_and_balance
+    [DiffPathMergerActor] <-- latest_block
+    [DiffPathMergerActor] <-- market_events_channel
+    [DiffPathMergerActor] <-- compose_channel
+    [DiffPathMergerActor] --> compose_channel
+
+  [StateHealthMonitorActor] <-- market_state
+    [StateHealthMonitorActor] <-- compose_channel
+    [StateHealthMonitorActor] <-- market_events_channel
+
+  [StuffingTxMonitorActor] <-- latest_block
+    [StuffingTxMonitorActor] <-- compose_channel
+    [StuffingTxMonitorActor] <-- market_events_channel
+}
+
+package "Topology" {
+  [SwapStepEncoder]
+  [BlockHistoryActor] <-- latest_block
+  [BlockHistoryActor] <-- market_state
+  [BlockHistoryActor] <-- block_history
+  [BlockHistoryActor] <-- new_block_headers_channel
+  [BlockHistoryActor] <-- new_block_with_tx_channel
+  [BlockHistoryActor] <-- new_block_logs_channel
+  [BlockHistoryActor] <-- new_block_state_update_channel
+  [BlockHistoryActor] --> market_events_channel
+
+  [MempoolActor] <-- mempool
+  [MempoolActor] <-- block_history
+  [MempoolActor] <-- new_mempool_tx_channel
+  [MempoolActor] <-- market_events_channel
+  [MempoolActor] --> mempool_events_channel
+
+  [GasStationActor] <--down-- gas_station
+  [GasStationActor] <-- block_history
+  [GasStationActor] <-- market_events_channel
+  [GasStationActor] --> market_events_channel
+
+  [PoolHealthMonitorActor] <-- market
+  [PoolHealthMonitorActor] <-- pool_health_monitor_channel
+
+  [SharedState] <-- signers
+  [SharedState] <-- nonce_and_balance
+
+  [SignersActor] <-- compose_channel
+  [SignersActor] --> compose_channel
+
+  [MarketStatePreloadedActor] <-~- SwapStepEncoder
+  [MarketStatePreloadedActor] <-- market_state
+  [MarketStatePreloadedActor] <-- signers
+
+  [NodeBlockActor] --> new_block_headers_channel
+  [NodeBlockActor] --> new_block_with_tx_channel
+  [NodeBlockActor] --> new_block_logs_channel
+  [NodeBlockActor] --> new_block_state_update_channel
+
+  [NodeMempoolActor] --> new_mempool_tx_channel
+
+  [PriceActor] <-- market
+
+  [NonceAndBalanceMonitorActor] <-- nonce_and_balance
+  [NonceAndBalanceMonitorActor] <-- block_history
+  [NonceAndBalanceMonitorActor] <-- market_events_channel
+
+  [FlashbotsBroadcastActor] <-- latest_block
+  [FlashbotsBroadcastActor] <-- compose_channel
+
+  [HistoryPoolLoaderActor] <-- market
+  [HistoryPoolLoaderActor] <-- market_state
+
+  [ProtocolPoolLoaderActor] <-- market
+  [ProtocolPoolLoaderActor] <-- market_state
+
+  [NewPoolLoaderActor] <-- market
+  [NewPoolLoaderActor] <-- market_state
+  [NewPoolLoaderActor] <-- new_block_logs_channel
+
+  [EvmEstimatorActor] <-~- SwapStepEncoder
+  [EvmEstimatorActor] <-- compose_channel
+  [EvmEstimatorActor] --> compose_channel
+
+  [GethEstimatorActor] <-~- SwapStepEncoder
+  [GethEstimatorActor] <-- compose_channel
+  [GethEstimatorActor] --> compose_channel
+
+}
+
+
+@enduml

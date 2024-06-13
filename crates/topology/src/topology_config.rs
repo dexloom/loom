@@ -1,19 +1,53 @@
 use std::collections::HashMap;
 use std::fs;
 
+use alloy_provider::RootProvider;
+use alloy_transport::{BoxTransport, Transport};
 use eyre::Result;
 use serde::Deserialize;
+use strum_macros::{Display, EnumString, VariantNames};
 
 #[derive(Debug, Deserialize)]
 pub struct BlockchainConfig {
     pub chain_id: Option<i64>,
 }
 
+#[serde(rename_all = "lowercase")]
+#[strum(ascii_case_insensitive, serialize_all = "lowercase")]
+#[derive(Clone, Debug, Default, Deserialize, Display)]
+pub enum NodeType {
+    #[default]
+    Geth,
+    Reth,
+}
 
-#[derive(Clone, Debug, Deserialize)]
+#[strum(ascii_case_insensitive, serialize_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
+#[derive(Clone, Debug, Default, Deserialize, Display)]
+pub enum TransportType {
+    #[default]
+    Ws,
+    #[serde(rename = "ws")]
+    Http,
+    Ipc,
+}
+
+
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct ClientConfigParams {
-    pub mode: Option<String>,
     pub url: String,
+    pub node: NodeType,
+    pub transport: TransportType,
+    pub db_path: Option<String>,
+    #[serde(skip)]
+    pub provider: Option<RootProvider<BoxTransport>>,
+}
+
+
+impl ClientConfigParams {
+    pub fn client(&self) -> Option<&RootProvider<BoxTransport>> {
+        self.provider.as_ref()
+    }
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -28,6 +62,21 @@ impl ClientConfig {
         match &self {
             Self::String(s) => s.clone(),
             ClientConfig::Params(p) => p.url.clone()
+        }
+    }
+
+
+    pub fn config_params(&self) -> ClientConfigParams {
+        match self {
+            ClientConfig::String(s) => {
+                ClientConfigParams {
+                    url: s.clone(),
+                    ..ClientConfigParams::default()
+                }
+            }
+            ClientConfig::Params(p) => {
+                p.clone()
+            }
         }
     }
 }
@@ -164,17 +213,15 @@ impl TopologyConfig {
 
 #[cfg(test)]
 mod test {
-    use log::error;
-
     use super::*;
 
     #[test]
     fn test_load() {
-        match TopologyConfig::load_from_file("./config.toml".to_string()) {
+        match TopologyConfig::load_from_file("../../config.toml".to_string()) {
             Ok(c) => {
                 println!("{:?}", c);
             }
-            Err(e) => { error!("{e}") }
+            Err(e) => { println!("Error:{e}") }
         }
     }
 }
