@@ -65,7 +65,7 @@ pub fn evm_transact(evm: &mut Evm<(), InMemoryDB>, tx: &Transaction) -> Result<(
     env.tx.data = tx.input.clone();
     env.tx.value = tx.value;
     env.tx.caller = tx.from;
-    env.tx.gas_price = U256::from(tx.gas_price.unwrap_or_default());
+    env.tx.gas_price = U256::from(tx.max_fee_per_gas.unwrap_or(tx.gas_price.unwrap_or_default()));
     env.tx.gas_limit = tx.gas as u64;
     env.tx.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas.unwrap_or_default()));
 

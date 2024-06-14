@@ -148,6 +148,7 @@ pub async fn pending_tx_state_change_task<P, T, N>(
             affecting_tx.write().await.insert(tx_hash, affected_pools.len() > 0);
 
 
+            //TODO : Fix Latest header is empty 
             if let Some(latest_header) = latest_block.read().await.block_header.clone() {
                 let block_number = latest_header.number.unwrap().as_u64() + 1;
                 let block_timestamp = latest_header.timestamp.as_u64() + 12;

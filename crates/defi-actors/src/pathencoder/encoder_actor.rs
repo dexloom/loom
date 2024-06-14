@@ -116,7 +116,7 @@ async fn encoder_task(
             if gas_fee == 0 {
                 Err(eyre!("NO_BLOCK_GAS_FEE"))
             } else {
-                let gas = 3_000_000;
+                let gas = (encode_request.swap.pre_estimate_gas() as u128) * 2;
                 let value = U256::ZERO;
                 let priority_gas_fee: u128 = 10_u128.pow(9);
 
