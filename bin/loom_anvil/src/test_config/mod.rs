@@ -46,6 +46,7 @@ pub struct Settings {
     pub block: u64,
     pub coinbase: Option<Address>,
     pub multicaller: Option<Address>,
+    pub db_path: Option<String>
 }
 
 
@@ -104,6 +105,8 @@ tx_2 = { hash = "0x1ec982c2d4eb5475192b26f7208b797328eab88f8e5be053f797f74bcb87a
 
 [tokens]
 weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
+
+[modules]
         "#;
         let config: TestConfig = toml::from_str(&cfg).unwrap();
     }

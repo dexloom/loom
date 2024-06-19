@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 use alloy_eips::eip1559::BaseFeeParams;
-use alloy_network::{Ethereum, EthereumSigner, TransactionBuilder, TxSigner};
+use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder, TxSigner};
 use alloy_network::eip2718::Encodable2718;
 use alloy_primitives::{Address, Bytes, hex, TxKind};
 use alloy_provider::{Network, Provider};
-use alloy_provider::network::NetworkSigner;
+use alloy_provider::network::NetworkWallet;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_rpc_types_trace::geth::AccountState;
-use alloy_signer_wallet::LocalWallet;
+use alloy_signer_local::LocalWallet;
 use alloy_transport::Transport;
 use eyre::{eyre, OptionExt, Result};
 use k256::{Secp256k1, SecretKey};
@@ -67,12 +67,12 @@ impl MulticallerDeployer {
 
         let next_base_fee = BaseFeeParams::ethereum().next_block_base_fee(header.gas_used, header.gas_limit, header.base_fee_per_gas.unwrap_or_default());
 
-        let signer = EthereumSigner::new(LocalWallet::from(priv_key));
+        let signer = EthereumWallet::new(LocalWallet::from(priv_key));
 
 
         debug!("{:?} with gas fee {} ", header.number, next_base_fee);
         //let signer = signer.default_signer_address();
-        let signer_address = <alloy_network::EthereumSigner as NetworkSigner<Ethereum>>::default_signer_address(&signer);
+        let signer_address = <alloy_network::EthereumWallet as NetworkWallet<Ethereum>>::default_signer_address(&signer);
 
         let balance = client.get_balance(signer_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.map_err(|e| {
             error!("{e}");

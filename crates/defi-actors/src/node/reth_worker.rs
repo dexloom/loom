@@ -14,9 +14,10 @@ use alloy_transport::Transport;
 use chrono::Utc;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
+use reth_chainspec::ChainSpecBuilder;
 use reth_db::open_db_read_only;
 use reth_primitives::{
-    BlockHashOrNumber, BlockWithSenders, ChainSpecBuilder, TransactionSignedEcRecovered,
+    BlockHashOrNumber, BlockWithSenders, TransactionSignedEcRecovered,
 };
 use reth_provider::{
     AccountExtReader, BlockReader, ChangeSetReader, ProviderFactory, ReceiptProvider,

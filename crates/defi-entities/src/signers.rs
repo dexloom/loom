@@ -6,7 +6,7 @@ use alloy_network::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, TxHash};
 use alloy_primitives::private::alloy_rlp::Encodable;
 use alloy_rpc_types::TransactionRequest;
-use alloy_signer_wallet::LocalWallet;
+use alloy_signer_local::LocalWallet;
 use eyre::{eyre, OptionExt, Result};
 use rand::Rng;
 
