@@ -275,7 +275,7 @@ async fn main() -> Result<()> {
     //load_pools(client.clone(), market_instance.clone(), market_state.clone()).await?;
 
     info!("Starting node actor");
-    let mut node_block_actor = NodeBlockActor::new(client.clone());
+    let mut node_block_actor = NodeBlockActor::new(client.clone(), test_config.settings.db_path);
     match node_block_actor
         .produce(new_block_headers_channel.clone())
         .produce(new_block_with_tx_channel.clone())

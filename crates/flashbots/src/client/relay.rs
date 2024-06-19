@@ -3,7 +3,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use alloy_primitives::{hex, keccak256};
 use alloy_signer::Signer;
-use alloy_signer_wallet::LocalWallet;
+use alloy_signer_local::LocalWallet;
 use reqwest::{Client, Error as ReqwestError};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
