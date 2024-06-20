@@ -14,9 +14,10 @@ use alloy_transport::Transport;
 use chrono::Utc;
 use futures::StreamExt;
 use log::{debug, error, info, trace, warn};
+use reth_chainspec::ChainSpecBuilder;
 use reth_db::open_db_read_only;
 use reth_primitives::{
-    BlockHashOrNumber, BlockWithSenders, ChainSpecBuilder, TransactionSignedEcRecovered,
+    BlockHashOrNumber, BlockWithSenders, TransactionSignedEcRecovered,
 };
 use reth_provider::{
     AccountExtReader, BlockReader, ChangeSetReader, ProviderFactory, ReceiptProvider,
@@ -40,10 +41,10 @@ pub async fn reth_node_worker<P, T, N>(
     new_block_logs_channel: Option<Broadcaster<NodeBlockLogsUpdate>>,
     new_block_state_update_channel: Option<Broadcaster<NodeBlockStateUpdate>>,
 ) -> WorkerResult
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     info!("Starting node block hash worker");
 
@@ -55,6 +56,8 @@ pub async fn reth_node_worker<P, T, N>(
     let db_path = Path::new(&db_path);
     let db = open_db_read_only(db_path, Default::default())?;
     let spec = ChainSpecBuilder::mainnet().build();
+
+
     let factory = ProviderFactory::new(
         db,
         spec.into(),
@@ -269,10 +272,10 @@ pub async fn reth_node_worker_starter<P, T, N>(
     new_block_logs_channel: Option<Broadcaster<NodeBlockLogsUpdate>>,
     new_block_state_update_channel: Option<Broadcaster<NodeBlockStateUpdate>>,
 ) -> ActorResult
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     let handler = tokio::task::spawn(reth_node_worker(
         client,

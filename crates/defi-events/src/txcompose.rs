@@ -1,5 +1,4 @@
-use std::collections::HashSet;
-use std::fmt::{Display, Formatter};
+use std::fmt::Display;
 use std::ops::Deref;
 use std::sync::Arc;
 
@@ -12,8 +11,8 @@ use eyre::{eyre, Result};
 use eyre::OptionExt;
 use revm::InMemoryDB;
 
-use defi_entities::{SwapLine, SwapStep, Token, TxSigner};
-use defi_types::{GethStateUpdateVec, Opcodes};
+use defi_entities::{Swap, TxSigner};
+use defi_types::{GethStateUpdateVec, MulticallerCalls};
 
 use crate::Message;
 
@@ -40,125 +39,6 @@ impl TxState {
     }
 }
 
-
-#[derive(Clone, Debug)]
-pub enum SwapType {
-    None,
-    BackrunSwapSteps((SwapStep, SwapStep)),
-    BackrunSwapLine(SwapLine),
-    Multiple(Vec<SwapType>),
-}
-
-impl Display for SwapType {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            SwapType::BackrunSwapLine(path) => write!(f, "{path}"),
-            SwapType::BackrunSwapSteps((sp0, sp1)) => write!(f, "{sp0} {sp1}"),
-            SwapType::Multiple(_) => write!(f, "MULTIPLE_SWAP"),
-            SwapType::None => write!(f, "UNKNOWN_SWAP_TYPE")
-        }
-    }
-}
-
-impl SwapType {
-    pub fn abs_profit(&self) -> U256 {
-        match self {
-            SwapType::BackrunSwapLine(path) => {
-                path.abs_profit()
-            }
-            SwapType::BackrunSwapSteps((sp0, sp1)) => {
-                SwapStep::abs_profit(sp0, sp1)
-            }
-            SwapType::Multiple(swap_vec) => {
-                swap_vec.iter().map(|x| x.abs_profit()).sum()
-            }
-            SwapType::None => {
-                U256::ZERO
-            }
-        }
-    }
-
-    pub fn pre_estimate_gas(&self) -> u64 {
-        match self {
-            SwapType::BackrunSwapLine(path) => {
-                path.gas_used.unwrap_or_default()
-            }
-            SwapType::BackrunSwapSteps((sp0, sp1)) => {
-                sp0.swap_line_vec().iter().map(|i| i.gas_used.unwrap_or_default()).sum::<u64>() + sp1.swap_line_vec().iter().map(|i| i.gas_used.unwrap_or_default()).sum::<u64>()
-            }
-            SwapType::Multiple(swap_vec) => {
-                swap_vec.iter().map(|x| x.pre_estimate_gas()).sum()
-            }
-            SwapType::None => {
-                0
-            }
-        }
-    }
-
-    pub fn abs_profit_eth(&self) -> U256 {
-        match self {
-            SwapType::BackrunSwapLine(path) => {
-                path.abs_profit_eth()
-            }
-            SwapType::BackrunSwapSteps((sp0, sp1)) => {
-                SwapStep::abs_profit_eth(sp0, sp1)
-            }
-            SwapType::Multiple(swap_vec) => {
-                swap_vec.iter().map(|x| x.abs_profit_eth()).sum()
-            }
-            SwapType::None => {
-                U256::ZERO
-            }
-        }
-    }
-
-    pub fn get_first_token(&self) -> Option<&Arc<Token>> {
-        match self {
-            SwapType::BackrunSwapLine(swap_path) => {
-                swap_path.get_first_token()
-            }
-            SwapType::BackrunSwapSteps((sp0, _sp1)) => {
-                sp0.get_first_token()
-            }
-            SwapType::Multiple(_) => None,
-            SwapType::None => None
-        }
-    }
-
-    pub fn get_first_tokens(&self) -> Result<Vec<&Arc<Token>>> {
-        match self {
-            SwapType::BackrunSwapLine(swap_path) => {
-                vec![swap_path.get_first_token().ok_or_eyre("NO_FIRST_TOKEN")].into_iter().collect()
-            }
-            SwapType::BackrunSwapSteps((sp0, _sp1)) => {
-                vec![sp0.get_first_token().ok_or_eyre("NO_FIRST_TOKEN")].into_iter().collect()
-            }
-            SwapType::Multiple(s) => {
-                let mut seen = HashSet::new();
-                s.iter().filter(|x| {
-                    let t = x.get_first_token();
-                    t.is_some() && seen.insert(t.unwrap())
-                }).map(|x| x.get_first_token().ok_or_eyre("x")).collect()
-            }
-            SwapType::None => Err(eyre!("NOT_SUPPORTED_SWAP_TYPE"))
-        }
-    }
-
-    pub fn get_pool_address_vec(&self) -> Vec<Address> {
-        match self {
-            SwapType::BackrunSwapSteps((sp0, _sp1)) => {
-                sp0.swap_line_vec().iter().flat_map(|item| item.pools().iter().map(|p| p.get_address()).collect::<Vec<_>>()).collect()
-            }
-            SwapType::BackrunSwapLine(swap_line) => {
-                swap_line.pools().iter().map(|item| item.get_address()).collect()
-            }
-            SwapType::Multiple(swap_vec) => {
-                swap_vec.iter().flat_map(|x| x.get_pool_address_vec()).collect()
-            }
-            SwapType::None => Vec::new()
-        }
-    }
-}
 
 #[derive(Clone, Debug)]
 pub enum TxCompose {
@@ -220,8 +100,8 @@ pub struct TxComposeData {
     pub stuffing_txs: Vec<Transaction>,
     pub block: BlockNumber,
     pub block_timestamp: u64,
-    pub swap: SwapType,
-    pub opcodes: Option<Opcodes>,
+    pub swap: Swap,
+    pub opcodes: Option<MulticallerCalls>,
     pub tx_bundle: Option<Vec<TxState>>,
     pub rlp_bundle: Option<Vec<RlpState>>,
     pub prestate: Option<Arc<InMemoryDB>>,
@@ -288,7 +168,7 @@ impl Default for TxComposeData {
             stuffing_txs: Vec::new(),
             block: Default::default(),
             block_timestamp: Default::default(),
-            swap: SwapType::None,
+            swap: Swap::None,
             opcodes: None,
             tx_bundle: None,
             rlp_bundle: None,

@@ -1,14 +1,14 @@
 use std::time::Duration;
 
 use alloy_eips::eip1559::BaseFeeParams;
-use alloy_network::{Ethereum, EthereumSigner, TransactionBuilder, TxSigner};
+use alloy_network::{Ethereum, EthereumWallet, NetworkWallet, TransactionBuilder, TxSigner};
 use alloy_network::eip2718::Encodable2718;
-use alloy_primitives::{Address, Bytes, hex, TxKind};
+use alloy_primitives::{Address, B256, Bytes, hex, TxKind};
 use alloy_provider::{Network, Provider};
-use alloy_provider::network::NetworkSigner;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_rpc_types_trace::geth::AccountState;
-use alloy_signer_wallet::LocalWallet;
+use alloy_signer_local::LocalWallet;
+use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
 use eyre::{eyre, OptionExt, Result};
 use k256::{Secp256k1, SecretKey};
@@ -53,9 +53,9 @@ impl MulticallerDeployer {
     }
 
     pub async fn deploy<P, T>(self, client: P, priv_key: SecretKey) -> Result<Self>
-        where
-            T: Transport + Clone,
-            P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    where
+        T: Transport + Clone,
+        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     {
         let block = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.map_err(|e| {
             error!("{e}");
@@ -67,12 +67,13 @@ impl MulticallerDeployer {
 
         let next_base_fee = BaseFeeParams::ethereum().next_block_base_fee(header.gas_used, header.gas_limit, header.base_fee_per_gas.unwrap_or_default());
 
-        let signer = EthereumSigner::new(LocalWallet::from(priv_key));
+        let signer = PrivateKeySigner::from_bytes(&B256::from_slice(priv_key.to_bytes().as_slice()))?;
 
+        let wallet = EthereumWallet::new(signer);
 
         debug!("{:?} with gas fee {} ", header.number, next_base_fee);
-        //let signer = signer.default_signer_address();
-        let signer_address = <alloy_network::EthereumSigner as NetworkSigner<Ethereum>>::default_signer_address(&signer);
+
+        let signer_address = wallet.default_signer().address();
 
         let balance = client.get_balance(signer_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.map_err(|e| {
             error!("{e}");
@@ -96,7 +97,7 @@ impl MulticallerDeployer {
         tx_request.to = Some(TxKind::Create);
 
 
-        let tx = tx_request.build(&signer).await.map_err(|e| {
+        let tx = tx_request.build(&wallet).await.map_err(|e| {
             error!("{e}");
             eyre!("CANNOT_BUILT_TX")
         })?;
@@ -135,9 +136,9 @@ impl MulticallerDeployer {
 
 
     pub async fn set_code<P, T>(self, client: P, address: Address) -> Result<Self>
-        where
-            T: Transport + Clone,
-            P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    where
+        T: Transport + Clone,
+        P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     {
         AnvilProviderExt::set_code(&client, address, self.code.clone()).await.map_err(|_| eyre!("CANNOT_SET_CODE"))?;
 

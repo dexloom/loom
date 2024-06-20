@@ -1,6 +1,6 @@
 use alloy_json_rpc::RpcError;
 use alloy_provider::Provider;
-use alloy_signer_wallet::LocalWallet;
+use alloy_signer_local::LocalWallet;
 use alloy_transport::TransportErrorKind;
 use eyre::Result;
 use thiserror::Error;

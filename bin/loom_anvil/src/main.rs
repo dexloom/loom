@@ -24,7 +24,7 @@ use revm::InMemoryDB;
 use debug_provider::{AnvilControl, AnvilDebugProvider, DebugProviderExt};
 use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, SignersActor, StateChangeArbActor, StateChangeArbSearcherActor};
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, Pool, PoolClass, PoolWrapper, Token, TxSigners};
-use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate, SwapType, TxCompose};
+use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate, Swap, TxCompose};
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
 use defi_types::{ChainParameters, debug_trace_block, debug_trace_call_diff, GethStateUpdateVec, Mempool};
@@ -42,7 +42,7 @@ struct Stat {
     encode_counter: usize,
     sign_counter: usize,
     best_profit_eth: U256,
-    best_swap: Option<SwapType>,
+    best_swap: Option<Swap>,
 }
 
 impl Display for Stat {

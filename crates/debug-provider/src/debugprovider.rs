@@ -16,12 +16,12 @@ use k256::SecretKey;
 
 #[derive(Clone, Debug)]
 pub struct AnvilDebugProvider<PN, PA, TN, TA, N>
-    where
-        N: Network,
-        TA: Transport + Clone,
-        TN: Transport + Clone,
-        PN: Provider<TN, N> + Send + Sync + Clone + 'static,
-        PA: Provider<TA, N> + Send + Sync + Clone + 'static
+where
+    N: Network,
+    TA: Transport + Clone,
+    TN: Transport + Clone,
+    PN: Provider<TN, N> + Send + Sync + Clone + 'static,
+    PA: Provider<TA, N> + Send + Sync + Clone + 'static,
 {
     _node: PN,
     _anvil: PA,
@@ -74,7 +74,7 @@ impl AnvilControl {
             _n: PhantomData::<Ethereum>::default(),
         };
 
-        let curblock = ret.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
+        let curblock = ret._anvil.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
 
         match curblock {
             Some(curblock) => {
@@ -93,12 +93,12 @@ impl AnvilControl {
 }
 
 impl<PN, PA, TN, TA, N> AnvilDebugProvider<PN, PA, TN, TA, N>
-    where
-        TN: Transport + Clone,
-        TA: Transport + Clone,
-        N: Network,
-        PA: Provider<TA, N> + Send + Sync + Clone + 'static,
-        PN: Provider<TN, N> + Send + Sync + Clone + 'static
+where
+    TN: Transport + Clone,
+    TA: Transport + Clone,
+    N: Network,
+    PA: Provider<TA, N> + Send + Sync + Clone + 'static,
+    PN: Provider<TN, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(_node: PN, _anvil: PA, block_number: BlockNumberOrTag) -> Self {
         Self { _node, _anvil, _anvil_instance: None, block_number, _ta: PhantomData::default(), _tn: PhantomData::default(), _n: PhantomData::default() }
@@ -147,19 +147,20 @@ impl<PN, PA, TN, TA, N> Provider<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N
  */
 
 
-impl<PN, PA> Provider<BoxTransport, Ethereum> for AnvilDebugProvider<PN, PA, BoxTransport, BoxTransport, Ethereum>
-    where
-        PN: Provider<BoxTransport, Ethereum> + Send + Sync + Clone + 'static,
-        PA: Provider<BoxTransport, Ethereum> + Send + Sync + Clone + 'static
+impl<PN, PA, TA> Provider<TA, Ethereum> for AnvilDebugProvider<PN, PA, BoxTransport, TA, Ethereum>
+where
+    TA: Transport + Clone,
+    PN: Provider<BoxTransport, Ethereum> + Send + Sync + Clone + 'static,
+    PA: Provider<TA, Ethereum> + Send + Sync + Clone + 'static,
 {
     #[inline(always)]
-    fn root(&self) -> &RootProvider<BoxTransport, Ethereum> {
+    fn root(&self) -> &RootProvider<TA, Ethereum> {
         self._anvil.root()
     }
 
 
-    fn get_block_number(&self) -> RpcCall<BoxTransport, (), U64, u64> {
-        self._anvil.get_block_number()
+    fn get_block_number(&self) -> RpcCall<TA, (), U64, u64> {
+        self._anvil.get_block_number().map_resp(|x| x.to())
     }
 }
 
@@ -173,9 +174,9 @@ pub trait DebugProviderExt<T = BoxTransport, N = Ethereum>
 
 #[async_trait]
 impl<T, N> DebugProviderExt<T, N> for RootProvider<BoxTransport>
-    where
-        T: Transport + Clone,
-        N: Network,
+where
+    T: Transport + Clone,
+    N: Network,
 {
     async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
         self.debug_trace_call(tx, block, trace_options).await
@@ -190,12 +191,12 @@ impl<T, N> DebugProviderExt<T, N> for RootProvider<BoxTransport>
 
 #[async_trait]
 impl<PN, PA, TN, TA, N> DebugProviderExt<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N>
-    where
-        TN: Transport + Clone,
-        TA: Transport + Clone,
-        N: Network,
-        PN: Provider<TN, N> + Send + Sync + Clone + 'static,
-        PA: Provider<TA, N> + Send + Sync + Clone + 'static,
+where
+    TN: Transport + Clone,
+    TA: Transport + Clone,
+    N: Network,
+    PN: Provider<TN, N> + Send + Sync + Clone + 'static,
+    PA: Provider<TA, N> + Send + Sync + Clone + 'static,
 {
     async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
         let block = match block {
@@ -220,8 +221,6 @@ impl<PN, PA, TN, TA, N> DebugProviderExt<TA, N> for AnvilDebugProvider<PN, PA, T
 
 #[cfg(test)]
 mod test {
-    use std::sync::Arc;
-
     use alloy_primitives::{Address, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
@@ -248,12 +247,13 @@ mod test {
         let provider_anvil = ProviderBuilder::new().on_anvil_with_config(|x| x.chain_id(1).fork(node_url.clone()).fork_block_number(10000));
 
         let client_node = ClientBuilder::default().http(node_url).boxed();
-        let provider_node = ProviderBuilder::new().on_client(client_node).boxed();
 
+
+        let provider_node = ProviderBuilder::new().on_client(client_node).boxed();
 
         let provider = AnvilDebugProvider::new(provider_node, provider_anvil, BlockNumberOrTag::Number(10));
 
-        let client = Arc::new(provider);
+        let client = provider;
 
         let block_number = client.get_block_number().await?;
 

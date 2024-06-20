@@ -11,7 +11,7 @@ use revm::primitives::Env;
 
 use defi_types::SwapError;
 
-use crate::{PoolWrapper, Token};
+use crate::{PoolWrapper, Swap, SwapStep, Token};
 use crate::swappath::SwapPath;
 
 lazy_static! {
@@ -190,6 +190,36 @@ impl SwapLine {
     }
 
 
+    pub fn to_swap_steps(&self, multicaller: Address) -> Option<(SwapStep, SwapStep)> {
+        let mut sp0: Option<SwapLine> = None;
+        let mut sp1: Option<SwapLine> = None;
+
+        for i in 1..self.path.pool_count() {
+            let (flash_path, inside_path) = self.split(i).unwrap();
+            if flash_path.can_flash_swap() || inside_path.can_flash_swap() {
+                sp0 = Some(flash_path);
+                sp1 = Some(inside_path);
+                break;
+            }
+        };
+
+        if sp0.is_none() || sp1.is_none() {
+            let (flash_path, inside_path) = self.split(1).unwrap();
+            sp0 = Some(flash_path);
+            sp1 = Some(inside_path);
+        }
+
+        let mut step_0 = SwapStep::new(multicaller);
+        step_0.add(sp0.unwrap());
+
+        let mut step_1 = SwapStep::new(multicaller);
+        let mut sp1 = sp1.unwrap();
+        sp1.amount_in = SwapAmountType::Balance(multicaller);
+        step_1.add(sp1);
+
+        Some((step_0, step_1))
+    }
+
     pub fn get_token_in_address(&self) -> Option<Address> {
         let tokens = self.tokens();
         if tokens.is_empty() {
@@ -305,7 +335,7 @@ impl SwapLine {
     }
 
 
-    pub fn calculate_swap_path_in_amount_provided(&self, state: &InMemoryDB, env: Env, in_amount: U256) -> Result<(U256, u64), SwapError> {
+    pub fn calculate_with_in_amount(&self, state: &InMemoryDB, env: Env, in_amount: U256) -> Result<(U256, u64), SwapError> {
         let mut out_amount = in_amount;
         let mut gas_used = 0;
         for (i, pool) in self.pools().iter().enumerate() {
@@ -339,7 +369,7 @@ impl SwapLine {
         Ok((out_amount, gas_used))
     }
 
-    pub fn calculate_swap_path_out_amount_provided(&self, state: &InMemoryDB, env: Env, out_amount: U256) -> Result<(U256, u64), SwapError> {
+    pub fn calculate_with_out_amount(&self, state: &InMemoryDB, env: Env, out_amount: U256) -> Result<(U256, u64), SwapError> {
         let mut in_amount = out_amount;
         let mut gas_used = 0;
         let mut pool_reverse = self.pools().clone();
@@ -384,7 +414,7 @@ impl SwapLine {
         I256::from_raw(out_amount) - I256::from_raw(in_amount)
     }
 
-    pub fn optimize_swap_path_in_amount_provided(&mut self, state: &InMemoryDB, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
+    pub fn optimize_with_in_amount(&mut self, state: &InMemoryDB, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
         let mut current_in_amount = in_amount;
         let mut bestprofit: Option<I256> = None;
         let mut current_step = U256::from(10000);
@@ -405,7 +435,7 @@ impl SwapLine {
                 return Ok(self);
             }
 
-            let current_out_amount_result = self.calculate_swap_path_in_amount_provided(state, env.clone(), next_amount);
+            let current_out_amount_result = self.calculate_with_in_amount(state, env.clone(), next_amount);
 
 
             if counter == 1 && current_out_amount_result.is_err() {

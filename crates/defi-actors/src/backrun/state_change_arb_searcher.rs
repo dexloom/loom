@@ -13,8 +13,8 @@ use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
-use defi_entities::{GasStation, Market, MarketState, PoolWrapper, SwapLine, SwapPath};
-use defi_events::{HealthEvent, Message, MessageHealthEvent, MessageTxCompose, SwapType, TxComposeBest, TxComposeData};
+use defi_entities::{GasStation, Market, MarketState, PoolWrapper, Swap, SwapLine, SwapPath};
+use defi_events::{HealthEvent, Message, MessageHealthEvent, MessageTxCompose, TxComposeBest, TxComposeData};
 use defi_types::SwapError;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -143,7 +143,7 @@ async fn state_change_arb_searcher_task(
                 gas: swap_line.gas_used.unwrap_or(300000) as u128,
                 stuffing_txs: msg.stuffing_txs.clone(),
                 stuffing_txs_hashes: msg.stuffing_txs_hashes.clone(),
-                swap: SwapType::BackrunSwapLine(swap_line),
+                swap: Swap::BackrunSwapLine(swap_line),
                 origin: Some(msg.origin.clone()),
                 tips_pct: Some(msg.tips_pct),
                 poststate: Some(arc_db.clone()),
@@ -209,7 +209,7 @@ impl Calculator
         let first_token = path.get_first_token().unwrap();
         let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
         //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
-        path.optimize_swap_path_in_amount_provided(state, env, amount_in)
+        path.optimize_with_in_amount(state, env, amount_in)
     }
 }
 

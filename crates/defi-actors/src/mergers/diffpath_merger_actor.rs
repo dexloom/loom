@@ -9,8 +9,8 @@ use log::{debug, error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
-use defi_entities::{AccountNonceAndBalanceState, LatestBlock, MarketState, NWETH, TxSigners};
-use defi_events::{MarketEvents, MessageTxCompose, SwapType, TxCompose, TxComposeData};
+use defi_entities::{AccountNonceAndBalanceState, LatestBlock, MarketState, NWETH, Swap, TxSigners};
+use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use defi_types::Mempool;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -89,7 +89,7 @@ async fn diff_path_merger_worker(
                 match msg {
                     Ok(compose_request)=>{
                         if let TxCompose::Sign(sign_request) = compose_request.inner() {
-                            if matches!( sign_request.swap, SwapType::BackrunSwapLine(_)) || matches!( sign_request.swap, SwapType::BackrunSwapSteps(_)) {
+                            if matches!( sign_request.swap, Swap::BackrunSwapLine(_)) || matches!( sign_request.swap, Swap::BackrunSwapSteps(_)) {
                                 let mut merge_list = get_merge_list(sign_request, &swap_paths);
 
                                 if merge_list.len() > 0 {
@@ -119,7 +119,7 @@ async fn diff_path_merger_worker(
                                         TxComposeData {
                                             stuffing_txs_hashes,
                                             stuffing_txs,
-                                            swap : SwapType::Multiple( merge_list.iter().map(|i| i.swap.clone()  ).collect()) ,
+                                            swap : Swap::Multiple( merge_list.iter().map(|i| i.swap.clone()  ).collect()) ,
                                             origin : Some("diffpath_merger".to_string()),
                                             tips_pct : Some(5000),
                                             poststate : Some(arc_db),

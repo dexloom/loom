@@ -2,7 +2,7 @@ use alloy_primitives::{Address, Bytes, U256};
 use log::debug;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
-pub enum OpcodeType {
+pub enum CallType {
     Unknown,
     Call,
     DelegateCall,
@@ -13,8 +13,8 @@ pub enum OpcodeType {
 
 
 #[derive(Clone, Debug)]
-pub struct Opcode {
-    pub opcode_type: OpcodeType,
+pub struct MulticallerCall {
+    pub call_type: CallType,
     pub call_data: Bytes,
     pub to: Address,
     pub value: Option<U256>,
@@ -23,10 +23,10 @@ pub struct Opcode {
 }
 
 
-impl Opcode {
-    pub fn new(opcode_type: OpcodeType, to: Address, call_data: &Bytes, value: Option<U256>) -> Opcode {
-        Opcode {
-            opcode_type,
+impl MulticallerCall {
+    pub fn new(opcode_type: CallType, to: Address, call_data: &Bytes, value: Option<U256>) -> MulticallerCall {
+        MulticallerCall {
+            call_type: opcode_type,
             to,
             call_data: call_data.clone(),
             value,
@@ -35,26 +35,26 @@ impl Opcode {
         }
     }
 
-    pub fn new_call(to: Address, call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::Call, to, call_data, None)
+    pub fn new_call(to: Address, call_data: &Bytes) -> MulticallerCall {
+        MulticallerCall::new(CallType::Call, to, call_data, None)
     }
-    pub fn new_call_with_value(to: Address, call_data: &Bytes, value: U256) -> Opcode {
-        Opcode::new(OpcodeType::Call, to, call_data, Some(value))
+    pub fn new_call_with_value(to: Address, call_data: &Bytes, value: U256) -> MulticallerCall {
+        MulticallerCall::new(CallType::Call, to, call_data, Some(value))
     }
-    pub fn new_internal_call(call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::InternalCall, Address::ZERO, call_data, None)
-    }
-
-    pub fn new_calculation_call(call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::CalculationCall, Address::ZERO, call_data, None)
+    pub fn new_internal_call(call_data: &Bytes) -> MulticallerCall {
+        MulticallerCall::new(CallType::InternalCall, Address::ZERO, call_data, None)
     }
 
-    pub fn new_delegate_call(to: Address, call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::DelegateCall, to, call_data, None)
+    pub fn new_calculation_call(call_data: &Bytes) -> MulticallerCall {
+        MulticallerCall::new(CallType::CalculationCall, Address::ZERO, call_data, None)
     }
 
-    pub fn new_static_call(to: Address, call_data: &Bytes) -> Opcode {
-        Opcode::new(OpcodeType::StaticCall, to, call_data, None)
+    pub fn new_delegate_call(to: Address, call_data: &Bytes) -> MulticallerCall {
+        MulticallerCall::new(CallType::DelegateCall, to, call_data, None)
+    }
+
+    pub fn new_static_call(to: Address, call_data: &Bytes) -> MulticallerCall {
+        MulticallerCall::new(CallType::StaticCall, to, call_data, None)
     }
 
 
@@ -68,12 +68,12 @@ impl Opcode {
 
     pub fn set_call_stack(&mut self, is_relative: bool, stack_offset: u32, data_offset: u32, data_len: usize) -> &mut Self {
         self.call_stack =
-            match self.opcode_type {
-                OpcodeType::InternalCall | OpcodeType::CalculationCall => {
-                    Opcode::encode_data_offset(is_relative, stack_offset, data_offset + 0xC, data_len)
+            match self.call_type {
+                CallType::InternalCall | CallType::CalculationCall => {
+                    MulticallerCall::encode_data_offset(is_relative, stack_offset, data_offset + 0xC, data_len)
                 }
                 _ => {
-                    Opcode::encode_data_offset(is_relative, stack_offset, data_offset + 0x20, data_len)
+                    MulticallerCall::encode_data_offset(is_relative, stack_offset, data_offset + 0x20, data_len)
                 }
             };
         self
@@ -94,7 +94,7 @@ impl Opcode {
 
 
     pub fn set_return_stack(&mut self, is_relative: bool, stack_offset: u32, data_offset: u32, data_len: usize) -> &mut Self {
-        self.return_stack = Opcode::encode_data_offset(is_relative, stack_offset, data_offset, data_len);
+        self.return_stack = MulticallerCall::encode_data_offset(is_relative, stack_offset, data_offset, data_len);
         self
     }
 
@@ -111,11 +111,11 @@ impl Opcode {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct Opcodes {
-    pub opcodes_vec: Vec<Opcode>,
+pub struct MulticallerCalls {
+    pub opcodes_vec: Vec<MulticallerCall>,
 }
 
-impl Opcodes {
+impl MulticallerCalls {
     pub fn new() -> Self {
         Self::default()
     }
@@ -126,24 +126,24 @@ impl Opcodes {
         }
     }
 
-    pub fn add(&mut self, opcode: Opcode) -> &mut Self {
+    pub fn add(&mut self, opcode: MulticallerCall) -> &mut Self {
         self.opcodes_vec.push(opcode);
         self
     }
 
-    pub fn insert(&mut self, opcode: Opcode) -> &mut Self {
+    pub fn insert(&mut self, opcode: MulticallerCall) -> &mut Self {
         self.opcodes_vec.insert(0, opcode);
         self
     }
 
 
-    pub fn merge(&mut self, opcodes: Opcodes) -> &mut Self {
+    pub fn merge(&mut self, opcodes: MulticallerCalls) -> &mut Self {
         self.opcodes_vec.extend(opcodes.opcodes_vec);
         self
     }
 
 
-    pub fn get(&self, idx: usize) -> Option<&Opcode> {
+    pub fn get(&self, idx: usize) -> Option<&MulticallerCall> {
         self.opcodes_vec.get(idx)
     }
 }

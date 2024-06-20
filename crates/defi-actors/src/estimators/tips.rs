@@ -7,8 +7,7 @@ use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use rand::random;
 
-use defi_entities::{NWETH, Token};
-use defi_events::SwapType;
+use defi_entities::{NWETH, Swap, Token};
 
 #[derive(Clone, Debug)]
 pub struct Tips {
@@ -58,7 +57,7 @@ pub fn randomize_tips_pct(tips_pct: u32) -> u32 {
     tips_pct - rnd
 }
 
-pub fn tips_and_value_for_swap_type(swap: &SwapType, tips_pct: Option<u32>, gas_cost: U256, eth_balance: U256) -> Result<(Vec<Tips>, U256)> {
+pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost: U256, eth_balance: U256) -> Result<(Vec<Tips>, U256)> {
     let total_profit_eth = swap.abs_profit_eth();
 
     let tips_pct = randomize_tips_pct(tips_pct.unwrap_or(tips_pct_advanced(&total_profit_eth)));
@@ -68,7 +67,7 @@ pub fn tips_and_value_for_swap_type(swap: &SwapType, tips_pct: Option<u32>, gas_
     }
 
     match swap {
-        SwapType::BackrunSwapLine(_) | SwapType::BackrunSwapSteps(_) => {
+        Swap::BackrunSwapLine(_) | Swap::BackrunSwapSteps(_) => {
             let profit = swap.abs_profit();
             if profit.is_zero() {
                 return Err(eyre!("NO_PROFIT"));
@@ -102,7 +101,7 @@ pub fn tips_and_value_for_swap_type(swap: &SwapType, tips_pct: Option<u32>, gas_
                 min_change,
             }], value))
         }
-        SwapType::Multiple(swap_vec) => {
+        Swap::Multiple(swap_vec) => {
             let mut tips_hashset: HashMap<Address, Tips> = HashMap::new();
 
             let profit_eth = swap.abs_profit_eth();

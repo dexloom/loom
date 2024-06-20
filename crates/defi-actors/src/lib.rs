@@ -5,7 +5,7 @@ pub use estimators::{EvmEstimatorActor, GethEstimatorActor, HardhatEstimatorActo
 pub use gas::GasStationActor;
 pub use health_monitor::{PoolHealthMonitorActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 pub use market::{fetch_and_add_pool_by_address, fetch_state_and_add_pool, HistoryPoolLoaderActor, NewPoolLoaderActor, ProtocolPoolLoaderActor};
-pub use market_state::MarketStatePreloadedActor;
+pub use market_state::{MarketStatePreloadedActor, preload_market_state};
 pub use mempool::MempoolActor;
 pub use mergers::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 pub use node::{NodeBlockActor, NodeMempoolActor};

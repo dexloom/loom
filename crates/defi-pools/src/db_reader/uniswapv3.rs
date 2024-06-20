@@ -8,8 +8,7 @@ use log::{debug, trace};
 use revm::InMemoryDB;
 
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
-
-use crate::db_reader::dbreader::{try_read_cell, try_read_hashmap_cell};
+use loom_utils::db_direct_access::{try_read_cell, try_read_hashmap_cell};
 
 pub struct UniswapV3DBReader {}
 

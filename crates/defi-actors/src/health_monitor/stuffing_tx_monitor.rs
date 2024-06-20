@@ -9,8 +9,8 @@ use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
-use defi_entities::{LatestBlock, NWETH, Token};
-use defi_events::{MarketEvents, MessageTxCompose, SwapType, TxCompose};
+use defi_entities::{LatestBlock, NWETH, Swap, Token};
+use defi_events::{MarketEvents, MessageTxCompose, TxCompose};
 use defi_types::debug_trace_transaction;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
@@ -21,7 +21,7 @@ struct TxToCheck {
     token_in: Token,
     profit: U256,
     tips: U256,
-    swap: SwapType,
+    swap: Swap,
 }
 
 

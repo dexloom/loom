@@ -10,6 +10,7 @@ pub use market::Market;
 pub use market_state::MarketState;
 pub use pool::{AbiSwapEncoder, EmptyPool, Pool, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
 pub use signers::{TxSigner, TxSigners};
+pub use swap::Swap;
 pub use swapline::{SwapAmountType, SwapLine};
 pub use swappath::{SwapPath, SwapPaths};
 pub use swappath_builder::build_swap_path_vec;
@@ -38,5 +39,6 @@ mod keystore;
 pub mod private;
 
 mod datafetcher;
+mod swap;
 
 

@@ -1,5 +1,6 @@
 /target
 .idea
+.vscode
 private.rs
 cargo.lock
 config.toml

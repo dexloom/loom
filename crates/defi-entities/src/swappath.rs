@@ -5,6 +5,7 @@ use std::sync::Arc;
 
 use alloy_primitives::Address;
 use eyre::Result;
+use serde::{Deserialize, Serialize};
 
 use crate::{PoolWrapper, Token};
 
@@ -13,6 +14,7 @@ pub struct SwapPath {
     pub tokens: Vec<Arc<Token>>,
     pub pools: Vec<PoolWrapper>,
 }
+
 
 impl SwapPath {
     pub fn new<T: Into<Arc<Token>>, P: Into<PoolWrapper>>(tokens: Vec<T>, pools: Vec<P>) -> Self {

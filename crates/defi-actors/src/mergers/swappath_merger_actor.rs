@@ -9,8 +9,8 @@ use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
-use defi_entities::{AccountNonceAndBalanceState, LatestBlock, MarketState, SwapStep, TxSigners};
-use defi_events::{MarketEvents, MessageTxCompose, SwapType, TxCompose, TxComposeData};
+use defi_entities::{AccountNonceAndBalanceState, LatestBlock, MarketState, Swap, SwapStep, TxSigners};
+use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use defi_types::Mempool;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -25,7 +25,7 @@ async fn arb_swap_steps_optimizer_task(
 {
     info!("Step Simulation started");
 
-    if let SwapType::BackrunSwapSteps((sp0, sp1)) = request.swap {
+    if let Swap::BackrunSwapSteps((sp0, sp1)) = request.swap {
         let start_time = chrono::Local::now();
         match SwapStep::optimize_swap_steps(&state_db, evm_env, &sp0, &sp1, None) {
             Ok((s0, s1)) => {
@@ -33,7 +33,7 @@ async fn arb_swap_steps_optimizer_task(
                     TxComposeData {
                         origin: Some("merger_searcher".to_string()),
                         tips_pct: None,
-                        swap: SwapType::BackrunSwapSteps((s0, s1)),
+                        swap: Swap::BackrunSwapSteps((s0, s1)),
                         ..request
                     }
                 );
@@ -104,7 +104,7 @@ async fn arb_swap_path_merger_worker(
                         };
 
                         let swap_path = match &compose_data.swap {
-                            SwapType::BackrunSwapLine(path) => path,
+                            Swap::BackrunSwapLine(path) => path,
                             _=>continue,
                         };
 
@@ -114,7 +114,7 @@ async fn arb_swap_path_merger_worker(
                         for req in ready_requests.iter() {
 
                             let req_swap = match &req.swap {
-                                SwapType::BackrunSwapLine(path)=>path,
+                                Swap::BackrunSwapLine(path)=>path,
                                 _ => continue,
                             };
 
@@ -131,7 +131,7 @@ async fn arb_swap_path_merger_worker(
                                     drop(latest_block_guard);
 
                                     let request = TxComposeData{
-                                        swap : SwapType::BackrunSwapSteps((sp0,sp1)),
+                                        swap : Swap::BackrunSwapSteps((sp0,sp1)),
                                         ..compose_data.clone()
                                     };
 
@@ -243,7 +243,7 @@ mod test {
     use alloy_primitives::{Address, U256};
 
     use defi_entities::{SwapAmountType, SwapLine, Token};
-    use defi_events::{SwapType, TxComposeData};
+    use defi_events::{Swap, TxComposeData};
 
     #[test]
     pub fn test_sort() {
@@ -261,11 +261,11 @@ mod test {
 
 
         let r0 = TxComposeData {
-            swap: SwapType::BackrunSwapLine(sp0),
+            swap: Swap::BackrunSwapLine(sp0),
             ..TxComposeData::default()
         };
         let r1 = TxComposeData {
-            swap: SwapType::BackrunSwapLine(sp1),
+            swap: Swap::BackrunSwapLine(sp1),
             ..TxComposeData::default()
         };
 
