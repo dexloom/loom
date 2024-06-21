@@ -55,7 +55,7 @@ pub enum PoolClass {
 }
 
 
-#[derive(Copy, Clone, Debug, PartialEq)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PoolProtocol {
     Unknown,
     UniswapV2,

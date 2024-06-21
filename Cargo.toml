@@ -56,6 +56,7 @@ strum = { version = "0.26.2" }
 strum_macros = { version = "0.26.2" }
 k256 = "0.13.3"
 thiserror = "^1.0.61"
+colored = "2.0.4"
 
 
 revm = { version = "9.0.0", features = [
