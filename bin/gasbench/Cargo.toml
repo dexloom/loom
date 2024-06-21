@@ -1,0 +1,43 @@
+[package]
+name = "gasbench"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+log.workspace = true
+env_logger.workspace = true
+tokio.workspace = true
+eyre.workspace = true
+lazy_static.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+clap.workspace = true
+colored.workspace = true
+
+
+alloy.workspace = true
+alloy-primitives.workspace = true
+alloy-rpc-types.workspace = true
+alloy-provider.workspace = true
+alloy-transport.workspace = true
+alloy-consensus.workspace = true
+alloy-network.workspace = true
+revm.workspace = true
+
+loom-actors.workspace = true
+loom-actors-macros.workspace = true
+loom-multicaller.workspace = true
+loom-utils.workspace = true
+debug-provider.workspace = true
+defi-actors.workspace = true
+defi-types.workspace = true
+defi-entities.workspace = true
+defi-events.workspace = true
+
+defi-abi.workspace = true
+
