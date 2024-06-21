@@ -117,10 +117,8 @@ reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "87
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "87d6bcd" }
 
 
-uniswap_v3_math = { git = "https://github.com/dexloom/uniswap-v3-math.git", rev = "1120ff6" }
+uniswap_v3_math = { git = "https://github.com/0xKitsune/uniswap-v3-math", rev = "b7b2e87" }
 
-[patch.'http://github.com/dexloom/uniswap-v3-math']
-#uniswap_v3_math = { path = "../uniswap-v3-math" }
 
 [patch.crates-io]
 

@@ -21,6 +21,7 @@
 - [loom](./bin/loom) - backrun bot
 - [loom_anvil](./bin/loom_anvil) - testing framework
 - [keys](./bin/keys) - keys encryption tool
+- [gasbench](./bin/gasbench) - gas consumption benchmark utility
 
 Telegram chat : https://t.me/dexloom_com
 
