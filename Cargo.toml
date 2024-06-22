@@ -3,7 +3,7 @@
 [workspace]
 members = [
     "bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench",
-    "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools", "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "bin/gasbench"]
+    "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools", "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "bin/gasbench", "bin/nodebench"]
 default-members = ["bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench"]
 resolver = "2"
 
@@ -78,10 +78,10 @@ alloy-rlp = "0.3.5"
 alloy-trie = "0.4.1"
 
 
-alloy = { git = "https://github.com/alloy-rs/alloy", rev = "1ee31cf", features = [
-    "contract",
-    "providers",
-] }
+alloy = { git = "https://github.com/alloy-rs/alloy.git", package = "alloy", rev = "1ee31cf", features = [
+    "sol-types", "contract", "pubsub", "providers", "provider-ws", "provider-ipc", "provider-http",
+    "signers", "signer-local", "transports", "transport-http", "transport-ipc", "transport-ws",
+    "network", "node-bindings", "rpc", "rpc-client", "json-rpc", "rpc-types", "rpc-types-trace", "rpc-types-txpool", "rpc-types-anvil"] }
 
 
 alloy-contract = { git = "https://github.com/alloy-rs/alloy", rev = "1ee31cf" }
