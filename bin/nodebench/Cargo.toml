@@ -15,7 +15,6 @@ eyre.workspace = true
 chrono.workspace = true
 futures.workspace = true
 
-[dependencies.alloy]
-workspace = true
-features = ["full"]
+alloy.workspace = true
+
 
