@@ -19,8 +19,6 @@ serde_json.workspace = true
 clap.workspace = true
 colored.workspace = true
 
-
-alloy.workspace = true
 alloy-primitives.workspace = true
 alloy-rpc-types.workspace = true
 alloy-provider.workspace = true
@@ -41,3 +39,6 @@ defi-events.workspace = true
 
 defi-abi.workspace = true
 
+[dependencies.alloy]
+workspace = true
+features = ["full"]
