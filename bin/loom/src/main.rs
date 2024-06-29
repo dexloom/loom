@@ -156,7 +156,7 @@ async fn main() -> Result<()> {
         .consume(blockchain.market_events_channel())
         .start().await {
         Err(e) => {
-            panic!("State health monitor actor failed : {e}")
+            panic!("State health monitor actor failed : {}", e)
         }
         Ok(r) => {
             worker_task_vec.extend(r);
@@ -173,7 +173,7 @@ async fn main() -> Result<()> {
         .consume(blockchain.market_events_channel())
         .start().await {
         Err(e) => {
-            panic!("Stuffing txs monitor actor failed : {e}")
+            panic!("Stuffing txs monitor actor failed : {}", e)
         }
         Ok(r) => {
             worker_task_vec.extend(r);

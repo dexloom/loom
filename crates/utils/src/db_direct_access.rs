@@ -1,5 +1,5 @@
 use alloy_primitives::{Address, keccak256, U256};
-use eyre::{eyre, Result};
+use eyre::{eyre, OptionExt, Result};
 use log::{debug, trace};
 use revm::InMemoryDB;
 
@@ -51,10 +51,10 @@ pub fn try_read_hashmap_cell(
             buf.append(&mut hashmap_offset.to_be_bytes::<32>().to_vec());
             trace!("try_read_hashmap_cell {buf:?}");
 
-            let cell: U256 = keccak256(buf.as_slice()).try_into()?;
+            let cell: U256 = keccak256(buf.as_slice()).into();
             let value: Option<&U256> = account.storage.get(&cell);
 
-            Ok(value.map(|x| *x).unwrap_or_default())
+            value.cloned().ok_or_eyre("NO_VALUE")
         }
         None => Err(eyre!("NO_ACCOUNT")),
     }

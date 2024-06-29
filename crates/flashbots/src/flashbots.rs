@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy_primitives::{TxHash, U64};
 use alloy_provider::Provider;
-use eyre::{ErrReport, eyre, Result};
+use eyre::{eyre, Result};
 use log::{debug, error, info};
 use url::Url;
 

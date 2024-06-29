@@ -42,7 +42,7 @@ where
     PA: Provider<TA, N> + Send + Sync + Clone + 'static,
 {
     fn snapshot(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
-        self.anvil().client().request("evm_snapshot", ()).map_resp(|x| convert_u64(x))
+        self.anvil().client().request("evm_snapshot", ()).map_resp(convert_u64)
     }
     fn revert(&self, snap_id: u64) -> impl std::future::Future<Output=TransportResult<bool>> + Send {
         self.anvil().client().request("evm_revert", (U64::from(snap_id),))
@@ -53,7 +53,7 @@ where
     }
 
     fn mine(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
-        self.anvil().client().request("evm_mine", ()).map_resp(|x| convert_u64(x))
+        self.anvil().client().request("evm_mine", ()).map_resp(convert_u64)
     }
 
     fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output=TransportResult<()>> + Send {
@@ -76,7 +76,7 @@ where
 impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport>
 {
     fn snapshot(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
-        self.client().request("evm_snapshot", ()).map_resp(|x| convert_u64(x))
+        self.client().request("evm_snapshot", ()).map_resp(convert_u64)
     }
     fn revert(&self, snap_id: u64) -> impl std::future::Future<Output=TransportResult<bool>> + Send {
         self.client().request("evm_revert", (U64::from(snap_id),))
@@ -87,7 +87,7 @@ impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport>
     }
 
     fn mine(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
-        self.client().request("evm_mine", ()).map_resp(|x| convert_u64(x))
+        self.client().request("evm_mine", ()).map_resp(convert_u64)
     }
 
     fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output=TransportResult<()>> + Send {
@@ -111,14 +111,13 @@ impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport>
 mod test {
     use std::sync::Arc;
 
+    use alloy::primitives::{B256, U256};
+    use alloy::rpc::types::BlockNumberOrTag;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use env_logger::Env as EnvLog;
     use eyre::Result;
     use url;
-
-    use alloy_primitives::{B256, U256};
-    use alloy_rpc_types::BlockNumberOrTag;
 
     use super::*;
 

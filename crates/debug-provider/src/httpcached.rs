@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use std::future::Future;
+use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::task::{Context, Poll};
@@ -20,9 +20,8 @@ use alloy::{
         TransportError, TransportErrorKind, TransportFut,
     },
 };
-use eyre::{eyre, OptionExt, Result};
-use log::{debug, trace};
-use rand::Rng;
+use eyre::{eyre, Result};
+use log::{debug, error, trace};
 use reqwest::Client;
 use serde_json::value::RawValue;
 use tokio::sync::RwLock;
@@ -105,8 +104,7 @@ impl HttpCachedTransport {
     }
 
     pub fn next_block_number(&self) -> BlockNumber {
-        let next_block_number = self.block_number.fetch_add(1, Ordering::Relaxed);
-        next_block_number
+        self.block_number.fetch_add(1, Ordering::Relaxed)
     }
 
     pub async fn fetch_next_block(&self) -> Result<BlockNumber, TransportError> {
@@ -116,18 +114,15 @@ impl HttpCachedTransport {
             "eth_getBlockByNumber", Id::None, (BlockNumberOrTag::Number(next_block_number), false),
         );
 
-        let new_req: SerializedRequest = new_req.try_into().map_err(|e| TransportError::SerError(e))?;
+        let new_req: SerializedRequest = new_req.try_into().map_err(TransportError::SerError)?;
 
-        match self.cached_or_execute(new_req).await {
-            Ok(new_block_packet) => {
-                trace!("fetch_next_block : {:?}", new_block_packet);
-                if let ResponsePacket::Single(new_block_response) = new_block_packet {
-                    let response: Block = serde_json::from_str(new_block_response.payload.as_success().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
-                    self.block_hashes.write().await.insert(next_block_number, response.header.hash.unwrap_or_default());
-                    self.set_block_number(next_block_number);
-                }
+        if let Ok(new_block_packet) = self.cached_or_execute(new_req).await {
+            trace!("fetch_next_block : {:?}", new_block_packet);
+            if let ResponsePacket::Single(new_block_response) = new_block_packet {
+                let response: Block = serde_json::from_str(new_block_response.payload.as_success().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
+                self.block_hashes.write().await.insert(next_block_number, response.header.hash.unwrap_or_default());
+                self.set_block_number(next_block_number);
             }
-            Err(e) => {}
         }
 
 
@@ -171,7 +166,7 @@ impl HttpCachedTransport {
             if let Some(filter_block) = block_filters_guard.get(&filter_id).cloned() {
                 if filter_block < current_block {
                     block_filters_guard.insert(filter_id, current_block);
-                    missed_blocks = (filter_block + 1..=current_block).into_iter().map(|block_number| block_hashes_guard.get(&block_number).cloned().unwrap_or_default()).collect();
+                    missed_blocks = RangeInclusive::new(filter_block + 1, current_block).into_iter().map(|block_number| block_hashes_guard.get(&block_number).cloned().unwrap_or_default()).collect();
                     break;
                 }
             }
@@ -201,11 +196,14 @@ impl HttpCachedTransport {
                 match client.call(RequestPacket::Single(req)).await {
                     Ok(resp) => {
                         if let ResponsePacket::Single(resp) = resp.clone() {
-                            self.write_cached(method, req_hash, resp.payload.as_success().unwrap().to_string()).await;
+                            if let Err(e) = self.write_cached(method, req_hash, resp.payload.as_success().unwrap().to_string()).await {
+                                error!("{}", e);
+                            }
                         }
                         Ok(resp)
                     }
                     Err(e) => {
+                        error!("client.call error {e}");
                         Err(e)
                     }
                 }
@@ -214,12 +212,12 @@ impl HttpCachedTransport {
         resp
     }
 
-    pub async fn eth_call(mut self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
+    pub async fn eth_call(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         let request: (TransactionRequest, BlockNumberOrTag) = serde_json::from_str(req.params().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
         debug!("call req : {:?}", request);
 
         let new_req = Request::<(TransactionRequest, BlockNumberOrTag)>::new(
-            "eth_call", req.id().clone(), (request.0, self.convert_block_number(request.1).map_err(|e| TransportErrorKind::custom_str("BAD_BLOCK"))?),
+            "eth_call", req.id().clone(), (request.0, self.convert_block_number(request.1).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?),
         );
         let new_req: SerializedRequest = new_req.try_into().unwrap();
 
@@ -229,12 +227,12 @@ impl HttpCachedTransport {
     }
 
 
-    pub async fn eth_get_block_by_number(mut self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
+    pub async fn eth_get_block_by_number(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         let request: (BlockNumberOrTag, bool) = serde_json::from_str(req.params().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
         debug!("get_block_by_number : {:?}", request);
 
         let new_req = Request::<(BlockNumberOrTag, bool)>::new(
-            "eth_getBlockByNumber", req.id().clone(), (self.convert_block_number(request.0).map_err(|e| TransportErrorKind::custom_str("BAD_BLOCK"))?, request.1),
+            "eth_getBlockByNumber", req.id().clone(), (self.convert_block_number(request.0).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?, request.1),
         );
 
         let new_req: SerializedRequest = new_req.try_into().unwrap();
@@ -244,18 +242,18 @@ impl HttpCachedTransport {
         resp
     }
 
-    pub async fn eth_get_block_by_hash(mut self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
+    pub async fn eth_get_block_by_hash(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         debug!("get_block_by_hash req : {:?}", req);
         let resp = self.cached_or_execute(req.clone()).await;
         resp
     }
 
-    pub async fn debug_trace_block_by_number(mut self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
+    pub async fn debug_trace_block_by_number(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         let request: (BlockNumberOrTag, GethDebugTracingOptions) = serde_json::from_str(req.params().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
         debug!("debug_trace_block_by_number : {:?}", request);
 
         let new_req = Request::<(BlockNumberOrTag, GethDebugTracingOptions)>::new(
-            "debug_traceBlockByNumber", req.id().clone(), (self.convert_block_number(request.0).map_err(|e| TransportErrorKind::custom_str("BAD_BLOCK"))?, request.1),
+            "debug_traceBlockByNumber", req.id().clone(), (self.convert_block_number(request.0).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?, request.1),
         );
 
         let new_req: SerializedRequest = new_req.try_into().unwrap();
@@ -265,14 +263,14 @@ impl HttpCachedTransport {
         resp
     }
 
-    pub async fn debug_trace_block_by_hash(mut self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
+    pub async fn debug_trace_block_by_hash(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         debug!("debug_trace_block_by_hash req : {:?}", req);
         let resp = self.cached_or_execute(req.clone()).await;
         resp
     }
 
 
-    pub async fn eth_get_logs(mut self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
+    pub async fn eth_get_logs(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         //TODO: block number check
         debug!("eth_get_logs req  : {:?}", req);
         let resp = self.cached_or_execute(req.clone()).await;

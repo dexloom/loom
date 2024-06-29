@@ -6,7 +6,7 @@ use alloy::{
     node_bindings::{Anvil, AnvilInstance},
     primitives::{BlockHash, BlockNumber, U64},
     providers::{
-        ext::AnvilApi, ext::DebugApi,
+        ext::DebugApi,
         Network, Provider, ProviderBuilder, RootProvider,
     },
     rpc::{
@@ -77,9 +77,9 @@ impl AnvilControl {
             _anvil: anvil_provider,
             _anvil_instance: Some(Arc::new(anvil)),
             block_number: BlockNumberOrTag::Number(block),
-            _ta: PhantomData::<BoxTransport>::default(),
-            _tn: PhantomData::<BoxTransport>::default(),
-            _n: PhantomData::<Ethereum>::default(),
+            _ta: PhantomData::<BoxTransport>,
+            _tn: PhantomData::<BoxTransport>,
+            _n: PhantomData::<Ethereum>,
         };
 
         let curblock = ret._anvil.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
@@ -109,7 +109,7 @@ where
     PN: Provider<TN, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(_node: PN, _anvil: PA, block_number: BlockNumberOrTag) -> Self {
-        Self { _node, _anvil, _anvil_instance: None, block_number, _ta: PhantomData::default(), _tn: PhantomData::default(), _n: PhantomData::default() }
+        Self { _node, _anvil, _anvil_instance: None, block_number, _ta: PhantomData, _tn: PhantomData, _n: PhantomData }
     }
 
 
@@ -247,13 +247,12 @@ where
 
 #[cfg(test)]
 mod test {
+    use alloy::primitives::{Address, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use env_logger::Env as EnvLog;
     use eyre::Result;
     use url;
-
-    use alloy_primitives::{Address, U256};
 
     use super::*;
 

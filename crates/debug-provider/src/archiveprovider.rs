@@ -20,7 +20,6 @@ use alloy::{
     },
     transports::{Transport, TransportResult},
 };
-use futures::StreamExt;
 use tokio::sync::RwLock;
 
 use crate::httpcached::HttpCachedTransport;
@@ -161,7 +160,5 @@ where
 }
 
 #[cfg(test)]
-mod test {
-    use super::*;
-}
+mod test {}
 

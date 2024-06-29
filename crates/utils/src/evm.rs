@@ -2,7 +2,7 @@ use alloy_primitives::{Address, B256, Bytes, U256};
 use alloy_rpc_types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info, trace};
+use log::{debug, error, trace};
 use revm::Evm;
 use revm::InMemoryDB;
 use revm::interpreter::Host;
