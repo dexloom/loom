@@ -1,6 +1,6 @@
 use std::path::Path;
 
-use alloy_primitives::B256;
+use alloy::primitives::B256;
 use eyre::Result;
 use tokio::fs;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};

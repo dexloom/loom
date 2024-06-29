@@ -5,11 +5,11 @@ use alloy::{
     primitives::TxHash,
     providers::{Provider, ProviderBuilder, RootProvider, WsConnect},
     pubsub::PubSubFrontend,
-    rpc::types::{Block, BlockTransactions, Transaction},
+    rpc::types::BlockTransactions,
 };
 use chrono::{DateTime, Duration, Local, TimeDelta};
 use clap::Parser;
-use eyre::Result;
+use eyre::{eyre, Result};
 use futures::future::join_all;
 use tokio::{select, sync::RwLock, task::JoinHandle};
 
@@ -250,6 +250,10 @@ async fn collect_stat_task(
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
+    if cli.endpoint.len() == 0 {
+        return Err(eyre!("NO_NODES_SELECTED"));
+    }
+
     let nodes_count = cli.endpoint.len();
 
     let stat = Arc::new(RwLock::new(StatCollector::default()));
@@ -336,7 +340,7 @@ async fn main() -> Result<()> {
                             // check if tx received after block
                             if tx_local_time > block_time_node
                                 || tx_time.get_time_delta(node_id).unwrap_or_default()
-                                    > TimeDelta::seconds(2)
+                                > TimeDelta::seconds(2)
                             {
                                 calc.txs_received_outdated[node_id] += 1;
                             } else {

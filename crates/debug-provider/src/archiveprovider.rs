@@ -5,13 +5,21 @@ use std::pin::Pin;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
-use alloy_json_rpc::{Id, Request, RpcReturn};
-use alloy_network::Ethereum;
-use alloy_primitives::{BlockNumber, Bytes, U256, U64};
-use alloy_provider::{EthCall, Provider, RootProvider};
-use alloy_rpc_client::{RpcCall, WeakClient};
-use alloy_rpc_types::{Block, BlockNumberOrTag, FilterChanges, TransactionRequest};
-use alloy_transport::{Transport, TransportResult};
+use alloy::{
+    network::Ethereum,
+    primitives::{BlockNumber, Bytes, U256, U64},
+    providers::{EthCall, Provider, RootProvider},
+    rpc::{
+        client::RpcCall,
+        json_rpc::{
+            Id, Request, RpcReturn,
+        },
+        types::{
+            Block, BlockNumberOrTag, FilterChanges, TransactionRequest,
+        },
+    },
+    transports::{Transport, TransportResult},
+};
 use futures::StreamExt;
 use tokio::sync::RwLock;
 
@@ -77,9 +85,6 @@ where
         self.provider.root()
     }
 
-    fn weak_client(&self) -> WeakClient<T> {
-        self.provider.weak_client()
-    }
 
     fn get_block_by_number<'life0, 'async_trait>(&'life0 self, number: BlockNumberOrTag, hydrate: bool) -> Pin<Box<dyn Future<Output=TransportResult<Option<Block>>> + Send + 'async_trait>>
     where

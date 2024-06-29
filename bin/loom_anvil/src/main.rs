@@ -23,8 +23,8 @@ use revm::InMemoryDB;
 
 use debug_provider::{AnvilControl, AnvilDebugProvider, DebugProviderExt};
 use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, SignersActor, StateChangeArbActor, StateChangeArbSearcherActor};
-use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, Pool, PoolClass, PoolWrapper, Token, TxSigners};
-use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate, Swap, TxCompose};
+use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, Pool, PoolClass, PoolWrapper, Swap, Token, TxSigners};
+use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate, TxCompose};
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
 use defi_types::{ChainParameters, debug_trace_block, debug_trace_call_diff, GethStateUpdateVec, Mempool};
@@ -275,7 +275,7 @@ async fn main() -> Result<()> {
     //load_pools(client.clone(), market_instance.clone(), market_state.clone()).await?;
 
     info!("Starting node actor");
-    let mut node_block_actor = NodeBlockActor::new(client.clone());
+    let mut node_block_actor = NodeBlockActor::new(client.clone(), None);
     match node_block_actor
         .produce(new_block_headers_channel.clone())
         .produce(new_block_with_tx_channel.clone())

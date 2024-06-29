@@ -1,7 +1,8 @@
-use alloy_primitives::{Address, B256, Bytes, U256, U64};
-use alloy_provider::{Network, Provider, RootProvider};
-use alloy_provider::network::Ethereum;
-use alloy_transport::{BoxTransport, Transport, TransportResult};
+use alloy::{
+    primitives::{Address, B256, Bytes, U256, U64},
+    providers::{Network, network::Ethereum, Provider, RootProvider},
+    transports::{BoxTransport, Transport, TransportResult},
+};
 
 use crate::AnvilDebugProvider;
 
@@ -110,13 +111,14 @@ impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport>
 mod test {
     use std::sync::Arc;
 
-    use alloy_primitives::{B256, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
-    use alloy_rpc_types::BlockNumberOrTag;
     use env_logger::Env as EnvLog;
     use eyre::Result;
     use url;
+
+    use alloy_primitives::{B256, U256};
+    use alloy_rpc_types::BlockNumberOrTag;
 
     use super::*;
 

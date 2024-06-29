@@ -4,13 +4,22 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::task::{Context, Poll};
 
-use alloy_json_rpc::{Id, Request, RequestPacket, Response, ResponsePacket, ResponsePayload, SerializedRequest};
-use alloy_primitives::{B128, B256, BlockHash, BlockNumber, U128};
-use alloy_primitives::private::serde::Deserializer;
-use alloy_rpc_types::{Block, BlockNumberOrTag, TransactionRequest};
-use alloy_rpc_types_trace::geth::GethDebugTracingOptions;
-use alloy_transport::{TransportError, TransportErrorKind, TransportFut};
-use alloy_transport_http::{Http, ReqwestTransport};
+use alloy::{
+    primitives::{B128, B256, BlockHash, BlockNumber, U128},
+    rpc::{
+        json_rpc::{
+            Id, Request, RequestPacket, Response, ResponsePacket, ResponsePayload, SerializedRequest,
+        },
+        types::{
+            Block,
+            BlockNumberOrTag, trace::geth::GethDebugTracingOptions, TransactionRequest,
+        },
+    },
+    transports::{
+        http::{Http, ReqwestTransport},
+        TransportError, TransportErrorKind, TransportFut,
+    },
+};
 use eyre::{eyre, OptionExt, Result};
 use log::{debug, trace};
 use rand::Rng;
@@ -387,12 +396,13 @@ mod test {
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_provider::ext::DebugApi;
     use alloy_rpc_client::{ClientBuilder, RpcClient};
-    use alloy_rpc_types::{BlockNumberOrTag, BlockTransactionsKind, Filter};
-    use alloy_rpc_types_trace::geth::{GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions, PreStateConfig};
     use eyre::Result;
     use futures::StreamExt;
     use tokio::select;
     use url::Url;
+
+    use alloy_rpc_types::{BlockNumberOrTag, BlockTransactionsKind, Filter};
+    use alloy_rpc_types_trace::geth::{GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions, PreStateConfig};
 
     use crate::httpcached::HttpCachedTransport;
 

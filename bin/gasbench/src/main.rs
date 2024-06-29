@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use alloy::primitives::{Address, BlockNumber, U256};
 use alloy_network::{Ethereum, Network};
-use alloy_primitives::eip191_hash_message;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_transport::Transport;

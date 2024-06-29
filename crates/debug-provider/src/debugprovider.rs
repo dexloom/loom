@@ -1,15 +1,21 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use alloy_node_bindings::{Anvil, AnvilInstance};
-use alloy_primitives::{BlockHash, BlockNumber, U64};
-use alloy_provider::{Network, Provider, ProviderBuilder, RootProvider};
-use alloy_provider::ext::DebugApi;
-use alloy_provider::network::Ethereum;
-use alloy_rpc_client::{RpcCall, WsConnect};
-use alloy_rpc_types::{BlockNumberOrTag, TransactionRequest};
-use alloy_rpc_types_trace::geth::{GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, TraceResult};
-use alloy_transport::{BoxTransport, Transport, TransportResult};
+use alloy::{
+    network::Ethereum,
+    node_bindings::{Anvil, AnvilInstance},
+    primitives::{BlockHash, BlockNumber, U64},
+    providers::{
+        ext::AnvilApi, ext::DebugApi,
+        Network, Provider, ProviderBuilder, RootProvider,
+    },
+    rpc::{
+        client::{RpcCall, WsConnect},
+        types::{BlockNumberOrTag, TransactionRequest},
+        types::trace::geth::{GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, TraceResult},
+    },
+    transports::{BoxTransport, Transport, TransportResult},
+};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use k256::SecretKey;
@@ -221,12 +227,13 @@ where
 
 #[cfg(test)]
 mod test {
-    use alloy_primitives::{Address, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use env_logger::Env as EnvLog;
     use eyre::Result;
     use url;
+
+    use alloy_primitives::{Address, U256};
 
     use super::*;
 
