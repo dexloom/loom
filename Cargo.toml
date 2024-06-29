@@ -3,7 +3,7 @@
 [workspace]
 members = [
     "bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench",
-    "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools", "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "bin/gasbench", "bin/nodebench"]
+    "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools", "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "bin/gasbench", "bin/nodebench", "bin/replayer"]
 default-members = ["bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench"]
 resolver = "2"
 
@@ -60,12 +60,12 @@ colored = "2.0.4"
 
 
 
-alloy = { git = "https://github.com/alloy-rs/alloy.git", package = "alloy", rev = "61921bc", default-features = false, features = ["pubsub",
-    "sol-types", "dyn-abi", "json-abi", "contract", "providers", "provider-ws", "provider-ipc", "provider-http", "consensus", "genesis", "reqwest", "hyper", "serde",
-    "signers", "signer-local", "transports", "transport-http", "transport-ipc", "transport-ws",
-    "network", "node-bindings", "rpc-client", "json-rpc", "rpc-types", "rpc-types-trace", "rpc-types-admin", "rpc-types-txpool", "rpc-types-anvil", "rpc-types-json"] }
+#alloy = { git = "https://github.com/alloy-rs/alloy.git", package = "alloy", rev = "61921bc", default-features = false, features = ["pubsub",
+#    "sol-types", "dyn-abi", "json-abi", "contract", "providers", "provider-ws", "provider-ipc", "provider-http", "consensus", "genesis", "reqwest", "hyper", "serde",
+#    "signers", "signer-local", "transports", "transport-http", "transport-ipc", "transport-ws",
+#    "network", "node-bindings", "rpc-client", "json-rpc", "rpc-types", "rpc-types-trace", "rpc-types-admin", "rpc-types-txpool", "rpc-types-anvil", "rpc-types-json"] }
 
-#alloy = { git = "https://github.com/alloy-rs/alloy.git", package = "alloy", rev = "61921bc", features = ["full"] }
+alloy = { git = "https://github.com/alloy-rs/alloy.git", package = "alloy", rev = "61921bc", features = ["full"] }
 
 revm = { version = "9.0.0", features = [
     "std",
@@ -78,7 +78,7 @@ revm-inspectors = { git = "https://github.com/paradigmxyz/evm-inspectors", rev =
 
 alloy-core = "0.7.6"
 alloy-chains = "0.1.15"
-alloy-primitives = "0.7.6"
+alloy-primitives = { version = "0.7.6", features = ["rand"] }
 alloy-dyn-abi = { version = "0.7.6", features = ["json"] }
 alloy-sol-types = { version = "0.7.6", features = ["json"] }
 alloy-sol-macro = { version = "0.7.6", features = ["json"] }
@@ -123,6 +123,7 @@ reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "d786b45"
 #uniswap_v3_math = { git = "https://github.com/0xKitsune/uniswap-v3-math", rev = "b7b2e87" }
 uniswap_v3_math = { path = "../uniswap-v3-math" }
 
+tower = "0.4.13"
 
 [patch.crates-io]
 
