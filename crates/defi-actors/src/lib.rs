@@ -9,6 +9,7 @@ pub use market_state::{MarketStatePreloadedActor, preload_market_state};
 pub use mempool::MempoolActor;
 pub use mergers::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 pub use node::{NodeBlockActor, NodeMempoolActor};
+pub use node_player::NodeBlockPlayerActor;
 pub use pathencoder::ArbSwapPathEncoderActor;
 pub use price::PriceActor;
 pub use signers::{InitializeSignersActor, SignersActor};
@@ -36,3 +37,4 @@ mod estimators;
 mod mergers;
 
 mod backrun;
+mod node_player;

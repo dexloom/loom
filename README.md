@@ -4,7 +4,7 @@
 
 - [actors](./crates/actors) - actors implementation
 - [actors-macros](./crates/actors-macros) - macros for actors
-- [debug-provider](./crates/debug-provider) - debug api provider for node + anvil
+- [debug-provider](./crates/debug-provider) - debug api provider for node + anvil, HttpCachedTransport
 - [defi-abi](./crates/defi-abi) - sol! wrapper for contracts interface
 - [defi-actors](./crates/defi-actors) - defi actors crate
 - [defi-entities](./crates/defi-entities) - defi entities crate
@@ -19,9 +19,11 @@
 ## Bins
 
 - [loom](./bin/loom) - backrun bot
-- [loom_anvil](./bin/loom_anvil) - testing framework
+- [loom_anvil](./bin/loom_anvil) - anvil testing framework
+- [replayer](./bin/replayer) - blocks replayer
 - [keys](./bin/keys) - keys encryption tool
 - [gasbench](./bin/gasbench) - gas consumption benchmark utility
+- [nodebench](./bin/nodebench) - nodes benchmark utility
 
 Telegram chat : https://t.me/dexloom_com
 
@@ -39,10 +41,10 @@ mode = "ws"
 [clients]
 local = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ipc", db_path = "PATH_TO_RETH_DATA_FOLDER/db", node = "reth" }
 #another way to connect to WS
-#local = { url = "ws://localhost:8545" }
+#local = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ipc", db_path = "PATH_TO_RETH_DATA_FOLDER/db", node = "reth" }
 
-#remote node
-remote = { url = "ws://8.8.8.8:8545" }
+#remote node 
+#remote = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ws",  node = "geth" }
 
 [blockchains]
 # Ethereum mainnet. chain id = 1
@@ -90,10 +92,10 @@ mainnet = { type = "flashbots", client = "local", bc = "mainnet" }
 
 # Transaction estimators
 [actors.estimator]
-# Node estimator. Geth is ok for note supporting eth_callBundle method only 
-mainnet = { client = "local", bc = "mainnet", type = "geth", encoder = "mainnet" }
-# EVM estimator
-#mainnet = { type="evm", bc = "mainnet",  encoder = "mainnet"}
+# EVM estimator 
+mainnet = { type = "evm", bc = "mainnet", encoder = "mainnet" }
+# Node estimator. Geth estimator is ok for nodes supporting eth_callBundle method only 
+#mainnet = { client = "local", bc = "mainnet", type = "geth", encoder = "mainnet" }
 ```
 
 ### Setting private key

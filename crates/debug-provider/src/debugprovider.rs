@@ -20,6 +20,8 @@ use async_trait::async_trait;
 use eyre::{eyre, Result};
 use k256::SecretKey;
 
+use crate::HttpCachedTransport;
+
 #[derive(Clone, Debug)]
 pub struct AnvilDebugProvider<PN, PA, TN, TA, N>
 where
@@ -178,8 +180,26 @@ pub trait DebugProviderExt<T = BoxTransport, N = Ethereum>
     async fn geth_debug_trace_block_by_hash(&self, block: BlockHash, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>>;
 }
 
+
 #[async_trait]
 impl<T, N> DebugProviderExt<T, N> for RootProvider<BoxTransport>
+where
+    T: Transport + Clone,
+    N: Network,
+{
+    async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
+        self.debug_trace_call(tx, block, trace_options).await
+    }
+    async fn geth_debug_trace_block_by_number(&self, block: BlockNumberOrTag, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+        self.debug_trace_block_by_number(block, trace_options).await
+    }
+    async fn geth_debug_trace_block_by_hash(&self, block: BlockHash, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+        self.debug_trace_block_by_hash(block, trace_options).await
+    }
+}
+
+#[async_trait]
+impl<T, N> DebugProviderExt<T, N> for RootProvider<HttpCachedTransport>
 where
     T: Transport + Clone,
     N: Network,

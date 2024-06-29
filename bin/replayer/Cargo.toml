@@ -1,0 +1,37 @@
+[package]
+name = "replayer"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+tokio.workspace = true
+env_logger.workspace = true
+log.workspace = true
+eyre.workspace = true
+futures.workspace = true
+clap.workspace = true
+serde.workspace = true
+toml.workspace = true
+
+debug-provider.workspace = true
+
+loom-topology.workspace = true
+loom-actors.workspace = true
+loom-actors-macros.workspace = true
+defi-entities.workspace = true
+defi-types.workspace = true
+defi-actors.workspace = true
+defi-pools.workspace = true
+defi-events.workspace = true
+
+
+loom-multicaller.workspace = true
+
+alloy.workspace = true
+url = "2.5.2"
+

@@ -104,12 +104,12 @@ impl HttpCachedTransport {
         }
     }
 
-    pub fn next_block_number(&self) -> u64 {
+    pub fn next_block_number(&self) -> BlockNumber {
         let next_block_number = self.block_number.fetch_add(1, Ordering::Relaxed);
         next_block_number
     }
 
-    pub async fn fetch_next_block(&self) -> Result<u64, TransportError> {
+    pub async fn fetch_next_block(&self) -> Result<BlockNumber, TransportError> {
         let next_block_number = self.read_block_number() + 1;
 
         let new_req = Request::<(BlockNumberOrTag, bool)>::new(
@@ -120,7 +120,7 @@ impl HttpCachedTransport {
 
         match self.cached_or_execute(new_req).await {
             Ok(new_block_packet) => {
-                debug!("fetch_next_block : {:?}", new_block_packet);
+                trace!("fetch_next_block : {:?}", new_block_packet);
                 if let ResponsePacket::Single(new_block_response) = new_block_packet {
                     let response: Block = serde_json::from_str(new_block_response.payload.as_success().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
                     self.block_hashes.write().await.insert(next_block_number, response.header.hash.unwrap_or_default());
@@ -266,7 +266,7 @@ impl HttpCachedTransport {
     }
 
     pub async fn debug_trace_block_by_hash(mut self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
-        println!("debug_trace_block_by_hash req : {:?}", req);
+        debug!("debug_trace_block_by_hash req : {:?}", req);
         let resp = self.cached_or_execute(req.clone()).await;
         resp
     }
@@ -393,16 +393,20 @@ impl Service<RequestPacket> for HttpCachedTransport {
 mod test {
     use std::time::Duration;
 
-    use alloy_provider::{Provider, ProviderBuilder};
-    use alloy_provider::ext::DebugApi;
-    use alloy_rpc_client::{ClientBuilder, RpcClient};
+    use alloy::{
+        providers::{ext::DebugApi, Provider, ProviderBuilder},
+        rpc::{
+            client::{ClientBuilder, RpcClient},
+            types::{
+                BlockNumberOrTag, BlockTransactionsKind, Filter,
+                trace::geth::{GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions, PreStateConfig},
+            },
+        },
+    };
     use eyre::Result;
     use futures::StreamExt;
     use tokio::select;
     use url::Url;
-
-    use alloy_rpc_types::{BlockNumberOrTag, BlockTransactionsKind, Filter};
-    use alloy_rpc_types_trace::geth::{GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions, PreStateConfig};
 
     use crate::httpcached::HttpCachedTransport;
 
