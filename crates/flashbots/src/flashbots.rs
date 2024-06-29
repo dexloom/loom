@@ -78,6 +78,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsClient<P> {
         }
     }
 
+
     pub async fn send_bundle(&self, request: &BundleRequest) -> Result<()> {
         match self.flashbots_middleware.send_bundle(request).await {
             Ok(_resp) => {
@@ -88,15 +89,15 @@ impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsClient<P> {
                 match error {
                     FlashbotsMiddlewareError::MissingParameters => {
                         error!("{} : Missing paramter", self.name);
-                        Err(ErrReport::msg("FLASHBOTS_MISSING_PARAMETER"))
+                        Err(eyre!("FLASHBOTS_MISSING_PARAMETER"))
                     }
                     FlashbotsMiddlewareError::RelayError(x) => {
                         error!("{} {}", self.name, x.to_string() );
-                        Err(ErrReport::msg("FLASHBOTS_RELAY_ERROR"))
+                        Err(eyre!("FLASHBOTS_RELAY_ERROR"))
                     }
                     FlashbotsMiddlewareError::MiddlewareError(x) => {
                         error!("{} {}", self.name, x.to_string() );
-                        Err(ErrReport::msg("FLASHBOTS_MIDDLEWARE_ERROR"))
+                        Err(eyre!("FLASHBOTS_MIDDLEWARE_ERROR"))
                     }
                 }
             }
@@ -115,16 +116,16 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
     pub fn new(provider: P, simulation_endpoint: &str) -> Self
     {
         let flashbots = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
+        let beaverbuild = FlashbotsClient::new(provider.clone(), "https://rpc.beaverbuild.org/");
+        let titan = FlashbotsClient::new(provider.clone(), "https://rpc.titanbuilder.xyz");
+        let rsync = FlashbotsClient::new(provider.clone(), "https://rsync-builder.xyz");
         //let builder0x69 = FlashbotsClient::new_no_sign(provider.clone(), "https://builder0x69.io");
         let eden = FlashbotsClient::new(provider.clone(), "https://api.edennetwork.io/v1/bundle");
         let eth_builder = FlashbotsClient::new_no_sign(provider.clone(), "https://eth-builder.com");
-        let beaverbuild = FlashbotsClient::new_no_sign(provider.clone(), "https://rpc.beaverbuild.org/");
         let secureapi = FlashbotsClient::new_no_sign(provider.clone(), "https://api.securerpc.com/v1");
-        let rsync = FlashbotsClient::new_no_sign(provider.clone(), "https://rsync-builder.xyz");
         //let blocknative = FlashbotsClient::new(provider.clone(), "https://api.blocknative.com/v1/auction");
         let buildai = FlashbotsClient::new_no_sign(provider.clone(), "https://BuildAI.net");
         let payloadde = FlashbotsClient::new_no_sign(provider.clone(), "https://rpc.payload.de");
-        let titan = FlashbotsClient::new(provider.clone(), "https://rpc.titanbuilder.xyz");
         let fibio = FlashbotsClient::new(provider.clone(), "https://rpc.f1b.io");
         let loki = FlashbotsClient::new(provider.clone(), "https://rpc.lokibuilder.xyz");
         let ibuilder = FlashbotsClient::new(provider.clone(), "https://rpc.ibuilder.xyz");
@@ -143,7 +144,8 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
 
 
     pub async fn simulate_txes<T>(&self, txs: Vec<T>, block_number: u64, access_list_request: Option<Vec<TxHash>>) -> Result<SimulatedBundle>
-        where BundleTransaction: std::convert::From<T>
+    where
+        BundleTransaction: std::convert::From<T>,
     {
         let mut bundle = BundleRequest::new()
             .set_block(U64::from(block_number + 1))
@@ -159,7 +161,8 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
 
 
     pub async fn broadcast_txes<T>(&self, txs: Vec<T>, block: u64) -> Result<()>
-        where BundleTransaction: std::convert::From<T>
+    where
+        BundleTransaction: std::convert::From<T>,
     {
         let mut bundle = BundleRequest::new().set_block(U64::from(block));
 
@@ -186,6 +189,38 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
             });
         };
 
+
+        Ok(())
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use alloy_primitives::Bytes;
+    use alloy_provider::ProviderBuilder;
+
+    use super::*;
+
+    #[tokio::test]
+    async fn test_send_bundle() -> Result<()> {
+        env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
+        let provider = ProviderBuilder::new().on_http("http://falcon.loop:8008/rpc".try_into()?).boxed();
+        let block = provider.get_block_number().await?;
+
+        let flashbots = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
+
+        let tx = Bytes::from(vec![1, 1, 1, 1]);
+
+        let bundle_request = BundleRequest::new().set_block(U64::from(block)).push_transaction(tx);
+
+        match flashbots.send_bundle(&bundle_request).await {
+            Ok(_) => {
+                println!("Ok")
+            }
+            Err(e) => {
+                println!("{e}")
+            }
+        }
 
         Ok(())
     }
