@@ -250,7 +250,7 @@ async fn collect_stat_task(
 async fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    if cli.endpoint.len() == 0 {
+    if cli.endpoint.is_empty() {
         return Err(eyre!("NO_NODES_SELECTED"));
     }
 

@@ -35,7 +35,7 @@ where
     //info!("Hardhat snapshot created {snap}");
 
     for tx_rlp in request.rlp_bundle.unwrap_or_default().iter() {
-        let mut tx_bytes = tx_rlp.clone().unwrap().clone();
+        let tx_bytes = tx_rlp.clone().unwrap().clone();
 
         //let envelope = TxEnvelope::decode_2718(&mut tx_bytes.as_ref())?;
         //debug!("sending tx to anvil: {} {:?}", tx_bytes.len(), envelope);

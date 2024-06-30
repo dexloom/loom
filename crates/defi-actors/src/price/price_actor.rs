@@ -35,9 +35,9 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
 
     let mut coins_hash_map: HashMap<Address, CurvePool<P, T, N>> = HashMap::new();
 
-    let mut curve_tricrypto_usdc_pool = CurvePool::fetch_pool_data(client.clone(), curve_tricrypto_usdc).await?;
+    let curve_tricrypto_usdc_pool = CurvePool::fetch_pool_data(client.clone(), curve_tricrypto_usdc).await?;
 
-    let mut curve_tricrypto_usdt_pool = CurvePool::fetch_pool_data(client.clone(), curve_tricrypto_usdt).await?;
+    let curve_tricrypto_usdt_pool = CurvePool::fetch_pool_data(client.clone(), curve_tricrypto_usdt).await?;
 
     coins_hash_map.insert(usdc_address, curve_tricrypto_usdc_pool.clone());
     coins_hash_map.insert(usdt_address, curve_tricrypto_usdt_pool.clone());

@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use alloy::primitives::{Address, BlockNumber, U256};
-use alloy_network::{Ethereum, Network};
+use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_transport::Transport;
@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use debug_provider::{AnvilControl, AnvilDebugProvider, AnvilProviderExt, DebugProviderExt};
+use debug_provider::{AnvilControl, AnvilProviderExt, DebugProviderExt};
 use defi_abi::IERC20::IERC20Instance;
 use defi_actors::{fetch_and_add_pool_by_address, preload_market_state};
 use defi_entities::{Market, MarketState, NWETH, PoolClass, PoolWrapper, Swap, SwapAmountType, SwapLine, SwapPath, Token};
@@ -73,7 +73,7 @@ where
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    let mut weth_token = Token::new_with_data(
+    let weth_token = Token::new_with_data(
         *WETH_ADDRESS,
         Some("WETH".to_string()),
         None,
@@ -81,7 +81,7 @@ where
         true,
         false,
     );
-    let mut usdc_token = Token::new_with_data(
+    let usdc_token = Token::new_with_data(
         *USDC_ADDRESS,
         Some("USDC".to_string()),
         None,
@@ -89,7 +89,7 @@ where
         true,
         false,
     );
-    let mut usdt_token = Token::new_with_data(
+    let usdt_token = Token::new_with_data(
         *USDT_ADDRESS,
         Some("USDT".to_string()),
         None,
@@ -97,7 +97,7 @@ where
         true,
         false,
     );
-    let mut dai_token = Token::new_with_data(
+    let dai_token = Token::new_with_data(
         *DAI_ADDRESS,
         Some("DAI".to_string()),
         None,
@@ -105,7 +105,7 @@ where
         true,
         false,
     );
-    let mut wbtc_token = Token::new_with_data(
+    let wbtc_token = Token::new_with_data(
         *WBTC_ADDRESS,
         Some("WBTC".to_string()),
         None,
@@ -113,7 +113,7 @@ where
         true,
         false,
     );
-    let mut threecrv_token = Token::new_with_data(
+    let threecrv_token = Token::new_with_data(
         *THREECRV_ADDRESS,
         Some("3Crv".to_string()),
         None,
@@ -121,7 +121,7 @@ where
         false,
         true,
     );
-    let mut crv_token = Token::new_with_data(
+    let crv_token = Token::new_with_data(
         *CRV_ADDRESS,
         Some("Crv".to_string()),
         None,
@@ -307,15 +307,15 @@ async fn main() -> Result<()> {
     }
 
     // Initialization
-    let mut cache_db = InMemoryDB::new(EmptyDB::new());
+    let cache_db = InMemoryDB::new(EmptyDB::new());
 
-    let mut market_instance = Market::default();
+    let market_instance = Market::default();
 
-    let mut market_state_instance = MarketState::new(cache_db.clone());
+    let market_state_instance = MarketState::new(cache_db.clone());
 
-    let mut market_instance = SharedState::new(market_instance);
+    let market_instance = SharedState::new(market_instance);
 
-    let mut market_state_instance = SharedState::new(market_state_instance);
+    let market_state_instance = SharedState::new(market_state_instance);
 
     let encoder = Arc::new(MulticallerSwapEncoder::new(multicaller_address));
 
@@ -323,7 +323,6 @@ async fn main() -> Result<()> {
     preload_market_state(
         client.clone(),
         vec![multicaller_address],
-        None,
         market_state_instance.clone(),
     )
         .await?;

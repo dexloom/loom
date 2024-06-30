@@ -25,10 +25,10 @@ pub async fn get_affected_pools_from_code<P, T, N>(
     market: SharedState<Market>,
     state_update: &GethStateUpdateVec,
 ) -> eyre::Result<BTreeMap<PoolWrapper, Vec<(Address, Address)>>>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     let db = CacheDB::new(EmptyDB::new());
     let mut market_state = MarketState::new(db);
@@ -93,7 +93,7 @@ pub async fn get_affected_pools_from_code<P, T, N>(
                                     Ok(factory_address) => {
                                         let _fetch_result = match get_protocol_by_factory(factory_address) {
                                             PoolProtocol::PancakeV3 => {
-                                                let mut pool = PancakeV3Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
+                                                let pool = PancakeV3Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
                                                 match pool {
                                                     Ok(pool) => {
                                                         info!("PancakeV3 Pool loaded {address:?} {}", pool.get_protocol());

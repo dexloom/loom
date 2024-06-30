@@ -1,3 +1,5 @@
+use std::ops::RangeInclusive;
+
 use alloy_eips::BlockId;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::BlockNumber;
@@ -22,7 +24,7 @@ pub async fn node_player_worker<P>(
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
 {
-    for _ in (start_block..=end_block) {
+    for _ in RangeInclusive::new(start_block, end_block) {
         let curblock_number = provider.client().transport().fetch_next_block().await?;
         let block = provider.get_block_by_number(curblock_number.into(), false).await?;
 
