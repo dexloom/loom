@@ -1,3 +1,4 @@
+use std::any::type_name;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -12,6 +13,7 @@ use async_trait::async_trait;
 use eyre::Result;
 use log::{debug, error};
 
+use defi_blockchain::Blockchain;
 use defi_entities::{MarketState, TxSigners};
 use defi_pools::protocols::UniswapV3Protocol;
 use defi_types::GethStateUpdate;
@@ -22,13 +24,12 @@ use loom_multicaller::SwapStepEncoder;
 pub async fn preload_market_state<P, T, N>(
     client: P,
     address_vec: Vec<Address>,
-    signers: Option<SharedState<TxSigners>>,
     market_state: SharedState<MarketState>,
 ) -> Result<()>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     let mut market_state_guard = market_state.write().await;
 
@@ -51,28 +52,6 @@ pub async fn preload_market_state<P, T, N>(
     }
 
 
-    if let Some(signers) = signers {
-        let signers_guard = signers.read().await;
-        for i in 0..signers_guard.len() {
-            match signers_guard.get_signer_by_index(i) {
-                Ok(s) => {
-                    let signer_address = s.address();
-                    let nonce = client.get_transaction_count(signer_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
-                    let balance = client.get_balance(signer_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
-                    debug!("Loading signer {signer_address} {nonce} {balance}");
-
-                    state.insert(signer_address, AccountState {
-                        balance: Some(balance),
-                        code: None,
-                        nonce: Some(nonce),
-                        storage: BTreeMap::new(),
-                    });
-                }
-                Err(e) => { error!("Cannot get signer {i} : {e}") }
-            }
-        }
-    }
-
     market_state_guard.add_state(&state);
 
     Ok(())
@@ -81,30 +60,78 @@ pub async fn preload_market_state<P, T, N>(
 #[derive(Accessor)]
 pub struct MarketStatePreloadedActor<P, T, N>
 {
+    name: &'static str,
     client: P,
-    encoder: Arc<SwapStepEncoder>,
+    addresses: Vec<Address>,
     #[accessor]
     market_state: Option<SharedState<MarketState>>,
-    #[accessor]
-    signers: Option<SharedState<TxSigners>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
 impl<P, T, N> MarketStatePreloadedActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, encoder: Arc<SwapStepEncoder>) -> Self {
+    fn name(&self) -> &'static str {
+        self.name
+    }
+
+    pub fn new(client: P) -> Self {
         Self {
+            name: "MarketStatePreloadedActor",
             client,
-            encoder,
+            addresses: Vec::new(),
             market_state: None,
-            signers: None,
             _t: PhantomData::default(),
             _n: PhantomData::default(),
+        }
+    }
+
+    pub fn with_name(self, name: &'static str) -> Self {
+        Self {
+            name,
+            ..self
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market_state: Some(bc.market_state()),
+            ..self
+        }
+    }
+
+    pub fn with_signers(self, tx_signers: SharedState<TxSigners>) -> Self {
+        if let Ok(signers) = tx_signers.try_read() {
+            let mut addresses = self.addresses;
+            addresses.extend(signers.get_address_vec());
+            Self {
+                addresses,
+                ..self
+            }
+        } else {
+            self
+        }
+    }
+
+    pub fn with_encoder(self, encoder: Arc<SwapStepEncoder>) -> Self {
+        let mut addresses = self.addresses;
+        addresses.extend(vec![encoder.get_multicaller()]);
+        Self {
+            addresses,
+            ..self
+        }
+    }
+
+    pub fn with_address_vec(self, address_vec: Vec<Address>) -> Self {
+        let mut addresses = self.addresses;
+        addresses.extend(address_vec);
+        Self {
+            addresses,
+            ..self
         }
     }
 }
@@ -112,17 +139,20 @@ impl<P, T, N> MarketStatePreloadedActor<P, T, N>
 
 #[async_trait]
 impl<P, T, N> Actor for MarketStatePreloadedActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult
+    fn name(&self) -> &'static str {
+        let full_name = type_name::<Self>();
+        full_name.split("::").last().unwrap_or(full_name)
+    }
+    async fn start(&self) -> ActorResult
     {
         preload_market_state(
             self.client.clone(),
-            vec![self.encoder.get_multicaller()],
-            self.signers.clone(),
+            self.addresses.clone(),
             self.market_state.clone().unwrap(),
         ).await?;
         Ok(vec![])

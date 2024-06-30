@@ -190,7 +190,7 @@ impl MempoolActor
 #[async_trait]
 impl Actor for MempoolActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             new_mempool_worker(
                 self.chain_parameters.clone(),
@@ -202,5 +202,9 @@ impl Actor for MempoolActor
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "MempoolActor"
     }
 }

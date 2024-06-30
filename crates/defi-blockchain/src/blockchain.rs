@@ -1,15 +1,20 @@
-use alloy_primitives::{Address, BlockHash};
-use alloy_rpc_types::{Block, Header};
+use alloy::{
+    primitives::{Address, BlockHash},
+    rpc::types::{Block, Header},
+};
+use revm::db::EmptyDB;
 use revm::InMemoryDB;
 
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Token};
 use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate};
-use defi_types::Mempool;
+use defi_types::{ChainParameters, Mempool};
 use loom_actors::{Broadcaster, SharedState};
 
+#[derive(Clone)]
 pub struct Blockchain
 {
     chain_id: i64,
+    chain_parameters: ChainParameters,
     market: SharedState<Market>,
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState>,
@@ -31,7 +36,9 @@ pub struct Blockchain
 
 impl Blockchain
 {
-    pub fn new(chain_id: i64, db: InMemoryDB) -> Blockchain {
+    pub fn new(chain_id: i64) -> Blockchain {
+        let db = InMemoryDB::new(EmptyDB::new());
+
         let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
         let new_block_state_update_channel: Broadcaster<NodeBlockStateUpdate> = Broadcaster::new(10);
@@ -70,7 +77,8 @@ impl Blockchain
         market_instance.add_token(threecrv_token).unwrap();
 
         Blockchain {
-            chain_id: chain_id,
+            chain_id,
+            chain_parameters: ChainParameters::ethereum(),
             market: SharedState::new(market_instance),
             market_state: SharedState::new(MarketState::new(db)),
             mempool: SharedState::new(Mempool::new()),
@@ -92,6 +100,10 @@ impl Blockchain
 
     pub fn chain_id(&self) -> i64 {
         return self.chain_id;
+    }
+
+    pub fn chain_parameters(&self) -> ChainParameters {
+        return self.chain_parameters.clone();
     }
 
     pub fn market(&self) -> SharedState<Market> {

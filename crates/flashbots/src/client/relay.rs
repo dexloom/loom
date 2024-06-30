@@ -4,7 +4,6 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use alloy_primitives::{hex, keccak256};
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
-use chrono::format;
 use log::{debug, trace};
 use reqwest::{Client, Error as ReqwestError};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};

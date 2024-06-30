@@ -11,6 +11,7 @@ use async_trait::async_trait;
 use eyre::eyre;
 use log::{error, info};
 
+use defi_blockchain::Blockchain;
 use defi_entities::Market;
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
@@ -100,10 +101,10 @@ pub struct PriceActor<P, T, N>
 }
 
 impl<P, T, N> PriceActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -113,16 +114,23 @@ impl<P, T, N> PriceActor<P, T, N>
             _n: PhantomData::default(),
         }
     }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market: Some(bc.market()),
+            ..self
+        }
+    }
 }
 
 #[async_trait]
 impl<P, T, N> Actor for PriceActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             price_worker(
                 self.client.clone(),
@@ -130,5 +138,9 @@ impl<P, T, N> Actor for PriceActor<P, T, N>
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "PriceActor"
     }
 }

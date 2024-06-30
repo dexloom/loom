@@ -1,7 +1,9 @@
-use alloy_primitives::{Bytes, hex};
+use alloy_network::TransactionBuilderError::Signer;
+use alloy_primitives::{B256, Bytes, hex};
 use async_trait::async_trait;
 use log::{error, info};
 
+use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, KeyStore, TxSigners};
 use loom_actors::{Accessor, Actor, ActorResult, SharedState};
 use loom_actors_macros::Accessor;
@@ -17,8 +19,10 @@ pub struct InitializeSignersActor {
 
 impl InitializeSignersActor {
     pub fn new(key: Option<Vec<u8>>) -> InitializeSignersActor {
+        let key = key.unwrap_or_else(|| B256::random().to_vec());
+
         InitializeSignersActor {
-            key,
+            key: Some(key),
             signers: None,
             monitor: None,
         }
@@ -40,11 +44,25 @@ impl InitializeSignersActor {
             monitor: None,
         }
     }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            monitor: Some(bc.nonce_and_balance()),
+            ..self
+        }
+    }
+
+    pub fn with_signers(self, signers: SharedState<TxSigners>) -> Self {
+        Self {
+            signers: Some(signers),
+            ..self
+        }
+    }
 }
 
 #[async_trait]
 impl Actor for InitializeSignersActor {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         match self.key.clone() {
             Some(key) => {
                 let new_signer = self.signers.clone().unwrap().write().await.add_privkey(Bytes::from(key));
@@ -56,5 +74,9 @@ impl Actor for InitializeSignersActor {
             }
         }
         Ok(vec![])
+    }
+
+    fn name(&self) -> &'static str {
+        "InitializeSignersActor"
     }
 }

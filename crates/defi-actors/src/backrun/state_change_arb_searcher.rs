@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
-use chrono::{Duration, TimeDelta};
+use chrono::TimeDelta;
 use eyre::{eyre, Result};
-use log::{debug, error, trace, warn};
+use log::{debug, error, warn};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use rayon::prelude::*;
 use revm::InMemoryDB;
@@ -14,7 +14,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_entities::{GasStation, Market, MarketState, PoolWrapper, Swap, SwapLine, SwapPath};
-use defi_events::{HealthEvent, Message, MessageHealthEvent, MessageTxCompose, TxComposeBest, TxComposeData};
+use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, TxComposeData};
 use defi_types::SwapError;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -111,7 +111,7 @@ async fn state_change_arb_searcher_task(
 
                         let pool_health_tx = req.3;
                         match pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {
-                            Err(se) => { error!("try_send to pool_health_monitor error : {e:?}") }
+                            Err(ee) => { error!("try_send to pool_health_monitor error : {e:?}") }
                             _ => {}
                         }
                     }
@@ -130,7 +130,7 @@ async fn state_change_arb_searcher_task(
 
     let mut answers = 0;
 
-    let mut best_answers = TxComposeBest::new_with_pct(U256::from(9000));
+    let mut best_answers = BestTxCompose::new_with_pct(U256::from(9000));
 
     while let Some(swap_line) = swap_line_rx.recv().await {
         //let msg  = MessageSwapPathEncodeRequest::new(result.clone(), msg.stuffing_txs(), msg.state_update().clone(), msg.state_required().clone());
@@ -245,7 +245,7 @@ impl StateChangeArbSearcherActor
 #[async_trait]
 impl Actor for StateChangeArbSearcherActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             state_change_arb_searcher_worker(
                 self.smart,
@@ -256,5 +256,9 @@ impl Actor for StateChangeArbSearcherActor
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "StateChangeArbSearcherActor"
     }
 }

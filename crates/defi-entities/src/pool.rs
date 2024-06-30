@@ -2,8 +2,6 @@ use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
 use std::ops::Deref;
-use std::str::FromStr;
-use std::string::ToString;
 use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes, U256};

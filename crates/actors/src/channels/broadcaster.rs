@@ -8,7 +8,8 @@ use tokio::sync::RwLock;
 
 #[derive(Clone)]
 pub struct Broadcaster<T>
-    where T: Clone + Send + Sync + 'static
+where
+    T: Clone + Send + Sync + 'static,
 {
     sender: Arc<RwLock<broadcast::Sender<T>>>,
 }
@@ -45,5 +46,10 @@ impl<T: Clone + Send + Sync + 'static> Broadcaster<T> {
     pub async fn subscribe(&self) -> Receiver<T> {
         let sender = self.sender.write().await;
         sender.subscribe()
+    }
+
+    pub fn subscribe_sync(&self) -> Result<Receiver<T>> {
+        let sender = self.sender.try_write()?;
+        Ok(sender.subscribe())
     }
 }

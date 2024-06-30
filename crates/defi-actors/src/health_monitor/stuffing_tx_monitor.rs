@@ -166,9 +166,10 @@ impl<P: Provider + Send + Sync + Clone + 'static> StuffingTxMonitorActor<P> {
 
 #[async_trait]
 impl<P> Actor for StuffingTxMonitorActor<P>
-    where P: Provider + Send + Sync + Clone + 'static
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             stuffing_tx_monitor_worker(
                 self.client.clone(),
@@ -178,5 +179,9 @@ impl<P> Actor for StuffingTxMonitorActor<P>
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "StuffingTxMonitorActor"
     }
 }

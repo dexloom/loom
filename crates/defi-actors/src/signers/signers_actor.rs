@@ -6,6 +6,7 @@ use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::TxSigners;
 use defi_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData, TxState};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
@@ -105,10 +106,8 @@ async fn request_listener_worker(
 
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct SignersActor
+pub struct TxSignersActor
 {
-    #[accessor]
-    signers: Option<SharedState<TxSigners>>,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
@@ -116,22 +115,30 @@ pub struct SignersActor
 
 }
 
-impl SignersActor
+impl TxSignersActor
 {
-    pub fn new() -> SignersActor {
-        SignersActor {
-            signers: None,
+    pub fn new() -> TxSignersActor {
+        TxSignersActor {
             compose_channel_rx: None,
             compose_channel_tx: None,
+        }
+    }
+
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            compose_channel_rx: Some(bc.compose_channel()),
+            compose_channel_tx: Some(bc.compose_channel()),
+            ..self
         }
     }
 }
 
 
 #[async_trait]
-impl Actor for SignersActor
+impl Actor for TxSignersActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             request_listener_worker(
                 self.compose_channel_rx.clone().unwrap().subscribe().await,
@@ -141,5 +148,9 @@ impl Actor for SignersActor
 
 
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "SignersActor"
     }
 }

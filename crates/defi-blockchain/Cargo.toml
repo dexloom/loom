@@ -1,0 +1,20 @@
+[package]
+name = "defi-blockchain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+defi-entities.workspace = true
+defi-types.workspace = true
+defi-events.workspace = true
+loom-actors.workspace = true
+loom-actors-macros.workspace = true
+
+revm.workspace = true
+alloy.workspace = true
+

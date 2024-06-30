@@ -21,10 +21,10 @@ async fn curve_protocol_loader_worker<P, T, N>(
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
 ) -> WorkerResult
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     /*
     let steth_pool = StEthPool::new();
@@ -124,10 +124,10 @@ pub struct ProtocolPoolLoaderActor<P, T, N>
 }
 
 impl<P, T, N> ProtocolPoolLoaderActor<P, T, N>
-    where
-        N: Network,
-        T: Transport + Clone,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -142,12 +142,12 @@ impl<P, T, N> ProtocolPoolLoaderActor<P, T, N>
 
 #[async_trait]
 impl<P, T, N> Actor for ProtocolPoolLoaderActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             curve_protocol_loader_worker(
                 self.client.clone(),
@@ -158,5 +158,9 @@ impl<P, T, N> Actor for ProtocolPoolLoaderActor<P, T, N>
 
 
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "ProtocolPoolLoaderActor"
     }
 }

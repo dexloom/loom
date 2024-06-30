@@ -3,16 +3,15 @@ use std::collections::BTreeMap;
 use alloy_primitives::{Address, TxHash};
 use alloy_provider::{Network, Provider};
 use alloy_provider::ext::DebugApi;
-use alloy_provider::network::Ethereum;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionRequest};
 use alloy_rpc_types_trace::common::TraceResult;
 use alloy_rpc_types_trace::geth::{AccountState, GethDebugBuiltInTracerType, GethDebugTracerConfig, GethDebugTracerType, GethDebugTracingCallOptions, GethDebugTracingOptions, GethDefaultTracingOptions, GethTrace, PreStateConfig, PreStateFrame};
 use alloy_rpc_types_trace::geth::GethDebugBuiltInTracerType::PreStateTracer;
 use alloy_rpc_types_trace::geth::GethDebugTracerType::BuiltInTracer;
-use alloy_transport::{BoxTransport, Transport};
+use alloy_transport::Transport;
 use eyre::Result;
 use lazy_static::lazy_static;
-use log::{info, trace};
+use log::trace;
 
 use debug_provider::DebugProviderExt;
 

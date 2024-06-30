@@ -6,6 +6,7 @@ use log::{debug, error, info, trace};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::{BlockHistory, LatestBlock, MarketState};
 use defi_events::{MarketEvents, NodeBlockLogsUpdate, NodeBlockStateUpdate};
 use defi_types::ChainParameters;
@@ -229,10 +230,25 @@ pub struct BlockHistoryActor
 
 impl BlockHistoryActor
 {
-    pub fn new(chain_parameters: ChainParameters) -> Self {
+    pub fn new() -> Self {
         Self {
-            chain_parameters,
+            chain_parameters: ChainParameters::ethereum(),
             ..Self::default()
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            chain_parameters: bc.chain_parameters(),
+            latest_block: Some(bc.latest_block()),
+            market_state: Some(bc.market_state()),
+            block_history: Some(bc.block_history()),
+            block_header_update_rx: Some(bc.new_block_headers_channel()),
+            block_update_rx: Some(bc.new_block_with_tx_channel()),
+            log_update_rx: Some(bc.new_block_logs_channel()),
+            state_update_rx: Some(bc.new_block_state_update_channel()),
+            market_events_tx: Some(bc.market_events_channel()),
+            ..self
         }
     }
 }
@@ -257,7 +273,7 @@ impl Default for BlockHistoryActor
 #[async_trait]
 impl Actor for BlockHistoryActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             new_block_history_worker(
                 self.chain_parameters.clone(),
@@ -272,5 +288,9 @@ impl Actor for BlockHistoryActor
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "BlockHistoryActor"
     }
 }

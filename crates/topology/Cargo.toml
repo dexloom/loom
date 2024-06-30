@@ -15,8 +15,8 @@ defi-types.workspace = true
 defi-events.workspace = true
 loom-multicaller.workspace = true
 flashbots.workspace = true
-
 loom-actors.workspace = true
+defi-blockchain.workspace = true
 
 alloy-primitives.workspace = true
 alloy-rpc-client.workspace = true

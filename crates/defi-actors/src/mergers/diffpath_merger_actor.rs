@@ -193,7 +193,7 @@ impl DiffPathMergerActor
 #[async_trait]
 impl Actor for DiffPathMergerActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             diff_path_merger_worker(
                 //self.encoder.clone(),
@@ -208,5 +208,9 @@ impl Actor for DiffPathMergerActor
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "DiffPathMergerActor"
     }
 }

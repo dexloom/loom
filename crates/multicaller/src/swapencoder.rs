@@ -3,9 +3,8 @@ use eyre::{eyre, OptionExt, Result};
 use log::error;
 
 use defi_entities::Swap;
-use defi_types::{MulticallerCall, MulticallerCalls};
+use defi_types::MulticallerCalls;
 
-use crate::opcodesencoder::OpcodesEncoderV2;
 use crate::SwapStepEncoder;
 
 pub trait SwapEncoder {
@@ -52,7 +51,6 @@ impl SwapEncoder for MulticallerSwapEncoder {
                 } else {
                     let mut multicaller_calls = MulticallerCalls::new();
                     for swap in swap_vec {
-                        let calls = self.make_calls(swap)?;
                         multicaller_calls = self.add_internal_calls(multicaller_calls, self.make_calls(swap)?)?;
                     }
                     Ok(multicaller_calls)

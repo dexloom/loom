@@ -5,13 +5,13 @@ use std::sync::Arc;
 use alloy_primitives::{Address, I256, U256};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, trace};
+use log::debug;
 use revm::InMemoryDB;
 use revm::primitives::Env;
 
 use defi_types::SwapError;
 
-use crate::{PoolWrapper, Swap, SwapStep, Token};
+use crate::{PoolWrapper, SwapStep, Token};
 use crate::swappath::SwapPath;
 
 lazy_static! {

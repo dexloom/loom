@@ -152,10 +152,10 @@ pub fn evm_access_list(state_db: &InMemoryDB, env: &Env, tx: &TransactionRequest
     }
 }
 
-fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
+pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
     let tx = tx.into();
 
-    let blob_gas = if block_header.blob_gas_used.is_some() && block_header.excess_blob_gas.is_some() {
+    /*let blob_gas = if block_header.blob_gas_used.is_some() && block_header.excess_blob_gas.is_some() {
         Some(BlobExcessGasAndPrice {
             excess_blob_gas: block_header.blob_gas_used.unwrap_or_default() as u64,
             blob_gasprice: block_header.excess_blob_gas.unwrap_or_default(),
@@ -163,6 +163,8 @@ fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
     } else {
         None
     };
+
+     */
 
     Env {
         cfg: Default::default(),

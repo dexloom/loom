@@ -38,4 +38,5 @@ strum_macros.workspace = true
 defi-types.workspace = true
 loom-utils.workspace = true
 debug-provider.workspace = true
-serde = { version = "1.0.198", features = ["derive"] }
+
+serde.workspace = true

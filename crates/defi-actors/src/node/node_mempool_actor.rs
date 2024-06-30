@@ -14,8 +14,8 @@ pub async fn new_node_mempool_worker<P>(
     name: String,
     mempool_tx: Broadcaster<MessageMempoolDataUpdate>,
 ) -> WorkerResult
-    where
-        P: Provider + Send + Sync + 'static,
+where
+    P: Provider + Send + Sync + 'static,
 {
     let mempool_subscription = client.subscribe_full_pending_transactions().await?;
     let mut stream = mempool_subscription.into_stream();
@@ -35,43 +35,58 @@ pub async fn new_node_mempool_worker<P>(
 
 #[derive(Producer)]
 pub struct NodeMempoolActor<P>
-    where
-        P: Provider + Send + Sync + Clone + 'static,
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
+    name: &'static str,
     client: P,
-    name: String,
     #[producer]
     mempool_tx: Option<Broadcaster<MessageMempoolDataUpdate>>,
 }
 
 impl<P> NodeMempoolActor<P>
-    where
-        P: Provider + Send + Sync + Clone + 'static,
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, name: String) -> NodeMempoolActor<P> {
+    pub fn new(client: P) -> NodeMempoolActor<P> {
         NodeMempoolActor {
             client,
-            name,
+            name: "NodeMempoolActor",
             mempool_tx: None,
         }
+    }
+
+    pub fn with_name(self, name: String) -> NodeMempoolActor<P> {
+        NodeMempoolActor {
+            name: Box::leak(name.into_boxed_str()),
+            ..self
+        }
+    }
+
+    fn get_name(&self) -> &'static str {
+        self.name
     }
 }
 
 
 #[async_trait]
 impl<P> Actor for NodeMempoolActor<P>
-    where
-        P: Provider + Send + Sync + Clone + 'static,
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             new_node_mempool_worker(
                 self.client.clone(),
-                self.name.clone(),
+                self.name.to_string(),
                 self.mempool_tx.clone().unwrap(),
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        self.get_name()
     }
 }
 

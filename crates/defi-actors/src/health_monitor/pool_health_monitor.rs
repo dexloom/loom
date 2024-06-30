@@ -89,7 +89,7 @@ impl PoolHealthMonitorActor
 #[async_trait]
 impl Actor for PoolHealthMonitorActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             pool_health_monitor_worker(
                 self.market.clone().unwrap(),
@@ -97,5 +97,9 @@ impl Actor for PoolHealthMonitorActor
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "PoolHealthMonitorActor"
     }
 }

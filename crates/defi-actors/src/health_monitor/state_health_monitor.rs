@@ -135,7 +135,8 @@ pub struct StateHealthMonitorActor<P>
 }
 
 impl<P> StateHealthMonitorActor<P>
-    where P: Provider + Send + Sync + Clone + 'static
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         StateHealthMonitorActor {
@@ -150,9 +151,10 @@ impl<P> StateHealthMonitorActor<P>
 
 #[async_trait]
 impl<P> Actor for StateHealthMonitorActor<P>
-    where P: Provider + Send + Sync + Clone + 'static
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             state_health_monitor_worker(
                 self.client.clone(),
@@ -162,5 +164,9 @@ impl<P> Actor for StateHealthMonitorActor<P>
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "StateHealthMonitorActor"
     }
 }

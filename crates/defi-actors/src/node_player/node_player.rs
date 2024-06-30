@@ -1,3 +1,4 @@
+use std::any::type_name;
 use std::marker::PhantomData;
 
 use alloy_network::{Ethereum, Network};
@@ -8,6 +9,7 @@ use alloy_transport::Transport;
 use async_trait::async_trait;
 
 use debug_provider::{DebugProviderExt, HttpCachedTransport};
+use defi_blockchain::Blockchain;
 use defi_events::{NodeBlockLogsUpdate, NodeBlockStateUpdate};
 use loom_actors::{Actor, ActorResult, Broadcaster, Producer};
 use loom_actors_macros::Producer;
@@ -51,16 +53,27 @@ where
             _n: PhantomData::default(),
         }
     }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            block_header_channel: Some(bc.new_block_headers_channel()),
+            block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
+            block_logs_channel: Some(bc.new_block_logs_channel()),
+            block_state_update_channel: Some(bc.new_block_state_update_channel()),
+
+            ..self
+        }
+    }
 }
 
 #[async_trait]
 impl<P, T, N> Actor for NodeBlockPlayerActor<P, T, N>
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
-    T: Send,
-    N: Send,
+    T: Send + Sync,
+    N: Send + Sync,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let handler = tokio::task::spawn(
             node_player_worker(
                 self.client.clone(),
@@ -73,6 +86,10 @@ where
             )
         );
         Ok(vec![handler])
+    }
+
+    fn name(&self) -> &'static str {
+        type_name::<Self>().rsplit("::").next().unwrap_or(type_name::<Self>())
     }
 }
 

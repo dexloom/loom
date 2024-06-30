@@ -60,10 +60,8 @@ async fn main() -> Result<()> {
     );
 
     match swap_path_encoder_actor
-        .access(blockchain.mempool())
         .access(tx_signers.clone())
         .access(blockchain.nonce_and_balance())
-        .access(blockchain.latest_block())
         .consume(blockchain.compose_channel())
         .produce(blockchain.compose_channel())
         .start().await {

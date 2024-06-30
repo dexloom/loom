@@ -121,5 +121,9 @@ impl TxSigners {
             None => Err(eyre!("SIGNER_NOT_FOUND"))
         }
     }
+
+    pub fn get_address_vec(&self) -> Vec<Address> {
+        self.signers_vec.iter().map(|s| s.address).collect()
+    }
 }
 

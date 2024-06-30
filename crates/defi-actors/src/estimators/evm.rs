@@ -230,7 +230,7 @@ impl EvmEstimatorActor {
 
 #[async_trait]
 impl Actor for EvmEstimatorActor {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             estimator_worker(
                 self.encoder.clone(),
@@ -239,5 +239,8 @@ impl Actor for EvmEstimatorActor {
             )
         );
         Ok(vec![task])
+    }
+    fn name(&self) -> &'static str {
+        "EvmEstimatorActor"
     }
 }

@@ -45,13 +45,13 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a HashMap<TxHash, V
 
     let mut ret: Vec<&TxComposeData> =
         swap_paths.iter().filter(|(k, _)| **k != swap_stuffing_hash).map(|(_k, v)|
-            v.iter().find(|a| {
-                if let Swap::BackrunSwapLine(a_line) = &a.swap {
-                    a_line.path == swap_line.path
-                } else {
-                    false
-                }
-            }).clone()
+        v.iter().find(|a| {
+            if let Swap::BackrunSwapLine(a_line) = &a.swap {
+                a_line.path == swap_line.path
+            } else {
+                false
+            }
+        }).clone()
         ).filter(|x| x.is_some()).map(|x| x.unwrap()).collect();
 
     ret.sort_by(|a, b| b.swap.abs_profit_eth().cmp(&a.swap.abs_profit_eth()));
@@ -70,10 +70,10 @@ async fn same_path_merger_task<P, T, N>
     request: TxComposeData,
     swap_request_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()>
-    where
-        N: Network,
-        T: Transport + Clone,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     info!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len() );
 
@@ -392,10 +392,10 @@ pub struct SamePathMergerActor<P, T, N>
 }
 
 impl<P, T, N> SamePathMergerActor<P, T, N>
-    where
-        N: Network,
-        T: Transport + Clone,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -417,12 +417,12 @@ impl<P, T, N> SamePathMergerActor<P, T, N>
 
 #[async_trait]
 impl<P, T, N> Actor for SamePathMergerActor<P, T, N>
-    where
-        N: Network,
-        T: Transport + Clone,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             same_path_merger_worker(
                 self.client.clone(),
@@ -438,5 +438,9 @@ impl<P, T, N> Actor for SamePathMergerActor<P, T, N>
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "SamePathMergerActor"
     }
 }

@@ -332,7 +332,9 @@ impl Service<RequestPacket> for HttpCachedTransport {
                                             trace!("responsepacket response : {:?} ", single_resp);
                                             trace!("responsepacket payload id : {} len {}", single_resp.id, single_resp.payload.as_success().unwrap().get().len());
                                         }
-                                        ResponsePacket::Batch(batch_resp) => {}
+                                        ResponsePacket::Batch(batch_resp) => {
+                                            error!("Batch response received {}", batch_resp.len())
+                                        }
                                     }
                                     Ok(response)
                                 }
@@ -343,42 +345,6 @@ impl Service<RequestPacket> for HttpCachedTransport {
                         })
                     }
                 }
-
-
-
-
-                /*Box::pin(async move {
-                    if single_req.method() == "eth_blockNumber" || single_req.method() == "get_block_number" {
-                        let value = RawValue::from_string(format!("{}", block_number).to_string()).unwrap();
-                        let body = Response { id: Id::None, payload: ResponsePayload::Success(value) };
-                        let packet = ResponsePacket::Single(body);
-                        Ok(packet)
-                    } else if single_req.method() == "eth_newBlockFilter" {
-                        let filter_id = self_clone.new_block_filter().await;
-
-                        let value = RawValue::from_string(format!("{}", filter_id).to_string()).unwrap();
-                        let body = Response { id: Id::None, payload: ResponsePayload::Success(value) };
-                        let packet = ResponsePacket::Single(body);
-                        Ok(packet)
-                    } else {
-                        match client_clone.call(RequestPacket::Single(single_req)).await {
-                            Ok(response) => {
-                                match &response {
-                                    ResponsePacket::Single(single_resp) => {
-                                        //println!("responsepacket payload id : {} len {}", single_resp.id, single_resp.payload.as_success().unwrap().get().len())
-                                    }
-                                    ResponsePacket::Batch(batch_resp) => {}
-                                }
-                                Ok(response)
-                            }
-                            Err(e) => {
-                                Err(e)
-                            }
-                        }
-                    }
-                })
-
-                 */
             }
             _ => {
                 self.client.call(req)

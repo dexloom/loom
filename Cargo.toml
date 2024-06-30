@@ -4,7 +4,7 @@
 members = [
     "bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer",
     "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools",
-    "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider"]
+    "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "crates/defi-blockchain"]
 default-members = ["bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer"]
 resolver = "2"
 
@@ -29,8 +29,10 @@ defi-entities = { path = "crates/defi-entities" }
 defi-pools = { path = "crates/defi-pools" }
 defi-abi = { path = "crates/defi-abi" }
 defi-events = { path = "crates/defi-events" }
+defi-blockchain = { path = "crates/defi-blockchain" }
 flashbots = { path = "crates/flashbots" }
 debug-provider = { path = "crates/debug-provider" }
+
 
 
 tokio = { version = "1.37.0", features = ["full"] }

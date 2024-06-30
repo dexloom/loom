@@ -253,7 +253,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> GethEstimatorActor<P> {
 
 #[async_trait]
 impl<P: Provider + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P> {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             estimator_worker(
                 self.client.clone(),
@@ -263,5 +263,9 @@ impl<P: Provider + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "GethEstimatorActor"
     }
 }

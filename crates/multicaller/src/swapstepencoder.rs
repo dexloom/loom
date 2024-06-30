@@ -3,7 +3,7 @@ use eyre::Result;
 use lazy_static::lazy_static;
 use log::debug;
 
-use defi_entities::{SwapAmountType, SwapLine, SwapStep};
+use defi_entities::{SwapAmountType, SwapStep};
 use defi_types::{MulticallerCall, MulticallerCalls};
 
 use crate::helpers::EncoderHelper;

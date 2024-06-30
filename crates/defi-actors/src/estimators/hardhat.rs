@@ -130,7 +130,7 @@ impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> HardhatEsti
 
 #[async_trait]
 impl<P: Provider + DebugProviderExt + Clone + Send + Sync + 'static> Actor for HardhatEstimatorActor<P> {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             estimator_worker::<P>(
                 //self.client.clone(),
@@ -140,5 +140,9 @@ impl<P: Provider + DebugProviderExt + Clone + Send + Sync + 'static> Actor for H
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "HardhatEstimatorActor"
     }
 }
