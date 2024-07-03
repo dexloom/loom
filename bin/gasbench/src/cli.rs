@@ -4,8 +4,11 @@ use clap::Parser;
 pub struct Cli {
     #[arg(short, long)]
     pub save: bool,
-    
-    #[arg(value_name = "FILE", help = "Input file")]
-    pub file: String,
+
+    #[arg(short, long)]
+    pub anvil: bool,
+
+    #[arg(value_name = "File", help = "File name")]
+    pub file: Option<String>,
 }
 

@@ -117,7 +117,7 @@ where
         }
     }
 
-    pub fn with_encoder(self, encoder: Arc<SwapStepEncoder>) -> Self {
+    pub fn with_encoder(self, encoder: &SwapStepEncoder) -> Self {
         let mut addresses = self.addresses;
         addresses.extend(vec![encoder.get_multicaller()]);
         Self {

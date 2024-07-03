@@ -13,9 +13,10 @@ pub trait SwapEncoder {
     fn make_calls(&self, swap: &Swap) -> Result<MulticallerCalls>;
 }
 
+#[derive(Clone)]
 pub struct MulticallerSwapEncoder {
-    multicaller_address: Address,
-    swap_step_encoder: SwapStepEncoder,
+    pub multicaller_address: Address,
+    pub swap_step_encoder: SwapStepEncoder,
 }
 
 impl MulticallerSwapEncoder {

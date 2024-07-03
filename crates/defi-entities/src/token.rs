@@ -213,10 +213,22 @@ impl Token {
 pub struct NWETH {}
 
 impl NWETH {
+    const NWETH_EXP: f64 = 10u64.pow(18) as f64;
+
     pub fn to_float(value: U256) -> f64 {
         let divider = U256::from(10).pow(U256::from(18));
+
+
         let ret = value.div_rem(divider);
-        ret.0.to::<u64>() as f64 + ((ret.1.to::<u64>() as f64) / (10u64.pow(18)) as f64)
+
+        let div = u64::try_from(ret.0);
+        let rem = u64::try_from(ret.1);
+
+        if div.is_err() || rem.is_err() {
+            0f64
+        } else {
+            div.unwrap_or_default() as f64 + ((rem.unwrap_or_default() as f64) / Self::NWETH_EXP)
+        }
     }
 
     pub fn from_float(value: f64) -> U256 {

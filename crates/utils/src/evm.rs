@@ -103,21 +103,22 @@ lazy_static! {
 
 pub fn evm_access_list(state_db: &InMemoryDB, env: &Env, tx: &TransactionRequest) -> Result<(u64, AccessList)>
 {
+    let mut env = env.clone();
+
     let txto = tx.to.unwrap_or_default().to().map_or(Address::ZERO, |x| *x);
 
-    let mut env = env.clone();
     env.tx.chain_id = tx.chain_id;
     env.tx.transact_to = TransactTo::Call(txto);
     env.tx.nonce = tx.nonce;
     env.tx.data = tx.input.clone().input.unwrap();
     env.tx.value = tx.value.unwrap_or_default();
     env.tx.caller = tx.from.unwrap_or_default();
+    env.tx.gas_price = U256::from(tx.max_fee_per_gas.unwrap_or(tx.gas_price.unwrap_or_default()));
     env.tx.gas_limit = tx.gas.unwrap_or_default() as u64;
-    env.tx.gas_price = U256::from(tx.max_fee_per_gas.unwrap_or_default());
     env.tx.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas.unwrap_or_default()));
 
     env.block.coinbase = *COINBASE;
-
+    
     let mut evm = Evm::builder().with_ref_db(state_db).with_spec_id(SHANGHAI).with_env(Box::new(env)).build();
 
     match evm.transact() {

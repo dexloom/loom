@@ -94,7 +94,7 @@ async fn main() -> Result<()> {
     let multicaller_address = MulticallerDeployer::new().set_code(client.clone(), Address::repeat_byte(0x78)).await?.address().ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     info!("Multicaller deployed at {:?}", multicaller_address);
 
-    let encoder = Arc::new(SwapStepEncoder::new(multicaller_address));
+    let encoder = SwapStepEncoder::new(multicaller_address);
 
     let block_nr = client.get_block_number().await?;
     info!("Block : {}", block_nr);
@@ -252,7 +252,7 @@ async fn main() -> Result<()> {
 
     info!("Starting market state preload actor");
     let mut market_state_preload_actor =
-        MarketStatePreloadedActor::new(client.clone()).with_encoder(encoder.clone()).with_signers(tx_signers.clone());
+        MarketStatePreloadedActor::new(client.clone()).with_encoder(&encoder).with_signers(tx_signers.clone());
     match market_state_preload_actor
         .access(market_state.clone())
         .start()

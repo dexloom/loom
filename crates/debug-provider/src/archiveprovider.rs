@@ -27,7 +27,7 @@ use crate::httpcached::HttpCachedTransport;
 #[derive(Clone)]
 pub struct ArchiveHistoryProvider<P, T> {
     provider: P,
-    curblock: Arc<AtomicU64>,
+    current_block: Arc<AtomicU64>,
     new_block_filter: Arc<RwLock<HashMap<U256, u64>>>,
     end_block: u64,
     _t: PhantomData<T>,
@@ -46,7 +46,7 @@ where
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     pub fn block_number(&self) -> u64 {
-        self.curblock.load(Ordering::Relaxed)
+        self.current_block.load(Ordering::Relaxed)
     }
 }
 
@@ -58,7 +58,7 @@ where
         provider.client().transport().set_block_number(start_block);
         Self {
             provider,
-            curblock: Arc::new(AtomicU64::new(start_block)),
+            current_block: Arc::new(AtomicU64::new(start_block)),
             new_block_filter: Arc::new(RwLock::new(HashMap::new())),
             end_block,
             _t: PhantomData,
@@ -66,7 +66,7 @@ where
     }
 
     pub fn next_block(&self) -> u64 {
-        let block = self.curblock.fetch_add(1, Ordering::Relaxed);
+        let block = self.current_block.fetch_add(1, Ordering::Relaxed);
         let previous_block = self.provider.client().transport().set_block_number(block);
         println!("Change block {previous_block} -> {block} ");
         block

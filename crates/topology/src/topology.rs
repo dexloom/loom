@@ -28,7 +28,7 @@ pub struct Topology
     clients: HashMap<String, ClientConfigParams>,
     blockchains: HashMap<String, Blockchain>,
     signers: HashMap<String, SharedState<TxSigners>>,
-    encoders: HashMap<String, Arc<SwapStepEncoder>>,
+    encoders: HashMap<String, SwapStepEncoder>,
     default_blockchain_name: Option<String>,
     default_encoder_name: Option<String>,
     default_signer_name: Option<String>,
@@ -97,7 +97,7 @@ impl Topology
                 EncoderConfig::SwapStep(c) => {
                     let address: Address = c.address.parse().unwrap();
                     let encoder = SwapStepEncoder::new(address);
-                    topology.encoders.insert(k.clone(), Arc::new(encoder));
+                    topology.encoders.insert(k.clone(), encoder);
                     topology.default_encoder_name = Some(k.clone());
                 }
             }
@@ -106,7 +106,6 @@ impl Topology
         let chain_params = ChainParameters::ethereum();
 
         for (k, params) in config.blockchains.iter() {
-            let db = CacheDB::new(EmptyDB::default());
             let blockchain = Blockchain::new(params.chain_id.unwrap_or(1));
 
 
@@ -232,10 +231,9 @@ impl Topology
 
             let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
             let client = topology.get_client(params.client.as_ref()).unwrap();
-            let encoder = topology.get_encoder(params.encoder.as_ref()).unwrap();
             let signers = topology.get_signers(params.signers.as_ref()).unwrap();
 
-            let mut market_state_preload_actor = MarketStatePreloadedActor::new(client).with_signers(signers.clone());
+            let mut market_state_preload_actor = MarketStatePreloadedActor::new(client).with_signers(signers.clone()).with_encoder(&topology.get_encoder(None)?);
             match market_state_preload_actor
                 .access(blockchain.market_state())
                 .start().await {
@@ -488,7 +486,7 @@ impl Topology
         }
     }
 
-    pub fn get_encoder(&self, name: Option<&String>) -> Result<Arc<SwapStepEncoder>> {
+    pub fn get_encoder(&self, name: Option<&String>) -> Result<SwapStepEncoder> {
         match self.encoders.get(name.unwrap_or(&self.default_encoder_name.clone().unwrap())) {
             Some(a) => { Ok(a.clone()) }
             None => { Err(eyre!("ENCODER_NOT_FOUND")) }

@@ -8,7 +8,7 @@ use defi_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, 
 use defi_types::{MulticallerCall, MulticallerCalls};
 
 use crate::helpers::EncoderHelper;
-use crate::opcodesencoder::{OpcodesEncoder, OpcodesEncoderV2};
+use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::poolencoders::{CurveSwapEncoder, StEthSwapEncoder, WstEthSwapEncoder};
 
 #[derive(Clone)]
@@ -24,7 +24,7 @@ impl SwapPathEncoder {
     }
 
 
-    pub fn encode_flash_swap_in_amount(&self, swap_path: &SwapLine, inside_swap_opcodes: MulticallerCalls, funds_to: Address) -> Result<MulticallerCalls> {
+    pub fn encode_flash_swap_line_in_amount(&self, swap_path: &SwapLine, inside_swap_opcodes: MulticallerCalls, funds_to: Address) -> Result<MulticallerCalls> {
         let mut flash_swap_opcodes = MulticallerCalls::new();
         let mut inside_opcodes = inside_swap_opcodes.clone();
 
@@ -222,7 +222,7 @@ impl SwapPathEncoder {
     }
 
 
-    pub fn encode_flash_swap_out_amount(&self, swap_path: &SwapLine, inside_swap_opcodes: MulticallerCalls, _funds_from: Address) -> Result<MulticallerCalls> {
+    pub fn encode_flash_swap_line_out_amount(&self, swap_path: &SwapLine, inside_swap_opcodes: MulticallerCalls, _funds_from: Address) -> Result<MulticallerCalls> {
         let mut flash_swap_opcodes = MulticallerCalls::new();
         let mut inside_opcodes = inside_swap_opcodes.clone();
 
@@ -434,7 +434,7 @@ impl SwapPathEncoder {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    pub fn encode_swap_in_amount(&self, swap_path: &SwapLine, funds_from: Address, funds_to: Address) -> Result<MulticallerCalls> {
+    pub fn encode_swap_line_in_amount(&self, swap_path: &SwapLine, funds_from: Address, funds_to: Address) -> Result<MulticallerCalls> {
         let mut swap_opcodes = MulticallerCalls::new();
 
 

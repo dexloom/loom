@@ -2,8 +2,10 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use alloy::primitives::{Address, BlockNumber, U256};
+use alloy::providers::WsConnect;
 use alloy_network::Network;
-use alloy_provider::Provider;
+use alloy_primitives::Bytes;
+use alloy_provider::{Provider, ProviderBuilder};
 use alloy_rpc_types::{BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_transport::Transport;
 use clap::Parser;
@@ -24,14 +26,16 @@ use defi_actors::{fetch_and_add_pool_by_address, preload_market_state};
 use defi_entities::{Market, MarketState, NWETH, PoolClass, PoolWrapper, Swap, SwapAmountType, SwapLine, SwapPath, Token};
 use loom_actors::SharedState;
 use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapEncoder};
-use loom_utils::db_direct_access::calc_hashmap_cell;
 use loom_utils::evm::evm_call;
+use loom_utils::remv_db_direct_access::calc_hashmap_cell;
 
 use crate::cli::Cli;
 use crate::dto::SwapLineDTO;
+use crate::soltest::create_sol_test;
 
 mod cli;
 mod dto;
+mod soltest;
 
 lazy_static! {
     static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
@@ -241,6 +245,42 @@ where
     }
 }
 
+async fn set_balance<P, T, N>(client: P, target_address: Address) -> Result<()>
+where
+    T: Transport + Clone,
+    N: alloy_network::Network,
+    P: Provider<T, N> + AnvilProviderExt<T, N> + Send + Sync + Clone + 'static,
+{
+    let weth_balance = NWETH::from_float(1.0);
+
+    let balance_cell = calc_hashmap_cell(U256::from(3), U256::from_be_slice(target_address.as_slice()));
+
+    match client.set_storage(*WETH_ADDRESS, balance_cell.into(), weth_balance.into()).await {
+        Err(e) => {
+            error!("{e}");
+            return Err(eyre!(e));
+        }
+        _ => {}
+    }
+
+
+    let new_storage = client.get_storage_at(*WETH_ADDRESS, balance_cell).await?;
+
+
+    if weth_balance != new_storage {
+        error!("{weth_balance} != {new_storage}");
+        return Err(eyre!("STORAGE_NOT_SET"));
+    }
+
+
+    let weth_instance = IERC20Instance::new(*WETH_ADDRESS, client.clone());
+
+    let balance = weth_instance.balanceOf(target_address).call().await?;
+    if balance._0 != NWETH::from_float(1.0) {
+        return Err(eyre!("BALANCE_NOT_SET"));
+    }
+    Ok(())
+}
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -256,7 +296,7 @@ async fn main() -> Result<()> {
         "ws://falcon.loop:8008/looper".to_string(),
         BlockNumber::from(block_number),
     ).await?;
-
+    //let client = ProviderBuilder::new().on_ws(WsConnect::new("ws://localhost:8545")).await?.boxed();
 
     //preset_balances(client.clone()).await?;
 
@@ -278,33 +318,8 @@ async fn main() -> Result<()> {
     info!("Multicaller deployed at {:?}", multicaller_address);
 
     // SET Multicaller WETH balance
-    let weth_balance = NWETH::from_float(1.0);
+    set_balance(client.clone(), multicaller_address).await?;
 
-    let balance_cell = calc_hashmap_cell(U256::from(3), U256::from_be_slice(multicaller_address.as_slice()));
-
-    match client.set_storage(*WETH_ADDRESS, balance_cell.into(), weth_balance.into()).await {
-        Err(e) => {
-            error!("{e}");
-            panic!("{e}")
-        }
-        _ => {}
-    }
-
-
-    let new_storage = client.get_storage_at(*WETH_ADDRESS, balance_cell).await?;
-
-    if weth_balance != new_storage {
-        error!("{weth_balance} != {new_storage}");
-        panic!("STORAGE_NOT_SET")
-    }
-
-
-    let weth_instance = IERC20Instance::new(*WETH_ADDRESS, client.clone());
-
-    let balance = weth_instance.balanceOf(multicaller_address).call().await?;
-    if balance._0 != NWETH::from_float(1.0) {
-        panic!("BALANCE_NOT_SET")
-    }
 
     // Initialization
     let cache_db = InMemoryDB::new(EmptyDB::new());
@@ -352,7 +367,6 @@ async fn main() -> Result<()> {
 
     let swap_paths = market.build_swap_path_vec(&btree_map)?;
 
-    let swap_path_map: HashMap<SwapPath, u64> = HashMap::new();
 
     let db = market_state_instance.read().await.state_db.clone();
 
@@ -366,6 +380,10 @@ async fn main() -> Result<()> {
     let in_amount = NWETH::from_float(in_amount_f64);
 
     let mut gas_used_map: HashMap<SwapLineDTO, u64> = HashMap::new();
+    let mut calldata_map: HashMap<SwapLineDTO, Bytes> = HashMap::new();
+
+    // Make tests
+
 
     for (i, s) in swap_paths.iter().enumerate() {
         if !s.tokens[0].is_weth() {
@@ -399,6 +417,8 @@ async fn main() -> Result<()> {
         let calls = encoder.make_calls(&swap)?;
         let (to, payload) = encoder.encode_calls(calls)?;
 
+        calldata_map.insert(s.clone().as_ref().into(), payload.clone());
+
         let tx_request = TransactionRequest::default()
             .to(to)
             .from(operator_address)
@@ -419,39 +439,48 @@ async fn main() -> Result<()> {
     }
 
 
-    if cli.save {
-        let results: Vec<(SwapLineDTO, u64)> = gas_used_map.into_iter().collect();
+    if let Some(bench_file) = cli.file {
+        if cli.anvil { // Save anvil test data
+            let mut calldata_vec: Vec<(SwapLineDTO, Bytes)> = calldata_map.into_iter().map(|(k, v)| (k, v)).collect();
+            calldata_vec.sort_by(|a, b| a.0.cmp(&b.0));
+            let calldata_vec: Vec<(String, Bytes)> = calldata_vec.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
+            let test_data = create_sol_test(calldata_vec);
+            println!("{}", test_data);
+            let mut file = File::create(bench_file).await?;
+            file.write_all(test_data.as_bytes()).await?;
+        } else if cli.save { // Save benchmark results
+            let results: Vec<(SwapLineDTO, u64)> = gas_used_map.into_iter().collect();
 
-        let json_string = serde_json::to_string_pretty(&results)?;
+            let json_string = serde_json::to_string_pretty(&results)?;
 
-        let mut file = File::create(cli.file).await?;
-        file.write_all(json_string.as_bytes()).await?;
-    } else {
-        let mut file = File::open(cli.file).await?;
-        let mut json_string = String::new();
-        file.read_to_string(&mut json_string).await?;
+            let mut file = File::create(bench_file).await?;
+            file.write_all(json_string.as_bytes()).await?;
+        } else { // Compare benchmark results
+            let mut file = File::open(bench_file).await?;
+            let mut json_string = String::new();
+            file.read_to_string(&mut json_string).await?;
 
-        let stored_results: Vec<(SwapLineDTO, u64)> = serde_json::from_str(&json_string)?;
+            let stored_results: Vec<(SwapLineDTO, u64)> = serde_json::from_str(&json_string)?;
 
+            let stored_gas_map: HashMap<SwapLineDTO, u64> = stored_results.clone().into_iter().map(|(k, v)| (k, v)).collect();
 
-        let stored_gas_map: HashMap<SwapLineDTO, u64> = stored_results.clone().into_iter().map(|(k, v)| (k, v)).collect();
-
-        for (current_entry, gas) in gas_used_map.iter() {
-            match stored_gas_map.get(current_entry) {
-                Some(stored_gas) => {
-                    let change_i: i64 = *gas as i64 - *stored_gas as i64;
-                    let change = format!("{change_i}");
-                    let change = if change_i > 0 {
-                        change.red()
-                    } else if change_i < 0 {
-                        change.green()
-                    } else {
-                        change.normal()
-                    };
-                    println!("{} : {} {} - {} ", change, current_entry, gas, stored_gas, );
-                }
-                None => {
-                    println!("{} : {} {}", "NO_DATA".green(), current_entry, gas, );
+            for (current_entry, gas) in gas_used_map.iter() {
+                match stored_gas_map.get(current_entry) {
+                    Some(stored_gas) => {
+                        let change_i: i64 = *gas as i64 - *stored_gas as i64;
+                        let change = format!("{change_i}");
+                        let change = if change_i > 0 {
+                            change.red()
+                        } else if change_i < 0 {
+                            change.green()
+                        } else {
+                            change.normal()
+                        };
+                        println!("{} : {} {} - {} ", change, current_entry, gas, stored_gas, );
+                    }
+                    None => {
+                        println!("{} : {} {}", "NO_DATA".green(), current_entry, gas, );
+                    }
                 }
             }
         }
