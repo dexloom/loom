@@ -1,5 +1,5 @@
 pub use anvilprovider::AnvilProviderExt;
-pub use debugprovider::{AnvilControl, AnvilDebugProvider, AnvilDebugProviderType, DebugProviderExt};
+pub use debugprovider::{AnvilDebugProvider, AnvilDebugProviderFactory, AnvilDebugProviderType, DebugProviderExt};
 pub use httpcached::HttpCachedTransport;
 
 mod debugprovider;

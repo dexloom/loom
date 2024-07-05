@@ -22,10 +22,10 @@ use loom_utils::evm::evm_call;
 use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};
 
 pub struct CurvePool<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     address: Address,
     pool_contract: Arc<CurveContract<P, T, N>>,
@@ -39,10 +39,10 @@ pub struct CurvePool<P, T, N>
 }
 
 impl<P, T, N> Clone for CurvePool<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     fn clone(&self) -> Self {
         Self {
@@ -60,10 +60,10 @@ impl<P, T, N> Clone for CurvePool<P, T, N>
 }
 
 impl<P, T, N> CurvePool<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn get_meta_coin_idx(&self, address: Address) -> Result<u32> {
         match self.get_coin_idx(address) {
@@ -147,8 +147,6 @@ impl<P, T, N> CurvePool<P, T, N>
                                                             pool_contract.clone()));
 
 
-        let abi_encoder = Arc::new(CurveAbiSwapEncoder::new(pool_contract.get_address(), Vec::new(), None, None, false, false, pool_contract.clone()));
-
         Ok(CurvePool {
             address: pool_contract.get_address(),
             abi_encoder,
@@ -166,10 +164,10 @@ impl<P, T, N> CurvePool<P, T, N>
 
 #[async_trait]
 impl<P, T, N> Pool for CurvePool<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     fn get_class(&self) -> PoolClass {
         PoolClass::Curve
@@ -364,10 +362,10 @@ impl<P, T, N> Pool for CurvePool<P, T, N>
 
 #[derive(Clone)]
 struct CurveAbiSwapEncoder<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pool_address: Address,
     tokens: Vec<Address>,
@@ -379,10 +377,10 @@ struct CurveAbiSwapEncoder<P, T, N>
 }
 
 impl<P, T, N> CurveAbiSwapEncoder<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(pool_address: Address, tokens: Vec<Address>, underlying_tokens: Option<Vec<Address>>, lp_token: Option<Address>, is_meta: bool, is_native: bool, curve_contract: Arc<CurveContract<P, T, N>>) -> Self {
         Self {
@@ -433,10 +431,10 @@ impl<P, T, N> CurveAbiSwapEncoder<P, T, N>
 }
 
 impl<P, T, N> AbiSwapEncoder for CurveAbiSwapEncoder<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     fn encode_swap_out_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
@@ -518,7 +516,7 @@ mod tests {
     use revm::InMemoryDB;
     use revm::primitives::Env;
 
-    use debug_provider::{AnvilControl, AnvilDebugProviderType};
+    use debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use defi_entities::{MarketState, Pool};
     use defi_entities::required_state::RequiredStateReader;
 

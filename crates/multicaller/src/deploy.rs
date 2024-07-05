@@ -157,14 +157,14 @@ impl MulticallerDeployer {
 mod test {
     use std::sync::Arc;
 
-    use debug_provider::AnvilControl;
+    use debug_provider::AnvilDebugProviderFactory;
 
     use super::*;
 
     #[tokio::test]
     async fn test_deploy() -> Result<()>
     {
-        let anvil_provider = Arc::new(AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19109956).await?);
+        let anvil_provider = Arc::new(AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19109956).await?);
 
         let block = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
         println!("Block number : {}", block.unwrap().header.number.unwrap_or_default());

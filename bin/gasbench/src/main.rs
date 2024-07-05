@@ -20,7 +20,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use debug_provider::{AnvilControl, AnvilProviderExt, DebugProviderExt};
+use debug_provider::{AnvilDebugProviderFactory, AnvilProviderExt, DebugProviderExt};
 use defi_abi::IERC20::IERC20Instance;
 use defi_actors::{fetch_and_add_pool_by_address, preload_market_state};
 use defi_entities::{Market, MarketState, NWETH, PoolClass, PoolWrapper, Swap, SwapAmountType, SwapLine, SwapPath, Token};
@@ -29,257 +29,22 @@ use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapEncoder}
 use loom_utils::evm::evm_call;
 use loom_utils::remv_db_direct_access::calc_hashmap_cell;
 
+use crate::balances::set_balance;
 use crate::cli::Cli;
 use crate::dto::SwapLineDTO;
+use crate::preloader::{preload_pools, WETH_ADDRESS};
 use crate::soltest::create_sol_test;
 
 mod cli;
 mod dto;
 mod soltest;
-
-lazy_static! {
-    static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
-        .parse()
-        .unwrap();
-    static ref USDC_ADDRESS: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"
-        .parse()
-        .unwrap();
-    static ref USDT_ADDRESS: Address = "0xdAC17F958D2ee523a2206206994597C13D831ec7"
-        .parse()
-        .unwrap();
-    static ref DAI_ADDRESS: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F"
-        .parse()
-        .unwrap();
-    static ref WBTC_ADDRESS: Address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599"
-        .parse()
-        .unwrap();
-    static ref THREECRV_ADDRESS: Address = "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490"
-        .parse()
-        .unwrap();
-    static ref CRV_ADDRESS: Address = "0xD533a949740bb3306d119CC777fa900bA034cd52"
-        .parse()
-        .unwrap();
-}
+mod preloader;
+mod balances;
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
 struct SwapPathDTO {
     tokens: Vec<Address>,
     pools: Vec<Address>,
-}
-
-async fn preload_pools<P, T, N>(
-    client: P,
-    market: SharedState<Market>,
-    market_state: SharedState<MarketState>,
-) -> Result<()>
-where
-    N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-{
-    let weth_token = Token::new_with_data(
-        *WETH_ADDRESS,
-        Some("WETH".to_string()),
-        None,
-        Some(18),
-        true,
-        false,
-    );
-    let usdc_token = Token::new_with_data(
-        *USDC_ADDRESS,
-        Some("USDC".to_string()),
-        None,
-        Some(6),
-        true,
-        false,
-    );
-    let usdt_token = Token::new_with_data(
-        *USDT_ADDRESS,
-        Some("USDT".to_string()),
-        None,
-        Some(6),
-        true,
-        false,
-    );
-    let dai_token = Token::new_with_data(
-        *DAI_ADDRESS,
-        Some("DAI".to_string()),
-        None,
-        Some(18),
-        true,
-        false,
-    );
-    let wbtc_token = Token::new_with_data(
-        *WBTC_ADDRESS,
-        Some("WBTC".to_string()),
-        None,
-        Some(8),
-        true,
-        false,
-    );
-    let threecrv_token = Token::new_with_data(
-        *THREECRV_ADDRESS,
-        Some("3Crv".to_string()),
-        None,
-        Some(18),
-        false,
-        true,
-    );
-    let crv_token = Token::new_with_data(
-        *CRV_ADDRESS,
-        Some("Crv".to_string()),
-        None,
-        Some(18),
-        false,
-        false,
-    );
-
-    let mut market_instance = market.write().await;
-
-    market_instance.add_token(weth_token)?;
-    market_instance.add_token(usdc_token)?;
-    market_instance.add_token(usdt_token)?;
-    market_instance.add_token(dai_token)?;
-    market_instance.add_token(wbtc_token)?;
-    market_instance.add_token(threecrv_token)?;
-    market_instance.add_token(crv_token)?;
-
-    drop(market_instance);
-
-    fetch_and_add_pool_by_address(
-        client.clone(),
-        market.clone(),
-        market_state.clone(),
-        "0x17C1Ae82D99379240059940093762c5e4539aba5"
-            .parse()
-            .unwrap(),
-        PoolClass::UniswapV2,
-    )
-        .await?; // Pancake USDT WETH +
-    fetch_and_add_pool_by_address(
-        client.clone(),
-        market.clone(),
-        market_state.clone(),
-        "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852"
-            .parse()
-            .unwrap(),
-        PoolClass::UniswapV2,
-    )
-        .await?; // USDT WETH +
-    fetch_and_add_pool_by_address(
-        client.clone(),
-        market.clone(),
-        market_state.clone(),
-        "0x04c8577958ccc170eb3d2cca76f9d51bc6e42d8f"
-            .parse()
-            .unwrap(),
-        PoolClass::UniswapV3,
-    )
-        .await?; // USDT USDC +
-    fetch_and_add_pool_by_address(
-        client.clone(),
-        market.clone(),
-        market_state.clone(),
-        "0x8ad599c3a0ff1de082011efddc58f1908eb6e6d8"
-            .parse()
-            .unwrap(),
-        PoolClass::UniswapV3,
-    )
-        .await?; // USDC WETH +
-    fetch_and_add_pool_by_address(
-        client.clone(),
-        market.clone(),
-        market_state.clone(),
-        "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640"
-            .parse()
-            .unwrap(),
-        PoolClass::UniswapV3,
-    )
-        .await?; // USDC WETH +
-    fetch_and_add_pool_by_address(
-        client.clone(),
-        market.clone(),
-        market_state.clone(),
-        "0x9db9e0e53058c89e5b94e29621a205198648425b"
-            .parse()
-            .unwrap(),
-        PoolClass::UniswapV3,
-    )
-        .await?; // USDT WBTC +
-    fetch_and_add_pool_by_address(
-        client.clone(),
-        market.clone(),
-        market_state.clone(),
-        "0x3416cF6C708Da44DB2624D63ea0AAef7113527C6"
-            .parse()
-            .unwrap(),
-        PoolClass::UniswapV3,
-    )
-        .await?; // USDT USDC +
-    //fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(),"0xCBCdF9626bC03E24f779434178A73a0B4bad62eD".parse().unwrap(), PoolClass::UniswapV3 ).await?; //ETH WBTC +
-    //fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(),"0xbb2b8038a1640196fbe3e38816f3e67cba72d940".parse().unwrap(), PoolClass::UniswapV2 ).await?; //ETH WBTC +
-    //fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(),"0x4ab6702b3ed3877e9b1f203f90cbef13d663b0e8".parse().unwrap(), PoolClass::UniswapV2 ).await?; // pancake WBTC WETH +-
-
-    Ok(())
-}
-
-async fn preset_balances<P, T, N>(client: P) -> Result<()>
-where
-    N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-{
-    let uni_pool_address: Address = "0xCBCdF9626bC03E24f779434178A73a0B4bad62eD".parse()?;
-
-    let balance_storage_cell = calc_hashmap_cell(U256::from(3u32), U256::from_be_slice(uni_pool_address.as_slice()));
-
-    let value = client
-        .get_storage_at(*WETH_ADDRESS, balance_storage_cell)
-        .await?;
-
-    if value.is_zero() {
-        Err(eyre!("BAD_BALANCE_CELL"))
-    } else {
-        debug!("Balance at cell balance_storage_cell {balance_storage_cell} is {value}");
-        Ok(())
-    }
-}
-
-async fn set_balance<P, T, N>(client: P, target_address: Address) -> Result<()>
-where
-    T: Transport + Clone,
-    N: alloy_network::Network,
-    P: Provider<T, N> + AnvilProviderExt<T, N> + Send + Sync + Clone + 'static,
-{
-    let weth_balance = NWETH::from_float(1.0);
-
-    let balance_cell = calc_hashmap_cell(U256::from(3), U256::from_be_slice(target_address.as_slice()));
-
-    match client.set_storage(*WETH_ADDRESS, balance_cell.into(), weth_balance.into()).await {
-        Err(e) => {
-            error!("{e}");
-            return Err(eyre!(e));
-        }
-        _ => {}
-    }
-
-
-    let new_storage = client.get_storage_at(*WETH_ADDRESS, balance_cell).await?;
-
-
-    if weth_balance != new_storage {
-        error!("{weth_balance} != {new_storage}");
-        return Err(eyre!("STORAGE_NOT_SET"));
-    }
-
-
-    let weth_instance = IERC20Instance::new(*WETH_ADDRESS, client.clone());
-
-    let balance = weth_instance.balanceOf(target_address).call().await?;
-    if balance._0 != NWETH::from_float(1.0) {
-        return Err(eyre!("BALANCE_NOT_SET"));
-    }
-    Ok(())
 }
 
 #[tokio::main]
@@ -292,7 +57,7 @@ async fn main() -> Result<()> {
     let block_number = 20089277u64;
 
     println!("Hello, block {block_number}!");
-    let client = AnvilControl::from_node_on_block(
+    let client = AnvilDebugProviderFactory::from_node_on_block(
         "ws://falcon.loop:8008/looper".to_string(),
         BlockNumber::from(block_number),
     ).await?;
@@ -318,7 +83,7 @@ async fn main() -> Result<()> {
     info!("Multicaller deployed at {:?}", multicaller_address);
 
     // SET Multicaller WETH balance
-    set_balance(client.clone(), multicaller_address).await?;
+    set_balance(client.clone(), multicaller_address, *WETH_ADDRESS).await?;
 
 
     // Initialization
@@ -390,7 +155,7 @@ async fn main() -> Result<()> {
             continue;
         }
         let sp = s.as_ref().clone();
-        println!("{} : {:?}", i, sp);
+        let sp_dto: SwapLineDTO = (&sp).into();
 
         let mut swapline = SwapLine {
             path: sp,
@@ -401,7 +166,8 @@ async fn main() -> Result<()> {
         match swapline.calculate_with_in_amount(&db, env.clone(), in_amount) {
             Ok((out_amount, gas_used)) => {
                 info!(
-                    "gas: {}  amount {} -> {}",
+                    "{} gas: {}  amount {} -> {}",
+                    sp_dto,
                     gas_used,
                     in_amount_f64,
                     NWETH::to_float(out_amount)
@@ -426,7 +192,7 @@ async fn main() -> Result<()> {
 
         let gas_used = match client.estimate_gas(&tx_request).await {
             Ok(gas_needed) => {
-                info!("Gas required:  {gas_needed}");
+                //info!("Gas required:  {gas_needed}");
                 gas_needed as u64
             }
             Err(e) => {

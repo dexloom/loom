@@ -16,7 +16,7 @@ use log::{debug, error, info, LevelFilter};
 use revm::db::EmptyDB;
 use revm::InMemoryDB;
 
-use debug_provider::{AnvilControl, AnvilDebugProvider, DebugProviderExt};
+use debug_provider::{AnvilDebugProvider, AnvilDebugProviderFactory, DebugProviderExt};
 use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, StateChangeArbSearcherActor, TxSignersActor};
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, Pool, PoolClass, PoolWrapper, Swap, Token, TxSigners};
 use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate, TxCompose};
@@ -86,7 +86,7 @@ async fn main() -> Result<()> {
     let test_config = TestConfig::from_file(args.config).await?;
 
 
-    let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), test_config.settings.block).await?;
+    let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), test_config.settings.block).await?;
 
     let priv_key = client.privkey()?;
 

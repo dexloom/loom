@@ -41,11 +41,11 @@ where
 }
 
 
-pub struct AnvilControl {}
+pub struct AnvilDebugProviderFactory {}
 
 pub type AnvilDebugProviderType = AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>;
 
-impl AnvilControl {
+impl AnvilDebugProviderFactory {
     pub async fn from_node_on_block(node_url: String, block: BlockNumber) -> Result<AnvilDebugProviderType> {
         let node_ws = WsConnect::new(node_url.clone());
         let node_provider = ProviderBuilder::new().on_ws(node_ws).await?.boxed();

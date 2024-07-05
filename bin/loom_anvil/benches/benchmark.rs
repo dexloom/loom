@@ -19,7 +19,7 @@ use revm::primitives::Env;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
-use debug_provider::AnvilControl;
+use debug_provider::AnvilDebugProviderFactory;
 use defi_entities::{MarketState, Pool, PoolWrapper};
 use defi_entities::required_state::RequiredStateReader;
 use defi_pools::{UniswapV2Pool, UniswapV3Pool};
@@ -56,7 +56,7 @@ async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
 
     let block_number: BlockNumber = 19948348;
 
-    let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), block_number).await?;
+    let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), block_number).await?;
 
     let mut market_state = MarketState::new(CacheDB::new(EmptyDB::default()));
 
@@ -320,7 +320,7 @@ fn benchmark(c: &mut Criterion) {
 
      */
     group.bench_function("tokio_parallel_run", |b|
-        b.iter(|| rt.block_on(sync_run(black_box(&cache_db), black_box(pool.clone())))),
+    b.iter(|| rt.block_on(sync_run(black_box(&cache_db), black_box(pool.clone())))),
     );
 
     group.finish();

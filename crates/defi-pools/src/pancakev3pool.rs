@@ -421,7 +421,7 @@ mod tests {
     use env_logger::Env as EnvLog;
     use revm::db::EmptyDB;
 
-    use debug_provider::AnvilControl;
+    use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::MarketState;
     use defi_entities::required_state::RequiredStateReader;
 
@@ -433,7 +433,7 @@ mod tests {
         std::env::set_var("RUST_BACKTRACE", "1");
         env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
 
-        let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19931897).await.unwrap();
+        let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19931897).await.unwrap();
 
 
         //let weth_address : Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();

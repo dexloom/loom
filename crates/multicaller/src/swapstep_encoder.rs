@@ -1,7 +1,7 @@
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::Result;
 use lazy_static::lazy_static;
-use log::debug;
+use log::{debug, trace};
 
 use defi_entities::{SwapAmountType, SwapStep};
 use defi_types::{MulticallerCall, MulticallerCalls};
@@ -104,7 +104,7 @@ impl SwapStepEncoder {
         }
 
 
-        debug!("funds_to {:?}", flash_funds_to);
+        trace!("funds_to {:?}", flash_funds_to);
 
         let mut swap_opcodes = MulticallerCalls::new();
 
