@@ -23,10 +23,10 @@ pub async fn new_pool_worker<P, T, N>(
     market_state: SharedState<MarketState>,
     mut log_update_rx: Receiver<NodeBlockLogsUpdate>,
 ) -> WorkerResult
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     loop {
         tokio::select! {
@@ -70,10 +70,10 @@ pub struct NewPoolLoaderActor<P, T, N>
 }
 
 impl<P, T, N> NewPoolLoaderActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         NewPoolLoaderActor {
@@ -90,12 +90,12 @@ impl<P, T, N> NewPoolLoaderActor<P, T, N>
 
 #[async_trait]
 impl<P, T, N> Actor for NewPoolLoaderActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             new_pool_worker(
                 self.client.clone(),
@@ -105,5 +105,9 @@ impl<P, T, N> Actor for NewPoolLoaderActor<P, T, N>
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "NewPoolLoaderActor"
     }
 }

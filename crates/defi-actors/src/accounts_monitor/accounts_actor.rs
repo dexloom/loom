@@ -13,6 +13,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
 
+use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory};
 use defi_events::MarketEvents;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
@@ -22,10 +23,10 @@ pub async fn nonce_and_balance_fetcher_worker<P, T, N>(
     client: P,
     accounts_state: SharedState<AccountNonceAndBalanceState>,
 ) -> WorkerResult
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     let eth_addr = Address::ZERO;
 
@@ -113,7 +114,7 @@ pub struct NonceAndBalanceMonitorActor<P, T, N>
 {
     client: P,
     #[accessor]
-    accounts_state: Option<SharedState<AccountNonceAndBalanceState>>,
+    accounts_nonce_and_balance: Option<SharedState<AccountNonceAndBalanceState>>,
     #[accessor]
     block_history: Option<SharedState<BlockHistory>>,
     #[consumer]
@@ -123,34 +124,43 @@ pub struct NonceAndBalanceMonitorActor<P, T, N>
 }
 
 impl<P, T, N> NonceAndBalanceMonitorActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> NonceAndBalanceMonitorActor<P, T, N> {
         NonceAndBalanceMonitorActor {
             client,
-            accounts_state: None,
+            accounts_nonce_and_balance: None,
             block_history: None,
             market_events: None,
             _t: PhantomData::default(),
             _n: PhantomData::default(),
         }
     }
+
+    pub fn on_bc(self, bc: &Blockchain) -> NonceAndBalanceMonitorActor<P, T, N> {
+        NonceAndBalanceMonitorActor {
+            accounts_nonce_and_balance: Some(bc.nonce_and_balance()),
+            block_history: Some(bc.block_history().clone()),
+            market_events: Some(bc.market_events_channel().clone()),
+            ..self
+        }
+    }
 }
 
 #[async_trait]
 impl<P, T, N> Actor for NonceAndBalanceMonitorActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let monitor_task = tokio::task::spawn(
             nonce_and_balance_monitor_worker(
-                self.accounts_state.clone().unwrap(),
+                self.accounts_nonce_and_balance.clone().unwrap(),
                 self.block_history.clone().unwrap(),
                 self.market_events.clone().unwrap().subscribe().await,
             )
@@ -159,10 +169,14 @@ impl<P, T, N> Actor for NonceAndBalanceMonitorActor<P, T, N>
         let fetcher_task = tokio::task::spawn(
             nonce_and_balance_fetcher_worker(
                 self.client.clone(),
-                self.accounts_state.clone().unwrap(),
+                self.accounts_nonce_and_balance.clone().unwrap(),
             )
         );
 
         Ok(vec![monitor_task, fetcher_task])
+    }
+
+    fn name(&self) -> &'static str {
+        "NonceAndBalanceMonitorActor"
     }
 }

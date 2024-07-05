@@ -1,26 +1,25 @@
 use async_trait::async_trait;
-use eyre::{eyre, Result};
+use eyre::Result;
 use tokio::task::JoinHandle;
 
 use crate::channels::Broadcaster;
 use crate::shared_state::SharedState;
 
 pub type WorkerResult = Result<String>;
+
 pub type ActorResult = Result<Vec<JoinHandle<WorkerResult>>>;
 
 
 #[async_trait]
 pub trait Actor
 {
-    //start actor
-    async fn start(&mut self) -> ActorResult {
-        Err(eyre!("NOT_IMPLEMENTED"))
-    }
+    async fn start(&self) -> ActorResult;
+    fn name(&self) -> &'static str;
 }
 
 pub trait Producer<T>
-    where
-        T: Sync + Send + Clone
+where
+    T: Sync + Send + Clone,
 {
     fn produce(&mut self, _broadcaster: Broadcaster<T>) -> &mut Self {
         panic!("Not implemented");
@@ -28,8 +27,8 @@ pub trait Producer<T>
 }
 
 pub trait Consumer<T>
-    where
-        T: Sync + Send + Clone
+where
+    T: Sync + Send + Clone,
 {
     fn consume(&mut self, _receiver: Broadcaster<T>) -> &mut Self {
         panic!("Not implemented");
@@ -48,7 +47,7 @@ mod test {
     use crate::actor::{Actor, Consumer, Producer, SharedState};
     use crate::channels::Broadcaster;
 
-//use crate::macros::*;
+    //use crate::macros::*;
 
     #[derive(Clone)]
     struct DataStruct0 {

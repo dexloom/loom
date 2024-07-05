@@ -2,6 +2,7 @@ use async_trait::async_trait;
 use log::{error, info};
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::{BlockHistory, GasStation};
 use defi_events::MarketEvents;
 use defi_events::MarketEvents::BlockTxUpdate;
@@ -62,7 +63,7 @@ pub struct GasStationActor
     #[accessor]
     gas_station: Option<SharedState<GasStation>>,
     #[accessor]
-    market_history_state: Option<SharedState<BlockHistory>>,
+    block_history: Option<SharedState<BlockHistory>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     #[producer]
@@ -76,7 +77,7 @@ impl Default for GasStationActor
             chain_parameters: ChainParameters::ethereum(),
             market_events_tx: None,
             market_events_rx: None,
-            market_history_state: None,
+            block_history: None,
             gas_station: None,
         }
     }
@@ -84,10 +85,20 @@ impl Default for GasStationActor
 
 impl GasStationActor
 {
-    pub fn new(chain_parameters: ChainParameters) -> GasStationActor {
+    pub fn new() -> GasStationActor {
         Self {
-            chain_parameters,
+            chain_parameters: ChainParameters::ethereum(),
             ..Self::default()
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            chain_parameters: bc.chain_parameters(),
+            gas_station: Some(bc.gas_station()),
+            block_history: Some(bc.block_history()),
+            market_events_rx: Some(bc.market_events_channel()),
+            market_events_tx: Some(bc.market_events_channel()),
         }
     }
 }
@@ -96,12 +107,12 @@ impl GasStationActor
 #[async_trait]
 impl Actor for GasStationActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             new_gas_worker(
                 self.chain_parameters.clone(),
                 self.gas_station.clone().unwrap(),
-                self.market_history_state.clone().unwrap(),
+                self.block_history.clone().unwrap(),
                 self.market_events_rx.clone().unwrap().subscribe().await,
                 self.market_events_tx.clone().unwrap(),
             )
@@ -109,5 +120,9 @@ impl Actor for GasStationActor
 
 
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "GasStationActor"
     }
 }

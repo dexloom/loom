@@ -9,8 +9,9 @@ use log::error;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::LatestBlock;
-use defi_events::{MessageTxCompose, RlpState, TxCompose, TxComposeBest, TxComposeData};
+use defi_events::{BestTxCompose, MessageTxCompose, RlpState, TxCompose, TxComposeData};
 use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
@@ -18,10 +19,9 @@ use loom_actors_macros::{Accessor, Consumer};
 async fn broadcast_task<P>(
     broadcast_request: TxComposeData,
     client: Arc<Flashbots<P>>,
-    //latest_block : SharedState<LatestBlock>,
 ) -> Result<()>
-    where
-        P: Provider + Send + Sync + Clone + 'static
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
     let block_number = broadcast_request.block;
 
@@ -50,14 +50,13 @@ async fn broadcast_task<P>(
 async fn flashbots_broadcaster_worker<P>(
     client: Arc<Flashbots<P>>,
     smart_mode: bool,
-    //latest_block: SharedState<LatestBlock>,
     mut bundle_rx: Receiver<MessageTxCompose>,
 ) -> WorkerResult
-    where
-        P: Provider + Send + Sync + Clone + 'static
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
     let mut current_block: u64 = 0;
-    let mut best_request: TxComposeBest = Default::default();
+    let mut best_request: BestTxCompose = Default::default();
 
     loop {
         tokio::select! {
@@ -70,7 +69,7 @@ async fn flashbots_broadcaster_worker<P>(
                                 if smart_mode {
                                     if current_block < broadcast_request.block {
                                         current_block = broadcast_request.block;
-                                        best_request = TxComposeBest::new_with_pct( U256::from(8000));
+                                        best_request = BestTxCompose::new_with_pct( U256::from(8000));
                                     }
 
                                     if best_request.check(&broadcast_request) {
@@ -112,41 +111,48 @@ pub struct FlashbotsBroadcastActor<P>
 {
     client: Arc<Flashbots<P>>,
     smart: bool,
-    #[accessor]
-    latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
     tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
 }
 
 impl<P> FlashbotsBroadcastActor<P>
-    where
-        P: Provider + Send + Sync + Clone + 'static
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
     pub fn new(client: Flashbots<P>, smart: bool) -> FlashbotsBroadcastActor<P> {
         FlashbotsBroadcastActor {
             client: Arc::new(client),
             smart,
-            latest_block: None,
             tx_compose_channel_rx: None,
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            tx_compose_channel_rx: Some(bc.compose_channel()),
+            ..self
         }
     }
 }
 
 #[async_trait]
 impl<P> Actor for FlashbotsBroadcastActor<P>
-    where
-        P: Provider + Send + Sync + Clone + 'static
+where
+    P: Provider + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             flashbots_broadcaster_worker(
                 self.client.clone(),
                 self.smart,
-                //self.latest_block.clone().unwrap(),
                 self.tx_compose_channel_rx.clone().unwrap().subscribe().await,
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "FlashbotsBroadcastActor"
     }
 }
 

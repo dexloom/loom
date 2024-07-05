@@ -51,10 +51,10 @@ pub async fn pending_tx_state_change_task<P, T, N>(
     cur_state_override: StateOverride,
     state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
 ) -> Result<()>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 
 {
     let mut state_update_vec: GethStateUpdateVec = Vec::new();
@@ -250,10 +250,10 @@ pub async fn pending_tx_state_change_worker<P, T, N>(
     mut market_events_rx: Receiver<MarketEvents>,
     state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
 ) -> WorkerResult
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     let affecting_tx: Arc<RwLock<HashMap<TxHash, bool>>> = Arc::new(RwLock::new(HashMap::new()));
     //let mut cur_base_fee: u128 = 0;
@@ -343,10 +343,10 @@ pub struct PendingTxStateChangeProcessorActor<P, T, N>
 }
 
 impl<P, T, N> PendingTxStateChangeProcessorActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> PendingTxStateChangeProcessorActor<P, T, N> {
         PendingTxStateChangeProcessorActor {
@@ -366,12 +366,12 @@ impl<P, T, N> PendingTxStateChangeProcessorActor<P, T, N>
 
 #[async_trait]
 impl<P, T, N> Actor for PendingTxStateChangeProcessorActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             pending_tx_state_change_worker(
                 self.client.clone(),
@@ -385,5 +385,9 @@ impl<P, T, N> Actor for PendingTxStateChangeProcessorActor<P, T, N>
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "PendingTxStateChangeProcessorActor"
     }
 }

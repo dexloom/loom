@@ -10,6 +10,7 @@ use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::{GasStation, NWETH};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
@@ -21,7 +22,7 @@ use crate::estimators::tips::tips_and_value_for_swap_type;
 
 async fn estimator_task(
     estimate_request: TxComposeData,
-    encoder: Arc<SwapStepEncoder>,
+    encoder: SwapStepEncoder,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
     info!("EVM estimation");
@@ -74,6 +75,12 @@ async fn estimator_task(
         match evm_access_list(&db, &evm_env, &tx_request) {
             Ok((gas_used, access_list)) => {
                 let swap = estimate_request.swap.clone();
+
+                if gas_used < 60_000 {
+                    error!("Incorrect transaction estimation {} Gas used : {}",swap, gas_used );
+                    return Err(eyre!("TRANSACTION_ESTIMATED_INCORRECTLY"));
+                }
+
 
                 let gas_cost = GasStation::calc_gas_cost(gas_used as u128, gas_price);
 
@@ -151,7 +158,7 @@ async fn estimator_task(
 
 
                 //TODO add formated paths
-                info!(" +++ Simulation successful. Cost {} Profit {} ProfitEth {} Tips {} {} {}",  gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, swap, sim_duration );
+                info!(" +++ Simulation successful. Cost {} Profit {} ProfitEth {} Tips {} {}  Gas used {} Time {}",  gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, swap, gas_used, sim_duration );
 
                 result
             }
@@ -167,7 +174,7 @@ async fn estimator_task(
 }
 
 async fn estimator_worker(
-    encoder: Arc<SwapStepEncoder>,
+    encoder: SwapStepEncoder,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
@@ -211,7 +218,7 @@ async fn estimator_worker(
 #[derive(Consumer, Producer)]
 pub struct EvmEstimatorActor
 {
-    encoder: Arc<SwapStepEncoder>,
+    encoder: SwapStepEncoder,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
@@ -219,18 +226,26 @@ pub struct EvmEstimatorActor
 }
 
 impl EvmEstimatorActor {
-    pub fn new(encoder: Arc<SwapStepEncoder>) -> Self {
+    pub fn new(encoder: SwapStepEncoder) -> Self {
         Self {
             encoder,
             compose_channel_tx: None,
             compose_channel_rx: None,
         }
     }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            compose_channel_tx: Some(bc.compose_channel()),
+            compose_channel_rx: Some(bc.compose_channel()),
+            ..self
+        }
+    }
 }
 
 #[async_trait]
 impl Actor for EvmEstimatorActor {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             estimator_worker(
                 self.encoder.clone(),
@@ -239,5 +254,8 @@ impl Actor for EvmEstimatorActor {
             )
         );
         Ok(vec![task])
+    }
+    fn name(&self) -> &'static str {
+        "EvmEstimatorActor"
     }
 }

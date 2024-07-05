@@ -28,10 +28,10 @@ use defi_abi::curve::ICurveU256_3_Eth_To2::{ICurveU256_3_Eth_To2Calls, ICurveU25
 
 #[derive(Clone, Debug)]
 pub enum CurveContract<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     I128_2(ICurveI128_2Instance<T, P, N>),
     I128_2_To(ICurveI128_2_ToInstance<T, P, N>),
@@ -47,10 +47,10 @@ pub enum CurveContract<P, T, N>
 }
 
 impl<P, T, N> Display for CurveContract<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
@@ -73,10 +73,10 @@ impl<P, T, N> Display for CurveContract<P, T, N>
 }
 
 pub struct CurveCommonContract<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     p: PhantomData<P>,
     t: PhantomData<T>,
@@ -84,10 +84,10 @@ pub struct CurveCommonContract<P, T, N>
 }
 
 impl<P, T, N> CurveCommonContract<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 
 {
     pub async fn lp_token(client: P, address: Address) -> Result<Address> {
@@ -127,18 +127,37 @@ impl<P, T, N> CurveCommonContract<P, T, N>
         }
     }
 
+    pub async fn balance128(client: P, address: Address, coin_id: u32) -> Result<U256> {
+        let common_contract = ICurveCommonI128Instance::new(address, client);
+        match common_contract.balances(coin_id as i128).call_raw().await {
+            Ok(ret_data) => {
+                if ret_data.len() >= 32 {
+                    let balance = U256::from_be_slice(&ret_data[0..32]);
+                    Ok(balance)
+                } else {
+                    Err(eyre!("CANNOT_GET_COIN_BALANCE"))
+                }
+            }
+            Err(e) => {
+                trace!("balances128 call error {} : {}", coin_id, e);
+                Err(eyre!("CANNOT_GET_COIN_BALANCE"))
+            }
+        }
+    }
+
     pub async fn balance(client: P, address: Address, coin_id: u32) -> Result<U256> {
         let common_contract = ICurveCommonInstance::new(address, client.clone());
-        match common_contract.balances(U256::from(coin_id)).call().await {
-            Ok(balance) => Ok(balance._0),
+        match common_contract.balances(U256::from(coin_id)).call_raw().await {
+            Ok(ret_data) => {
+                let balance = U256::from_be_slice(&ret_data[0..32]);
+                Ok(balance)
+            }
             Err(e) => {
-                let common_contract = ICurveCommonI128Instance::new(address, client);
-                match common_contract.balances(coin_id as i128).call().await {
-                    Ok(balance) => Ok(balance._0),
-                    Err(e) => {
-                        trace!("coin call error {}", e);
-                        Err(eyre!("CANNOT_GET_COIN_ADDRESS"))
-                    }
+                trace!("balances256 call error {} : {}", coin_id, e);
+                if coin_id == 0 {
+                    Self::balance128(client, address, coin_id).await
+                } else {
+                    Err(eyre!("CANNOT_GET_COIN_BALANCE"))
                 }
             }
         }
@@ -200,10 +219,10 @@ impl<P, T, N> CurveCommonContract<P, T, N>
 }
 
 impl<P, T, N> CurveContract<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn get_address(&self) -> Address {
         match self {
@@ -513,10 +532,10 @@ impl<P, T, N> CurveContract<P, T, N>
 
 
 pub struct CurveProtocol<P, N, T>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     p: PhantomData<P>,
     n: PhantomData<N>,
@@ -525,10 +544,10 @@ pub struct CurveProtocol<P, N, T>
 
 
 impl<P, N, T> CurveProtocol<P, N, T>
-    where
-        N: Network,
-        T: Transport + Clone,
-        P: Provider<T, N> + Send + Sync + Clone + 'static
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn get_underlying_tokens(meta_token_address: Address) -> Result<Vec<Address>> {
         if meta_token_address == "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse::<Address>().unwrap() {
@@ -682,7 +701,7 @@ impl<P, N, T> CurveProtocol<P, N, T>
             for i in 20..code.len() - 1 {
                 if code[i] == 0x5A && code[i + 1] == 0xF4 {
                     let underlying_address = Address::from_slice(&code.to_vec()[i - 20..i]);
-                    println!("Underlying address {}", underlying_address);
+                    debug!("get_contract_from_code Underlying address {}", underlying_address);
                     code = client.get_code_at(underlying_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await?;
                     break;
                 }
@@ -716,7 +735,7 @@ impl<P, N, T> CurveProtocol<P, N, T>
             return Ok(Self::new_u256_2_to(client, address));
         }
         if Self::match_abi(&code, ICurveU256_2Calls::selectors().into_iter().collect()) {
-            return Ok(Self::new_u256_2_to(client, address));
+            return Ok(Self::new_u256_2(client, address));
         }
         if Self::match_abi(&code, ICurveU256_2_Eth_ToCalls::selectors().into_iter().collect()) {
             return Ok(Self::new_u256_2_eth_to(client, address));

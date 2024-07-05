@@ -1,18 +1,13 @@
-use std::collections::BTreeMap;
-use std::convert::Infallible;
 use std::fmt::{Display, Formatter};
 use std::panic::panic_any;
-use std::str::FromStr;
 use std::sync::Arc;
 use std::time::Duration;
 
 use alloy_consensus::TxEnvelope;
-use alloy_node_bindings::Anvil;
 use alloy_primitives::{Address, BlockHash, BlockNumber, TxHash, U256};
 use alloy_provider::{Provider, ProviderBuilder, ProviderLayer};
 use alloy_provider::network::eip2718::Encodable2718;
 use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, BlockTransactionsKind, Header, Log};
-use alloy_transport_http::reqwest::Url;
 use alloy_transport_ws::WsConnect;
 use clap::Parser;
 use env_logger::Env as EnvLog;
@@ -21,10 +16,10 @@ use log::{debug, error, info, LevelFilter};
 use revm::db::EmptyDB;
 use revm::InMemoryDB;
 
-use debug_provider::{AnvilControl, AnvilDebugProvider, DebugProviderExt};
-use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, SignersActor, StateChangeArbActor, StateChangeArbSearcherActor};
-use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, Pool, PoolClass, PoolWrapper, Token, TxSigners};
-use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate, Swap, TxCompose};
+use debug_provider::{AnvilDebugProvider, AnvilDebugProviderFactory, DebugProviderExt};
+use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, StateChangeArbSearcherActor, TxSignersActor};
+use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, Pool, PoolClass, PoolWrapper, Swap, Token, TxSigners};
+use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate, TxCompose};
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
 use defi_types::{ChainParameters, debug_trace_block, debug_trace_call_diff, GethStateUpdateVec, Mempool};
@@ -91,7 +86,7 @@ async fn main() -> Result<()> {
     let test_config = TestConfig::from_file(args.config).await?;
 
 
-    let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), test_config.settings.block).await?;
+    let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), test_config.settings.block).await?;
 
     let priv_key = client.privkey()?;
 
@@ -99,7 +94,7 @@ async fn main() -> Result<()> {
     let multicaller_address = MulticallerDeployer::new().set_code(client.clone(), Address::repeat_byte(0x78)).await?.address().ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     info!("Multicaller deployed at {:?}", multicaller_address);
 
-    let encoder = Arc::new(SwapStepEncoder::new(multicaller_address));
+    let encoder = SwapStepEncoder::new(multicaller_address);
 
     let block_nr = client.get_block_number().await?;
     info!("Block : {}", block_nr);
@@ -119,11 +114,11 @@ async fn main() -> Result<()> {
 
     let mut cache_db = InMemoryDB::new(EmptyDB::new());
 
-    let mut market_instance = Market::default();
+    let market_instance = Market::default();
 
-    let mut market_state_instance = MarketState::new(cache_db.clone());
+    let market_state_instance = MarketState::new(cache_db.clone());
 
-    let mut mempool_instance = Mempool::new();
+    let mempool_instance = Mempool::new();
 
     info!("Creating channels");
     let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
@@ -148,8 +143,8 @@ async fn main() -> Result<()> {
     let mut block_history_state =
         SharedState::new(BlockHistory::fetch(client.clone(), market_state.inner(), 10).await?);
 
-    let mut tx_signers = TxSigners::new();
-    let mut accounts_state = AccountNonceAndBalanceState::new();
+    let tx_signers = TxSigners::new();
+    let accounts_state = AccountNonceAndBalanceState::new();
 
     let mut tx_signers = SharedState::new(tx_signers);
     let mut accounts_state = SharedState::new(accounts_state);
@@ -257,10 +252,9 @@ async fn main() -> Result<()> {
 
     info!("Starting market state preload actor");
     let mut market_state_preload_actor =
-        MarketStatePreloadedActor::new(client.clone(), encoder.clone());
+        MarketStatePreloadedActor::new(client.clone()).with_encoder(&encoder).with_signers(tx_signers.clone());
     match market_state_preload_actor
         .access(market_state.clone())
-        .access(tx_signers.clone())
         .start()
         .await
     {
@@ -319,7 +313,7 @@ async fn main() -> Result<()> {
     }
 
     info!("Starting gas station actor");
-    let mut gas_station_actor = GasStationActor::new(chain_params.clone());
+    let mut gas_station_actor = GasStationActor::new();
     match gas_station_actor
         .access(gas_station_state.clone())
         .access(block_history_state.clone())
@@ -337,7 +331,7 @@ async fn main() -> Result<()> {
     }
 
     info!("Starting block history actor");
-    let mut block_history_actor = BlockHistoryActor::new(chain_params.clone());
+    let mut block_history_actor = BlockHistoryActor::new();
     match block_history_actor
         .access(latest_block.clone())
         .access(market_state.clone())
@@ -363,7 +357,6 @@ async fn main() -> Result<()> {
 
     let mut broadcast_actor = AnvilBroadcastActor::new(client.clone());
     match broadcast_actor
-        .access(latest_block.clone())
         .consume(tx_compose_channel.clone())
         .start()
         .await
@@ -396,11 +389,8 @@ async fn main() -> Result<()> {
         let mut swap_path_encoder_actor = ArbSwapPathEncoderActor::new(multicaller_address);
 
         match swap_path_encoder_actor
-            .access(mempool_instance.clone())
-            //.access(market_state.clone())
             .access(tx_signers.clone())
             .access(accounts_state.clone())
-            .access(latest_block.clone())
             .consume(tx_compose_channel.clone())
             .produce(tx_compose_channel.clone())
             .start()
@@ -419,9 +409,8 @@ async fn main() -> Result<()> {
     // Start signer actor that signs paths before broadcasting
     if test_config.modules.signer {
         info!("Starting signers actor");
-        let mut signers_actor = SignersActor::new();
+        let mut signers_actor = TxSignersActor::new();
         match signers_actor
-            .access(tx_signers.clone())
             .consume(tx_compose_channel.clone())
             .produce(tx_compose_channel.clone())
             .start().await {

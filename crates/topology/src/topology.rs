@@ -12,14 +12,14 @@ use log::{error, info};
 use revm::db::{CacheDB, EmptyDB};
 use tokio::task::JoinHandle;
 
-use defi_actors::{BlockHistoryActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, SignersActor};
+use defi_actors::{BlockHistoryActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, TxSignersActor};
+use defi_blockchain::Blockchain;
 use defi_entities::TxSigners;
 use defi_types::ChainParameters;
 use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, Consumer, Producer, SharedState, WorkerResult};
 use loom_multicaller::SwapStepEncoder;
 
-use crate::blockchain::Blockchain;
 use crate::topology_config::{BroadcasterConfig, ClientConfigParams, EncoderConfig, EstimatorConfig, SignersConfig, TopologyConfig};
 use crate::topology_config::TransportType;
 
@@ -28,7 +28,7 @@ pub struct Topology
     clients: HashMap<String, ClientConfigParams>,
     blockchains: HashMap<String, Blockchain>,
     signers: HashMap<String, SharedState<TxSigners>>,
-    encoders: HashMap<String, Arc<SwapStepEncoder>>,
+    encoders: HashMap<String, SwapStepEncoder>,
     default_blockchain_name: Option<String>,
     default_encoder_name: Option<String>,
     default_signer_name: Option<String>,
@@ -97,7 +97,7 @@ impl Topology
                 EncoderConfig::SwapStep(c) => {
                     let address: Address = c.address.parse().unwrap();
                     let encoder = SwapStepEncoder::new(address);
-                    topology.encoders.insert(k.clone(), Arc::new(encoder));
+                    topology.encoders.insert(k.clone(), encoder);
                     topology.default_encoder_name = Some(k.clone());
                 }
             }
@@ -106,12 +106,11 @@ impl Topology
         let chain_params = ChainParameters::ethereum();
 
         for (k, params) in config.blockchains.iter() {
-            let db = CacheDB::new(EmptyDB::default());
-            let blockchain = Blockchain::new(params.chain_id.unwrap_or(1), db);
+            let blockchain = Blockchain::new(params.chain_id.unwrap_or(1));
 
 
             info!("Starting block history actor {k}");
-            let mut block_history_actor = BlockHistoryActor::new(chain_params.clone());
+            let mut block_history_actor = BlockHistoryActor::new();
             match block_history_actor
                 .access(blockchain.latest_block())
                 .access(blockchain.market_state())
@@ -150,7 +149,7 @@ impl Topology
             }
 
             info!("Starting gas station actor {k}");
-            let mut gas_station_actor = GasStationActor::new(chain_params.clone());
+            let mut gas_station_actor = GasStationActor::new();
             match gas_station_actor
                 .access(blockchain.gas_station())
                 .access(blockchain.block_history())
@@ -207,9 +206,8 @@ impl Topology
                         }
                     }
 
-                    let mut signers_actor = SignersActor::new();
+                    let mut signers_actor = TxSignersActor::new();
                     match signers_actor
-                        .access(signers.clone())
                         .consume(blockchain.compose_channel())
                         .produce(blockchain.compose_channel())
                         .start().await {
@@ -233,13 +231,11 @@ impl Topology
 
             let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
             let client = topology.get_client(params.client.as_ref()).unwrap();
-            let encoder = topology.get_encoder(params.encoder.as_ref()).unwrap();
             let signers = topology.get_signers(params.signers.as_ref()).unwrap();
 
-            let mut market_state_preload_actor = MarketStatePreloadedActor::new(client, encoder);
+            let mut market_state_preload_actor = MarketStatePreloadedActor::new(client).with_signers(signers.clone()).with_encoder(&topology.get_encoder(None)?);
             match market_state_preload_actor
                 .access(blockchain.market_state())
-                .access(signers)
                 .start().await {
                 Ok(r) => {
                     tasks.extend(r);
@@ -258,7 +254,7 @@ impl Topology
             let client_config = topology.get_client_config(params.client.as_ref()).unwrap();
 
             info!("Starting node actor {name}");
-            let mut node_block_actor = NodeBlockActor::new(client, client_config.db_path);
+            let mut node_block_actor = NodeBlockActor::new(client).with_reth_db(client_config.db_path);
             match node_block_actor
                 .produce(blockchain.new_block_headers_channel())
                 .produce(blockchain.new_block_with_tx_channel())
@@ -280,7 +276,7 @@ impl Topology
             match topology.get_client(params.client.as_ref()) {
                 Ok(client) => {
                     println!("Starting node mempool actor {name}");
-                    let mut node_mempool_actor = NodeMempoolActor::new(client, name.clone());
+                    let mut node_mempool_actor = NodeMempoolActor::new(client).with_name(name.clone());
                     match node_mempool_actor
                         .produce(blockchain.new_mempool_tx_channel())
                         .start().await {
@@ -348,7 +344,6 @@ impl Topology
                     let flashbots_client = Flashbots::new(client, "https://relay.flashbots.net");
                     let mut flashbots_actor = FlashbotsBroadcastActor::new(flashbots_client, params.smart.unwrap_or(false));
                     match flashbots_actor
-                        .access(blockchain.latest_block())
                         .consume(blockchain.compose_channel())
                         .start().await {
                         Ok(r) => {
@@ -491,7 +486,7 @@ impl Topology
         }
     }
 
-    pub fn get_encoder(&self, name: Option<&String>) -> Result<Arc<SwapStepEncoder>> {
+    pub fn get_encoder(&self, name: Option<&String>) -> Result<SwapStepEncoder> {
         match self.encoders.get(name.unwrap_or(&self.default_encoder_name.clone().unwrap())) {
             Some(a) => { Ok(a.clone()) }
             None => { Err(eyre!("ENCODER_NOT_FOUND")) }

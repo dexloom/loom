@@ -5,6 +5,7 @@ use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, LatestBlock, Swap, SwapAmountType, SwapLine, SwapStep, TxSigners};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
 use defi_types::{Mempool, MulticallerCalls};
@@ -104,8 +105,6 @@ async fn arb_swap_path_encoder_worker(
     encoder: SwapStepEncoder,
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
-    //latest_block: SharedState<LatestBlock>,
-    //mempool: SharedState<Mempool>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult
@@ -126,8 +125,6 @@ async fn arb_swap_path_encoder_worker(
                                         encoder.clone(),
                                         signers.clone(),
                                         account_monitor.clone(),
-                                        //latest_block.clone(),
-                                        //mempool.clone(),
                                     )
                                 );
                             }
@@ -147,13 +144,9 @@ pub struct ArbSwapPathEncoderActor
 {
     encoder: SwapStepEncoder,
     #[accessor]
-    mempool: Option<SharedState<Mempool>>,
-    #[accessor]
     signers: Option<SharedState<TxSigners>>,
     #[accessor]
-    account_monitor: Option<SharedState<AccountNonceAndBalanceState>>,
-    #[accessor]
-    latest_block: Option<SharedState<LatestBlock>>,
+    account_nonce_balance: Option<SharedState<AccountNonceAndBalanceState>>,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
@@ -164,30 +157,46 @@ impl ArbSwapPathEncoderActor {
     pub fn new(multicaller: Address) -> ArbSwapPathEncoderActor {
         ArbSwapPathEncoderActor {
             encoder: SwapStepEncoder::new(multicaller),
-            mempool: None,
             signers: None,
-            account_monitor: None,
-            latest_block: None,
+            account_nonce_balance: None,
             compose_channel_rx: None,
             compose_channel_tx: None,
+        }
+    }
+
+    pub fn with_signers(self, signers: SharedState<TxSigners>) -> Self {
+        Self {
+            signers: Some(signers),
+            ..self
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            account_nonce_balance: Some(bc.nonce_and_balance()),
+            compose_channel_rx: Some(bc.compose_channel()),
+            compose_channel_tx: Some(bc.compose_channel()),
+            ..self
         }
     }
 }
 
 #[async_trait]
 impl Actor for ArbSwapPathEncoderActor {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             arb_swap_path_encoder_worker(
                 self.encoder.clone(),
                 self.signers.clone().unwrap(),
-                self.account_monitor.clone().unwrap(),
-                //self.latest_block.clone().unwrap(),
-                //self.mempool.clone().unwrap(),
+                self.account_nonce_balance.clone().unwrap(),
                 self.compose_channel_rx.clone().unwrap().subscribe().await,
                 self.compose_channel_tx.clone().unwrap(),
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "ArbSwapPathEncoderActor"
     }
 }

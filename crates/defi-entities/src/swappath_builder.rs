@@ -116,9 +116,10 @@ fn build_swap_path_four_hopes_basic_in(market: &Market, pool: &PoolWrapper, toke
 
             if let Some(token_tokens_0) = market.get_token_tokens(token_middle_address) {
                 for token_middle_address_0 in token_tokens_0.iter() {
-                    if !market.get_token_or_default(token_middle_address_0).is_basic() {
+                    /*if !market.get_token_or_default(token_middle_address_0).is_basic() {
                         continue;
                     }
+                     */
 
                     if let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) {
                         if let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, token_middle_address_0) {
@@ -161,7 +162,6 @@ fn build_swap_path_four_hopes_basic_in(market: &Market, pool: &PoolWrapper, toke
                                                         } else {
                                                             continue;
                                                         }
-
 
                                                         ret.push(
                                                             swap
@@ -267,9 +267,10 @@ fn build_swap_path_four_hopes_basic_out(market: &Market, pool: &PoolWrapper, tok
             }
             if let Some(token_tokens_2) = market.get_token_tokens(token_middle_address) {
                 for token_middle_address_0 in token_tokens_2.iter() {
-                    if !market.get_token_or_default(token_middle_address_0).is_basic() {
+                    /*if !market.get_token_or_default(token_middle_address_0).is_basic() {
                         continue;
                     }
+                     */
 
                     if let Some(token_token_pools_0) = market.get_token_token_pools(&token_to_address, token_middle_address_0) {
                         if let Some(token_token_pools_1) = market.get_token_token_pools(token_middle_address_0, token_middle_address) {
@@ -407,9 +408,9 @@ pub fn build_swap_path_vec(market: &Market, directions: &BTreeMap<PoolWrapper, V
                 ret_map.extend(build_swap_path_two_hopes_basic_out(market, pool, token_from_address, token_to_address)?);
                 ret_map.extend(build_swap_path_three_hopes_basic_out(market, pool, token_from_address, token_to_address)?);
 
-                if market.is_basic_token(&token_from_address) {
-                    ret_map.extend(build_swap_path_four_hopes_basic_out(market, pool, token_from_address, token_to_address)?);
-                }
+                //if market.is_basic_token(&token_from_address) {
+                ret_map.extend(build_swap_path_four_hopes_basic_out(market, pool, token_from_address, token_to_address)?);
+                //}
             }
 
             if market.is_basic_token(&token_from_address) {

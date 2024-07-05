@@ -6,19 +6,19 @@ use alloy_network::eip2718::Encodable2718;
 use alloy_primitives::{Address, B256, Bytes, TxHash};
 use alloy_primitives::private::alloy_rlp::Encodable;
 use alloy_rpc_types::TransactionRequest;
-use alloy_signer_local::LocalWallet;
+use alloy_signer_local::PrivateKeySigner;
 use eyre::{eyre, OptionExt, Result};
 use rand::Rng;
 
 #[derive(Clone)]
 pub struct TxSigner {
     address: Address,
-    wallet: LocalWallet,
+    wallet: PrivateKeySigner,
 }
 
 impl Default for TxSigner {
     fn default() -> Self {
-        let wallet = LocalWallet::random();
+        let wallet = PrivateKeySigner::random();
         Self {
             address: wallet.address(),
             wallet,
@@ -36,7 +36,7 @@ impl fmt::Debug for TxSigner {
 
 
 impl TxSigner {
-    pub fn new(wallet: LocalWallet) -> TxSigner {
+    pub fn new(wallet: PrivateKeySigner) -> TxSigner {
         TxSigner {
             address: wallet.address(),
             wallet,
@@ -59,7 +59,7 @@ impl TxSigner {
     }
 
     pub fn sign_sync(&self, tx_req: TransactionRequest) -> Result<(TxHash, Bytes)> {
-        let mut typed_tx = tx_req.build_unsigned().map_err(|e| {
+        let mut typed_tx = tx_req.build_unsigned().map_err(|_| {
             eyre!("CANNOT_BUILD_UNSIGNED")
         })?.eip1559().ok_or_eyre("NOT_EIP_1599")?.clone();
 
@@ -94,7 +94,7 @@ impl TxSigners {
         self.signers_vec.is_empty()
     }
     pub fn add_privkey(&mut self, priv_key: Bytes) -> TxSigner {
-        let wallet = LocalWallet::from_bytes(&B256::from_slice(priv_key.as_ref())).unwrap();
+        let wallet = PrivateKeySigner::from_bytes(&B256::from_slice(priv_key.as_ref())).unwrap();
         if self.signers_vec.iter().find(|&item| item.address() == wallet.address()).is_none() {
             self.signers_vec.push(TxSigner::new(wallet.clone()));
         }
@@ -120,6 +120,10 @@ impl TxSigners {
             Some(s) => Ok(s.clone()),
             None => Err(eyre!("SIGNER_NOT_FOUND"))
         }
+    }
+
+    pub fn get_address_vec(&self) -> Vec<Address> {
+        self.signers_vec.iter().map(|s| s.address).collect()
     }
 }
 

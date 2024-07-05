@@ -12,8 +12,8 @@ use log::{error, info};
 use debug_provider::DebugProviderExt;
 use defi_entities::{Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
 use defi_entities::required_state::RequiredStateReader;
-use defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
-use defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory};
+use defi_pools::{CurvePool, MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
+use defi_pools::protocols::{CurveProtocol, fetch_uni2_factory, fetch_uni3_factory};
 use loom_actors::SharedState;
 
 lazy_static! {
@@ -65,10 +65,10 @@ pub async fn fetch_and_add_pool_by_address<P, T, N>(
     pool_address: Address,
     pool_class: PoolClass,
 ) -> Result<()>
-    where
-        N: Network,
-        T: Transport + Clone,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     info!("Fetching pool {:#20x}", pool_address);
 
@@ -118,6 +118,26 @@ pub async fn fetch_and_add_pool_by_address<P, T, N>(
                 }
             }
         }
+        PoolClass::Curve => {
+            match CurveProtocol::get_contract_from_code(client.clone(), pool_address).await {
+                Ok(curve_contract) => {
+                    let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
+                    let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
+
+                    match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
+                        Err(e) => {
+                            error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
+                        }
+                        Ok(_) => {
+                            info!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
+                        }
+                    }
+                }
+                Err(e) => {
+                    error!("Error getting curve contract from code {}", pool_address)
+                }
+            }
+        }
         _ => {
             error!("Error pool not supported at {:#20x}",pool_address);
             return Err(eyre!("POOL_CLASS_NOT_SUPPORTED"));
@@ -132,10 +152,10 @@ pub async fn fetch_state_and_add_pool<P, T, N>(
     market_state: SharedState<MarketState>,
     pool_wrapped: PoolWrapper,
 ) -> Result<()>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     match pool_wrapped.get_state_required() {
         Ok(required_state) => {
@@ -157,7 +177,7 @@ pub async fn fetch_state_and_add_pool<P, T, N>(
                         let mut directions_tree: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
 
                         directions_tree.insert(pool_wrapped.clone(), directions_vec);
-                        
+
                         let mut market_write_guard = market.write().await;
                         if let Err(e) = market_write_guard.add_pool(pool_wrapped) {
                             error!("{}", e)

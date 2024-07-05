@@ -455,7 +455,7 @@ mod tests {
     use revm::InMemoryDB;
     use revm::primitives::Env;
 
-    use debug_provider::AnvilControl;
+    use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::{MarketState, Pool};
     use defi_entities::required_state::RequiredStateReader;
 
@@ -469,7 +469,7 @@ mod tests {
         env_logger::init_from_env(EnvLog::default().default_filter_or("debug,defi_pools=trace"));
 
         //let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19931897).await?;
-        let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20045799).await?;
+        let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20045799).await?;
 
         let mut market_state = MarketState::new(InMemoryDB::default());
 

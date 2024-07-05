@@ -15,6 +15,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use debug_provider::AnvilProviderExt;
+use defi_blockchain::Blockchain;
 use defi_entities::LatestBlock;
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
@@ -24,17 +25,17 @@ async fn broadcast_task<P, T, N>(
     client: P,
     request: TxComposeData,
 ) -> Result<()>
-    where
-        N: Network,
-        T: Transport + Clone,
-        P: Provider<T, N> + AnvilProviderExt<T, N> + Clone + Send + Sync + 'static
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + AnvilProviderExt<T, N> + Clone + Send + Sync + 'static,
 {
     info!("Hardhat broadcast request received : {}", request.origin.unwrap_or("UNKNOWN_ORIGIN".to_string()));
     //let snap = client.dev_rpc().snapshot().await?;
     //info!("Hardhat snapshot created {snap}");
 
     for tx_rlp in request.rlp_bundle.unwrap_or_default().iter() {
-        let mut tx_bytes = tx_rlp.clone().unwrap().clone();
+        let tx_bytes = tx_rlp.clone().unwrap().clone();
 
         //let envelope = TxEnvelope::decode_2718(&mut tx_bytes.as_ref())?;
         //debug!("sending tx to anvil: {} {:?}", tx_bytes.len(), envelope);
@@ -55,9 +56,9 @@ async fn anvil_broadcaster_worker<P, T>(
     //latest_block: SharedState<LatestBlock>,
     mut bundle_rx: Receiver<MessageTxCompose>,
 ) -> WorkerResult
-    where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     loop {
         tokio::select! {
@@ -111,42 +112,49 @@ async fn anvil_broadcaster_worker<P, T>(
 pub struct AnvilBroadcastActor<P, T>
 {
     client: P,
-    #[accessor]
-    latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
-    broadcast_rx: Option<Broadcaster<MessageTxCompose>>,
+    tx_compose_rx: Option<Broadcaster<MessageTxCompose>>,
     _t: PhantomData<T>,
 }
 
 impl<P, T> AnvilBroadcastActor<P, T>
-    where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> AnvilBroadcastActor<P, T> {
         Self {
             client,
-            latest_block: None,
-            broadcast_rx: None,
+            tx_compose_rx: None,
             _t: PhantomData::default(),
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            tx_compose_rx: Some(bc.compose_channel()),
+            ..self
         }
     }
 }
 
 #[async_trait]
 impl<P, T> Actor for AnvilBroadcastActor<P, T>
-    where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             anvil_broadcaster_worker(
                 self.client.clone(),
-                //self.latest_block.clone().unwrap(),
-                self.broadcast_rx.clone().unwrap().subscribe().await,
+                self.tx_compose_rx.clone().unwrap().subscribe().await,
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "AnvilBroadcastActor"
     }
 }

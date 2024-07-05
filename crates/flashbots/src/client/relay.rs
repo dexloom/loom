@@ -3,7 +3,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use alloy_primitives::{hex, keccak256};
 use alloy_signer::Signer;
-use alloy_signer_local::LocalWallet;
+use alloy_signer_local::PrivateKeySigner;
+use log::{debug, trace};
 use reqwest::{Client, Error as ReqwestError};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
@@ -27,7 +28,7 @@ pub struct Relay {
     id: Arc<AtomicU64>,
     client: Client,
     url: Url,
-    signer: Option<LocalWallet>,
+    signer: Option<PrivateKeySigner>,
 }
 
 /// Errors for relay requests.
@@ -58,7 +59,7 @@ pub enum RelayError {
 
 impl Relay {
     /// Initializes a new relay client.
-    pub fn new(url: impl Into<Url>, signer: Option<LocalWallet>) -> Self {
+    pub fn new(url: impl Into<Url>, signer: Option<PrivateKeySigner>) -> Self {
         //let client = Client::builder().trust_dns(true).build().unwrap();
         let client = Client::new();
 
@@ -82,26 +83,36 @@ impl Relay {
 
         let payload = Request::new(next_id, method, params);
 
-        let mut req = self.client.post(self.url.as_ref());
+        let body = serde_json::to_string(&payload)
+            .map_err(RelayError::RequestSerdeJson)?;
+
+
+        let body_hash = keccak256(body.clone()).to_string();
+        trace!("Body hash : {} {}", body_hash, body);
+
+
+        let mut req = self.client.post(self.url.as_ref()).body(body.clone()).body(body);
+
 
         if let Some(signer) = &self.signer {
+            trace!("Signer on wallet  : {}", signer.address());
             let signature = signer
                 .sign_message(
-                    keccak256(
-                        serde_json::to_string(&payload)
-                            .map_err(RelayError::RequestSerdeJson)?
-                            .as_bytes()
-                    ).as_slice())
+                    body_hash.as_bytes())
                 .await
                 .map_err(RelayError::SignerError)?;
 
+
             req = req.header(
                 "X-Flashbots-Signature",
-                format!("{:?}:0x{}", signer.address(), hex::encode(signature.as_bytes())),
+                format!("{}:0x{}", signer.address(), hex::encode(signature.as_bytes())),
+            );
+            req = req.header(
+                "Content-Type", "application/json",
             );
         }
 
-        let res = req.json(&payload).send().await?;
+        let res = req.send().await?;
         let status = res.error_for_status_ref();
 
         match status {
@@ -118,7 +129,7 @@ impl Relay {
             }
             Ok(_) => {
                 let text = res.text().await?;
-                println!("Flashbots repsonse: {}", text);
+                debug!("Flashbots repsonse: {}", text);
                 let res: Response<R> = serde_json::from_str(&text)
                     .map_err(|err| RelayError::ResponseSerdeJson { err, text })?;
 

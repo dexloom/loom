@@ -2,13 +2,13 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, Result};
-use log::{error, trace};
+use log::{debug, error, trace};
 
 use defi_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 use defi_types::{MulticallerCall, MulticallerCalls};
 
 use crate::helpers::EncoderHelper;
-use crate::opcodesencoder::{OpcodesEncoder, OpcodesEncoderV2};
+use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::poolencoders::{CurveSwapEncoder, StEthSwapEncoder, WstEthSwapEncoder};
 
 #[derive(Clone)]
@@ -24,7 +24,7 @@ impl SwapPathEncoder {
     }
 
 
-    pub fn encode_flash_swap_in_amount(&self, swap_path: &SwapLine, inside_swap_opcodes: MulticallerCalls, funds_to: Address) -> Result<MulticallerCalls> {
+    pub fn encode_flash_swap_line_in_amount(&self, swap_path: &SwapLine, inside_swap_opcodes: MulticallerCalls, funds_to: Address) -> Result<MulticallerCalls> {
         let mut flash_swap_opcodes = MulticallerCalls::new();
         let mut inside_opcodes = inside_swap_opcodes.clone();
 
@@ -116,7 +116,6 @@ impl SwapPathEncoder {
                                                       &EncoderHelper::encode_erc20_transfer(flash_pool.get_address(), amount))
                         }
                         _ => {
-                            error!("Uni3 In amount not handled {amount_in:?}");
                             MulticallerCall::new_call(token_from_address,
                                                       &EncoderHelper::encode_erc20_transfer(flash_pool.get_address(), U256::ZERO))
                                 .set_call_stack(false, 1, 0x24, 0x20).clone()
@@ -152,7 +151,6 @@ impl SwapPathEncoder {
                                 ))
                             }
                             _ => {
-                                error!("Uni2 In amount not handled");
                                 MulticallerCall::new_internal_call(&EncoderHelper::encode_multicaller_uni2_get_out_amount(
                                     token_from_address,
                                     token_to_address,
@@ -193,7 +191,6 @@ impl SwapPathEncoder {
                                                           inside_call_bytes)?)
                         }
                         _ => {
-                            error!("In amount is not handled");
                             MulticallerCall::new_call(flash_pool.get_address(),
                                                       &flash_pool.get_encoder().encode_swap_in_amount_provided(
                                                           token_from_address,
@@ -222,7 +219,7 @@ impl SwapPathEncoder {
     }
 
 
-    pub fn encode_flash_swap_out_amount(&self, swap_path: &SwapLine, inside_swap_opcodes: MulticallerCalls, _funds_from: Address) -> Result<MulticallerCalls> {
+    pub fn encode_flash_swap_line_out_amount(&self, swap_path: &SwapLine, inside_swap_opcodes: MulticallerCalls, _funds_from: Address) -> Result<MulticallerCalls> {
         let mut flash_swap_opcodes = MulticallerCalls::new();
         let mut inside_opcodes = inside_swap_opcodes.clone();
 
@@ -403,7 +400,6 @@ impl SwapPathEncoder {
                         _ => {
                             flash_swap_opcodes.add(MulticallerCall::new_calculation_call(&Bytes::from(vec![0x8, 0x2A, 0x00])));
 
-                            error!("In amount is not handled");
                             MulticallerCall::new_call(flash_pool.get_address(),
                                                       &flash_pool.get_encoder().encode_swap_out_amount_provided(
                                                           token_from_address,
@@ -434,7 +430,7 @@ impl SwapPathEncoder {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    pub fn encode_swap_in_amount(&self, swap_path: &SwapLine, funds_from: Address, funds_to: Address) -> Result<MulticallerCalls> {
+    pub fn encode_swap_line_in_amount(&self, swap_path: &SwapLine, funds_from: Address, funds_to: Address) -> Result<MulticallerCalls> {
         let mut swap_opcodes = MulticallerCalls::new();
 
 

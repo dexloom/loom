@@ -75,14 +75,14 @@ pub(crate) fn append_all_matching_block_logs(
     // Lazy loaded number of the first transaction in the block.
     // This is useful for blocks with multiple matching logs because it prevents
     // re-querying the block body indices.
-    let mut loaded_first_tx_num = block_body_indices.first_tx_num;
+    let loaded_first_tx_num = block_body_indices.first_tx_num;
 
     let mut tx_iter = block.transactions();
 
     // Iterate over receipts and append matching logs.
     for (receipt_idx, receipt) in receipts.iter().enumerate() {
         // The transaction hash of the current receipt.
-        let mut transaction_hash = tx_iter.next().ok_or_eyre("NO_NEXT_TX")?.hash();
+        let transaction_hash = tx_iter.next().ok_or_eyre("NO_NEXT_TX")?.hash();
 
         for log in &receipt.logs {
             let log = ALog {

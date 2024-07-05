@@ -1,7 +1,8 @@
-use alloy_primitives::{Address, B256, Bytes, U256, U64};
-use alloy_provider::{Network, Provider, RootProvider};
-use alloy_provider::network::Ethereum;
-use alloy_transport::{BoxTransport, Transport, TransportResult};
+use alloy::{
+    primitives::{Address, B256, Bytes, U256, U64},
+    providers::{Network, network::Ethereum, Provider, RootProvider},
+    transports::{BoxTransport, Transport, TransportResult},
+};
 
 use crate::AnvilDebugProvider;
 
@@ -41,7 +42,7 @@ where
     PA: Provider<TA, N> + Send + Sync + Clone + 'static,
 {
     fn snapshot(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
-        self.anvil().client().request("evm_snapshot", ()).map_resp(|x| convert_u64(x))
+        self.anvil().client().request("evm_snapshot", ()).map_resp(convert_u64)
     }
     fn revert(&self, snap_id: u64) -> impl std::future::Future<Output=TransportResult<bool>> + Send {
         self.anvil().client().request("evm_revert", (U64::from(snap_id),))
@@ -52,7 +53,7 @@ where
     }
 
     fn mine(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
-        self.anvil().client().request("evm_mine", ()).map_resp(|x| convert_u64(x))
+        self.anvil().client().request("evm_mine", ()).map_resp(convert_u64)
     }
 
     fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output=TransportResult<()>> + Send {
@@ -75,7 +76,7 @@ where
 impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport>
 {
     fn snapshot(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
-        self.client().request("evm_snapshot", ()).map_resp(|x| convert_u64(x))
+        self.client().request("evm_snapshot", ()).map_resp(convert_u64)
     }
     fn revert(&self, snap_id: u64) -> impl std::future::Future<Output=TransportResult<bool>> + Send {
         self.client().request("evm_revert", (U64::from(snap_id),))
@@ -86,7 +87,7 @@ impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport>
     }
 
     fn mine(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
-        self.client().request("evm_mine", ()).map_resp(|x| convert_u64(x))
+        self.client().request("evm_mine", ()).map_resp(convert_u64)
     }
 
     fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output=TransportResult<()>> + Send {
@@ -108,14 +109,18 @@ impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport>
 
 #[cfg(test)]
 mod test {
+    use std::ops::Deref;
     use std::sync::Arc;
 
-    use alloy_primitives::{B256, U256};
+    use alloy::primitives::{B256, U256};
+    use alloy::rpc::types::BlockNumberOrTag;
+    use alloy::transports::http::Http;
+    use alloy_provider::ext::AnvilApi;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
-    use alloy_rpc_types::BlockNumberOrTag;
     use env_logger::Env as EnvLog;
     use eyre::Result;
+    use reqwest::Client;
     use url;
 
     use super::*;
@@ -177,6 +182,58 @@ mod test {
         client.set_automine(true).await?;
         //let reset_result = client.reset().await?;
 
+
+        Ok(())
+    }
+
+    #[derive(Clone)]
+    struct DynPrv<T> {
+        pub provider: Arc<Box<dyn Provider<T>>>,
+    }
+
+    impl<T> Deref for DynPrv<T>
+    where
+        T: Transport + Clone,
+    {
+        type Target = Arc<Box<dyn Provider<T> + 'static>>;
+
+        fn deref(&self) -> &Self::Target {
+            &self.provider
+        }
+    }
+
+
+    struct DynProvider {
+        inner: DynPrv<BoxTransport>,
+    }
+
+    impl From<DynPrv<Http<Client>>> for DynProvider {
+        fn from(value: DynPrv<Http<Client>>) -> Self {
+            let provider = DynPrv { provider: Arc::new(Box::new(ProviderBuilder::new().on_provider(value.root().clone().boxed()))) };
+            Self { inner: provider }
+        }
+    }
+
+    impl Provider for DynProvider {
+        fn root(&self) -> &RootProvider<BoxTransport, Ethereum> {
+            self.inner.root()
+        }
+    }
+
+
+    #[tokio::test]
+    async fn test_dyn_provider() -> Result<()> {
+        let provider = ProviderBuilder::new().with_recommended_fillers().on_anvil();
+
+        let dyn_prv = Arc::new(Box::new(provider) as Box<dyn Provider<_>>);
+
+        let dyn_prv = DynPrv {
+            provider: dyn_prv.clone()
+        };
+
+        let dyn_prv = DynProvider::from(dyn_prv);
+        
+        dyn_prv.anvil_drop_all_transactions().await;
 
         Ok(())
     }

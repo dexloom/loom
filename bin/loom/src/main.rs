@@ -60,10 +60,8 @@ async fn main() -> Result<()> {
     );
 
     match swap_path_encoder_actor
-        .access(blockchain.mempool())
         .access(tx_signers.clone())
         .access(blockchain.nonce_and_balance())
-        .access(blockchain.latest_block())
         .consume(blockchain.compose_channel())
         .produce(blockchain.compose_channel())
         .start().await {
@@ -124,6 +122,7 @@ async fn main() -> Result<()> {
     }
 
 
+    // Merger
     let mut diff_path_merger_actor = DiffPathMergerActor::new();
 
     match diff_path_merger_actor
@@ -145,6 +144,8 @@ async fn main() -> Result<()> {
         }
     }
 
+
+    // Monitoring pool state health, disabling pool if there are problems
     let mut state_health_monitor_actor = StateHealthMonitorActor::new(client.clone());
 
     match state_health_monitor_actor
@@ -153,7 +154,7 @@ async fn main() -> Result<()> {
         .consume(blockchain.market_events_channel())
         .start().await {
         Err(e) => {
-            panic!("State health monitor actor failed : {e}")
+            panic!("State health monitor actor failed : {}", e)
         }
         Ok(r) => {
             worker_task_vec.extend(r);
@@ -162,6 +163,7 @@ async fn main() -> Result<()> {
     }
 
 
+    // Monitoring transactions we tried to attach to.
     let mut stuffing_txs_monitor_actor = StuffingTxMonitorActor::new(client.clone());
     match stuffing_txs_monitor_actor
         .access(blockchain.latest_block())
@@ -169,7 +171,7 @@ async fn main() -> Result<()> {
         .consume(blockchain.market_events_channel())
         .start().await {
         Err(e) => {
-            panic!("Stuffing txs monitor actor failed : {e}")
+            panic!("Stuffing txs monitor actor failed : {}", e)
         }
         Ok(r) => {
             worker_task_vec.extend(r);
@@ -178,15 +180,13 @@ async fn main() -> Result<()> {
     }
 
 
-    //worker_task_vec.push( tokio::task::spawn( wait() ));
-
-
+    // Checking workers, logging if some close
     tokio::task::spawn(async move {
         while !worker_task_vec.is_empty() {
             let (result, _index, remaining_futures) = futures::future::select_all(worker_task_vec).await;
             match result {
-                Ok(r) => {
-                    match r {
+                Ok(work_result) => {
+                    match work_result {
                         Ok(s) => {
                             info!("ActorWorker {_index} finished : {s}")
                         }
@@ -204,6 +204,7 @@ async fn main() -> Result<()> {
     });
 
 
+    // listening to MarketEvents in an infinite loop
     let mut s = blockchain.market_events_channel().subscribe().await;
     loop {
         let msg = s.recv().await;

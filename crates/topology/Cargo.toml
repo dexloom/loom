@@ -15,8 +15,8 @@ defi-types.workspace = true
 defi-events.workspace = true
 loom-multicaller.workspace = true
 flashbots.workspace = true
-
 loom-actors.workspace = true
+defi-blockchain.workspace = true
 
 alloy-primitives.workspace = true
 alloy-rpc-client.workspace = true
@@ -26,11 +26,12 @@ alloy-transport.workspace = true
 alloy-transport-ws.workspace = true
 alloy-transport-ipc.workspace = true
 revm.workspace = true
+
+
+serde.workspace = true
 eyre.workspace = true
 toml.workspace = true
-
 log.workspace = true
-serde.workspace = true
 tokio.workspace = true
 
 strum.workspace = true

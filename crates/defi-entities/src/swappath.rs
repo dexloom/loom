@@ -5,7 +5,6 @@ use std::sync::Arc;
 
 use alloy_primitives::Address;
 use eyre::Result;
-use serde::{Deserialize, Serialize};
 
 use crate::{PoolWrapper, Token};
 
@@ -179,7 +178,7 @@ mod test {
         const PATHS_COUNT: usize = 10;
 
         let pool_address_vec: Vec<(PoolWrapper, PoolWrapper)> = (0..PATHS_COUNT).map(|i|
-            (PoolWrapper::empty(Address::repeat_byte(i as u8)), PoolWrapper::empty(Address::repeat_byte((i + 1) as u8)))
+        (PoolWrapper::empty(Address::repeat_byte(i as u8)), PoolWrapper::empty(Address::repeat_byte((i + 1) as u8)))
         ).collect();
 
 

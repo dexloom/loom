@@ -49,10 +49,10 @@ pub struct StateChangeArbActor<P, T, N>
 
 
 impl<P, T, N> StateChangeArbActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P, use_blocks: bool, use_mempool: bool) -> StateChangeArbActor<P, T, N> {
         StateChangeArbActor {
@@ -77,12 +77,12 @@ impl<P, T, N> StateChangeArbActor<P, T, N>
 
 #[async_trait]
 impl<P, T, N> Actor for StateChangeArbActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let searcher_pool_update_channel = Broadcaster::new(100);
         let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
 
@@ -146,5 +146,9 @@ impl<P, T, N> Actor for StateChangeArbActor<P, T, N>
         }
 
         Ok(tasks)
+    }
+
+    fn name(&self) -> &'static str {
+        "StateChangeArbActor"
     }
 }

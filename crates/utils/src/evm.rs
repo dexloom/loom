@@ -2,7 +2,7 @@ use alloy_primitives::{Address, B256, Bytes, U256};
 use alloy_rpc_types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info, trace};
+use log::{debug, error, trace};
 use revm::Evm;
 use revm::InMemoryDB;
 use revm::interpreter::Host;
@@ -103,21 +103,22 @@ lazy_static! {
 
 pub fn evm_access_list(state_db: &InMemoryDB, env: &Env, tx: &TransactionRequest) -> Result<(u64, AccessList)>
 {
+    let mut env = env.clone();
+
     let txto = tx.to.unwrap_or_default().to().map_or(Address::ZERO, |x| *x);
 
-    let mut env = env.clone();
     env.tx.chain_id = tx.chain_id;
     env.tx.transact_to = TransactTo::Call(txto);
     env.tx.nonce = tx.nonce;
     env.tx.data = tx.input.clone().input.unwrap();
     env.tx.value = tx.value.unwrap_or_default();
     env.tx.caller = tx.from.unwrap_or_default();
+    env.tx.gas_price = U256::from(tx.max_fee_per_gas.unwrap_or(tx.gas_price.unwrap_or_default()));
     env.tx.gas_limit = tx.gas.unwrap_or_default() as u64;
-    env.tx.gas_price = U256::from(tx.max_fee_per_gas.unwrap_or_default());
     env.tx.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas.unwrap_or_default()));
 
     env.block.coinbase = *COINBASE;
-
+    
     let mut evm = Evm::builder().with_ref_db(state_db).with_spec_id(SHANGHAI).with_env(Box::new(env)).build();
 
     match evm.transact() {
@@ -152,10 +153,10 @@ pub fn evm_access_list(state_db: &InMemoryDB, env: &Env, tx: &TransactionRequest
     }
 }
 
-fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
+pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
     let tx = tx.into();
 
-    let blob_gas = if block_header.blob_gas_used.is_some() && block_header.excess_blob_gas.is_some() {
+    /*let blob_gas = if block_header.blob_gas_used.is_some() && block_header.excess_blob_gas.is_some() {
         Some(BlobExcessGasAndPrice {
             excess_blob_gas: block_header.blob_gas_used.unwrap_or_default() as u64,
             blob_gasprice: block_header.excess_blob_gas.unwrap_or_default(),
@@ -163,6 +164,8 @@ fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
     } else {
         None
     };
+
+     */
 
     Env {
         cfg: Default::default(),

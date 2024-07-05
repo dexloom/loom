@@ -7,6 +7,7 @@ use log::{debug, error, info, trace};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::BlockHistory;
 use defi_events::{MarketEvents, MempoolEvents, MessageMempoolDataUpdate};
 use defi_types::{ChainParameters, Mempool, MempoolTx};
@@ -185,12 +186,23 @@ impl MempoolActor
             mempool_events_tx: None,
         }
     }
+
+    pub fn on_bc(self, bc: &Blockchain) -> MempoolActor {
+        Self {
+            mempool: Some(bc.mempool()),
+            block_history: Some(bc.block_history()),
+            mempool_update_rx: Some(bc.new_mempool_tx_channel()),
+            market_events_rx: Some(bc.market_events_channel()),
+            mempool_events_tx: Some(bc.mempool_events_channel()),
+            ..self
+        }
+    }
 }
 
 #[async_trait]
 impl Actor for MempoolActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             new_mempool_worker(
                 self.chain_parameters.clone(),
@@ -202,5 +214,9 @@ impl Actor for MempoolActor
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "MempoolActor"
     }
 }

@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
-use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard};
+use eyre::Result;
+use tokio::sync::{RwLock, RwLockReadGuard, RwLockWriteGuard, TryLockError};
 
 //#[derive(Clone)]
 pub struct SharedState<T> {
@@ -20,8 +21,16 @@ impl<T> SharedState<T>
         self.inner.read().await
     }
 
+    pub fn try_read(&self) -> Result<RwLockReadGuard<T>, TryLockError> {
+        self.inner.try_read()
+    }
+
     pub async fn write(&self) -> RwLockWriteGuard<T> {
         self.inner.write().await
+    }
+
+    pub fn try_write(&self) -> Result<RwLockWriteGuard<T>, TryLockError> {
+        self.inner.try_write()
     }
 
     pub fn inner(&self) -> Arc<RwLock<T>> {

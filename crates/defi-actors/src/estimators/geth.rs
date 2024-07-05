@@ -12,6 +12,7 @@ use rand::random;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::{GasStation, NWETH};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use flashbots::Flashbots;
@@ -22,7 +23,7 @@ use loom_multicaller::SwapStepEncoder;
 async fn estimator_task<P: Provider + Send + Sync + Clone + 'static>(
     estimate_request: TxComposeData,
     client: Arc<Flashbots<P>>,
-    encoder: Arc<SwapStepEncoder>,
+    encoder: SwapStepEncoder,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
     let token_in = estimate_request.swap.get_first_token().cloned().ok_or(eyre!("NO_TOKEN"))?;
@@ -195,7 +196,7 @@ async fn estimator_task<P: Provider + Send + Sync + Clone + 'static>(
 
 async fn estimator_worker<P: Provider + Send + Sync + Clone + 'static>(
     client: Arc<Flashbots<P>>,
-    encoder: Arc<SwapStepEncoder>,
+    encoder: SwapStepEncoder,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
@@ -233,7 +234,7 @@ async fn estimator_worker<P: Provider + Send + Sync + Clone + 'static>(
 pub struct GethEstimatorActor<P>
 {
     client: Arc<Flashbots<P>>,
-    encoder: Arc<SwapStepEncoder>,
+    encoder: SwapStepEncoder,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
@@ -241,7 +242,7 @@ pub struct GethEstimatorActor<P>
 }
 
 impl<P: Provider + Send + Sync + Clone + 'static> GethEstimatorActor<P> {
-    pub fn new(client: Arc<Flashbots<P>>, encoder: Arc<SwapStepEncoder>) -> Self {
+    pub fn new(client: Arc<Flashbots<P>>, encoder: SwapStepEncoder) -> Self {
         Self {
             client,
             encoder,
@@ -249,11 +250,19 @@ impl<P: Provider + Send + Sync + Clone + 'static> GethEstimatorActor<P> {
             compose_channel_rx: None,
         }
     }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            compose_channel_tx: Some(bc.compose_channel()),
+            compose_channel_rx: Some(bc.compose_channel()),
+            ..self
+        }
+    }
 }
 
 #[async_trait]
 impl<P: Provider + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P> {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             estimator_worker(
                 self.client.clone(),
@@ -263,5 +272,9 @@ impl<P: Provider + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "GethEstimatorActor"
     }
 }

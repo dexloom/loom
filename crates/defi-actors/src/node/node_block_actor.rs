@@ -9,6 +9,7 @@ use reth_provider::{BlockReader, HeaderProvider};
 use tokio::task::JoinHandle;
 
 use debug_provider::DebugProviderExt;
+use defi_blockchain::Blockchain;
 use defi_events::{NodeBlockLogsUpdate, NodeBlockStateUpdate};
 use loom_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_actors_macros::Producer;
@@ -25,10 +26,10 @@ pub async fn new_node_block_starer<P, T, N>(client: P,
                                             new_block_logs_channel: Option<Broadcaster<NodeBlockLogsUpdate>>,
                                             new_block_state_update_channel: Option<Broadcaster<NodeBlockStateUpdate>>,
 ) -> ActorResult
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     let new_block_hash_channel = Broadcaster::new(10);
     let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
@@ -97,15 +98,19 @@ pub struct NodeBlockActor<P, T, N>
 }
 
 impl<P, T, N> NodeBlockActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, reth_db_path: Option<String>) -> NodeBlockActor<P, T, N> {
+    fn name(&self) -> &'static str {
+        "NodeBlockActor"
+    }
+
+    pub fn new(client: P) -> NodeBlockActor<P, T, N> {
         NodeBlockActor {
             client,
-            reth_db_path,
+            reth_db_path: None,
             block_header_channel: None,
             block_with_tx_channel: None,
             block_logs_channel: None,
@@ -114,16 +119,36 @@ impl<P, T, N> NodeBlockActor<P, T, N>
             _n: PhantomData::default(),
         }
     }
+
+    pub fn with_reth_db(self, reth_db_path: Option<String>) -> Self {
+        Self {
+            reth_db_path,
+            ..self
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            block_header_channel: Some(bc.new_block_headers_channel()),
+            block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
+            block_logs_channel: Some(bc.new_block_logs_channel()),
+            block_state_update_channel: Some(bc.new_block_state_update_channel()),
+            ..self
+        }
+    }
 }
 
 #[async_trait]
 impl<P, T, N> Actor for NodeBlockActor<P, T, N>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&mut self) -> ActorResult {
+    fn name(&self) -> &'static str {
+        self.name()
+    }
+    async fn start(&self) -> ActorResult {
         match &self.reth_db_path {
             //RETH DB
             Some(db_path) => {
@@ -188,7 +213,7 @@ mod test {
 
         let db_path = std::env::var("TEST_NODE_DB").unwrap_or("./db".to_string());
 
-        let mut node_block_actor = NodeBlockActor::new(client.clone(), Some(db_path));
+        let mut node_block_actor = NodeBlockActor::new(client.clone()).with_reth_db(Some(db_path));
         match node_block_actor
             .produce(new_block_headers_channel.clone())
             .produce(new_block_with_tx_channel.clone())

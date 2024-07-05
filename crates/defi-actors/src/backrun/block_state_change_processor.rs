@@ -123,7 +123,7 @@ impl BlockStateChangeProcessorActor
 #[async_trait]
 impl Actor for BlockStateChangeProcessorActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             block_state_change_worker(
                 self.market.clone().unwrap(),
@@ -133,5 +133,10 @@ impl Actor for BlockStateChangeProcessorActor
             )
         );
         Ok(vec![task])
+    }
+
+
+    fn name(&self) -> &'static str {
+        "BlockStateChangeProcessorActor"
     }
 }

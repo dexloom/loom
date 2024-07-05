@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
-use chrono::{Duration, TimeDelta};
+use chrono::TimeDelta;
 use eyre::{eyre, Result};
-use log::{debug, error, trace, warn};
+use log::{debug, error, warn};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use rayon::prelude::*;
 use revm::InMemoryDB;
@@ -14,7 +14,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_entities::{GasStation, Market, MarketState, PoolWrapper, Swap, SwapLine, SwapPath};
-use defi_events::{HealthEvent, Message, MessageHealthEvent, MessageTxCompose, TxComposeBest, TxComposeData};
+use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, TxComposeData};
 use defi_types::SwapError;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -34,9 +34,9 @@ async fn state_change_arb_searcher_task(
 
 
     let db = msg.market_state().clone();
-    let mut market_state = MarketState::new(db);
+    let mut current_market_state = MarketState::new(db);
 
-    market_state.apply_state_update(msg.state_update(), true, false);
+    current_market_state.apply_state_update(msg.state_update(), true, false);
 
     let start_time = chrono::Local::now();
     let mut swap_path_vec: Vec<Arc<SwapPath>> = Vec::new();
@@ -74,7 +74,7 @@ async fn state_change_arb_searcher_task(
     let (swap_path_tx, mut swap_line_rx) = tokio::sync::mpsc::channel(channel_len);
 
 
-    let market_state_clone = market_state.state_db.clone();
+    let market_state_clone = current_market_state.state_db.clone();
     let swap_path_vec_len = swap_path_vec.len();
 
     tokio::task::spawn(async move {
@@ -111,7 +111,7 @@ async fn state_change_arb_searcher_task(
 
                         let pool_health_tx = req.3;
                         match pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {
-                            Err(se) => { error!("try_send to pool_health_monitor error : {e:?}") }
+                            Err(ee) => { error!("try_send to pool_health_monitor error : {e:?}") }
                             _ => {}
                         }
                     }
@@ -125,12 +125,12 @@ async fn state_change_arb_searcher_task(
     warn!("Calculation results receiver started {}", chrono::Local::now() - start_time);
 
     let swap_request_tx_clone = swap_request_tx.clone();
-    let arc_db = Arc::new(market_state.state_db);
+    let arc_db = Arc::new(current_market_state.state_db);
 
 
     let mut answers = 0;
 
-    let mut best_answers = TxComposeBest::new_with_pct(U256::from(9000));
+    let mut best_answers = BestTxCompose::new_with_pct(U256::from(9000));
 
     while let Some(swap_line) = swap_line_rx.recv().await {
         //let msg  = MessageSwapPathEncodeRequest::new(result.clone(), msg.stuffing_txs(), msg.state_update().clone(), msg.state_required().clone());
@@ -245,7 +245,7 @@ impl StateChangeArbSearcherActor
 #[async_trait]
 impl Actor for StateChangeArbSearcherActor
 {
-    async fn start(&mut self) -> ActorResult {
+    async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             state_change_arb_searcher_worker(
                 self.smart,
@@ -256,5 +256,9 @@ impl Actor for StateChangeArbSearcherActor
             )
         );
         Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "StateChangeArbSearcherActor"
     }
 }

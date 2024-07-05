@@ -2,28 +2,28 @@ use std::collections::HashMap;
 use std::fs;
 
 use alloy_provider::RootProvider;
-use alloy_transport::{BoxTransport, Transport};
+use alloy_transport::BoxTransport;
 use eyre::Result;
 use serde::Deserialize;
-use strum_macros::{Display, EnumString, VariantNames};
+use strum_macros::Display;
 
 #[derive(Debug, Deserialize)]
 pub struct BlockchainConfig {
     pub chain_id: Option<i64>,
 }
 
-#[serde(rename_all = "lowercase")]
-#[strum(ascii_case_insensitive, serialize_all = "lowercase")]
 #[derive(Clone, Debug, Default, Deserialize, Display)]
+#[strum(ascii_case_insensitive, serialize_all = "lowercase")]
+#[serde(rename_all = "lowercase")]
 pub enum NodeType {
     #[default]
     Geth,
     Reth,
 }
 
+#[derive(Clone, Debug, Default, Deserialize, Display)]
 #[strum(ascii_case_insensitive, serialize_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
-#[derive(Clone, Debug, Default, Deserialize, Display)]
 pub enum TransportType {
     #[default]
     Ws,

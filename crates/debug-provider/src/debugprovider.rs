@@ -1,18 +1,26 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use alloy_node_bindings::{Anvil, AnvilInstance};
-use alloy_primitives::{BlockHash, BlockNumber, U64};
-use alloy_provider::{Network, Provider, ProviderBuilder, RootProvider};
-use alloy_provider::ext::DebugApi;
-use alloy_provider::network::Ethereum;
-use alloy_rpc_client::{RpcCall, WsConnect};
-use alloy_rpc_types::{BlockNumberOrTag, TransactionRequest};
-use alloy_rpc_types_trace::geth::{GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, TraceResult};
-use alloy_transport::{BoxTransport, Transport, TransportResult};
+use alloy::{
+    network::Ethereum,
+    node_bindings::{Anvil, AnvilInstance},
+    primitives::{BlockHash, BlockNumber, U64},
+    providers::{
+        ext::DebugApi,
+        Network, Provider, ProviderBuilder, RootProvider,
+    },
+    rpc::{
+        client::{RpcCall, WsConnect},
+        types::{BlockNumberOrTag, TransactionRequest},
+        types::trace::geth::{GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, TraceResult},
+    },
+    transports::{BoxTransport, Transport, TransportResult},
+};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use k256::SecretKey;
+
+use crate::HttpCachedTransport;
 
 #[derive(Clone, Debug)]
 pub struct AnvilDebugProvider<PN, PA, TN, TA, N>
@@ -33,11 +41,11 @@ where
 }
 
 
-pub struct AnvilControl {}
+pub struct AnvilDebugProviderFactory {}
 
 pub type AnvilDebugProviderType = AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>;
 
-impl AnvilControl {
+impl AnvilDebugProviderFactory {
     pub async fn from_node_on_block(node_url: String, block: BlockNumber) -> Result<AnvilDebugProviderType> {
         let node_ws = WsConnect::new(node_url.clone());
         let node_provider = ProviderBuilder::new().on_ws(node_ws).await?.boxed();
@@ -69,9 +77,9 @@ impl AnvilControl {
             _anvil: anvil_provider,
             _anvil_instance: Some(Arc::new(anvil)),
             block_number: BlockNumberOrTag::Number(block),
-            _ta: PhantomData::<BoxTransport>::default(),
-            _tn: PhantomData::<BoxTransport>::default(),
-            _n: PhantomData::<Ethereum>::default(),
+            _ta: PhantomData::<BoxTransport>,
+            _tn: PhantomData::<BoxTransport>,
+            _n: PhantomData::<Ethereum>,
         };
 
         let curblock = ret._anvil.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
@@ -101,7 +109,7 @@ where
     PN: Provider<TN, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(_node: PN, _anvil: PA, block_number: BlockNumberOrTag) -> Self {
-        Self { _node, _anvil, _anvil_instance: None, block_number, _ta: PhantomData::default(), _tn: PhantomData::default(), _n: PhantomData::default() }
+        Self { _node, _anvil, _anvil_instance: None, block_number, _ta: PhantomData, _tn: PhantomData, _n: PhantomData }
     }
 
 
@@ -172,8 +180,26 @@ pub trait DebugProviderExt<T = BoxTransport, N = Ethereum>
     async fn geth_debug_trace_block_by_hash(&self, block: BlockHash, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>>;
 }
 
+
 #[async_trait]
 impl<T, N> DebugProviderExt<T, N> for RootProvider<BoxTransport>
+where
+    T: Transport + Clone,
+    N: Network,
+{
+    async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
+        self.debug_trace_call(tx, block, trace_options).await
+    }
+    async fn geth_debug_trace_block_by_number(&self, block: BlockNumberOrTag, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+        self.debug_trace_block_by_number(block, trace_options).await
+    }
+    async fn geth_debug_trace_block_by_hash(&self, block: BlockHash, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+        self.debug_trace_block_by_hash(block, trace_options).await
+    }
+}
+
+#[async_trait]
+impl<T, N> DebugProviderExt<T, N> for RootProvider<HttpCachedTransport>
 where
     T: Transport + Clone,
     N: Network,
@@ -221,7 +247,7 @@ where
 
 #[cfg(test)]
 mod test {
-    use alloy_primitives::{Address, U256};
+    use alloy::primitives::{Address, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use env_logger::Env as EnvLog;
