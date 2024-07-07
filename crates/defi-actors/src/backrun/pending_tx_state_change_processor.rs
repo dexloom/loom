@@ -154,12 +154,12 @@ where
                 let block_timestamp = latest_header.timestamp.as_u64() + 12;
 
                 if affected_pools.len() > 0 {
-                    let cur_state = market_state.read().await.clone();
+                    let cur_state_db = market_state.read().await.state_db.clone();
                     let request = MessageSearcherPoolStateUpdate::new(
                         block_number,
                         block_timestamp,
                         cur_next_base_fee,
-                        cur_state.state_db,
+                        cur_state_db,
                         state_update_vec,
                         Some(state_required_vec),
                         affected_pools,

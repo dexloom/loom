@@ -27,6 +27,7 @@ use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_revm::LoomInMemoryDB;
 use loom_utils::evm::evm_transact;
 
 lazy_static! {
@@ -127,7 +128,7 @@ where
 
     let mut changing: Option<usize> = None;
     let mut counter = 0;
-    let rdb: Option<InMemoryDB> = loop {
+    let rdb: Option<LoomInMemoryDB> = loop {
         counter += 1;
         if counter > 10 {
             break None;

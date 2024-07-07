@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use alloy_primitives::{Address, BlockHash, BlockNumber};
 use alloy_rpc_types::{Block, Header};
 use async_trait::async_trait;
@@ -12,6 +14,7 @@ use defi_events::{MarketEvents, NodeBlockLogsUpdate, NodeBlockStateUpdate};
 use defi_types::ChainParameters;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_revm::LoomInMemoryDB;
 
 pub async fn new_block_history_worker(
     chain_parameters: ChainParameters,
@@ -188,9 +191,17 @@ pub async fn new_block_history_worker(
                                         }
                                     }
                                 }
-                                market_state.write().await.state_db = new_market_state_db;
+                                market_state.write().await.state_db = new_market_state_db.clone();
                                 info!("market state updated ok");
                                 sender.send(MarketEvents::BlockStateUpdate{ block_hash} ).await.unwrap();
+
+                                //Merging DB in background and update market state
+                                let market_state_clone= market_state.clone();
+                                tokio::task::spawn( async move{
+                                    let merged_db = LoomInMemoryDB::new( Arc::new(new_market_state_db.merge()));
+                                    market_state_clone.write().await.state_db = new_market_state_db.clone();
+                                });
+
                             }
                             Err(e)=>{
                                 error!("block_update add_block error {} {}", e, block_hash);

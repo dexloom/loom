@@ -14,6 +14,7 @@ use defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaver
 use defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuoterCalls};
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
+use loom_revm::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
 use crate::state_readers::UniswapV3StateReader;
@@ -125,7 +126,7 @@ impl MaverickPool {
 
         Ok(ret)
     }
-    pub fn fetch_pool_data_evm(db: &InMemoryDB, env: Env, address: Address) -> Result<Self>
+    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self>
     {
         let token0: Address = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1: Address = UniswapV3StateReader::token1(db, env.clone(), address)?;
@@ -177,7 +178,7 @@ impl Pool for MaverickPool
         vec![(self.token0, self.token1), (self.token1, self.token0)]
     }
 
-    fn calculate_out_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
         if in_amount >= U256::from(U128::MAX) {
             error!("IN_AMOUNT_EXCEEDS_MAX {}", self.get_address().to_checksum(None));
             return Err(eyre!("IN_AMOUNT_EXCEEDS_MAX"));
@@ -211,7 +212,7 @@ impl Pool for MaverickPool
         }
     }
 
-    fn calculate_in_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_in_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
         env.tx.gas_limit = 500_000;
 

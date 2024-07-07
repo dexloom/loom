@@ -75,11 +75,11 @@ async fn main() -> Result<()> {
     // instead fo code above
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
     bc_actors
-        .initialize_signers().await?
+        .initialize_signers_with_key(None).await?
         .with_market_state_preoloader().await?
         .with_signers().await?
         .with_nonce_and_balance_monitor().await?
-        .with_block_history_actor().await?
+        .with_block_history().await?
         .with_gas_station().await?;
 
 
@@ -96,6 +96,8 @@ async fn main() -> Result<()> {
     let mut logs_sub = bc.new_block_logs_channel().subscribe().await;
     let mut state_update_sub = bc.new_block_state_update_channel().subscribe().await;
 
+    let latest_block = bc.latest_block();
+    let market_state = bc.market_state();
 
     loop {
         select! {
@@ -138,6 +140,9 @@ async fn main() -> Result<()> {
                 match state_udpate {
                     Ok(state_update)=>{
                         info!("Block state update received : {} update records : {}", state_update.block_hash, state_update.state_update.len() );
+                        let state_db = market_state.read().await.state_db.clone();
+                        info!("StateDB : Accounts: {} {} Contracts : {} {}", state_db.accounts.len(), state_db.db.accounts.len(), state_db.contracts.len(), state_db.db.contracts.len())
+
                     }
                     Err(e)=>{
                         error!("Error receiving blocks: {e}");

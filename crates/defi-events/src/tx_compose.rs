@@ -7,10 +7,10 @@ use alloy_primitives::private::alloy_rlp;
 use alloy_rlp::Encodable;
 use alloy_rpc_types::{Transaction, TransactionRequest};
 use eyre::{eyre, Result};
-use revm::InMemoryDB;
 
 use defi_entities::{Swap, TxSigner};
 use defi_types::{GethStateUpdateVec, MulticallerCalls};
+use loom_revm::LoomInMemoryDB;
 
 use crate::Message;
 
@@ -102,8 +102,8 @@ pub struct TxComposeData {
     pub opcodes: Option<MulticallerCalls>,
     pub tx_bundle: Option<Vec<TxState>>,
     pub rlp_bundle: Option<Vec<RlpState>>,
-    pub prestate: Option<Arc<InMemoryDB>>,
-    pub poststate: Option<Arc<InMemoryDB>>,
+    pub prestate: Option<Arc<LoomInMemoryDB>>,
+    pub poststate: Option<Arc<LoomInMemoryDB>>,
     pub poststate_update: Option<GethStateUpdateVec>,
     pub origin: Option<String>,
     pub tips_pct: Option<u32>,

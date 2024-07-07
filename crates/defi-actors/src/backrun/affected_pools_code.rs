@@ -30,8 +30,7 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    let db = CacheDB::new(EmptyDB::new());
-    let mut market_state = MarketState::new(db);
+    let mut market_state = MarketState::new(Default::default());
     market_state.apply_state_update(&state_update, true, false);
 
 

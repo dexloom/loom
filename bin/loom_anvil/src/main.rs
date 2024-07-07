@@ -25,6 +25,7 @@ use defi_pools::protocols::CurveProtocol;
 use defi_types::{ChainParameters, debug_trace_block, debug_trace_call_diff, GethStateUpdateVec, Mempool};
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom_multicaller::{MulticallerDeployer, SwapStepEncoder};
+use loom_revm::LoomInMemoryDB;
 
 use crate::test_config::TestConfig;
 
@@ -112,7 +113,7 @@ async fn main() -> Result<()> {
         .unwrap()
         .unwrap();
 
-    let mut cache_db = InMemoryDB::new(EmptyDB::new());
+    let mut cache_db = LoomInMemoryDB::default();
 
     let market_instance = Market::default();
 

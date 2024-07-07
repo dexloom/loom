@@ -16,6 +16,7 @@ defi-entities.workspace = true
 defi-abi.workspace = true
 defi-types.workspace = true
 loom-utils.workspace = true
+loom-revm.workspace = true
 
 alloy-primitives.workspace = true
 alloy-sol-macro.workspace = true

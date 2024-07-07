@@ -64,7 +64,7 @@ where
         Ok(self)
     }
 
-    pub async fn initialize_signers_with_env(&mut self, key: Option<Vec<u8>>) -> Result<&mut Self> {
+    pub async fn initialize_signers_with_env(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(InitializeSignersActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc)).await?;
         Ok(self)
     }

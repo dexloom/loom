@@ -7,6 +7,8 @@ use log::error;
 use revm::InMemoryDB;
 use revm::primitives::Env;
 
+use loom_revm::LoomInMemoryDB;
+
 use crate::{PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 
 #[derive(Clone, Debug)]
@@ -364,7 +366,7 @@ impl SwapStep {
     }
 
 
-    pub fn calculate_with_in_amount(&mut self, state: &InMemoryDB, env: Env, in_ammount: Option<U256>) -> Result<(U256, u64)> {
+    pub fn calculate_with_in_amount(&mut self, state: &LoomInMemoryDB, env: Env, in_ammount: Option<U256>) -> Result<(U256, u64)> {
         let mut out_amount = U256::ZERO;
         let mut gas_used = 0;
 
@@ -398,7 +400,7 @@ impl SwapStep {
         Ok((out_amount, gas_used))
     }
 
-    pub fn calculate_with_out_amount(&mut self, state: &InMemoryDB, env: Env, out_amount: Option<U256>) -> Result<(U256, u64)> {
+    pub fn calculate_with_out_amount(&mut self, state: &LoomInMemoryDB, env: Env, out_amount: Option<U256>) -> Result<(U256, u64)> {
         let mut in_amount = U256::ZERO;
         let mut gas_used = 0;
 
@@ -484,7 +486,7 @@ impl SwapStep {
         }
     }
 
-    pub fn optimize_swap_steps(state: &InMemoryDB, env: Env, swap_step_0: &SwapStep, swap_step_1: &SwapStep, middle_amount: Option<U256>) -> Result<(SwapStep, SwapStep)> {
+    pub fn optimize_swap_steps(state: &LoomInMemoryDB, env: Env, swap_step_0: &SwapStep, swap_step_1: &SwapStep, middle_amount: Option<U256>) -> Result<(SwapStep, SwapStep)> {
         if swap_step_0.can_calculate_in_amount() {
             SwapStep::optimize_with_middle_amount(state, env, swap_step_0, swap_step_1, middle_amount)
         } else {
@@ -492,7 +494,7 @@ impl SwapStep {
         }
     }
 
-    pub fn optimize_with_middle_amount(state: &InMemoryDB, env: Env, swap_step_0: &SwapStep, swap_step_1: &SwapStep, middle_amount: Option<U256>) -> Result<(SwapStep, SwapStep)> {
+    pub fn optimize_with_middle_amount(state: &LoomInMemoryDB, env: Env, swap_step_0: &SwapStep, swap_step_1: &SwapStep, middle_amount: Option<U256>) -> Result<(SwapStep, SwapStep)> {
         let mut step_0 = swap_step_0.clone();
         let mut step_1 = swap_step_1.clone();
         let mut best_profit: Option<I256> = None;
@@ -662,7 +664,7 @@ impl SwapStep {
     }
 
 
-    pub fn optimize_with_in_amount(state: &InMemoryDB, env: Env, swap_step_0: &SwapStep, swap_step_1: &SwapStep, in_amount: Option<U256>) -> Result<(SwapStep, SwapStep)> {
+    pub fn optimize_with_in_amount(state: &LoomInMemoryDB, env: Env, swap_step_0: &SwapStep, swap_step_1: &SwapStep, in_amount: Option<U256>) -> Result<(SwapStep, SwapStep)> {
         let mut step_0 = swap_step_0.clone();
         let mut step_1 = swap_step_1.clone();
         let mut best_profit: Option<I256> = None;

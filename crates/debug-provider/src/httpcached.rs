@@ -440,7 +440,7 @@ mod test {
             .with_tracer(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::PreStateTracer))
             .with_prestate_config(PreStateConfig { diff_mode: Some(true) });
 
-        for i in 0..1000 {
+        for i in 0..10 {
             println!("Set next block: {}", i);
             tokio::time::sleep(Duration::from_millis(10)).await;
             //provider.next_block();

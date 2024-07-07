@@ -1,0 +1,30 @@
+[package]
+name = "loom-revm"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[features]
+std = []
+
+
+[dependencies]
+log.workspace = true
+
+
+revm.workspace = true
+rand.workspace = true
+alloy.workspace = true
+
+
+[dev-dependencies]
+chrono.workspace = true
+criterion.workspace = true
+
+[[bench]]
+name = "benchmark"
+harness = false

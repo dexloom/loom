@@ -18,6 +18,7 @@ use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, Messa
 use defi_types::SwapError;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_revm::LoomInMemoryDB;
 
 use super::messages::MessageSearcherPoolStateUpdate;
 
@@ -33,10 +34,11 @@ async fn state_change_arb_searcher_task(
     //let msg_time = chrono::Local::now();
 
 
-    let db = msg.market_state().clone();
-    let mut current_market_state = MarketState::new(db);
+    let mut db = msg.market_state().clone();
+    db.apply_geth_update_vec(msg.state_update());
+    //let mut current_market_state = MarketState::new(db);
 
-    current_market_state.apply_state_update(msg.state_update(), true, false);
+    //current_market_state.apply_state_update(msg.state_update(), true, false);
 
     let start_time = chrono::Local::now();
     let mut swap_path_vec: Vec<Arc<SwapPath>> = Vec::new();
@@ -74,7 +76,7 @@ async fn state_change_arb_searcher_task(
     let (swap_path_tx, mut swap_line_rx) = tokio::sync::mpsc::channel(channel_len);
 
 
-    let market_state_clone = current_market_state.state_db.clone();
+    let market_state_clone = db.clone();
     let swap_path_vec_len = swap_path_vec.len();
 
     tokio::task::spawn(async move {
@@ -125,7 +127,7 @@ async fn state_change_arb_searcher_task(
     warn!("Calculation results receiver started {}", chrono::Local::now() - start_time);
 
     let swap_request_tx_clone = swap_request_tx.clone();
-    let arc_db = Arc::new(current_market_state.state_db);
+    let arc_db = Arc::new(db);
 
 
     let mut answers = 0;
@@ -205,7 +207,7 @@ struct Calculator {}
 
 impl Calculator
 {
-    pub fn calculate<'a>(path: &'a mut SwapLine, state: &InMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
+    pub fn calculate<'a>(path: &'a mut SwapLine, state: &LoomInMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
         let first_token = path.get_first_token().unwrap();
         let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
         //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );

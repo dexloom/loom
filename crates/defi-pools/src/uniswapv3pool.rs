@@ -18,6 +18,7 @@ use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use defi_abi::uniswap_periphery::ITickLens;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
+use loom_revm::LoomInMemoryDB;
 
 use crate::protocols::UniswapV3Protocol;
 use crate::state_readers::{UniswapCustomQuoterStateReader, UniswapV3QuoterEncoder, UniswapV3StateReader};
@@ -148,7 +149,7 @@ impl UniswapV3Pool {
     }
 
 
-    pub fn fetch_pool_data_evm(db: &InMemoryDB, env: Env, address: Address) -> Result<Self>
+    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self>
     {
         let token0 = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1 = UniswapV3StateReader::token1(db, env.clone(), address)?;
@@ -240,7 +241,7 @@ impl Pool for UniswapV3Pool
         vec![(self.token0, self.token1), (self.token1, self.token0)]
     }
 
-    fn calculate_out_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
         env.tx.gas_limit = 1_000_000;
 
@@ -277,7 +278,7 @@ impl Pool for UniswapV3Pool
     }
 
 
-    fn calculate_in_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_in_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
         env.tx.gas_limit = 1_000_000;
 

@@ -3,11 +3,11 @@ use std::fmt::Debug;
 
 use alloy_primitives::{Address, TxHash};
 use alloy_rpc_types::Transaction;
-use revm::InMemoryDB;
 use revm::primitives::Env;
 
 use defi_entities::PoolWrapper;
 use defi_types::GethStateUpdateVec;
+use loom_revm::LoomInMemoryDB;
 use loom_utils::evm::env_for_block;
 
 #[derive(Clone, Debug)]
@@ -16,7 +16,7 @@ pub struct MessageSearcherPoolStateUpdate
     pub block: u64,
     pub block_timestamp: u64,
     pub gas_fee: u128,
-    market_state: InMemoryDB,
+    market_state: LoomInMemoryDB,
     state_update: GethStateUpdateVec,
     state_required: Option<GethStateUpdateVec>,
     directions: BTreeMap<PoolWrapper, Vec<(Address, Address)>>,
@@ -33,7 +33,7 @@ impl MessageSearcherPoolStateUpdate
         block: u64,
         block_timestamp: u64,
         gas_fee: u128,
-        market_state: InMemoryDB,
+        market_state: LoomInMemoryDB,
         state_update: GethStateUpdateVec,
         state_required: Option<GethStateUpdateVec>,
         directions: BTreeMap<PoolWrapper, Vec<(Address, Address)>>,
@@ -66,7 +66,7 @@ impl MessageSearcherPoolStateUpdate
         &self.directions
     }
 
-    pub fn market_state(&self) -> &InMemoryDB {
+    pub fn market_state(&self) -> &LoomInMemoryDB {
         &self.market_state
     }
 

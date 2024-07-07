@@ -1,29 +1,29 @@
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::{SolCall, SolInterface};
 use eyre::Result;
-use revm::InMemoryDB;
 use revm::primitives::Env;
 
 use defi_abi::uniswap2::IUniswapV2Pair;
+use loom_revm::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
 pub struct UniswapV2StateReader {}
 
 impl UniswapV2StateReader {
-    pub fn factory(db: &InMemoryDB, env: Env, pool: Address) -> Result<Address> {
+    pub fn factory(db: &LoomInMemoryDB, env: Env, pool: Address) -> Result<Address> {
         //info!(" ----- {} {} {}", db.storage(pool, U256::try_from(8).unwrap()).unwrap(), db.storage(pool, U256::try_from(9).unwrap()).unwrap(),  db.storage(pool, U256::try_from(10).unwrap()).unwrap());
         let call_data_result = evm_call(db, env, pool, IUniswapV2Pair::IUniswapV2PairCalls::factory(IUniswapV2Pair::factoryCall {}).abi_encode())?.0;
         let call_return = IUniswapV2Pair::factoryCall::abi_decode_returns(&call_data_result, false)?;
         Ok(call_return._0)
     }
 
-    pub fn token0(db: &InMemoryDB, env: Env, pool: Address) -> Result<Address> {
+    pub fn token0(db: &LoomInMemoryDB, env: Env, pool: Address) -> Result<Address> {
         let call_data_result = evm_call(db, env, pool, IUniswapV2Pair::IUniswapV2PairCalls::token0(IUniswapV2Pair::token0Call {}).abi_encode())?.0;
         let call_return = IUniswapV2Pair::token0Call::abi_decode_returns(&call_data_result, false)?;
         Ok(call_return._0)
     }
 
-    pub fn token1(db: &InMemoryDB, env: Env, pool: Address) -> Result<Address> {
+    pub fn token1(db: &LoomInMemoryDB, env: Env, pool: Address) -> Result<Address> {
         let call_data_result = evm_call(db, env, pool, IUniswapV2Pair::IUniswapV2PairCalls::token1(IUniswapV2Pair::token1Call {}).abi_encode())?.0;
         let call_return = IUniswapV2Pair::token1Call::abi_decode_returns(&call_data_result, false)?;
         Ok(call_return._0)
@@ -35,7 +35,7 @@ impl UniswapV2StateReader {
 
 
      */
-    pub fn get_reserves(db: &InMemoryDB, env: Env, pool: Address) -> Result<(U256, U256)> {
+    pub fn get_reserves(db: &LoomInMemoryDB, env: Env, pool: Address) -> Result<(U256, U256)> {
         let call_data_result = evm_call(db, env, pool, IUniswapV2Pair::IUniswapV2PairCalls::getReserves(IUniswapV2Pair::getReservesCall {}).abi_encode())?.0;
         let call_return = IUniswapV2Pair::getReservesCall::abi_decode_returns(&call_data_result, false)?;
         Ok((U256::from(call_return.reserve0), U256::from(call_return.reserve1)))

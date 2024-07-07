@@ -31,6 +31,7 @@ loom-actors.workspace = true
 loom-actors-macros.workspace = true
 loom-multicaller.workspace = true
 loom-utils.workspace = true
+loom-revm.workspace = true
 debug-provider.workspace = true
 defi-actors.workspace = true
 defi-types.workspace = true

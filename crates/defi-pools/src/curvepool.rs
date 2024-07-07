@@ -17,6 +17,7 @@ use revm::primitives::{Bytes as rBytes, Env, ExecutionResult, Output, TransactTo
 use defi_abi::IERC20;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
+use loom_revm::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
 use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};
@@ -215,7 +216,7 @@ where
         ret
     }
 
-    fn calculate_out_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64)> {
+    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64)> {
         let mut env = env;
         env.tx.gas_limit = 500_000;
 
@@ -267,7 +268,7 @@ where
         }
     }
 
-    fn calculate_in_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64)> {
+    fn calculate_in_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64)> {
         if self.pool_contract.can_calculate_in_amount() {
             let mut env = env;
             env.tx.gas_limit = 500_000;

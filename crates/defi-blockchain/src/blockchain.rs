@@ -80,7 +80,7 @@ impl Blockchain
             chain_id,
             chain_parameters: ChainParameters::ethereum(),
             market: SharedState::new(market_instance),
-            market_state: SharedState::new(MarketState::new(db)),
+            market_state: SharedState::new(MarketState::new(Default::default())),
             mempool: SharedState::new(Mempool::new()),
             latest_block: SharedState::new(LatestBlock::new(0, BlockHash::ZERO)),
             block_history_state: SharedState::new(BlockHistory::new(10)),

@@ -6,12 +6,12 @@ use alloy_network::Network;
 use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header, Log};
+use alloy_transport::Transport;
 use eyre::{ErrReport, OptionExt, Result};
-use revm::InMemoryDB;
 use tokio::sync::RwLock;
 
-use alloy_transport::Transport;
 use defi_types::GethStateUpdateVec;
+use loom_revm::LoomInMemoryDB;
 
 use crate::MarketState;
 
@@ -22,7 +22,7 @@ pub struct BlockHistoryEntry
     pub block: Option<Block>,
     pub logs: Option<Vec<Log>>,
     pub state_update: Option<GethStateUpdateVec>,
-    pub state_db: Option<InMemoryDB>,
+    pub state_db: Option<LoomInMemoryDB>,
 }
 
 impl BlockHistoryEntry
@@ -31,7 +31,7 @@ impl BlockHistoryEntry
            block: Option<Block>,
            logs: Option<Vec<Log>>,
            state_update: Option<GethStateUpdateVec>,
-           state_db: Option<InMemoryDB>) -> BlockHistoryEntry {
+           state_db: Option<LoomInMemoryDB>) -> BlockHistoryEntry {
         BlockHistoryEntry {
             header,
             block,
@@ -66,7 +66,10 @@ impl BlockHistory
 
 
     pub async fn fetch<P, T, N>(client: P, current_state: Arc<RwLock<MarketState>>, depth: usize) -> Result<BlockHistory>
-        where N: Network, T: Transport + Clone, P: Provider<T, N> + Send + Sync + Clone + 'static
+    where
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
     {
 
         //let market_guard = current_market.read().await;
@@ -158,7 +161,7 @@ impl BlockHistory
         Ok(())
     }
 
-    pub fn add_state_diff(&mut self, block_hash: BlockHash, state_db: InMemoryDB, state_diff: GethStateUpdateVec) -> Result<()> {
+    pub fn add_state_diff(&mut self, block_hash: BlockHash, state_db: LoomInMemoryDB, state_diff: GethStateUpdateVec) -> Result<()> {
         let market_history_entry = self.process_block_hash(block_hash);
 
         if market_history_entry.state_db.is_none() {

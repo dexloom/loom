@@ -1,7 +1,9 @@
+use std::convert::Infallible;
+
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::SolCall;
 use eyre::{eyre, Result};
-use revm::InMemoryDB;
+use revm::DatabaseRef;
 use revm::primitives::Env;
 
 use defi_abi::uniswap_periphery::ICustomQuoter;
@@ -69,7 +71,8 @@ impl UniswapCustomQuoterEncoder {
 pub struct UniswapCustomQuoterStateReader {}
 
 impl UniswapCustomQuoterStateReader {
-    pub fn quote_exact_input(db: &InMemoryDB, env: Env, quoter_address: Address, pool: Address, token_from: Address, token_to: Address, fee: u32, amount: U256) -> eyre::Result<(U256, u64)> {
+    pub fn quote_exact_input<DB: DatabaseRef<Error=Infallible>>(db: DB, env: Env, quoter_address: Address, pool: Address, token_from: Address, token_to: Address, fee: u32, amount: U256) -> eyre::Result<(U256, u64)>
+    {
         let call_data_vec = UniswapCustomQuoterEncoder::quote_exact_input_encode(
             pool,
             token_from,
@@ -84,7 +87,7 @@ impl UniswapCustomQuoterStateReader {
     }
 
 
-    pub fn quote_exact_output(db: &InMemoryDB, env: Env, quoter_address: Address, pool: Address, token_from: Address, token_to: Address, fee: u32, amount: U256) -> eyre::Result<(U256, u64)> {
+    pub fn quote_exact_output<DB: DatabaseRef<Error=Infallible>>(db: DB, env: Env, quoter_address: Address, pool: Address, token_from: Address, token_to: Address, fee: u32, amount: U256) -> eyre::Result<(U256, u64)> {
         let call_data_vec = UniswapCustomQuoterEncoder::quote_exact_output_encode(
             pool,
             token_from,

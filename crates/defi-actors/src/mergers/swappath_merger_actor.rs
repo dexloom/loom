@@ -15,10 +15,11 @@ use defi_types::Mempool;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
+use loom_revm::LoomInMemoryDB;
 
 async fn arb_swap_steps_optimizer_task(
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-    state_db: Arc<InMemoryDB>,
+    state_db: Arc<LoomInMemoryDB>,
     evm_env: Env,
     request: TxComposeData,
 ) -> Result<()>

@@ -13,6 +13,7 @@ use defi_abi::IERC20;
 use defi_abi::uniswap2::IUniswapV2Pair;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
+use loom_revm::LoomInMemoryDB;
 
 use crate::state_readers::UniswapV2StateReader;
 
@@ -101,7 +102,7 @@ impl UniswapV2Pool {
         ((value >> 0) & *U112_MASK, (value >> (112)) & *U112_MASK)
     }
 
-    pub fn fetch_pool_data_evm(db: &InMemoryDB, env: Env, address: Address) -> Result<Self> {
+    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self> {
         let token0 = UniswapV2StateReader::token0(db, env.clone(), address)?;
         let token1 = UniswapV2StateReader::token1(db, env.clone(), address)?;
         let factory = UniswapV2StateReader::factory(db, env.clone(), address)?;
@@ -217,7 +218,7 @@ impl Pool for UniswapV2Pool
         vec![(self.token0, self.token1), (self.token1, self.token0)]
     }
 
-    fn calculate_out_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
         let (reserve_in, reserve_out) = match self.reserves_cell {
             Some(cell) => {
                 match state_db.storage_ref(self.get_address(), cell) {
@@ -265,7 +266,7 @@ impl Pool for UniswapV2Pool
         }
     }
 
-    fn calculate_in_amount(&self, state_db: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_in_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport> {
         let (reserve_in, reserve_out) = match self.reserves_cell {
             Some(cell) => {
                 match state_db.storage_ref(self.get_address(), cell) {

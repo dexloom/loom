@@ -1,3 +1,4 @@
+use std::convert::Infallible;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -6,10 +7,11 @@ use alloy_primitives::{Address, I256, U256};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::debug;
-use revm::InMemoryDB;
+use revm::{DatabaseRef, InMemoryDB};
 use revm::primitives::Env;
 
 use defi_types::SwapError;
+use loom_revm::LoomInMemoryDB;
 
 use crate::{PoolWrapper, SwapStep, Token};
 use crate::swappath::SwapPath;
@@ -335,7 +337,7 @@ impl SwapLine {
     }
 
 
-    pub fn calculate_with_in_amount(&self, state: &InMemoryDB, env: Env, in_amount: U256) -> Result<(U256, u64), SwapError> {
+    pub fn calculate_with_in_amount(&self, state: &LoomInMemoryDB, env: Env, in_amount: U256) -> Result<(U256, u64), SwapError> {
         let mut out_amount = in_amount;
         let mut gas_used = 0;
         for (i, pool) in self.pools().iter().enumerate() {
@@ -369,7 +371,7 @@ impl SwapLine {
         Ok((out_amount, gas_used))
     }
 
-    pub fn calculate_with_out_amount(&self, state: &InMemoryDB, env: Env, out_amount: U256) -> Result<(U256, u64), SwapError> {
+    pub fn calculate_with_out_amount(&self, state: &LoomInMemoryDB, env: Env, out_amount: U256) -> Result<(U256, u64), SwapError> {
         let mut in_amount = out_amount;
         let mut gas_used = 0;
         let mut pool_reverse = self.pools().clone();
@@ -414,7 +416,7 @@ impl SwapLine {
         I256::from_raw(out_amount) - I256::from_raw(in_amount)
     }
 
-    pub fn optimize_with_in_amount(&mut self, state: &InMemoryDB, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
+    pub fn optimize_with_in_amount(&mut self, state: &LoomInMemoryDB, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
         let mut current_in_amount = in_amount;
         let mut bestprofit: Option<I256> = None;
         let mut current_step = U256::from(10000);

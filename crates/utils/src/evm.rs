@@ -1,9 +1,11 @@
+use std::convert::Infallible;
+
 use alloy_primitives::{Address, B256, Bytes, U256};
 use alloy_rpc_types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, trace};
-use revm::Evm;
+use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 use revm::InMemoryDB;
 use revm::interpreter::Host;
 use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, ExecutionResult, Output, SHANGHAI, SpecId, TransactTo, TxEnv};
@@ -15,7 +17,10 @@ pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     env
 }
 
-pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data_vec: Vec<u8>) -> Result<(Vec<u8>, u64)> {
+pub fn evm_call<DB>(state_db: DB, env: Env, transact_to: Address, call_data_vec: Vec<u8>) -> Result<(Vec<u8>, u64)>
+where
+    DB: DatabaseRef<Error=Infallible>,
+{
     let mut env = env;
     env.tx.transact_to = TransactTo::Call(transact_to);
     env.tx.data = Bytes::from(call_data_vec);
@@ -56,7 +61,9 @@ pub fn evm_call(state_db: &InMemoryDB, env: Env, transact_to: Address, call_data
     }
 }
 
-pub fn evm_transact(evm: &mut Evm<(), InMemoryDB>, tx: &Transaction) -> Result<()>
+pub fn evm_transact<DB>(evm: &mut Evm<(), DB>, tx: &Transaction) -> Result<()>
+where
+    DB: Database<Error=Infallible> + DatabaseCommit,
 {
     let env = evm.context.env_mut();
 
@@ -101,7 +108,9 @@ lazy_static! {
     static ref COINBASE : Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
-pub fn evm_access_list(state_db: &InMemoryDB, env: &Env, tx: &TransactionRequest) -> Result<(u64, AccessList)>
+pub fn evm_access_list<DB>(state_db: DB, env: &Env, tx: &TransactionRequest) -> Result<(u64, AccessList)>
+where
+    DB: DatabaseRef<Error=Infallible>,
 {
     let mut env = env.clone();
 
@@ -118,7 +127,7 @@ pub fn evm_access_list(state_db: &InMemoryDB, env: &Env, tx: &TransactionRequest
     env.tx.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas.unwrap_or_default()));
 
     env.block.coinbase = *COINBASE;
-    
+
     let mut evm = Evm::builder().with_ref_db(state_db).with_spec_id(SHANGHAI).with_env(Box::new(env)).build();
 
     match evm.transact() {

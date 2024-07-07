@@ -12,11 +12,12 @@ use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
 
 use defi_types::GethStateUpdate;
+use loom_revm::LoomInMemoryDB;
 
 #[derive(Clone)]
 pub struct MarketState
 {
-    pub state_db: InMemoryDB,
+    pub state_db: LoomInMemoryDB,
     force_insert_accounts: HashMap<Address, bool>,
     pub read_only_cells: HashMap<Address, HashSet<U256>>,
 }
@@ -24,7 +25,7 @@ pub struct MarketState
 
 impl MarketState
 {
-    pub fn new(db: InMemoryDB) -> MarketState {
+    pub fn new(db: LoomInMemoryDB) -> MarketState {
         MarketState {
             state_db: db,
             force_insert_accounts: HashMap::new(),

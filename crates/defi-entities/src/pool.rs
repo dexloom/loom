@@ -6,10 +6,12 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{ErrReport, eyre, Result};
-use revm::InMemoryDB;
+use revm::{Database, DatabaseRef};
 use revm::primitives::Env;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString, VariantNames};
+
+use loom_revm::LoomInMemoryDB;
 
 use crate::required_state::RequiredState;
 
@@ -122,11 +124,11 @@ impl Pool for EmptyPool {
         self.address
     }
 
-    fn calculate_out_amount(&self, _state: &InMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _in_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(&self, _state: &LoomInMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _in_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    fn calculate_in_amount(&self, _state: &InMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _out_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
+    fn calculate_in_amount(&self, _state: &LoomInMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _out_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
@@ -251,17 +253,16 @@ pub trait Pool: Sync + Send
         Vec::new()
     }
 
-    fn calculate_out_amount(&self, state: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport>;
+    fn calculate_out_amount(&self, state: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport>;
 
     // returns (in_amount, gas_used)
-    fn calculate_in_amount(&self, state: &InMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport>;
+    fn calculate_in_amount(&self, state: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport>;
 
     fn can_flash_swap(&self) -> bool;
 
     fn can_calculate_in_amount(&self) -> bool {
         true
     }
-
 
     fn get_encoder(&self) -> &dyn AbiSwapEncoder;
 
