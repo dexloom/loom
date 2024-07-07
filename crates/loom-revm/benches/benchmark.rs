@@ -1,15 +1,15 @@
 use std::collections::{HashMap, HashSet};
 use std::hash::{BuildHasher, DefaultHasher, Hash, Hasher};
-use std::sync::Arc;
 
 use alloy::primitives::{Address, Bytes, U256};
 use criterion::{Criterion, criterion_group, criterion_main};
 use rand::{Rng, thread_rng};
+use revm::DatabaseRef;
 use revm::db::{AccountState as DbAccountState, CacheDB, DbAccount, EmptyDB};
 use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
 
 use loom_revm::fast_hasher::{HashedAddress, HashedAddressCell, SimpleBuildHasher, SimpleHasher};
-use loom_revm::fast_inmemorydb::FastInMemoryDb;
+use loom_revm::LoomInMemoryDB;
 
 const N: usize = 100000;
 const N_ACC: usize = 10000;
@@ -43,12 +43,58 @@ fn generate_accounts(acc_size: usize, mem_size: usize) -> Vec<DbAccount> {
     ret
 }
 
-fn test_insert(addr: &Vec<Address>, accs: &Vec<DbAccount>) {
-    let mut db0 = CacheDB::new(EmptyDB::new());
+fn fill_cache_db(db: &mut CacheDB<EmptyDB>, addr: &Vec<Address>, accs: &Vec<DbAccount>) {
     for a in 0..addr.len() {
-        db0.accounts.insert(addr[a], accs[a].clone());
+        db.insert_account_info(addr[a], accs[a].info.clone());
+        for (k, v) in accs[a].storage.iter() {
+            db.insert_account_storage(addr[a], *k, *v);
+        }
     }
 }
+
+fn fill_loom_db(db: &mut LoomInMemoryDB, addr: &Vec<Address>, accs: &Vec<DbAccount>) {
+    for a in 0..addr.len() {
+        db.insert_account_info(addr[a], accs[a].info.clone());
+        for (k, v) in accs[a].storage.iter() {
+            db.insert_account_storage(addr[a], *k, *v);
+        }
+    }
+}
+
+
+fn test_insert_cache_db(addr: &Vec<Address>, accs: &Vec<DbAccount>) {
+    let mut db = CacheDB::new(EmptyDB::new());
+    fill_cache_db(&mut db, addr, accs);
+}
+
+
+fn test_insert_loom_db(addr: &Vec<Address>, accs: &Vec<DbAccount>) {
+    let mut db = LoomInMemoryDB::default();
+    fill_loom_db(&mut db, addr, accs);
+}
+
+
+fn test_read_cache_db(db: &CacheDB<EmptyDB>, addr: &Vec<Address>, accs: &Vec<DbAccount>) {
+    for (i, a) in addr.iter().enumerate() {
+        for (k, v) in accs[i].storage.iter() {
+            if db.storage_ref(*a, *k).unwrap() != *v {
+                panic!("BAD_VALUE")
+            }
+        }
+    }
+}
+
+
+fn test_read_loom_db(db: &LoomInMemoryDB, addr: &Vec<Address>, accs: &Vec<DbAccount>) {
+    for (i, a) in addr.iter().enumerate() {
+        for (k, v) in accs[i].storage.iter() {
+            if db.storage_ref(*a, *k).unwrap() != *v {
+                panic!("BAD_VALUE")
+            }
+        }
+    }
+}
+
 
 fn build_one(addr: &Vec<Address>, accs: &Vec<DbAccount>) -> HashMap<HashedAddressCell, U256, SimpleBuildHasher> {
     let mut hm: HashMap<HashedAddressCell, U256, SimpleBuildHasher> = HashMap::with_hasher(SimpleBuildHasher::default());
@@ -128,58 +174,6 @@ fn test_read_one(addr: &Vec<Address>, accs: &Vec<DbAccount>, hm: &HashMap<Hashed
 }
 
 
-fn test_speed() {
-    let mut db0 = CacheDB::new(EmptyDB::new());
-
-    let n = 100000;
-    let n2 = 1000;
-
-    let accs = generate_accounts(n, 100);
-    let addr: Vec<Address> = (0..n).map(|x| Address::random()).collect();
-
-
-    for a in 0..n {
-        db0.accounts.insert(addr[a], accs[a].clone());
-    }
-
-    let accs2 = generate_accounts(n2, 100);
-    let start_time = chrono::Local::now();
-
-    for (i, a) in accs2.into_iter().enumerate() {
-        db0.accounts.insert(addr[i], a);
-    }
-
-
-    println!("Write {n2} {}", chrono::Local::now() - start_time);
-
-    let start_time = chrono::Local::now();
-
-    for i in 0..n2 {
-        let acc = db0.load_account(addr[i]).unwrap();
-    }
-
-    println!("Read {n2} {}", chrono::Local::now() - start_time);
-
-    let mut db1 = FastInMemoryDb::with_ext_db(Arc::new(db0));
-
-    let start_time = chrono::Local::now();
-
-    for i in 0..n2 {
-        let acc = db1.load_account(addr[i]).unwrap();
-    }
-
-    println!("Read known {n2} {}", chrono::Local::now() - start_time);
-
-    let start_time = chrono::Local::now();
-
-    for i in n2..n2 + n2 {
-        let acc = db1.load_account(addr[i]).unwrap();
-    }
-
-    println!("Read unknown {n2} {}", chrono::Local::now() - start_time);
-}
-
-
 fn test_hash_speed() {
     let addr = Address::random();
     for i in 0..N {
@@ -254,10 +248,18 @@ fn benchmark_test_group_hashmap(c: &mut Criterion) {
     let one_hm = build_one(&addr, &accs);
     let many_hm = build_many(&addr, &accs);
 
+    let mut cache_db = CacheDB::new(EmptyDB::new());
+    let mut loom_db = LoomInMemoryDB::default();
+
+    fill_cache_db(&mut cache_db, &addr, &accs);
+    fill_loom_db(&mut loom_db, &addr, &accs);
 
     let mut group = c.benchmark_group("hashmap_speed");
     group.sample_size(10);
-    group.bench_function("test_insert", |b| b.iter(|| test_insert(&addr, &accs)));
+    group.bench_function("test_insert_cache_db", |b| b.iter(|| test_insert_cache_db(&addr, &accs)));
+    group.bench_function("test_insert_loom_db", |b| b.iter(|| test_insert_loom_db(&addr, &accs)));
+    group.bench_function("test_read_cache_db", |b| b.iter(|| test_read_cache_db(&cache_db, &addr, &accs)));
+    group.bench_function("test_read_loom_db", |b| b.iter(|| test_read_loom_db(&loom_db, &addr, &accs)));
     group.bench_function("test_insert_one_hashmap", |b| b.iter(|| test_build_one(&addr, &accs)));
     group.bench_function("test_insert_many_hashmap", |b| b.iter(|| test_build_many(&addr, &accs)));
     group.bench_function("test_read_one_hashmap", |b| b.iter(|| test_read_one(&addr, &accs, &one_hm)));

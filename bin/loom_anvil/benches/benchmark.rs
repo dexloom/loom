@@ -88,14 +88,12 @@ async fn sync_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
     let mut step = U256::from(U256::from(10).pow(U256::from(18)));
     let mut in_amount = U256::from(U256::from(10).pow(U256::from(18)));
     for i in 0..10 {
-        pool.calculate_out_amount(state_db, evm_env.clone(), &pool.token1, &pool.token0, in_amount).unwrap();
-        /*match pool.calculate_out_amount(state_db, evm_env.clone(), &pool.token1, &pool.token0, in_amount) {
-            Ok(v)=>{println!("{v}")}
-            Err(e)=>{println!("{e}")}
-        }*/
+        let (out_amount, gas_used) = pool.calculate_out_amount(state_db, evm_env.clone(), &pool.token1, &pool.token0, in_amount).unwrap();
+        if out_amount.is_zero() || gas_used < 50_000 {
+            panic!("BAD CALC")
+        }
         in_amount += step;
     }
-    //println!("{}", out_amount);
 }
 
 async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc<ThreadPool>) {
@@ -103,8 +101,6 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
     let evm_env = Env::default();
     let mut step = U256::from(U256::from(10).pow(U256::from(16)));
     let mut in_amount = U256::from(U256::from(10).pow(U256::from(18)));
-    //let mut step = U256::from(U256::from(10).pow(U256::from(7)));
-    //let mut in_amount = U256::from(U256::from(10).pow(U256::from(8)));
 
     const ITER_COUNT: usize = 10000;
 
@@ -125,12 +121,12 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
     tokio::task::spawn(async move {
         threadpool.install(|| {
             in_vec.into_par_iter().for_each_with((&state_db_clone, &evm_env, &result_tx), |req, in_amount| {
-                //let mut rng = thread_rng();
-                //let random_number: u32 = rng.gen();
-                //let in_amount = in_amount + U256::from(random_number);
+                let (out_amount, gas_used) = pool.calculate_out_amount(req.0, req.1.clone(), &token_from, &token_to, in_amount).unwrap();
+                if out_amount.is_zero() || gas_used < 50_000 {
+                    panic!("BAD CALC")
+                }
 
-                let out_amount = pool.calculate_out_amount(req.0, req.1.clone(), &token_from, &token_to, in_amount).unwrap();
-                match req.2.try_send(out_amount.0) {
+                match req.2.try_send(out_amount) {
                     Err(e) => { error!("{e}") }
                     _ => {}
                 }
@@ -215,8 +211,12 @@ async fn tokio_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
                         drop(request_rx_guard);
                         match req {
                             Some(req) => {
-                                let out_amount = pool.calculate_out_amount(req.0.deref(), req.1.as_ref().clone(), &pool.token1, &pool.token0, req.2).unwrap();
-                                match result_tx_ptr.try_send(out_amount.0) {
+                                let (out_amount, gas_used) = pool.calculate_out_amount(req.0.deref(), req.1.as_ref().clone(), &pool.token1, &pool.token0, req.2).unwrap();
+                                if out_amount.is_zero() || gas_used < 50_000 {
+                                    panic!("BAD CALC")
+                                }
+
+                                match result_tx_ptr.try_send(out_amount) {
                                     Err(e) => { println!("result_tx_ptr error: {e}") }
                                     _ => {}
                                 }

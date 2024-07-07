@@ -598,7 +598,7 @@ mod tests {
 
         let update: BTreeMap<Address, GethAccountState> = [(account, update_record)].into();
 
-        new_state.apply_geth_update(update);
+        new_state.apply_geth_update(&update);
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().code, Some(code.clone()));
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce + 1);
