@@ -214,9 +214,13 @@ pub struct NWETH {}
 
 impl NWETH {
     const NWETH_EXP: f64 = 10u64.pow(18) as f64;
+    const GWEI_EXP_U128: u128 = 10u128.pow(9);
+    const GWEI_EXP: f64 = 10u64.pow(9) as f64;
+    const WEI_EXP_U128: u128 = 10u128.pow(18);
+    const WEI_EXP: f64 = 10u64.pow(18) as f64;
 
     pub fn to_float(value: U256) -> f64 {
-        let divider = U256::from(10).pow(U256::from(18));
+        let divider = U256::from(Self::NWETH_EXP);
 
 
         let ret = value.div_rem(divider);
@@ -230,6 +234,22 @@ impl NWETH {
             div.unwrap_or_default() as f64 + ((rem.unwrap_or_default() as f64) / Self::NWETH_EXP)
         }
     }
+
+
+    pub fn to_float_gwei(value: u128) -> f64 {
+        let div = value / Self::GWEI_EXP_U128;
+        let rem = value % Self::GWEI_EXP_U128;
+
+        div as f64 + ((rem as f64) / Self::GWEI_EXP)
+    }
+
+    pub fn to_float_wei(value: u128) -> f64 {
+        let div = value / Self::WEI_EXP_U128;
+        let rem = value % Self::WEI_EXP_U128;
+
+        div as f64 + ((rem as f64) / Self::WEI_EXP)
+    }
+
 
     pub fn from_float(value: f64) -> U256 {
         let multiplier = U256::from(value as i64);

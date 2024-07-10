@@ -150,6 +150,10 @@ impl TxComposeData {
             self.swap.abs_profit_eth() / U256::from(self.gas)
         }
     }
+
+    pub fn gas_cost(&self) -> u128 {
+        self.gas * (self.gas_fee + self.priority_gas_fee)
+    }
 }
 
 impl Default for TxComposeData {

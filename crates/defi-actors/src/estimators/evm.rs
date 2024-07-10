@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Bytes, TxKind};
+use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
@@ -25,7 +25,11 @@ async fn estimator_task(
     encoder: SwapStepEncoder,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
-    info!("EVM estimation");
+    info!("EVM estimation. Gas limit: {} price: {} cost: {} stuffing txs: {}",
+        estimate_request.gas,
+        NWETH::to_float_gwei(estimate_request.gas_fee),
+        NWETH::to_float_wei(estimate_request.gas_cost()),
+        estimate_request.stuffing_txs_hashes.len());
 
     let start_time = chrono::Local::now();
 
@@ -163,7 +167,7 @@ async fn estimator_task(
                 result
             }
             Err(e) => {
-                error!("evm_access_list error : {e}");
+                error!("evm_access_list error {}: {e}", estimate_request.swap);
                 Err(eyre!("EVM_ACCESS_LIST_ERROR"))
             }
         }

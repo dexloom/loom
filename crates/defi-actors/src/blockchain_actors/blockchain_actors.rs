@@ -93,7 +93,12 @@ where
 
     /// Starts market state preloader
     pub async fn with_market_state_preloader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(MarketStatePreloadedActor::new(self.provider.clone()).on_bc(&self.bc)).await?;
+        let mut address_vec = self.signers.read().await.get_address_vec();
+        let multicaller_address = self.encoder.clone().unwrap().multicaller_address;
+        address_vec.push(multicaller_address);
+
+
+        self.actor_manager.start(MarketStatePreloadedActor::new(self.provider.clone()).with_address_vec(address_vec).on_bc(&self.bc)).await?;
         Ok(self)
     }
 

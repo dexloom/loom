@@ -226,7 +226,6 @@ where
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
     bc_actors
         .mempool().await?
-
         .initialize_signers_with_encrypted_key(private_key_encrypted).await? // initialize signer with encrypted key
         .with_block_history().await? // collect blocks
         .with_gas_station().await? // gas station - calculates next block basefee
