@@ -208,9 +208,12 @@ impl Calculator
 {
     pub fn calculate<'a>(path: &'a mut SwapLine, state: &LoomInMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
         let first_token = path.get_first_token().unwrap();
-        let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
-        //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
-        path.optimize_with_in_amount(state, env, amount_in)
+        if let Some(amount_in) = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))) {
+            //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
+            path.optimize_with_in_amount(state, env, amount_in)
+        } else {
+            Err(path.to_error("PRICE_NOT_SET".to_string()))
+        }
     }
 }
 

@@ -47,7 +47,7 @@ impl InitializeSignersActor {
 
     pub fn new_from_encrypted_key(priv_key_enc: Vec<u8>) -> InitializeSignersActor {
         let keystore = KeyStore::new();
-        let key = keystore.encrypt_once(hex::decode(priv_key_enc).unwrap().as_slice()).unwrap();
+        let key = keystore.encrypt_once(priv_key_enc.as_slice()).unwrap();
 
         InitializeSignersActor {
             key: Some(key),

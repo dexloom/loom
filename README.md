@@ -7,10 +7,12 @@
 - [debug-provider](./crates/debug-provider) - debug api provider for node + anvil, HttpCachedTransport
 - [defi-abi](./crates/defi-abi) - sol! wrapper for contracts interface
 - [defi-actors](./crates/defi-actors) - defi actors crate
+- [defi-blockchain](./crates/defi-blockchian) - loom configuration module
 - [defi-entities](./crates/defi-entities) - defi entities crate
-- [defi-envents](./crates/defi-events) - defi events crate
+- [defi-events](./crates/defi-events) - defi events crate
 - [defi-pools](./crates/defi-pools) - defi exchange pools implementation
 - [flashbots](./crates/flashbots) - flashbots client
+- [loom-revm-db](./crates/loom-revm-db) - optimized InMemoryDB
 - [multicaller](./crates/multicaller) - multicaller interaction crate
 - [topology](./crates/topology) - topology crate
 - [types](./crates/types) - defi types crate
@@ -19,6 +21,7 @@
 ## Bins
 
 - [loom](./bin/loom) - backrun bot
+- [loom_exex](./bin/loom_exex) - backrun bot as ExEx module
 - [loom_anvil](./bin/loom_anvil) - anvil testing framework
 - [replayer](./bin/replayer) - blocks replayer
 - [keys](./bin/keys) - keys encryption tool

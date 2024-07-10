@@ -2,14 +2,14 @@
 
 [workspace]
 members = [
-    "bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer",
+    "bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex",
     "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools",
-    "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "crates/defi-blockchain", "crates/loom-revm-db", "bin/loom_exex"]
-default-members = ["bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer"]
+    "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "crates/defi-blockchain", "crates/loom-revm-db"]
+default-members = ["bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex"]
 resolver = "2"
 
 [workspace.package]
-version = "0.0.1"
+version = "0.1.0"
 edition = "2021"
 rust-version = "1.79"
 license = "MIT OR Apache-2.0"

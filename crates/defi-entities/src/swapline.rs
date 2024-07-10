@@ -159,6 +159,16 @@ impl From<SwapPath> for SwapLine {
 
 
 impl SwapLine {
+    pub fn to_error(&self, msg: String) -> SwapError {
+        SwapError {
+            msg,
+            pool: self.get_first_pool().map_or(Address::ZERO, |x| x.get_address()),
+            token_from: self.get_first_token().map_or(Address::ZERO, |x| x.get_address()),
+            token_to: self.get_last_token().map_or(Address::ZERO, |x| x.get_address()),
+            amount: self.amount_in.unwrap_or_zero(),
+        }
+    }
+
     pub fn new() -> Self {
         SwapLine::default()
     }

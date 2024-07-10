@@ -23,7 +23,7 @@ use reth_execution_types::Chain;
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
 use reth_primitives::{IntoRecoveredTransaction, Receipt};
-use reth_tracing::tracing::{error, info};
+use reth_tracing::tracing::{error, info, trace};
 use tokio::select;
 
 use debug_provider::DebugProviderExt;
@@ -175,7 +175,6 @@ where
     S: BlobStore,
 {
     info!("Mempool worker started");
-    let mut basefee_listener = mempool.new_basefee_pool_transactions_listener();
     let mut tx_listener = mempool.new_transactions_listener();
 
     let mempool_tx = bc.new_mempool_tx_channel();
@@ -191,7 +190,7 @@ where
                     if let Err(e) =  mempool_tx.send(update_msg).await {
                         error!(error=?e.to_string(), "mempool_tx.send");
                     }else{
-                        info!(notification = ?tx_notification, "Received pool tx");
+                        info!(hash = ?tx_notification.transaction.hash(), "Received pool tx");
                     }
                 }
             }
@@ -227,9 +226,11 @@ where
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
     bc_actors
         .mempool().await?
+
         .initialize_signers_with_encrypted_key(private_key_encrypted).await? // initialize signer with encrypted key
         .with_block_history().await? // collect blocks
         .with_gas_station().await? // gas station - calculates next block basefee
+        .with_price_station().await? // calculate price fo tokens
         .with_health_monitor_pools().await? // monitor pools health to disable empty
         .with_health_monitor_state().await? // monitor state health
         .with_health_monitor_stuffing_tx().await? // collect stuffing tx information

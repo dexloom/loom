@@ -43,7 +43,11 @@ fn main() -> eyre::Result<()> {
         let ipc_provider = ProviderBuilder::new().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;
 
         tokio::task::spawn(loom::mempool_worker(mempool, bc.clone()));
-        tokio::task::spawn(loom::start_loom(ipc_provider, bc.clone(), topology_config));
+        tokio::task::spawn(async move {
+            if let Err(e) = loom::start_loom(ipc_provider, bc, topology_config).await {
+                panic!("{}", e)
+            }
+        });
 
         handle.wait_for_node_exit().await
     })

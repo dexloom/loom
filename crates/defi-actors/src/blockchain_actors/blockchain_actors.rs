@@ -14,7 +14,7 @@ use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
 use loom_multicaller::MulticallerSwapEncoder;
 
-use crate::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, ProtocolPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, TxSignersActor};
+use crate::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, TxSignersActor};
 use crate::backrun::BlockStateChangeProcessorActor;
 
 pub struct BlockchainActors<P, T> {
@@ -114,6 +114,13 @@ where
         self.actor_manager.start(GasStationActor::new().on_bc(&self.bc)).await?;
         Ok(self)
     }
+
+    /// Starts token price calculator
+    pub async fn with_price_station(&mut self) -> Result<&mut Self> {
+        self.actor_manager.start(PriceActor::new(self.provider.clone()).on_bc(&self.bc)).await?;
+        Ok(self)
+    }
+
 
     /// Starts node with blocks
     pub async fn node_with_blocks(&mut self) -> Result<&mut Self> {
