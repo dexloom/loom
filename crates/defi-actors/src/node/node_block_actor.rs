@@ -10,7 +10,7 @@ use tokio::task::JoinHandle;
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
-use defi_events::{NodeBlockLogsUpdate, NodeBlockStateUpdate};
+use defi_events::{BlockLogs, BlockStateUpdate};
 use loom_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_actors_macros::Producer;
 
@@ -23,8 +23,8 @@ use crate::node::reth_worker::reth_node_worker_starter;
 pub async fn new_node_block_starer<P, T, N>(client: P,
                                             new_block_headers_channel: Option<Broadcaster<Header>>,
                                             new_block_with_tx_channel: Option<Broadcaster<Block>>,
-                                            new_block_logs_channel: Option<Broadcaster<NodeBlockLogsUpdate>>,
-                                            new_block_state_update_channel: Option<Broadcaster<NodeBlockStateUpdate>>,
+                                            new_block_logs_channel: Option<Broadcaster<BlockLogs>>,
+                                            new_block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
 ) -> ActorResult
 where
     T: Transport + Clone,
@@ -90,9 +90,9 @@ pub struct NodeBlockActor<P, T, N>
     #[producer]
     block_with_tx_channel: Option<Broadcaster<Block>>,
     #[producer]
-    block_logs_channel: Option<Broadcaster<NodeBlockLogsUpdate>>,
+    block_logs_channel: Option<Broadcaster<BlockLogs>>,
     #[producer]
-    block_state_update_channel: Option<Broadcaster<NodeBlockStateUpdate>>,
+    block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -187,7 +187,7 @@ mod test {
     use log::{debug, error, info};
     use tokio::select;
 
-    use defi_events::{NodeBlockLogsUpdate, NodeBlockStateUpdate};
+    use defi_events::{BlockLogs, BlockStateUpdate};
     use loom_actors::{Actor, Broadcaster, Producer};
 
     use crate::NodeBlockActor;
@@ -202,8 +202,8 @@ mod test {
         info!("Creating channels");
         let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
-        let new_block_state_update_channel: Broadcaster<NodeBlockStateUpdate> = Broadcaster::new(10);
-        let new_block_logs_channel: Broadcaster<NodeBlockLogsUpdate> = Broadcaster::new(10);
+        let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
+        let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
 
         let node_url = std::env::var("TEST_NODE_URL").unwrap_or("ws://localhost:8546".to_string());
         let ws_connect = WsConnect::new(node_url);
@@ -246,11 +246,11 @@ mod test {
                     debug!("Block withtx received : {:?}", msg);
                 }
                 msg_fut = new_block_logs_rx.recv() => {
-                    let msg : NodeBlockLogsUpdate = msg_fut.unwrap();
+                    let msg : BlockLogs = msg_fut.unwrap();
                     debug!("Block logs received : {:?}", msg);
                 }
                 msg_fut = new_block_state_update_rx.recv() => {
-                    let msg : NodeBlockStateUpdate = msg_fut.unwrap();
+                    let msg : BlockStateUpdate = msg_fut.unwrap();
                     debug!("Block state update received : {:?}", msg);
                 }
 

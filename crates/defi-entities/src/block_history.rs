@@ -11,7 +11,7 @@ use eyre::{ErrReport, OptionExt, Result};
 use tokio::sync::RwLock;
 
 use defi_types::GethStateUpdateVec;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 use crate::MarketState;
 

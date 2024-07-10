@@ -9,6 +9,7 @@ use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::{LatestBlock, NWETH, Swap, Token};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose};
 use defi_types::debug_trace_transaction;
@@ -159,6 +160,15 @@ impl<P: Provider + Send + Sync + Clone + 'static> StuffingTxMonitorActor<P> {
             latest_block: None,
             tx_compose_channel_rx: None,
             market_events_rx: None,
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            latest_block: Some(bc.latest_block()),
+            tx_compose_channel_rx: Some(bc.compose_channel()),
+            market_events_rx: Some(bc.market_events_channel()),
+            ..self
         }
     }
 }

@@ -4,7 +4,7 @@ use eyre::Result;
 use revm::primitives::Env;
 
 use defi_abi::uniswap2::IUniswapV2Pair;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
 pub struct UniswapV2StateReader {}

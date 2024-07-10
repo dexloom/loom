@@ -14,7 +14,7 @@ use defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaver
 use defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuoterCalls};
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
 use crate::state_readers::UniswapV3StateReader;

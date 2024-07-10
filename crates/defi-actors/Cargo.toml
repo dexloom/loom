@@ -21,7 +21,7 @@ defi-pools.workspace = true
 flashbots.workspace = true
 debug-provider.workspace = true
 loom-utils.workspace = true
-loom-revm.workspace = true
+loom-revm-db.workspace = true
 defi-blockchain.workspace = true
 
 eyre.workspace = true

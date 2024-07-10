@@ -1,7 +1,10 @@
+use std::marker::PhantomData;
+
 use alloy_json_rpc::RpcError;
+use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_signer_local::LocalWallet;
-use alloy_transport::TransportErrorKind;
+use alloy_transport::{Transport, TransportErrorKind};
 use eyre::Result;
 use thiserror::Error;
 use url::Url;
@@ -37,13 +40,18 @@ pub enum FlashbotsMiddlewareError {
 }
 
 
-pub struct FlashbotsMiddleware<P> {
+pub struct FlashbotsMiddleware<P, T> {
     provider: P,
     relay: Relay,
     simulation_relay: Option<Relay>,
+    _t: PhantomData<T>,
 }
 
-impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsMiddleware<P> {
+impl<P, T> FlashbotsMiddleware<P, T>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+{
     /// Initialize a new Flashbots middleware.
     ///
     /// The signer is used to sign requests to the relay.
@@ -52,6 +60,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsMiddleware<P> {
             provider,
             relay: Relay::new(relay_url, Some(LocalWallet::random())),
             simulation_relay: None,
+            _t: PhantomData,
         }
     }
 
@@ -60,6 +69,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsMiddleware<P> {
             provider,
             relay: Relay::new(relay_url, None),
             simulation_relay: None,
+            _t: PhantomData,
         }
     }
 

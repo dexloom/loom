@@ -4,7 +4,7 @@ use revm::primitives::Env;
 
 use defi_abi::uniswap3::IUniswapV3Pool;
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
 pub struct UniswapV3StateReader {}

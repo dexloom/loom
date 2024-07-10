@@ -10,7 +10,7 @@ use eyre::{eyre, Result};
 
 use defi_entities::{Swap, TxSigner};
 use defi_types::{GethStateUpdateVec, MulticallerCalls};
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 use crate::Message;
 

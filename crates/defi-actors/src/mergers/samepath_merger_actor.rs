@@ -22,12 +22,13 @@ use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 
 use debug_provider::DebugProviderExt;
+use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, DataFetcher, FetchState, LatestBlock, MarketState, Swap, TxSigners};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_transact;
 
 lazy_static! {
@@ -373,13 +374,7 @@ pub struct SamePathMergerActor<P, T, N>
     client: P,
     //encoder: SwapStepEncoder,
     #[accessor]
-    mempool: Option<SharedState<Mempool>>,
-    #[accessor]
     market_state: Option<SharedState<MarketState>>,
-    #[accessor]
-    signers: Option<SharedState<TxSigners>>,
-    #[accessor]
-    account_monitor: Option<SharedState<AccountNonceAndBalanceState>>,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
@@ -401,17 +396,24 @@ where
     pub fn new(client: P) -> Self {
         Self {
             client,
-            //encoder: SwapStepEncoder::new(multicaller),
-            mempool: None,
             market_state: None,
-            signers: None,
-            account_monitor: None,
             latest_block: None,
             market_events: None,
             compose_channel_rx: None,
             compose_channel_tx: None,
             _t: PhantomData::default(),
             _n: PhantomData::default(),
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market_state: Some(bc.market_state()),
+            latest_block: Some(bc.latest_block()),
+            market_events: Some(bc.market_events_channel()),
+            compose_channel_tx: Some(bc.compose_channel()),
+            compose_channel_rx: Some(bc.compose_channel()),
+            ..self
         }
     }
 }
@@ -427,11 +429,7 @@ where
         let task = tokio::task::spawn(
             same_path_merger_worker(
                 self.client.clone(),
-                //self.encoder.clone(),
-                //self.signers.clone().unwrap(),
-                //self.account_monitor.clone().unwrap(),
                 self.latest_block.clone().unwrap(),
-                //self.mempool.clone().unwrap(),
                 self.market_state.clone().unwrap(),
                 self.market_events.clone().unwrap().subscribe().await,
                 self.compose_channel_rx.clone().unwrap().subscribe().await,

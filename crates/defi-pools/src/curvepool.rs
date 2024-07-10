@@ -17,7 +17,7 @@ use revm::primitives::{Bytes as rBytes, Env, ExecutionResult, Output, TransactTo
 use defi_abi::IERC20;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
 use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};

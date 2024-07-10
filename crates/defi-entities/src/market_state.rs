@@ -12,7 +12,7 @@ use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
 
 use defi_types::GethStateUpdate;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 #[derive(Clone)]
 pub struct MarketState

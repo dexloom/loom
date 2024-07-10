@@ -2,9 +2,11 @@ use std::sync::Arc;
 
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
+use alloy_network::Ethereum;
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
@@ -20,9 +22,9 @@ use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerRes
 use loom_actors_macros::{Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 
-async fn estimator_task<P: Provider + Send + Sync + Clone + 'static>(
+async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static>(
     estimate_request: TxComposeData,
-    client: Arc<Flashbots<P>>,
+    client: Arc<Flashbots<P, T>>,
     encoder: SwapStepEncoder,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
@@ -194,8 +196,8 @@ async fn estimator_task<P: Provider + Send + Sync + Clone + 'static>(
     Ok(())
 }
 
-async fn estimator_worker<P: Provider + Send + Sync + Clone + 'static>(
-    client: Arc<Flashbots<P>>,
+async fn estimator_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static>(
+    client: Arc<Flashbots<P, T>>,
     encoder: SwapStepEncoder,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
@@ -231,9 +233,9 @@ async fn estimator_worker<P: Provider + Send + Sync + Clone + 'static>(
 }
 
 #[derive(Consumer, Producer)]
-pub struct GethEstimatorActor<P>
+pub struct GethEstimatorActor<P, T>
 {
-    client: Arc<Flashbots<P>>,
+    client: Arc<Flashbots<P, T>>,
     encoder: SwapStepEncoder,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
@@ -241,8 +243,12 @@ pub struct GethEstimatorActor<P>
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
 }
 
-impl<P: Provider + Send + Sync + Clone + 'static> GethEstimatorActor<P> {
-    pub fn new(client: Arc<Flashbots<P>>, encoder: SwapStepEncoder) -> Self {
+impl<P, T> GethEstimatorActor<P, T>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+{
+    pub fn new(client: Arc<Flashbots<P, T>>, encoder: SwapStepEncoder) -> Self {
         Self {
             client,
             encoder,
@@ -261,7 +267,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> GethEstimatorActor<P> {
 }
 
 #[async_trait]
-impl<P: Provider + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P> {
+impl<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P, T> {
     async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             estimator_worker(

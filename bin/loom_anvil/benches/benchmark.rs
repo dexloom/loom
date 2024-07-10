@@ -25,7 +25,7 @@ use defi_entities::{MarketState, Pool, PoolWrapper};
 use defi_entities::required_state::RequiredStateReader;
 use defi_pools::{UniswapV2Pool, UniswapV3Pool};
 use defi_pools::protocols::UniswapV3Protocol;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 async fn performance_test() {
     let mut rng = StdRng::from_entropy();

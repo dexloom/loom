@@ -9,13 +9,14 @@ use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, LatestBlock, MarketState, Swap, SwapStep, TxSigners};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use defi_types::Mempool;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 async fn arb_swap_steps_optimizer_task(
     compose_channel_tx: Broadcaster<MessageTxCompose>,
@@ -183,14 +184,6 @@ pub struct ArbSwapPathMergerActor
 {
     encoder: SwapStepEncoder,
     #[accessor]
-    mempool: Option<SharedState<Mempool>>,
-    #[accessor]
-    market_state: Option<SharedState<MarketState>>,
-    #[accessor]
-    signers: Option<SharedState<TxSigners>>,
-    #[accessor]
-    account_monitor: Option<SharedState<AccountNonceAndBalanceState>>,
-    #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
@@ -205,14 +198,19 @@ impl ArbSwapPathMergerActor
     pub fn new(multicaller: Address) -> ArbSwapPathMergerActor {
         ArbSwapPathMergerActor {
             encoder: SwapStepEncoder::new(multicaller),
-            mempool: None,
-            market_state: None,
-            signers: None,
-            account_monitor: None,
             latest_block: None,
             market_events: None,
             compose_channel_rx: None,
             compose_channel_tx: None,
+        }
+    }
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            latest_block: Some(bc.latest_block()),
+            market_events: Some(bc.market_events_channel()),
+            compose_channel_tx: Some(bc.compose_channel()),
+            compose_channel_rx: Some(bc.compose_channel()),
+            ..self
         }
     }
 }
@@ -223,13 +221,8 @@ impl Actor for ArbSwapPathMergerActor
     async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(
             arb_swap_path_merger_worker(
-                //self.client.clone(),
                 self.encoder.clone(),
-                //self.signers.clone().unwrap(),
-                //self.account_monitor.clone().unwrap(),
                 self.latest_block.clone().unwrap(),
-                //self.mempool.clone().unwrap(),
-                //self.market_state.clone().unwrap(),
                 self.market_events.clone().unwrap().subscribe().await,
                 self.compose_channel_rx.clone().unwrap().subscribe().await,
                 self.compose_channel_tx.clone().unwrap(),

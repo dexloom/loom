@@ -10,7 +10,7 @@ use async_trait::async_trait;
 
 use debug_provider::{DebugProviderExt, HttpCachedTransport};
 use defi_blockchain::Blockchain;
-use defi_events::{NodeBlockLogsUpdate, NodeBlockStateUpdate};
+use defi_events::{BlockLogs, BlockStateUpdate};
 use loom_actors::{Actor, ActorResult, Broadcaster, Producer};
 use loom_actors_macros::Producer;
 
@@ -27,9 +27,9 @@ pub struct NodeBlockPlayerActor<P, T, N>
     #[producer]
     block_with_tx_channel: Option<Broadcaster<Block>>,
     #[producer]
-    block_logs_channel: Option<Broadcaster<NodeBlockLogsUpdate>>,
+    block_logs_channel: Option<Broadcaster<BlockLogs>>,
     #[producer]
-    block_state_update_channel: Option<Broadcaster<NodeBlockStateUpdate>>,
+    block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }

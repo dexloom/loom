@@ -8,7 +8,7 @@ use uniswap_v3_math::tick_bitmap::position;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
 
 use defi_entities::Pool;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 use crate::db_reader::UniswapV3DBReader;
 use crate::UniswapV3Pool;

@@ -19,13 +19,13 @@ use revm::InMemoryDB;
 use debug_provider::{AnvilDebugProvider, AnvilDebugProviderFactory, DebugProviderExt};
 use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, StateChangeArbSearcherActor, TxSignersActor};
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, Pool, PoolClass, PoolWrapper, Swap, Token, TxSigners};
-use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate, TxCompose};
+use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, TxCompose};
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
 use defi_types::{ChainParameters, debug_trace_block, debug_trace_call_diff, GethStateUpdateVec, Mempool};
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom_multicaller::{MulticallerDeployer, SwapStepEncoder};
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 use crate::test_config::TestConfig;
 
@@ -124,8 +124,8 @@ async fn main() -> Result<()> {
     info!("Creating channels");
     let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
     let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
-    let new_block_state_update_channel: Broadcaster<NodeBlockStateUpdate> = Broadcaster::new(10);
-    let new_block_logs_channel: Broadcaster<NodeBlockLogsUpdate> = Broadcaster::new(10);
+    let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
+    let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
 
     let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(500);
 

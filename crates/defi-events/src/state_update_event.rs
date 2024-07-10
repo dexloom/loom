@@ -7,11 +7,11 @@ use revm::primitives::Env;
 
 use defi_entities::PoolWrapper;
 use defi_types::GethStateUpdateVec;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::env_for_block;
 
 #[derive(Clone, Debug)]
-pub struct MessageSearcherPoolStateUpdate
+pub struct StateUpdateEvent
 {
     pub block: u64,
     pub block_timestamp: u64,
@@ -27,7 +27,7 @@ pub struct MessageSearcherPoolStateUpdate
 
 }
 
-impl MessageSearcherPoolStateUpdate
+impl StateUpdateEvent
 {
     pub fn new(
         block: u64,
@@ -41,8 +41,8 @@ impl MessageSearcherPoolStateUpdate
         stuffing_txs: Vec<Transaction>,
         origin: String,
         tips_pct: u32,
-    ) -> MessageSearcherPoolStateUpdate {
-        MessageSearcherPoolStateUpdate {
+    ) -> StateUpdateEvent {
+        StateUpdateEvent {
             block,
             block_timestamp,
             gas_fee,

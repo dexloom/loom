@@ -3,11 +3,14 @@ pub use defi_events::*;
 pub use health_event::*;
 pub use message::Message;
 pub use node::*;
+pub use state_update_event::*;
 pub use tx_compose::*;
 
 mod tx_compose;
 mod message;
 mod health_event;
-pub mod node;
-pub mod defi_events;
+mod node;
+mod defi_events;
 mod best_tx_compose;
+
+mod state_update_event;

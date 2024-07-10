@@ -8,7 +8,7 @@ use alloy_rpc_types::{Block, BlockTransactionsKind, Filter, Header};
 use log::error;
 
 use debug_provider::{DebugProviderExt, HttpCachedTransport};
-use defi_events::{NodeBlockLogsUpdate, NodeBlockStateUpdate};
+use defi_events::{BlockLogs, BlockStateUpdate};
 use defi_types::debug_trace_block;
 use loom_actors::{Broadcaster, WorkerResult};
 
@@ -18,8 +18,8 @@ pub async fn node_player_worker<P>(
     end_block: BlockNumber,
     new_block_headers_channel: Option<Broadcaster<Header>>,
     new_block_with_tx_channel: Option<Broadcaster<Block>>,
-    new_block_logs_channel: Option<Broadcaster<NodeBlockLogsUpdate>>,
-    new_block_state_update_channel: Option<Broadcaster<NodeBlockStateUpdate>>,
+    new_block_logs_channel: Option<Broadcaster<BlockLogs>>,
+    new_block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
 ) -> WorkerResult
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
@@ -56,7 +56,7 @@ where
                 let filter = Filter::new().at_block_hash(curblock_hash);
                 match provider.get_logs(&filter).await {
                     Ok(logs) => {
-                        let logs_update = NodeBlockLogsUpdate {
+                        let logs_update = BlockLogs {
                             block_hash: curblock_hash,
                             logs,
                         };
@@ -73,7 +73,7 @@ where
             if let Some(block_state_update_channel) = &new_block_state_update_channel {
                 match debug_trace_block(provider.clone(), BlockId::Hash(curblock_hash.into()), true).await {
                     Ok((_, post)) => {
-                        if let Err(e) = block_state_update_channel.send(NodeBlockStateUpdate { block_hash: curblock_hash, state_update: post }).await {
+                        if let Err(e) = block_state_update_channel.send(BlockStateUpdate { block_hash: curblock_hash, state_update: post }).await {
                             error!("new_block_state_update_channel error: {e}");
                         }
                     }

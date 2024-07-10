@@ -20,16 +20,16 @@ use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 
 use debug_provider::DebugProviderExt;
+use defi_blockchain::Blockchain;
 use defi_entities::{LatestBlock, Market, MarketState};
 use defi_entities::required_state::accounts_vec_len;
-use defi_events::{MarketEvents, MempoolEvents};
+use defi_events::{MarketEvents, MempoolEvents, StateUpdateEvent};
 use defi_types::{debug_trace_call_diff, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 use super::affected_pools::get_affected_pools;
 use super::affected_pools_code::{get_affected_pools_from_code, is_pool_code};
-use super::messages::MessageSearcherPoolStateUpdate;
 
 lazy_static! {
     static ref COINBASE : Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
@@ -49,7 +49,7 @@ pub async fn pending_tx_state_change_task<P, T, N>(
     cur_block_time: u64,
     cur_next_base_fee: u128,
     cur_state_override: StateOverride,
-    state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
 ) -> Result<()>
 where
     T: Transport + Clone,
@@ -155,7 +155,7 @@ where
 
                 if affected_pools.len() > 0 {
                     let cur_state_db = market_state.read().await.state_db.clone();
-                    let request = MessageSearcherPoolStateUpdate::new(
+                    let request = StateUpdateEvent::new(
                         block_number,
                         block_timestamp,
                         cur_next_base_fee,
@@ -200,7 +200,7 @@ where
 
                             if affected_pools.len() > 0 {
                                 let cur_state = market_state.read().await.clone();
-                                let request = MessageSearcherPoolStateUpdate::new(
+                                let request = StateUpdateEvent::new(
                                     block_number,
                                     block_timestamp,
                                     cur_next_base_fee,
@@ -248,7 +248,7 @@ pub async fn pending_tx_state_change_worker<P, T, N>(
     market_state: SharedState<MarketState>,
     mut mempool_events_rx: Receiver<MempoolEvents>,
     mut market_events_rx: Receiver<MarketEvents>,
-    state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -337,7 +337,7 @@ pub struct PendingTxStateChangeProcessorActor<P, T, N>
     #[consumer]
     mempool_events_rx: Option<Broadcaster<MempoolEvents>>,
     #[producer]
-    state_updates_tx: Option<Broadcaster<MessageSearcherPoolStateUpdate>>,
+    state_updates_tx: Option<Broadcaster<StateUpdateEvent>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -360,6 +360,19 @@ where
             state_updates_tx: None,
             _t: PhantomData::default(),
             _n: PhantomData::default(),
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market: Some(bc.market()),
+            mempool: Some(bc.mempool()),
+            market_state: Some(bc.market_state()),
+            latest_block: Some(bc.latest_block()),
+            market_events_rx: Some(bc.market_events_channel()),
+            mempool_events_rx: Some(bc.mempool_events_channel()),
+            state_updates_tx: Some(bc.state_update_channel()),
+            ..self
         }
     }
 }

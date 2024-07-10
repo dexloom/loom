@@ -11,8 +11,8 @@ exclude.workspace = true
 [dependencies]
 defi-types.workspace = true
 defi-entities.workspace = true
-loom-revm.workspace = true
-
+loom-revm-db.workspace = true
+loom-utils.workspace = true
 
 alloy-primitives.workspace = true
 alloy-rpc-types.workspace = true

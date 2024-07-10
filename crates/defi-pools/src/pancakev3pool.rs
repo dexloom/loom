@@ -20,7 +20,7 @@ use defi_abi::uniswap3::IUniswapV3Pool;
 use defi_abi::uniswap_periphery::ITickLens;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
 use crate::state_readers::UniswapV3StateReader;

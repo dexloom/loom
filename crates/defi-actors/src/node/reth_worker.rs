@@ -26,20 +26,18 @@ use reth_provider::{
 use reth_provider::providers::StaticFileProvider;
 
 use defi_abi::uniswap3::IUniswapV3Pool::IUniswapV3PoolCalls::collect;
-use defi_events::{NodeBlockLogsUpdate, NodeBlockStateUpdate};
-use defi_events::MarketEvents::BlockStateUpdate;
+use defi_events::{BlockLogs, BlockStateUpdate};
 use defi_types::GethStateUpdate;
 use loom_actors::{ActorResult, Broadcaster, WorkerResult};
-
-use crate::node::reth_types::append_all_matching_block_logs;
+use loom_utils::reth_types::append_all_matching_block_logs;
 
 pub async fn reth_node_worker<P, T, N>(
     client: P,
     db_path: String,
     new_block_headers_channel: Option<Broadcaster<Header>>,
     new_block_with_tx_channel: Option<Broadcaster<Block>>,
-    new_block_logs_channel: Option<Broadcaster<NodeBlockLogsUpdate>>,
-    new_block_state_update_channel: Option<Broadcaster<NodeBlockStateUpdate>>,
+    new_block_logs_channel: Option<Broadcaster<BlockLogs>>,
+    new_block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -134,7 +132,7 @@ where
                                                                 Ok(_)=>{
                                                                     trace!("logs {block_number} {block_hash} : {logs:?}");
 
-                                                                    let logs_update = NodeBlockLogsUpdate {
+                                                                    let logs_update = BlockLogs {
                                                                         block_hash,
                                                                         logs
                                                                     };
@@ -237,7 +235,7 @@ where
                                     debug!("StateUpdate created {block_number} {block_hash} : len {}", account_btree.len());
 
 
-                                    let state_update = NodeBlockStateUpdate {
+                                    let state_update = BlockStateUpdate {
                                         block_hash,
                                         state_update: vec![account_btree],
                                     };
@@ -269,8 +267,8 @@ pub async fn reth_node_worker_starter<P, T, N>(
     db_path: &String,
     new_block_headers_channel: Option<Broadcaster<Header>>,
     new_block_with_tx_channel: Option<Broadcaster<Block>>,
-    new_block_logs_channel: Option<Broadcaster<NodeBlockLogsUpdate>>,
-    new_block_state_update_channel: Option<Broadcaster<NodeBlockStateUpdate>>,
+    new_block_logs_channel: Option<Broadcaster<BlockLogs>>,
+    new_block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
 ) -> ActorResult
 where
     T: Transport + Clone,

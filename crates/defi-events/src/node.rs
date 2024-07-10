@@ -15,13 +15,13 @@ pub type MessageMempoolDataUpdate = Message<NodeMempoolDataUpdate>;
 
 
 #[derive(Clone, Debug)]
-pub struct NodeBlockStateUpdate {
+pub struct BlockStateUpdate {
     pub block_hash: BlockHash,
     pub state_update: GethStateUpdateVec,
 }
 
 #[derive(Clone, Debug)]
-pub struct NodeBlockLogsUpdate {
+pub struct BlockLogs {
     pub block_hash: BlockHash,
     pub logs: Vec<Log>,
 }

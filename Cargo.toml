@@ -4,7 +4,7 @@
 members = [
     "bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer",
     "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools",
-    "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "crates/defi-blockchain", "crates/loom-revm"]
+    "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "crates/defi-blockchain", "crates/loom-revm-db", "bin/loom_exex"]
 default-members = ["bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer"]
 resolver = "2"
 
@@ -23,7 +23,7 @@ loom-actors-macros = { path = "crates/actors-macros" }
 loom-utils = { path = "crates/utils" }
 loom-multicaller = { path = "crates/multicaller" }
 loom-topology = { path = "crates/topology" }
-loom-revm = { path = "crates/loom-revm" }
+loom-revm-db = { path = "crates/loom-revm-db" }
 defi-types = { path = "crates/types" }
 defi-actors = { path = "crates/defi-actors" }
 defi-entities = { path = "crates/defi-entities" }
@@ -46,6 +46,7 @@ serde = "1.0.203"
 serde_json = "1.0.119"
 lazy_static = "1.4.0"
 futures = "0.3.30"
+futures-util = "0.3.30"
 rand = "0.8.5"
 num_cpus = "1.16.0"
 async-trait = "0.1.80"
@@ -72,8 +73,11 @@ revm = { version = "10.0.0", features = [
     "secp256k1",
     "blst",
 ], default-features = false }
-revm-primitives = { version = "5.0.0", features = ["std", ], default-features = false }
-revm-inspectors = { git = "https://github.com/paradigmxyz/evm-inspectors", rev = "bc01e05" }
+revm-primitives = { version = "5.0.0", features = [
+    "std",
+], default-features = false }
+revm-inspectors = "0.3.1"
+
 
 
 alloy-core = "0.7.6"
@@ -109,13 +113,21 @@ alloy-pubsub = "0.1.3"
 alloy-signer = "0.1.3"
 alloy-signer-local = "0.1.3"
 
+reth = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-rpc-types = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
 
-reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "b93e70c" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "b93e70c" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "b93e70c" }
-reth-rpc-types = { git = "https://github.com/paradigmxyz/reth", rev = "b93e70c" }
-reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "b93e70c" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "b93e70c" }
 
 
 uniswap_v3_math = { git = "https://github.com/dexloom/uniswap-v3-math" }

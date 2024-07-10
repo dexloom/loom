@@ -26,7 +26,7 @@ use defi_actors::{fetch_and_add_pool_by_address, preload_market_state};
 use defi_entities::{Market, MarketState, NWETH, PoolClass, PoolWrapper, Swap, SwapAmountType, SwapLine, SwapPath, Token};
 use loom_actors::SharedState;
 use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapEncoder};
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 use loom_utils::remv_db_direct_access::calc_hashmap_cell;
 

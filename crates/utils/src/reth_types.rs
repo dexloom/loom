@@ -1,9 +1,8 @@
-use alloy_eips::BlockNumHash;
 use alloy_primitives::{B256, B64};
-use alloy_rpc_types::{Block as ABlock, BlockTransactions, Header as AHeader, Log as ALog};
+use alloy_rpc_types::{Block as ABlock, BlockNumHash, BlockTransactions, Header as AHeader, Log as ALog};
 use eyre::{OptionExt, Result};
 use reth_db::models::StoredBlockBodyIndices;
-use reth_primitives::{Block as RBlock, BlockWithSenders, Header as RHeader, Receipt};
+use reth_primitives::{Block as RBlock, BlockWithSenders, Header as RHeader, Receipt, SealedBlockWithSenders};
 
 pub trait Convert<T> {
     fn convert(&self) -> T;
@@ -61,7 +60,7 @@ impl Convert<ABlock> for RBlock {
 
 /// Appends all matching logs of a block's receipts.
 /// If the log matches, look up the corresponding transaction hash.
-pub(crate) fn append_all_matching_block_logs(
+pub fn append_all_matching_block_logs(
     all_logs: &mut Vec<ALog>,
     block_num_hash: BlockNumHash,
     receipts: Vec<Receipt>,
@@ -103,3 +102,41 @@ pub(crate) fn append_all_matching_block_logs(
     Ok(())
 }
 
+
+/// Appends all matching logs of a block's receipts.
+/// If the log matches, look up the corresponding transaction hash.
+pub fn append_all_matching_block_logs_sealed(
+    all_logs: &mut Vec<ALog>,
+    block_num_hash: BlockNumHash,
+    receipts: Vec<Receipt>,
+    removed: bool,
+    block: &SealedBlockWithSenders,
+) -> Result<()> {
+    // Tracks the index of a log in the entire block.
+    let mut log_index: u64 = 0;
+
+    let mut tx_iter = block.body.iter();
+
+    // Iterate over receipts and append matching logs.
+    for (receipt_idx, receipt) in receipts.iter().enumerate() {
+        // The transaction hash of the current receipt.
+        let transaction_hash = tx_iter.next().ok_or_eyre("NO_NEXT_TX")?.hash();
+
+        for log in &receipt.logs {
+            let log = ALog {
+                inner: log.clone(),
+                block_hash: Some(block_num_hash.hash),
+                block_number: Some(block_num_hash.number),
+                transaction_hash: Some(transaction_hash),
+                // The transaction and receipt index is always the same.
+                transaction_index: Some(receipt_idx as u64),
+                log_index: Some(log_index),
+                removed,
+                block_timestamp: Some(block.timestamp),
+            };
+            all_logs.push(log);
+        }
+        log_index += 1;
+    }
+    Ok(())
+}

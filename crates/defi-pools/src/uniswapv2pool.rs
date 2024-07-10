@@ -13,7 +13,7 @@ use defi_abi::IERC20;
 use defi_abi::uniswap2::IUniswapV2Pair;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 use crate::state_readers::UniswapV2StateReader;
 

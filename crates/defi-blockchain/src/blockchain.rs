@@ -6,7 +6,7 @@ use revm::db::EmptyDB;
 use revm::InMemoryDB;
 
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Token};
-use defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, NodeBlockLogsUpdate, NodeBlockStateUpdate};
+use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent};
 use defi_types::{ChainParameters, Mempool};
 use loom_actors::{Broadcaster, SharedState};
 
@@ -25,13 +25,14 @@ pub struct Blockchain
 
     new_block_headers_channel: Broadcaster<Header>,
     new_block_with_tx_channel: Broadcaster<Block>,
-    new_block_state_update_channel: Broadcaster<NodeBlockStateUpdate>,
-    new_block_logs_channel: Broadcaster<NodeBlockLogsUpdate>,
+    new_block_state_update_channel: Broadcaster<BlockStateUpdate>,
+    new_block_logs_channel: Broadcaster<BlockLogs>,
     new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate>,
     market_events_channel: Broadcaster<MarketEvents>,
     mempool_events_channel: Broadcaster<MempoolEvents>,
     pool_health_monitor_channel: Broadcaster<MessageHealthEvent>,
     compose_channel: Broadcaster<MessageTxCompose>,
+    state_update_channel: Broadcaster<StateUpdateEvent>,
 }
 
 impl Blockchain
@@ -41,8 +42,8 @@ impl Blockchain
 
         let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
-        let new_block_state_update_channel: Broadcaster<NodeBlockStateUpdate> = Broadcaster::new(10);
-        let new_block_logs_channel: Broadcaster<NodeBlockLogsUpdate> = Broadcaster::new(10);
+        let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
+        let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
 
         let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(1000);
 
@@ -50,6 +51,7 @@ impl Blockchain
         let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(1000);
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
         let compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(1000);
+        let state_update_channel: Broadcaster<StateUpdateEvent> = Broadcaster::new(1000);
 
 
         let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
@@ -95,6 +97,7 @@ impl Blockchain
             mempool_events_channel,
             pool_health_monitor_channel,
             compose_channel,
+            state_update_channel,
         }
     }
 
@@ -143,11 +146,11 @@ impl Blockchain
         self.new_block_with_tx_channel.clone()
     }
 
-    pub fn new_block_state_update_channel(&self) -> Broadcaster<NodeBlockStateUpdate> {
+    pub fn new_block_state_update_channel(&self) -> Broadcaster<BlockStateUpdate> {
         self.new_block_state_update_channel.clone()
     }
 
-    pub fn new_block_logs_channel(&self) -> Broadcaster<NodeBlockLogsUpdate> {
+    pub fn new_block_logs_channel(&self) -> Broadcaster<BlockLogs> {
         self.new_block_logs_channel.clone()
     }
 
@@ -168,6 +171,10 @@ impl Blockchain
 
     pub fn compose_channel(&self) -> Broadcaster<MessageTxCompose> {
         self.compose_channel.clone()
+    }
+
+    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent> {
+        self.state_update_channel.clone()
     }
 }
 

@@ -10,8 +10,9 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use debug_provider::DebugProviderExt;
+use defi_blockchain::Blockchain;
 use defi_entities::{Market, MarketState};
-use defi_events::NodeBlockLogsUpdate;
+use defi_events::BlockLogs;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
@@ -21,7 +22,7 @@ pub async fn new_pool_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
-    mut log_update_rx: Receiver<NodeBlockLogsUpdate>,
+    mut log_update_rx: Receiver<BlockLogs>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -33,7 +34,7 @@ where
             msg = log_update_rx.recv() => {
                 debug!("Log update");
 
-                let log_update : Result<NodeBlockLogsUpdate, RecvError>  = msg;
+                let log_update : Result<BlockLogs, RecvError>  = msg;
                 match log_update {
                     Ok(log_update_msg)=>{
                         if let Ok(pool_address_vec) = process_log_entries(
@@ -64,7 +65,7 @@ pub struct NewPoolLoaderActor<P, T, N>
     #[accessor]
     market_state: Option<SharedState<MarketState>>,
     #[consumer]
-    log_update_rx: Option<Broadcaster<NodeBlockLogsUpdate>>,
+    log_update_rx: Option<Broadcaster<BlockLogs>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -83,6 +84,15 @@ where
             log_update_rx: None,
             _t: PhantomData::default(),
             _n: PhantomData::default(),
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market: Some(bc.market()),
+            market_state: Some(bc.market_state()),
+            log_update_rx: Some(bc.new_block_logs_channel()),
+            ..self
         }
     }
 }

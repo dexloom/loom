@@ -8,8 +8,8 @@ use revm::DatabaseRef;
 use revm::db::{AccountState as DbAccountState, CacheDB, DbAccount, EmptyDB};
 use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
 
-use loom_revm::fast_hasher::{HashedAddress, HashedAddressCell, SimpleBuildHasher, SimpleHasher};
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::fast_hasher::{HashedAddress, HashedAddressCell, SimpleBuildHasher, SimpleHasher};
+use loom_revm_db::LoomInMemoryDB;
 
 const N: usize = 100000;
 const N_ACC: usize = 10000;

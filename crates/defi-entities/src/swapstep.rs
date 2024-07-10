@@ -7,7 +7,7 @@ use log::error;
 use revm::InMemoryDB;
 use revm::primitives::Env;
 
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 use crate::{PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 

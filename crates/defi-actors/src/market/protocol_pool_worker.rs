@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use log::{error, info};
 
 use debug_provider::DebugProviderExt;
+use defi_blockchain::Blockchain;
 use defi_entities::{Market, MarketState, PoolWrapper};
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
@@ -138,6 +139,14 @@ where
             _t: PhantomData::default(),
         }
     }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market: Some(bc.market()),
+            market_state: Some(bc.market_state()),
+            ..self
+        }
+    }
 }
 
 #[async_trait]
@@ -145,7 +154,7 @@ impl<P, T, N> Actor for ProtocolPoolLoaderActor<P, T, N>
 where
     T: Transport + Clone,
     N: Network,
-    P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(

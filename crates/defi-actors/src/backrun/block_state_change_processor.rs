@@ -2,19 +2,19 @@ use async_trait::async_trait;
 use log::{debug, error};
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::{BlockHistory, Market};
-use defi_events::MarketEvents;
+use defi_events::{MarketEvents, StateUpdateEvent};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 use super::affected_pools::get_affected_pools;
-use super::messages::MessageSearcherPoolStateUpdate;
 
 pub async fn block_state_change_worker(
     market: SharedState<Market>,
     block_history: SharedState<BlockHistory>,
     mut market_events_rx: Receiver<MarketEvents>,
-    state_updates_broadcaster: Broadcaster<MessageSearcherPoolStateUpdate>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
 ) -> WorkerResult
 {
     //let mut block_number;
@@ -58,7 +58,7 @@ pub async fn block_state_change_worker(
                                             //let next_base_fee : U256 = block_header.next_block_base_fee().unwrap_or_default().convert();
 
 
-                                            let request = MessageSearcherPoolStateUpdate::new(
+                                            let request = StateUpdateEvent::new(
                                                 block,
                                                 block_timestamp,
                                                 next_base_fee,
@@ -104,18 +104,26 @@ pub struct BlockStateChangeProcessorActor
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     #[producer]
-    state_updates_tx: Option<Broadcaster<MessageSearcherPoolStateUpdate>>,
+    state_updates_tx: Option<Broadcaster<StateUpdateEvent>>,
 }
 
 impl BlockStateChangeProcessorActor
 {
     pub fn new() -> BlockStateChangeProcessorActor {
         BlockStateChangeProcessorActor {
-            //client,
             market: None,
             block_history: None,
             market_events_rx: None,
             state_updates_tx: None,
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market: Some(bc.market()),
+            block_history: Some(bc.block_history()),
+            market_events_rx: Some(bc.market_events_channel()),
+            state_updates_tx: Some(bc.state_update_channel()),
         }
     }
 }

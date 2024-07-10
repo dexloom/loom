@@ -36,7 +36,7 @@ strum.workspace = true
 strum_macros.workspace = true
 
 defi-types.workspace = true
-loom-revm.workspace = true
+loom-revm-db.workspace = true
 loom-utils.workspace = true
 debug-provider.workspace = true
 

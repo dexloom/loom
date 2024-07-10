@@ -10,11 +10,11 @@ use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
 use defi_entities::{BlockHistory, LatestBlock, MarketState};
-use defi_events::{MarketEvents, NodeBlockLogsUpdate, NodeBlockStateUpdate};
+use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents};
 use defi_types::ChainParameters;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 pub async fn new_block_history_worker(
     chain_parameters: ChainParameters,
@@ -23,8 +23,8 @@ pub async fn new_block_history_worker(
     block_history: SharedState<BlockHistory>,
     mut block_header_update_rx: Receiver<Header>,
     mut block_update_rx: Receiver<Block>,
-    mut log_update_rx: Receiver<NodeBlockLogsUpdate>,
-    mut state_update_rx: Receiver<NodeBlockStateUpdate>,
+    mut log_update_rx: Receiver<BlockLogs>,
+    mut state_update_rx: Receiver<BlockStateUpdate>,
     sender: Broadcaster<MarketEvents>,
 ) -> WorkerResult
 {
@@ -92,7 +92,7 @@ pub async fn new_block_history_worker(
             msg = log_update_rx.recv() => {
                 debug!("Log update");
 
-                let log_update : Result<NodeBlockLogsUpdate, RecvError>  = msg;
+                let log_update : Result<BlockLogs, RecvError>  = msg;
                 match log_update {
                     Ok(msg) =>{
                         let block_hash : BlockHash = msg.block_hash;
@@ -118,7 +118,7 @@ pub async fn new_block_history_worker(
             msg = state_update_rx.recv() => {
                 // todo(Make getting market state from previous block)
                 debug!("Block State update");
-                let state_update_msg : Result<NodeBlockStateUpdate, RecvError> = msg;
+                let state_update_msg : Result<BlockStateUpdate, RecvError> = msg;
                 match state_update_msg {
                     Ok(msg) => {
                         let block_hash : BlockHash = msg.block_hash;
@@ -192,14 +192,14 @@ pub async fn new_block_history_worker(
                                     }
                                 }
                                 market_state.write().await.state_db = new_market_state_db.clone();
-                                info!("market state updated ok");
+                                info!("market state updated ok records : update len: {} accounts: {} contracts: {}", msg.state_update.len(), new_market_state_db.accounts.len(),  new_market_state_db.contracts.len()  );
                                 sender.send(MarketEvents::BlockStateUpdate{ block_hash} ).await.unwrap();
 
                                 //Merging DB in background and update market state
                                 let market_state_clone= market_state.clone();
                                 tokio::task::spawn( async move{
                                     let merged_db = LoomInMemoryDB::new( Arc::new(new_market_state_db.merge()));
-                                    market_state_clone.write().await.state_db = new_market_state_db.clone();
+                                    market_state_clone.write().await.state_db = merged_db;
                                 });
 
                             }
@@ -232,9 +232,9 @@ pub struct BlockHistoryActor
     #[consumer]
     block_update_rx: Option<Broadcaster<Block>>,
     #[consumer]
-    log_update_rx: Option<Broadcaster<NodeBlockLogsUpdate>>,
+    log_update_rx: Option<Broadcaster<BlockLogs>>,
     #[consumer]
-    state_update_rx: Option<Broadcaster<NodeBlockStateUpdate>>,
+    state_update_rx: Option<Broadcaster<BlockStateUpdate>>,
     #[producer]
     market_events_tx: Option<Broadcaster<MarketEvents>>,
 }

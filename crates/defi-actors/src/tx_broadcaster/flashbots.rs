@@ -1,8 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use alloy_network::Ethereum;
 use alloy_primitives::{Bytes, U256};
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::error;
@@ -16,12 +18,13 @@ use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
-async fn broadcast_task<P>(
+async fn broadcast_task<P, T>(
     broadcast_request: TxComposeData,
-    client: Arc<Flashbots<P>>,
+    client: Arc<Flashbots<P, T>>,
 ) -> Result<()>
 where
-    P: Provider + Send + Sync + Clone + 'static,
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     let block_number = broadcast_request.block;
 
@@ -47,13 +50,14 @@ where
     }
 }
 
-async fn flashbots_broadcaster_worker<P>(
-    client: Arc<Flashbots<P>>,
+async fn flashbots_broadcaster_worker<P, T>(
+    client: Arc<Flashbots<P, T>>,
     smart_mode: bool,
     mut bundle_rx: Receiver<MessageTxCompose>,
 ) -> WorkerResult
 where
-    P: Provider + Send + Sync + Clone + 'static,
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     let mut current_block: u64 = 0;
     let mut best_request: BestTxCompose = Default::default();
@@ -107,19 +111,20 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct FlashbotsBroadcastActor<P>
+pub struct FlashbotsBroadcastActor<P, T>
 {
-    client: Arc<Flashbots<P>>,
+    client: Arc<Flashbots<P, T>>,
     smart: bool,
     #[consumer]
     tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
 }
 
-impl<P> FlashbotsBroadcastActor<P>
+impl<P, T> FlashbotsBroadcastActor<P, T>
 where
-    P: Provider + Send + Sync + Clone + 'static,
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: Flashbots<P>, smart: bool) -> FlashbotsBroadcastActor<P> {
+    pub fn new(client: Flashbots<P, T>, smart: bool) -> FlashbotsBroadcastActor<P, T> {
         FlashbotsBroadcastActor {
             client: Arc::new(client),
             smart,
@@ -136,9 +141,10 @@ where
 }
 
 #[async_trait]
-impl<P> Actor for FlashbotsBroadcastActor<P>
+impl<P, T> Actor for FlashbotsBroadcastActor<P, T>
 where
-    P: Provider + Send + Sync + Clone + 'static,
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(

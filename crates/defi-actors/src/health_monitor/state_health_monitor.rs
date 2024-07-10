@@ -1,8 +1,11 @@
 use std::collections::HashMap;
+use std::marker::PhantomData;
 
 use alloy_eips::BlockNumberOrTag;
+use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use async_trait::async_trait;
 use chrono::{DateTime, Duration, Local};
 use eyre::Result;
@@ -10,12 +13,13 @@ use log::{error, info, warn};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::MarketState;
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
-async fn verify_pool_state_task<P: Provider + 'static>(
+async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static>(
     client: P,
     address: Address,
     market_state: SharedState<MarketState>,
@@ -52,7 +56,7 @@ async fn verify_pool_state_task<P: Provider + 'static>(
     Ok(())
 }
 
-pub async fn state_health_monitor_worker<P: Provider + Clone + 'static>(
+pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Clone + 'static>(
     client: P,
     market_state: SharedState<MarketState>,
     mut tx_compose_channel_rx: Receiver<MessageTxCompose>,
@@ -123,7 +127,7 @@ pub async fn state_health_monitor_worker<P: Provider + Clone + 'static>(
 }
 
 #[derive(Accessor, Consumer)]
-pub struct StateHealthMonitorActor<P>
+pub struct StateHealthMonitorActor<P, T>
 {
     client: P,
     #[accessor]
@@ -132,11 +136,13 @@ pub struct StateHealthMonitorActor<P>
     tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
+    _t: PhantomData<T>,
 }
 
-impl<P> StateHealthMonitorActor<P>
+impl<P, T> StateHealthMonitorActor<P, T>
 where
-    P: Provider + Send + Sync + Clone + 'static,
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         StateHealthMonitorActor {
@@ -144,15 +150,26 @@ where
             market_state: None,
             tx_compose_channel_rx: None,
             market_events_rx: None,
+            _t: PhantomData,
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market_state: Some(bc.market_state()),
+            tx_compose_channel_rx: Some(bc.compose_channel()),
+            market_events_rx: Some(bc.market_events_channel()),
+            ..self
         }
     }
 }
 
 
 #[async_trait]
-impl<P> Actor for StateHealthMonitorActor<P>
+impl<P, T> Actor for StateHealthMonitorActor<P, T>
 where
-    P: Provider + Send + Sync + Clone + 'static,
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(

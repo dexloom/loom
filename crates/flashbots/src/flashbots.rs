@@ -1,19 +1,26 @@
+use std::marker::PhantomData;
 use std::sync::Arc;
 
+use alloy_network::{Ethereum, Network};
 use alloy_primitives::{TxHash, U64};
 use alloy_provider::Provider;
+use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
 use url::Url;
 
 use crate::client::{BundleRequest, BundleTransaction, FlashbotsMiddleware, FlashbotsMiddlewareError, SimulatedBundle};
 
-pub struct FlashbotsClient<P> {
-    pub flashbots_middleware: FlashbotsMiddleware<P>,
+pub struct FlashbotsClient<P, T> {
+    pub flashbots_middleware: FlashbotsMiddleware<P, T>,
     pub name: String,
 }
 
-impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsClient<P> {
+impl<P, T> FlashbotsClient<P, T>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+{
     pub fn new(provider: P, url: &str) -> Self {
         let flashbots_middleware = Self::create_flashbots_middleware(provider, url);
 
@@ -37,8 +44,8 @@ impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsClient<P> {
     }
 
 
-    fn create_flashbots_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P> {
-        let flashbots: FlashbotsMiddleware<P> = FlashbotsMiddleware::new(
+    fn create_flashbots_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P, T> {
+        let flashbots: FlashbotsMiddleware<P, T> = FlashbotsMiddleware::new(
             Url::parse(url).unwrap(),
             provider,
         );
@@ -46,8 +53,8 @@ impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsClient<P> {
         flashbots
     }
 
-    fn create_flashbots_no_signer_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P> {
-        let flashbots: FlashbotsMiddleware<P> = FlashbotsMiddleware::new_no_signer(
+    fn create_flashbots_no_signer_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P, T> {
+        let flashbots: FlashbotsMiddleware<P, T> = FlashbotsMiddleware::new_no_signer(
             Url::parse(url).unwrap(),
             provider,
         );
@@ -105,14 +112,20 @@ impl<P: Provider + Send + Sync + Clone + 'static> FlashbotsClient<P> {
     }
 }
 
-pub struct Flashbots<P>
+pub struct Flashbots<P, T>
 {
-    simulation_client: FlashbotsClient<P>,
-    clients: Vec<Arc<FlashbotsClient<P>>>,
+    simulation_client: FlashbotsClient<P, T>,
+    clients: Vec<Arc<FlashbotsClient<P, T>>>,
+    _t: PhantomData<T>,
 }
 
 
-impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
+impl<P, T> Flashbots<P, T>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+
+{
     pub fn new(provider: P, simulation_endpoint: &str) -> Self
     {
         let flashbots = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
@@ -139,13 +152,14 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
         Flashbots {
             clients: clients_vec.into_iter().map(Arc::new).collect(),
             simulation_client: FlashbotsClient::new(provider.clone(), simulation_endpoint),
+            _t: PhantomData,
         }
     }
 
 
-    pub async fn simulate_txes<T>(&self, txs: Vec<T>, block_number: u64, access_list_request: Option<Vec<TxHash>>) -> Result<SimulatedBundle>
+    pub async fn simulate_txes<TX>(&self, txs: Vec<TX>, block_number: u64, access_list_request: Option<Vec<TxHash>>) -> Result<SimulatedBundle>
     where
-        BundleTransaction: std::convert::From<T>,
+        BundleTransaction: std::convert::From<TX>,
     {
         let mut bundle = BundleRequest::new()
             .set_block(U64::from(block_number + 1))
@@ -160,9 +174,9 @@ impl<P: Provider + Send + Sync + Clone + 'static> Flashbots<P> {
     }
 
 
-    pub async fn broadcast_txes<T>(&self, txs: Vec<T>, block: u64) -> Result<()>
+    pub async fn broadcast_txes<TX>(&self, txs: Vec<TX>, block: u64) -> Result<()>
     where
-        BundleTransaction: std::convert::From<T>,
+        BundleTransaction: std::convert::From<TX>,
     {
         let mut bundle = BundleRequest::new().set_block(U64::from(block));
 

@@ -8,6 +8,7 @@ use async_trait::async_trait;
 use log::{error, info};
 
 use debug_provider::DebugProviderExt;
+use defi_blockchain::Blockchain;
 use defi_entities::{Market, MarketState};
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
@@ -26,10 +27,12 @@ where
 {
     let mut current_block = client.get_block_number().await.unwrap();
 
-    //let mut current_block = U64::from(17836224);
     let block_size: u64 = 5;
 
     for _ in 1..10000 {
+        if current_block < block_size + 1 {
+            break;
+        }
         current_block -= block_size;
         info!("Loading blocks {} {}", current_block, current_block + block_size);
         let filter = Filter::new().from_block(current_block).to_block(current_block + block_size - 1);
@@ -77,6 +80,14 @@ where
             market_state: None,
             _t: PhantomData::default(),
             _n: PhantomData::default(),
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market: Some(bc.market()),
+            market_state: Some(bc.market_state()),
+            ..self
         }
     }
 }

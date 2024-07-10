@@ -96,16 +96,16 @@ pub enum SignersConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct PreloaderConfig {
-    pub(crate) client: Option<String>,
+    pub client: Option<String>,
     #[serde(rename = "bc")]
-    pub(crate) blockchain: Option<String>,
-    pub(crate) encoder: Option<String>,
-    pub(crate) signers: Option<String>,
+    pub blockchain: Option<String>,
+    pub encoder: Option<String>,
+    pub signers: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct SwapStepEncoderConfig {
-    pub(crate) address: String,
+    pub address: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -118,17 +118,17 @@ pub enum EncoderConfig {
 #[derive(Debug, Deserialize)]
 pub struct BlockchainClientConfig {
     #[serde(rename = "bc")]
-    pub(crate) blockchain: Option<String>,
-    pub(crate) client: Option<String>,
+    pub blockchain: Option<String>,
+    pub client: Option<String>,
 }
 
 
 #[derive(Debug, Deserialize)]
 pub struct FlashbotsBroadcasaterConfig {
     #[serde(rename = "bc")]
-    pub(crate) blockchain: Option<String>,
-    pub(crate) client: Option<String>,
-    pub(crate) smart: Option<bool>,
+    pub blockchain: Option<String>,
+    pub client: Option<String>,
+    pub smart: Option<bool>,
 }
 
 
@@ -143,18 +143,18 @@ pub enum BroadcasterConfig {
 #[derive(Debug, Deserialize)]
 pub struct EvmEstimatorConfig {
     #[serde(rename = "bc")]
-    pub(crate) blockchain: Option<String>,
+    pub blockchain: Option<String>,
     //pub(crate) signers : Option<String>,
-    pub(crate) encoder: Option<String>,
+    pub encoder: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 pub struct GethEstimatorConfig {
-    pub(crate) client: Option<String>,
+    pub client: Option<String>,
     #[serde(rename = "bc")]
-    pub(crate) blockchain: Option<String>,
+    pub blockchain: Option<String>,
     //pub(crate) signers : Option<String>,
-    pub(crate) encoder: Option<String>,
+    pub encoder: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -170,11 +170,11 @@ pub enum EstimatorConfig {
 #[derive(Debug, Deserialize)]
 pub struct PoolsConfig {
     #[serde(rename = "bc")]
-    pub(crate) blockchain: Option<String>,
-    pub(crate) client: Option<String>,
-    pub(crate) history: bool,
-    pub(crate) new: bool,
-    pub(crate) protocol: bool,
+    pub blockchain: Option<String>,
+    pub client: Option<String>,
+    pub history: bool,
+    pub new: bool,
+    pub protocol: bool,
 }
 
 

@@ -18,14 +18,13 @@ use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use defi_abi::uniswap_periphery::ITickLens;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 use crate::protocols::UniswapV3Protocol;
 use crate::state_readers::{UniswapCustomQuoterStateReader, UniswapV3QuoterEncoder, UniswapV3StateReader};
 use crate::virtual_impl::UniswapV3PoolVirtual;
 
 lazy_static! {
-    //pub static ref CUSTOM_QUOTER_ADDRESS : Address = "0x0000000000000000000000000000000000003333".parse().unwrap();
 
     pub static ref QUOTER_ADDRESS : Address = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6".parse().unwrap();
     pub static ref TICK_LENS_ADDRESS : Address = "0xbfd8137f7d1516D3ea5cA83523914859ec47F573".parse().unwrap();

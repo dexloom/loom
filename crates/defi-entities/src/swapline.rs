@@ -11,7 +11,7 @@ use revm::{DatabaseRef, InMemoryDB};
 use revm::primitives::Env;
 
 use defi_types::SwapError;
-use loom_revm::LoomInMemoryDB;
+use loom_revm_db::LoomInMemoryDB;
 
 use crate::{PoolWrapper, SwapStep, Token};
 use crate::swappath::SwapPath;

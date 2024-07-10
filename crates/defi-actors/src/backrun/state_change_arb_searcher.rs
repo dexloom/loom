@@ -13,19 +13,18 @@ use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
-use defi_entities::{GasStation, Market, MarketState, PoolWrapper, Swap, SwapLine, SwapPath};
-use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, TxComposeData};
+use defi_blockchain::Blockchain;
+use defi_entities::{GasStation, Market, PoolWrapper, Swap, SwapLine, SwapPath};
+use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxComposeData};
 use defi_types::SwapError;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
-use loom_revm::LoomInMemoryDB;
-
-use super::messages::MessageSearcherPoolStateUpdate;
+use loom_revm_db::LoomInMemoryDB;
 
 async fn state_change_arb_searcher_task(
     thread_pool: Arc<ThreadPool>,
     smart: bool,
-    msg: MessageSearcherPoolStateUpdate,
+    msg: StateUpdateEvent,
     market: SharedState<Market>,
     swap_request_tx: Broadcaster<MessageTxCompose>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
@@ -173,7 +172,7 @@ async fn state_change_arb_searcher_task(
 pub async fn state_change_arb_searcher_worker(
     smart: bool,
     market: SharedState<Market>,
-    mut search_request_rx: Receiver<MessageSearcherPoolStateUpdate>,
+    mut search_request_rx: Receiver<StateUpdateEvent>,
     swap_request_tx: Broadcaster<MessageTxCompose>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> WorkerResult {
@@ -185,7 +184,7 @@ pub async fn state_change_arb_searcher_worker(
     loop {
         tokio::select! {
                 msg = search_request_rx.recv() => {
-                let pool_update_msg : Result<MessageSearcherPoolStateUpdate, RecvError> = msg;
+                let pool_update_msg : Result<StateUpdateEvent, RecvError> = msg;
                 if let Ok(msg) = pool_update_msg {
                     tokio::task::spawn(
                         state_change_arb_searcher_task(
@@ -223,9 +222,9 @@ pub struct StateChangeArbSearcherActor
     #[accessor]
     market: Option<SharedState<Market>>,
     #[consumer]
-    pool_state_update_rx: Option<Broadcaster<MessageSearcherPoolStateUpdate>>,
+    state_update_rx: Option<Broadcaster<StateUpdateEvent>>,
     #[producer]
-    swap_arb_request_tx: Option<Broadcaster<MessageTxCompose>>,
+    compose_tx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
     pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
 }
@@ -237,9 +236,19 @@ impl StateChangeArbSearcherActor
         StateChangeArbSearcherActor {
             smart,
             market: None,
-            pool_state_update_rx: None,
-            swap_arb_request_tx: None,
+            state_update_rx: None,
+            compose_tx: None,
             pool_health_monitor_tx: None,
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market: Some(bc.market()),
+            compose_tx: Some(bc.compose_channel()),
+            pool_health_monitor_tx: Some(bc.pool_health_monitor_channel()),
+            state_update_rx: Some(bc.state_update_channel()),
+            ..self
         }
     }
 }
@@ -252,8 +261,8 @@ impl Actor for StateChangeArbSearcherActor
             state_change_arb_searcher_worker(
                 self.smart,
                 self.market.clone().unwrap(),
-                self.pool_state_update_rx.clone().unwrap().subscribe().await,
-                self.swap_arb_request_tx.clone().unwrap(),
+                self.state_update_rx.clone().unwrap().subscribe().await,
+                self.compose_tx.clone().unwrap(),
                 self.pool_health_monitor_tx.clone().unwrap(),
             )
         );

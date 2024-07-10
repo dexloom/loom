@@ -14,7 +14,7 @@ use debug_provider::HttpCachedTransport;
 use defi_actors::{BlockchainActors, BlockHistoryActor, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockPlayerActor, NonceAndBalanceMonitorActor, TxSignersActor};
 use defi_blockchain::Blockchain;
 use defi_entities::TxSigners;
-use defi_events::{NodeBlockLogsUpdate, NodeBlockStateUpdate};
+use defi_events::{BlockLogs, BlockStateUpdate};
 use loom_actors::{Accessor, Actor, ActorsManager, Broadcaster, Consumer, Producer, SharedState};
 
 #[tokio::main]
@@ -76,7 +76,7 @@ async fn main() -> Result<()> {
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
     bc_actors
         .initialize_signers_with_key(None).await?
-        .with_market_state_preoloader().await?
+        .with_market_state_preloader().await?
         .with_signers().await?
         .with_nonce_and_balance_monitor().await?
         .with_block_history().await?

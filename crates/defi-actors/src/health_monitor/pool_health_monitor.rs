@@ -7,6 +7,7 @@ use log::{debug, error};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
+use defi_blockchain::Blockchain;
 use defi_entities::Market;
 use defi_events::{HealthEvent, MessageHealthEvent};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
@@ -81,6 +82,13 @@ impl PoolHealthMonitorActor
         PoolHealthMonitorActor {
             market: None,
             pool_health_update_rx: None,
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            market: Some(bc.market()),
+            pool_health_update_rx: Some(bc.pool_health_monitor_channel()),
         }
     }
 }
