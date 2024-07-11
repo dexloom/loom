@@ -452,10 +452,6 @@ async fn main() -> Result<()> {
             multicaller_address
         );
         match swap_path_merger_actor
-            .access(mempool_instance.clone())
-            .access(market_state.clone())
-            .access(tx_signers.clone())
-            .access(accounts_state.clone())
             .access(latest_block.clone())
             .consume(tx_compose_channel.clone())
             .consume(market_events_channel.clone())
@@ -470,10 +466,7 @@ async fn main() -> Result<()> {
     if test_config.modules.same_path_merger {
         let mut same_path_merger_actor = SamePathMergerActor::new(client.clone());
         match same_path_merger_actor
-            .access(mempool_instance.clone())
             .access(market_state.clone())
-            .access(tx_signers.clone())
-            .access(accounts_state.clone())
             .access(latest_block.clone())
             .consume(tx_compose_channel.clone())
             .consume(market_events_channel.clone())
@@ -493,11 +486,6 @@ async fn main() -> Result<()> {
     // Diff path merger tries to merge all found swaplines into one transaction s
     let mut diff_path_merger_actor = DiffPathMergerActor::new();
     match diff_path_merger_actor
-        .access(mempool_instance.clone())
-        .access(market_state.clone())
-        .access(tx_signers.clone())
-        .access(accounts_state.clone())
-        .access(latest_block.clone())
         .consume(tx_compose_channel.clone())
         .consume(market_events_channel.clone())
         .produce(tx_compose_channel.clone())

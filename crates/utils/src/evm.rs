@@ -201,6 +201,7 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env
             gas_priority_fee: tx.max_priority_fee_per_gas.map(|x| U256::from(x)),
             blob_hashes: Vec::new(),
             max_fee_per_blob_gas: None,
+            authorization_list: None,
             //eof_initcodes: vec![],
             //eof_initcodes_hashed: Default::default(),
         },

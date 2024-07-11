@@ -1,0 +1,30 @@
+[package]
+name = "exex_grpc_node"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+eyre.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
+
+example-exex-remote = {git = "https://github.com/paradigmxyz/reth-exex-grpc"}
+
+#reth = { git = "https://github.com/paradigmxyz/reth" }
+#reth-exex = { git = "https://github.com/paradigmxyz/reth", features = ["serde"] }
+#reth-node-api = { git = "https://github.com/paradigmxyz/reth" }
+#reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth" }
+#reth-tracing = { git = "https://github.com/paradigmxyz/reth" }
+
+reth.workspace = true
+reth-exex.workspace = true
+reth-node-api.workspace = true
+reth-node-ethereum.workspace = true
+reth-tracing.workspace = true
+

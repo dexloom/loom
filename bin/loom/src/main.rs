@@ -80,10 +80,6 @@ async fn main() -> Result<()> {
     );
 
     match swap_path_merger_actor
-        .access(blockchain.mempool())
-        .access(blockchain.market_state())
-        .access(tx_signers.clone())
-        .access(blockchain.nonce_and_balance())
         .access(blockchain.latest_block())
         .consume(blockchain.market_events_channel())
         .consume(blockchain.compose_channel())
@@ -103,10 +99,7 @@ async fn main() -> Result<()> {
     );
 
     match same_path_merger_actor
-        .access(blockchain.mempool())
         .access(blockchain.market_state())
-        .access(tx_signers.clone())
-        .access(blockchain.nonce_and_balance())
         .access(blockchain.latest_block())
         .consume(blockchain.market_events_channel())
         .consume(blockchain.compose_channel())
@@ -126,11 +119,6 @@ async fn main() -> Result<()> {
     let mut diff_path_merger_actor = DiffPathMergerActor::new();
 
     match diff_path_merger_actor
-        .access(blockchain.mempool())
-        .access(blockchain.market_state())
-        .access(tx_signers.clone())
-        .access(blockchain.nonce_and_balance())
-        .access(blockchain.latest_block())
         .consume(blockchain.market_events_channel())
         .consume(blockchain.compose_channel())
         .produce(blockchain.compose_channel())
