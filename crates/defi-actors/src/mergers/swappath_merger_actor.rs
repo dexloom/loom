@@ -240,8 +240,8 @@ impl Actor for ArbSwapPathMergerActor
 mod test {
     use alloy_primitives::{Address, U256};
 
-    use defi_entities::{SwapAmountType, SwapLine, Token};
-    use defi_events::{Swap, TxComposeData};
+    use defi_entities::{Swap, SwapAmountType, SwapLine, Token};
+    use defi_events::{TxComposeData};
 
     #[test]
     pub fn test_sort() {

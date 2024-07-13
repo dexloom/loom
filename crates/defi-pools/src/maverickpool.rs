@@ -449,7 +449,7 @@ mod tests {
         let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await?;
         debug!("{:?}", state_required);
 
-        let mut market_state = MarketState::new(InMemoryDB::new(EmptyDB::new()));
+        let mut market_state = MarketState::new(LoomInMemoryDB::default());
         market_state.add_state(&state_required);
 
         let block_number = client.get_block_number().await?;
