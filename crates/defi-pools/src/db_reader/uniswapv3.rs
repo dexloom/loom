@@ -107,7 +107,7 @@ mod test {
     use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::{MarketState, Pool};
     use defi_entities::required_state::RequiredStateReader;
-
+    use loom_revm_db::LoomInMemoryDB;
     use crate::db_reader::UniswapV3DBReader;
     use crate::protocols::UniswapV3Protocol;
     use crate::state_readers::UniswapV3StateReader;
@@ -130,7 +130,7 @@ mod test {
 
         let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20038285).await?;
 
-        let mut market_state = MarketState::new(InMemoryDB::default());
+        let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
         market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
