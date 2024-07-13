@@ -203,6 +203,7 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env
             max_fee_per_blob_gas: None,
             //eof_initcodes: vec![],
             //eof_initcodes_hashed: Default::default(),
+            authorization_list: None,
         },
     }
 }

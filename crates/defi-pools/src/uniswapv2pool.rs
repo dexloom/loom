@@ -423,7 +423,7 @@ mod tests {
         let provider = ProviderBuilder::new().on_client(client).boxed();
 
 
-        let mut market_state = MarketState::new(InMemoryDB::default());
+        let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
 
         let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
