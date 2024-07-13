@@ -471,7 +471,7 @@ mod tests {
         //let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19931897).await?;
         let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20045799).await?;
 
-        let mut market_state = MarketState::new(InMemoryDB::default());
+        let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
         market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 

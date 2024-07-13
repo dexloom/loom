@@ -2,10 +2,10 @@
 
 [workspace]
 members = [
-    "bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex",
+    "bin/keys", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex",
     "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools",
     "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "crates/defi-blockchain", "crates/loom-revm-db"]
-default-members = ["bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex"]
+default-members = ["bin/keys", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex"]
 resolver = "2"
 
 [workspace.package]
@@ -66,21 +66,19 @@ colored = "2.0.4"
 
 alloy-serde = "0.1.3"
 
-alloy = { version = "0.1.3", features = ["full", "serde", "consensus", "node-bindings", "rpc-types-anvil", "rpc-types-trace", "json-rpc", "rpc-types-json", "rand"] }
+alloy = { version = "0.1.4", features = ["full", "serde", "consensus", "node-bindings", "rpc-types-anvil", "rpc-types-trace", "json-rpc", "rpc-types-json", "rand"] }
 
-revm = { version = "10.0.0", features = [
+revm = { version = "11.0.0", features = [
     "std",
     "secp256k1",
     "blst",
 ], default-features = false }
-revm-primitives = { version = "5.0.0", features = [
+revm-primitives = { version = "6.0.0", features = [
     "std",
 ], default-features = false }
-revm-inspectors = "0.3.1"
+revm-inspectors = "0.4"
 
 
-
-alloy-core = "0.7.6"
 alloy-chains = "0.1.15"
 alloy-primitives = { version = "0.7.6", features = ["rand"] }
 alloy-dyn-abi = { version = "0.7.6", features = ["json"] }
@@ -90,47 +88,47 @@ alloy-sol-macro = { version = "0.7.6", features = ["json"] }
 alloy-rlp = "0.3.7"
 alloy-trie = "0.4.1"
 
-alloy-contract = "0.1.3"
-alloy-consensus = "0.1.3"
-alloy-eips = "0.1.3"
+alloy-contract = "0.1.4"
+alloy-consensus = "0.1.4"
+alloy-eips = "0.1.4"
 
-alloy-provider = { version = "0.1.3", features = ["reqwest", "pubsub", "ws", "ipc", "debug-api", "anvil-node", "anvil-api"] }
-alloy-json-rpc = "0.1.3"
-alloy-network = "0.1.3"
-alloy-node-bindings = "0.1.3"
-alloy-rpc-client = { version = "0.1.3", features = ["pubsub", "ipc", "ws", "reqwest"] }
-alloy-rpc-types = "0.1.3"
-alloy-rpc-types-eth = "0.1.3"
-alloy-rpc-types-anvil = "0.1.3"
-alloy-rpc-types-beacon = "0.1.3"
-alloy-rpc-types-trace = "0.1.3"
-alloy-rpc-types-engine = "0.1.3"
-alloy-transport = "0.1.3"
-alloy-transport-ipc = "0.1.3"
-alloy-transport-ws = "0.1.3"
-alloy-transport-http = "0.1.3"
-alloy-pubsub = "0.1.3"
-alloy-signer = "0.1.3"
-alloy-signer-local = "0.1.3"
+alloy-provider = { version = "0.1.4", features = ["reqwest", "pubsub", "ws", "ipc", "debug-api", "anvil-node", "anvil-api"] }
+alloy-json-rpc = "0.1.4"
+alloy-network = "0.1.4"
+alloy-node-bindings = "0.1.4"
+alloy-rpc-client = { version = "0.1.4", features = ["pubsub", "ipc", "ws", "reqwest"] }
+alloy-rpc-types = "0.1.4"
+alloy-rpc-types-eth = "0.1.4"
+alloy-rpc-types-anvil = "0.1.4"
+alloy-rpc-types-beacon = "0.1.4"
+alloy-rpc-types-trace = "0.1.4"
+alloy-rpc-types-engine = "0.1.4"
+alloy-transport = "0.1.4"
+alloy-transport-ipc = "0.1.4"
+alloy-transport-ws = "0.1.4"
+alloy-transport-http = "0.1.4"
+alloy-pubsub = "0.1.4"
+alloy-signer = "0.1.4"
+alloy-signer-local = "0.1.4"
 
-reth = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-rpc-types = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
-reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "94f1adf" }
+reth = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-rpc-types = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "67f6176" }
 
 
 
-uniswap_v3_math = { git = "https://github.com/dexloom/uniswap-v3-math" }
+uniswap_v3_math = { git = "https://github.com/dexloom/uniswap-v3-math", rev = "48a4aa2" }
 
 tower = "0.4.13"
 
