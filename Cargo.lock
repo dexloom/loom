@@ -2876,7 +2876,7 @@ dependencies = [
 [[package]]
 name = "example-exex-remote"
 version = "0.1.0"
-source = "git+https://github.com/dexloom/reth-exex-grpc#ed6e0b5296d14ac6aadbbf29e8040b911d7d4596"
+source = "git+https://github.com/dexloom/reth-exex-grpc#380776918f144d8bc370dcf87dc41a62b0569bab"
 dependencies = [
  "alloy",
  "async-stream",
