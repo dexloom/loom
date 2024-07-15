@@ -5,6 +5,7 @@ use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
+use eyre::private::kind::TraitKind;
 use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
@@ -88,7 +89,9 @@ pub async fn stuffing_tx_monitor_worker<P: Provider + Clone + 'static>(
                         }
 
                     }
-                    Err(e)=>{error!("market_event_rx error : {e}")}
+                    Err(e)=>{
+                        error!("market_event_rx error : {e}")
+                    }
                 }
             },
 

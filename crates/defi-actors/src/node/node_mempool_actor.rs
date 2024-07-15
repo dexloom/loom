@@ -31,7 +31,8 @@ where
         let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, name.clone());
         match mempool_tx.send(update_msg).await {
             Err(e) => {
-                error!("{}", e);
+                error!("mempool_tx.send error : {}", e);
+                break;
             }
             _ => {}
         }

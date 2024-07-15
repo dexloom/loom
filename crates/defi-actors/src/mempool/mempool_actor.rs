@@ -2,7 +2,7 @@ use alloy_primitives::BlockNumber;
 use alloy_rpc_types::BlockTransactions;
 use async_trait::async_trait;
 use chrono::{Duration, Utc};
-use eyre::Result;
+use eyre::{eyre, Result};
 use log::{debug, error, info, trace};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
@@ -65,6 +65,7 @@ pub async fn new_mempool_worker(
                                             }
                                         }
                                     }
+                                    run_async!(broadcaster.send(MempoolEvents::MempoolTxUpdate {tx_hash }));
                                 },
                                 _=>{}
                             }
@@ -73,6 +74,8 @@ pub async fn new_mempool_worker(
                     }
                     Err(e) => {
                         error!("mempool_update_rx : {}",e);
+                        break Err(eyre!("MEMPOOL_UPDATE_RX_CLOSED"))
+
                     }
                 }
 
@@ -151,6 +154,7 @@ pub async fn new_mempool_worker(
                     }
                     Err(e) => {
                         error!("market_events_rx : {}",e);
+                        break Err(eyre!("MARKET_EVENTS_RX_CLOSED"))
                     }
                 }
             }

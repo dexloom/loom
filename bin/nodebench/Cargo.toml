@@ -14,7 +14,12 @@ tokio.workspace = true
 eyre.workspace = true
 chrono.workspace = true
 futures.workspace = true
+env_logger.workspace = true
 
 alloy.workspace = true
+
+defi-events.workspace = true
+defi-actors.workspace = true
+defi-blockchain.workspace = true
 
 

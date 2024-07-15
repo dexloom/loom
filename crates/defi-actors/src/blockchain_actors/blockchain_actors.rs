@@ -14,7 +14,7 @@ use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
 use loom_multicaller::MulticallerSwapEncoder;
 
-use crate::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, TxSignersActor};
+use crate::{ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, TxSignersActor};
 use crate::backrun::BlockStateChangeProcessorActor;
 
 pub struct BlockchainActors<P, T> {
@@ -127,15 +127,25 @@ where
     }
 
 
-    /// Starts node with blocks
-    pub async fn node_with_blocks(&mut self) -> Result<&mut Self> {
+    /// Starts receiving blocks events through RPC
+    pub async fn with_block_events(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(NodeBlockActor::new(self.provider.clone()).on_bc(&self.bc)).await?;
         Ok(self)
     }
 
-    /// Starts reth node with local DB access
+    /// Starts receiving blocks events through direct Reth DB access
     pub async fn reth_node_with_blocks(&mut self, db_path: String) -> Result<&mut Self> {
         self.actor_manager.start(NodeBlockActor::new(self.provider.clone()).on_bc(&self.bc).with_reth_db(Some(db_path))).await?;
+        Ok(self)
+    }
+
+    /// Starts receiving blocks and mempool events through ExEx GRPC
+    pub async fn with_exex_events(&mut self) -> Result<&mut Self> {
+        if !self.has_mempool {
+            self.has_mempool = true;
+            self.actor_manager.start(MempoolActor::new(self.bc.chain_parameters()).on_bc(&self.bc)).await?;
+        }
+        self.actor_manager.start(NodeExExGrpcActor::new("http://[::1]:10000".to_string()).on_bc(&self.bc)).await?;
         Ok(self)
     }
 
@@ -151,7 +161,8 @@ where
     }
 
     /// Starts local node pending tx provider
-    pub async fn with_local_mempool(&mut self) -> Result<&mut Self> {
+    pub async fn with_local_mempool_events(&mut self) -> Result<&mut Self> {
+        self.mempool().await?;
         self.actor_manager.start(NodeMempoolActor::new(self.provider.clone()).on_bc(&self.bc)).await?;
         Ok(self)
     }
@@ -162,6 +173,7 @@ where
         TM: Transport + Clone,
         PM: Provider<TM, Ethereum> + Send + Sync + Clone + 'static,
     {
+        self.mempool().await?;
         self.actor_manager.start(NodeMempoolActor::new(provider).on_bc(&self.bc)).await?;
         Ok(self)
     }

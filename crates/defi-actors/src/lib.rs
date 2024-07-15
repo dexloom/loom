@@ -10,6 +10,7 @@ pub use market_state::{MarketStatePreloadedActor, preload_market_state};
 pub use mempool::MempoolActor;
 pub use mergers::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 pub use node::{NodeBlockActor, NodeMempoolActor};
+pub use node_exex_grpc::NodeExExGrpcActor;
 pub use node_player::NodeBlockPlayerActor;
 pub use pathencoder::ArbSwapPathEncoderActor;
 pub use price::PriceActor;
@@ -41,3 +42,4 @@ mod backrun;
 mod node_player;
 
 mod blockchain_actors;
+mod node_exex_grpc;

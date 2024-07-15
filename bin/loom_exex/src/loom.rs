@@ -161,7 +161,11 @@ async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc: Blo
                 info!(reverted_chain = ?old.range(), "Received revert");
             }
         };
+        if let Some(committed_chain) = exex_notification.committed_chain() {
+            ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
+        }
     }
+
 
     info!("Loom ExEx is finished");
     Ok(())
