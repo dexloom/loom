@@ -26,9 +26,11 @@ pub enum NodeType {
 #[serde(rename_all = "lowercase")]
 pub enum TransportType {
     #[default]
-    Ws,
     #[serde(rename = "ws")]
+    Ws,
+    #[serde(rename = "http")]
     Http,
+    #[serde(rename = "ipc")]
     Ipc,
 }
 
@@ -39,6 +41,7 @@ pub struct ClientConfigParams {
     pub node: NodeType,
     pub transport: TransportType,
     pub db_path: Option<String>,
+    pub exex: Option<String>,
     #[serde(skip)]
     pub provider: Option<RootProvider<BoxTransport>>,
 }
@@ -121,7 +124,12 @@ pub struct BlockchainClientConfig {
     pub blockchain: Option<String>,
     pub client: Option<String>,
 }
-
+#[derive(Debug, Deserialize)]
+pub struct ExExClientConfig {
+    #[serde(rename = "bc")]
+    pub blockchain: Option<String>,
+    pub url: Option<String>,
+}
 
 #[derive(Debug, Deserialize)]
 pub struct FlashbotsBroadcasaterConfig {
@@ -144,7 +152,6 @@ pub enum BroadcasterConfig {
 pub struct EvmEstimatorConfig {
     #[serde(rename = "bc")]
     pub blockchain: Option<String>,
-    //pub(crate) signers : Option<String>,
     pub encoder: Option<String>,
 }
 
@@ -153,7 +160,6 @@ pub struct GethEstimatorConfig {
     pub client: Option<String>,
     #[serde(rename = "bc")]
     pub blockchain: Option<String>,
-    //pub(crate) signers : Option<String>,
     pub encoder: Option<String>,
 }
 
@@ -180,13 +186,14 @@ pub struct PoolsConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct ActorConfig {
-    pub broadcaster: HashMap<String, BroadcasterConfig>,
-    pub node: HashMap<String, BlockchainClientConfig>,
-    pub mempool: HashMap<String, BlockchainClientConfig>,
-    pub price: HashMap<String, BlockchainClientConfig>,
-    pub pools: HashMap<String, PoolsConfig>,
-    pub noncebalance: HashMap<String, BlockchainClientConfig>,
-    pub estimator: HashMap<String, EstimatorConfig>,
+    pub broadcaster: Option<HashMap<String, BroadcasterConfig>>,
+    pub node: Option<HashMap<String, BlockchainClientConfig>>,
+    pub node_exex: Option<HashMap<String, ExExClientConfig>>,
+    pub mempool: Option<HashMap<String, BlockchainClientConfig>>,
+    pub price: Option<HashMap<String, BlockchainClientConfig>>,
+    pub pools: Option<HashMap<String, PoolsConfig>>,
+    pub noncebalance: Option<HashMap<String, BlockchainClientConfig>>,
+    pub estimator: Option<HashMap<String, EstimatorConfig>>,
 }
 
 
@@ -197,7 +204,7 @@ pub struct TopologyConfig {
     pub actors: ActorConfig,
     pub signers: HashMap<String, SignersConfig>,
     pub encoders: HashMap<String, EncoderConfig>,
-    pub preloaders: HashMap<String, PreloaderConfig>,
+    pub preloaders: Option<HashMap<String, PreloaderConfig>>,
 
 }
 

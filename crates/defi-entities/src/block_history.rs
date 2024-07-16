@@ -8,6 +8,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header, Log};
 use alloy_transport::Transport;
 use eyre::{ErrReport, OptionExt, Result};
+use log::warn;
 use tokio::sync::RwLock;
 
 use defi_types::GethStateUpdateVec;
@@ -129,7 +130,13 @@ impl BlockHistory
 
         let market_history_entry = self.process_block_number_with_hash(block_number, block_hash);
 
-        if market_history_entry.block.is_some() {
+        if market_history_entry.header.is_some() {
+            warn!("Block is already processed header: {} block : {} state_update : {} logs : {}",
+                market_history_entry.header.is_some(),
+                market_history_entry.block.is_some(),
+                market_history_entry.state_update.is_some(),
+                market_history_entry.logs.is_some(),
+            );
             return Err(ErrReport::msg("BLOCK_IS_ALREADY_PROCESSED"));
         }
 

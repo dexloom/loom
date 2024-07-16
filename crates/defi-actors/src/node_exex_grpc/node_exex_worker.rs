@@ -143,7 +143,7 @@ fn get_current_chain(notification: ExExNotification) -> Option<Arc<Chain>> {
 }
 
 pub async fn node_exex_grpc_worker(
-    usr: Option<String>,
+    url: Option<String>,
     block_header_channel: Broadcaster<Header>,
     block_with_tx_channel: Broadcaster<Block>,
     logs_channel: Broadcaster<BlockLogs>,
@@ -151,11 +151,9 @@ pub async fn node_exex_grpc_worker(
     mempool_channel: Broadcaster<MessageMempoolDataUpdate>,
 ) -> WorkerResult {
     let mut client =
-        example_exex_remote::ExExClient::connect("http://[::1]:10000".to_string()).await?;
+        example_exex_remote::ExExClient::connect(url.unwrap_or("http://[::1]:10000".to_string())).await?;
 
 
-    //let stream_exex = client.subscribe_exex().await?;
-    //pin_mut!(stream_exex);
     let stream_header = client.subscribe_header().await?;
     pin_mut!(stream_header);
 

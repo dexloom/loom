@@ -343,10 +343,15 @@ where
                     if i == j {
                         continue;
                     }
-                    let value = self.balances[i] / U256::from(100);
-                    match self.pool_contract.get_dy_call_data((i as u32).into(), (j as u32).into(), value) {
-                        Ok(data) => { state_reader.add_call(self.get_address(), data); }
-                        Err(e) => { error!("{}", e); }
+                    if let Some(balance) = self.balances.get(i) {
+                        let value = balance / U256::from(100);
+                        match self.pool_contract.get_dy_call_data((i as u32).into(), (j as u32).into(), value) {
+                            Ok(data) => { state_reader.add_call(self.get_address(), data); }
+                            Err(e) => { error!("{}", e); }
+                        }
+                    } else {
+                        error!("Cannot get curve pool balance {} {}", self.address, i);
+                        return Err(eyre!("CANNOT_GET_CURVE_BALANCE"));
                     }
                 }
             }

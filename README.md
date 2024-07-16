@@ -71,6 +71,10 @@ mainnet = { client = "local", bc = "mainnet", encoder = "mainnet", signers = "en
 [actors.node]
 mainnet_node = { client = "local", bc = "mainnet" }
 
+# Uncomment this and comment node actors for ExEx
+#[actors.node_exex]
+#mainnet_node = { url = "http://[::1]:10000", bc = "mainnet" }
+
 # Subscribe to mempool transactions
 [actors.mempool]
 mainnet = { client = "local", bc = "mainnet" }

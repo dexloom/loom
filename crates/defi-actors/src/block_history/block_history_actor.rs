@@ -54,7 +54,7 @@ pub async fn new_block_history_worker(
                                     next_base_fee}).await.unwrap();
                             }
                             Err(e)=>{
-                                error!("block_update add_block error {} {} {} ", e, block_number, block_hash);
+                                error!("block_header_update add_block error {} {} {} ", e, block_number, block_hash);
                             }
                         }
                     }
@@ -105,7 +105,7 @@ pub async fn new_block_history_worker(
                                 }
                             }
                             Err(e)=>{
-                                error!("block_update add_block error {} {}", e, block_hash);
+                                error!("block_log_update add_block error {} {}", e, block_hash);
                             }
                         }
                     }
@@ -204,12 +204,12 @@ pub async fn new_block_history_worker(
 
                             }
                             Err(e)=>{
-                                error!("block_update add_block error {} {}", e, block_hash);
+                                error!("block_state_update add_block error {} {}", e, block_hash);
                             }
                         }
                     }
                     Err(e)=>{
-                        error!("state update message error : {}", e);
+                        error!("block state update message error : {}", e);
                     }
                 }
             }
