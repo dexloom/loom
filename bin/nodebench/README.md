@@ -6,6 +6,12 @@ Helps to understand and compare node performance
 ./nodebench ws://node1 ws://node2
 ```
 
+This will add GRPC ExEx on first node:
+
+```
+./nodebench ws://node1 grpc ws://node2
+```
+
 ## Reth WS vx Geth WS
 
 ```
@@ -59,13 +65,13 @@ blocks rel first - counter of blocks received by node before other nodes correct
 txs total - total transactions in observed blocks,
 received by nodes - number of block transactions those went through node's mempool
 total - number of transactions covered by all mempools
-outdated - transactions those are recevied with the large delay, not couunted
+outdated - transactions those are received with the large delay, not counted
 
 txs abs first - txes receved from the node before others
-delays avg - averate delay when transaction doesn't come first in milliseconds
+delays avg - average delay when transaction doesn't come first in milliseconds
 
 txs rel first - txes receved from the node before others corrected by ping time
-delays avg - averate delay when transaction doesn't come first in milliseconds corrected by ping time.
+delays avg - average delay when transaction doesn't come first in milliseconds corrected by ping time.
 
 
 
