@@ -3,8 +3,9 @@ use std::time::Duration;
 
 use alloy_eips::{BlockId, BlockNumberOrTag};
 use alloy_network::Network;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
+use alloy_rpc_types::BlockTransactions;
 use alloy_transport::Transport;
 use async_trait::async_trait;
 use log::debug;
@@ -58,29 +59,30 @@ pub async fn nonce_and_balance_monitor_worker(
                 let market_event_msg : Result<MarketEvents, RecvError> = msg;
                 if let Ok(market_event) = market_event_msg {
                    if let MarketEvents::BlockTxUpdate{ block_hash, .. } =  market_event {
-                        if let Some(: Some(block)) = block_history_state.read().await.get_market_history_entry(&block_hash).cloned() {
-                            if let BlockTransactions::Full(txs) = block.transactions {
-                                for tx in txs {
-                                    let tx_from : Address = tx.from;
-                                    if accounts_state.read().await.is_monitored(&tx_from) {
-                                        if let Some(&mut ref mut account) = accounts_state.write().await.get_mut_account(&tx_from) {
-                                            let spent = (tx.max_fee_per_gas.unwrap() + tx.max_priority_fee_per_gas.unwrap()) * tx.gas + tx.value.to::<u128>();
-                                            account.sub_balance(Address::ZERO, U256::from(spent));
-                                            account.set_nonce(tx.nonce);
+                        if let Some(block_entry) = block_history_state.read().await.get_market_history_entry(&block_hash).cloned() {
+                            if let Some(block) = block_entry.block {
+                                if let BlockTransactions::Full(txs) = block.transactions {
+                                    for tx in txs {
+                                        let tx_from : Address = tx.from;
+                                        if accounts_state.read().await.is_monitored(&tx_from) {
+                                            if let Some(&mut ref mut account) = accounts_state.write().await.get_mut_account(&tx_from) {
+                                                let spent = (tx.max_fee_per_gas.unwrap() + tx.max_priority_fee_per_gas.unwrap()) * tx.gas + tx.value.to::<u128>();
+                                                account.sub_balance(Address::ZERO, U256::from(spent));
+                                                account.set_nonce(tx.nonce);
+                                            }
                                         }
-                                    }
 
-                                    if let Some(to )  = tx.to {
-                                        if accounts_state.read().await.is_monitored(&to) {
-                                            if let Some(&mut ref mut account) = accounts_state.write().await.get_mut_account(&to) {
-                                                account.add_balance(Address::ZERO, tx.value);
+                                        if let Some(to )  = tx.to {
+                                            if accounts_state.read().await.is_monitored(&to) {
+                                                if let Some(&mut ref mut account) = accounts_state.write().await.get_mut_account(&to) {
+                                                    account.add_balance(Address::ZERO, tx.value);
+                                                }
                                             }
                                         }
                                     }
                                 }
                             }
                         }
-
                     }
                 }
             }
