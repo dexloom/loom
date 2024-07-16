@@ -11,6 +11,7 @@ use defi_abi::IERC20::IERC20Instance;
 use defi_entities::NWETH;
 use loom_utils::remv_db_direct_access::calc_hashmap_cell;
 
+#[allow(dead_code)]
 pub async fn preset_balances<P, T, N>(client: P, target_address: Address, token_address: Address) -> eyre::Result<()>
 where
     N: Network,

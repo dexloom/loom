@@ -1,17 +1,16 @@
 use std::any::type_name;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
-use std::sync::Arc;
 
 use alloy_eips::{BlockId, BlockNumberOrTag};
 use alloy_network::Network;
-use alloy_primitives::{Address, U256};
+use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::Result;
-use log::{debug, error};
+use log::debug;
 
 use defi_blockchain::Blockchain;
 use defi_entities::{MarketState, TxSigners};
@@ -57,6 +56,7 @@ where
     Ok(())
 }
 
+#[allow(dead_code)]
 #[derive(Accessor)]
 pub struct MarketStatePreloadedActor<P, T, N>
 {
@@ -69,6 +69,7 @@ pub struct MarketStatePreloadedActor<P, T, N>
     _n: PhantomData<N>,
 }
 
+#[allow(dead_code)]
 impl<P, T, N> MarketStatePreloadedActor<P, T, N>
 where
     T: Transport + Clone,

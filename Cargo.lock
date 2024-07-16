@@ -2911,22 +2911,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "exex_grpc_node"
-version = "0.1.0"
-dependencies = [
- "example-exex-remote",
- "eyre",
- "reth",
- "reth-exex",
- "reth-node-api",
- "reth-node-ethereum",
- "reth-tracing",
- "tokio",
- "tokio-stream",
- "tonic",
-]
-
-[[package]]
 name = "eyre"
 version = "0.6.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"

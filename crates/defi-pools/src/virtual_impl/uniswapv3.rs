@@ -1,9 +1,7 @@
 use std::collections::HashMap;
-use std::ops::Neg;
 
 use alloy_primitives::{Address, I256, U256};
 use eyre::eyre;
-use revm::InMemoryDB;
 use uniswap_v3_math::tick_bitmap::position;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
 
@@ -15,8 +13,7 @@ use crate::UniswapV3Pool;
 
 pub struct UniswapV3PoolVirtual;
 
-
-// commonly used U256s
+/* Unused useful constants
 pub const U256_0X100000000: U256 = U256::from_limbs([4294967296, 0, 0, 0]);
 pub const U256_0X10000: U256 = U256::from_limbs([65536, 0, 0, 0]);
 pub const U256_0X100: U256 = U256::from_limbs([256, 0, 0, 0]);
@@ -30,14 +27,12 @@ pub const U256_16: U256 = U256::from_limbs([16, 0, 0, 0]);
 pub const U256_8: U256 = U256::from_limbs([8, 0, 0, 0]);
 pub const U256_4: U256 = U256::from_limbs([4, 0, 0, 0]);
 pub const U256_2: U256 = U256::from_limbs([2, 0, 0, 0]);
-pub const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
-// Uniswap V3 specific
 pub const POPULATE_TICK_DATA_STEP: u64 = 100000;
+
 pub const Q128: U256 = U256::from_limbs([0, 0, 1, 0]);
 pub const Q224: U256 = U256::from_limbs([0, 0, 0, 4294967296]);
 
-// Others
 pub const U128_0X10000000000000000: u128 = 18446744073709551616;
 pub const U256_0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF: U256 = U256::from_limbs([
     18446744073709551615,
@@ -47,6 +42,17 @@ pub const U256_0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF: U256 = U256::
 ]);
 pub const U256_0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF: U256 =
     U256::from_limbs([18446744073709551615, 18446744073709551615, 0, 0]);
+
+*/
+
+// commonly used U256s
+pub const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
+
+
+// Uniswap V3 specific
+
+
+// Others
 
 
 pub struct CurrentState {
@@ -68,6 +74,7 @@ pub struct StepComputations {
     pub fee_amount: U256,
 }
 
+#[allow(dead_code)]
 pub struct Tick {
     pub liquidity_gross: u128,
     pub liquidity_net: i128,
@@ -127,7 +134,7 @@ impl UniswapV3PoolVirtual {
             };
 
             let mut tick_bitmap: HashMap<i16, U256> = HashMap::new();
-            let (word_pos, bit_pos) = position(current_state.tick / (tick_spacing as i32));
+            let (word_pos, _bit_pos) = position(current_state.tick / (tick_spacing as i32));
 
             for i in word_pos - 1..=word_pos + 1 {
                 tick_bitmap.insert(i as i16, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
@@ -282,7 +289,7 @@ impl UniswapV3PoolVirtual {
             };
 
             let mut tick_bitmap: HashMap<i16, U256> = HashMap::new();
-            let (word_pos, bit_pos) = position(current_state.tick / (tick_spacing as i32));
+            let (word_pos, _bit_pos) = position(current_state.tick / (tick_spacing as i32));
 
             for i in word_pos - 2..=word_pos + 2 {
                 tick_bitmap.insert(i as i16, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());

@@ -5,7 +5,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header};
 use alloy_transport::Transport;
 use async_trait::async_trait;
-use reth_provider::{BlockReader, HeaderProvider};
 use tokio::task::JoinHandle;
 
 use debug_provider::DebugProviderExt;

@@ -6,7 +6,6 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{ErrReport, eyre, Result};
-use revm::{Database, DatabaseRef};
 use revm::primitives::Env;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumString, VariantNames};

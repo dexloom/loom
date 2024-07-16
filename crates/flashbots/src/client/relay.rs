@@ -10,10 +10,7 @@ use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use thiserror::Error;
 use url::Url;
 
-use crate::{
-    client::bundle::BundleHash,
-    client::jsonrpc::{JsonRpcError, Request, Response},
-};
+use crate::client::jsonrpc::{JsonRpcError, Request, Response};
 
 /// A Flashbots relay client.
 ///
@@ -143,8 +140,8 @@ impl Relay {
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SendBundleResponse {
-    #[serde(default)]
-    pub(crate) bundle_hash: Option<BundleHash>,
+    //#[serde(default)]
+    //pub(crate) bundle_hash: Option<BundleHash>,
 }
 
 

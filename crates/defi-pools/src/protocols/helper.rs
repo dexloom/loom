@@ -77,9 +77,6 @@ pub async fn fetch_uni3_factory<T: Transport + Clone, N: Network, P: Provider<T,
     Ok(factory._0)
 }
 
-fn sel(s: &str) -> [u8; 4] {
-    keccak256(s)[..4].try_into().unwrap()
-}
 
 pub fn match_abi(code: &Bytes, selectors: Vec<[u8; 4]>) -> bool {
     //println!("Code len {}", code.len());

@@ -49,6 +49,7 @@ where
     }
 }
 
+#[allow(dead_code)]
 impl<P> ArchiveHistoryProvider<P, HttpCachedTransport>
 where
     P: Provider<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,

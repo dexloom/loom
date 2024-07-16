@@ -121,7 +121,6 @@ mod test {
     use env_logger::Env as EnvLog;
     use eyre::Result;
     use reqwest::Client;
-    use url;
 
     use super::*;
 
@@ -176,9 +175,9 @@ mod test {
 
 
         let snap = client.snapshot().await?;
-        let revert_result = client.revert(snap).await?;
+        let _ = client.revert(snap).await?;
         client.set_automine(false).await?;
-        let mine_result = client.mine().await;
+        let _ = client.mine().await;
         client.set_automine(true).await?;
         //let reset_result = client.reset().await?;
 
@@ -232,8 +231,8 @@ mod test {
         };
 
         let dyn_prv = DynProvider::from(dyn_prv);
-        
-        dyn_prv.anvil_drop_all_transactions().await;
+
+        let _ = dyn_prv.anvil_drop_all_transactions().await;
 
         Ok(())
     }

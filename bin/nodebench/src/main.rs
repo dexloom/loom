@@ -12,7 +12,7 @@ use alloy::primitives::{BlockHash, BlockNumber};
 use alloy::transports::BoxTransport;
 use chrono::{DateTime, Duration, Local, TimeDelta};
 use clap::Parser;
-use eyre::{eyre, OptionExt, Result};
+use eyre::{eyre, Result};
 use futures::future::join_all;
 use tokio::{select, sync::RwLock, task::JoinHandle};
 
@@ -24,6 +24,7 @@ use crate::cli::Cli;
 
 mod cli;
 
+#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct StatEntry {
     first: Vec<usize>,
@@ -277,9 +278,6 @@ async fn collect_stat_task(
     blocks_needed: usize,
     ping_time: TimeDelta,
 ) -> Result<()> {
-    let mut block_subscription = provider.subscribe_blocks().await?;
-    let mut pending_tx_subscription = provider.subscribe_full_pending_transactions().await?;
-
     let bc = Blockchain::new(1);
 
     let mut bc_actors = BlockchainActors::new(provider, bc.clone());

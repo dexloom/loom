@@ -4,8 +4,7 @@ use alloy_primitives::{Address, B256, I256, Signed, Uint};
 use alloy_primitives::U256;
 use eyre::Result;
 use lazy_static::lazy_static;
-use log::{debug, trace};
-use revm::InMemoryDB;
+use log::trace;
 
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use loom_revm_db::LoomInMemoryDB;

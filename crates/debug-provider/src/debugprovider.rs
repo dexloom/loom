@@ -252,7 +252,6 @@ mod test {
     use alloy_rpc_client::ClientBuilder;
     use env_logger::Env as EnvLog;
     use eyre::Result;
-    use url;
 
     use super::*;
 
@@ -268,7 +267,6 @@ mod test {
         let test_node_url = url::Url::parse(test_node_url.as_str())?;
         let node_url = url::Url::parse(node_url.as_str())?;
 
-        let client_anvil = ClientBuilder::default().http(test_node_url).boxed();
 
         let provider_anvil = ProviderBuilder::new().on_anvil_with_config(|x| x.chain_id(1).fork(node_url.clone()).fork_block_number(10000));
 

@@ -1,4 +1,3 @@
-use std::error::Error;
 use std::fmt::Debug;
 use std::ops::Sub;
 
@@ -8,8 +7,6 @@ use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
 use eyre::{ErrReport, eyre, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::debug;
-use revm::InMemoryDB;
 use revm::primitives::Env;
 
 use defi_abi::IERC20;
@@ -31,7 +28,7 @@ lazy_static! {
 }
 
 
-
+#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct Slot0 {
     pub tick: i32,
@@ -59,7 +56,7 @@ impl From<slot0Return> for Slot0 {
     }
 }
 
-
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct PancakeV3Pool {
     //contract_storage : ContractStorage,
@@ -287,7 +284,6 @@ impl Pool for PancakeV3Pool
     fn get_state_required(&self) -> Result<RequiredState> {
         let tick = self.slot0.as_ref().ok_or_eyre("SLOT0_NOT_SET")?.tick;
         let price_step = PancakeV3Pool::get_price_step(self.fee);
-        let mut state_required = RequiredState::new();
         if price_step == 0 {
             return Err(eyre!("BAD_PRICE_STEP"));
         }
@@ -346,7 +342,7 @@ impl Pool for PancakeV3Pool
     }
 }
 
-
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 struct PancakeV3AbiSwapEncoder {
     pool_address: Address,
@@ -394,11 +390,11 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
     }
 
 
-    fn swap_out_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }
 
-    fn swap_in_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }
 
@@ -411,7 +407,7 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
         }
     }
 
-    fn swap_in_amount_return_script(&self, token_from_address: Address, token_to_address: Address) -> Option<Bytes> {
+    fn swap_in_amount_return_script(&self, _token_from_address: Address, _token_to_address: Address) -> Option<Bytes> {
         Some(Bytes::from(vec![0x8, 0x2A, 0x00]))
     }
 }

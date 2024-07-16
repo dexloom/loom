@@ -98,11 +98,11 @@ impl Blockchain
     }
 
     pub fn chain_id(&self) -> i64 {
-        return self.chain_id;
+        self.chain_id
     }
 
     pub fn chain_parameters(&self) -> ChainParameters {
-        return self.chain_parameters.clone();
+        self.chain_parameters.clone()
     }
 
     pub fn market(&self) -> SharedState<Market> {

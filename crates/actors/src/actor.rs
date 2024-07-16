@@ -44,33 +44,36 @@ pub trait Accessor<T> {
 
 #[cfg(test)]
 mod test {
-    use crate::actor::{Actor, Consumer, Producer, SharedState};
+    use crate::actor::{Consumer, Producer, SharedState};
     use crate::channels::Broadcaster;
 
     //use crate::macros::*;
 
+    #[allow(dead_code)]
     #[derive(Clone)]
     struct DataStruct0 {
-        //#[accessor(data, i32)]
         data: Option<SharedState<i32>>,
     }
 
+    #[allow(dead_code)]
     #[derive(Clone)]
     struct DataStruct1 {
         data: String,
     }
 
+    #[allow(dead_code)]
     #[derive(Clone)]
     struct DataStruct2 {
         pub data: u32,
     }
 
+    #[allow(dead_code)]
     #[derive(Clone)]
     struct DataStruct3 {
         data: u128,
     }
 
-    //#[impl_accessor(PendingTxStateChangeProcessorActor, mempool)]
+    #[allow(dead_code)]
     struct TestActor {
         state: Option<SharedState<DataStruct0>>,
         broadcaster0: Option<Broadcaster<DataStruct0>>,
@@ -89,18 +92,7 @@ mod test {
             }
         }
 
-        pub async fn start(&self) {
-            loop {
-                //tokio::select! {
-                /*let msg = self.consumer2.recv() => {
-
-                }
-
-                 */
-
-                //}
-            }
-        }
+        pub async fn start(&self) {}
     }
 
 

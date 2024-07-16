@@ -1,17 +1,5 @@
-#![warn(unused_crate_dependencies)]
-
-use std::future::Future;
-
-use alloy::providers::{Provider, ProviderBuilder};
-use futures_util::{FutureExt, Stream};
-use reth::{
-    providers::BlockNumReader,
-    transaction_pool::{BlobStore, TransactionOrdering, TransactionPool, TransactionValidator},
-};
-use reth_node_api::FullNodeComponents;
+use alloy::providers::ProviderBuilder;
 use reth_node_ethereum::EthereumNode;
-use reth_provider::ChainSpecProvider;
-use reth_tracing::tracing::instrument::WithSubscriber;
 
 use defi_blockchain::Blockchain;
 use loom_topology::TopologyConfig;

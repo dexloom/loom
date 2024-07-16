@@ -33,7 +33,7 @@ contract MulticallerCallData  {{
 
 
 pub fn create_sol_test(requests_vec: Vec<(String, Bytes)>) -> String {
-    let mut requests_vec = requests_vec;
+    let requests_vec = requests_vec;
     let req_len = requests_vec.len();
     let (names, data_vec): (Vec<String>, Vec<Bytes>) = requests_vec.into_iter().unzip();
     let names_string_vec: Vec<String> = names.into_iter().map(|x| format!("\t\"{}\"", x)).collect();

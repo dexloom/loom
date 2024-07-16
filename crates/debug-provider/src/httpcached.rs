@@ -135,7 +135,7 @@ impl HttpCachedTransport {
 
     pub async fn create_block_filter(&self) -> U128 {
         let filter_id = B128::random();
-        let filter_id = U128::try_from(filter_id).unwrap_or_default();
+        let filter_id: U128 = filter_id.into();
         self.block_filters.write().await.insert(filter_id, self.read_block_number());
         filter_id
     }
@@ -166,7 +166,8 @@ impl HttpCachedTransport {
             if let Some(filter_block) = block_filters_guard.get(&filter_id).cloned() {
                 if filter_block < current_block {
                     block_filters_guard.insert(filter_id, current_block);
-                    missed_blocks = RangeInclusive::new(filter_block + 1, current_block).into_iter().map(|block_number| block_hashes_guard.get(&block_number).cloned().unwrap_or_default()).collect();
+                    let missed_block_range = RangeInclusive::new(filter_block + 1, current_block).map(|block_number| block_hashes_guard.get(&block_number).cloned().unwrap_or_default()).collect();
+                    missed_blocks = missed_block_range;
                     break;
                 }
             }
@@ -185,7 +186,7 @@ impl HttpCachedTransport {
     pub async fn cached_or_execute(&self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         let req_hash = req.params_hash();
         let method = req.method().to_string();
-        let resp = match self.read_cached(method.clone(), req_hash).await {
+        match self.read_cached(method.clone(), req_hash).await {
             Ok(cached) => {
                 let value = RawValue::from_string(cached).unwrap();
                 let body = Response { id: Id::None, payload: ResponsePayload::Success(value) };
@@ -208,8 +209,7 @@ impl HttpCachedTransport {
                     }
                 }
             }
-        };
-        resp
+        }
     }
 
     pub async fn eth_call(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
@@ -237,15 +237,12 @@ impl HttpCachedTransport {
 
         let new_req: SerializedRequest = new_req.try_into().unwrap();
 
-        let resp = self.cached_or_execute(new_req.clone()).await;
-        //println!("get_block_by_number resp : {:?}", resp);
-        resp
+        self.cached_or_execute(new_req.clone()).await
     }
 
     pub async fn eth_get_block_by_hash(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         debug!("get_block_by_hash req : {:?}", req);
-        let resp = self.cached_or_execute(req.clone()).await;
-        resp
+        self.cached_or_execute(req.clone()).await
     }
 
     pub async fn debug_trace_block_by_number(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
@@ -258,24 +255,18 @@ impl HttpCachedTransport {
 
         let new_req: SerializedRequest = new_req.try_into().unwrap();
 
-        let resp = self.cached_or_execute(new_req.clone()).await;
-        trace!("debug_trace_block_by_number resp : {:?}", resp);
-        resp
+        self.cached_or_execute(new_req.clone()).await
     }
 
     pub async fn debug_trace_block_by_hash(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         debug!("debug_trace_block_by_hash req : {:?}", req);
-        let resp = self.cached_or_execute(req.clone()).await;
-        resp
+        self.cached_or_execute(req.clone()).await
     }
 
 
     pub async fn eth_get_logs(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
-        //TODO: block number check
         debug!("eth_get_logs req  : {:?}", req);
-        let resp = self.cached_or_execute(req.clone()).await;
-        trace!("eth_get_logs resp : {:?}", resp);
-        resp
+        self.cached_or_execute(req.clone()).await
     }
 }
 

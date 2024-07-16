@@ -3,6 +3,7 @@ use std::convert::Infallible;
 use alloy_primitives::{Address, U256};
 use alloy_sol_types::SolCall;
 use eyre::{eyre, Result};
+use log::error;
 use revm::DatabaseRef;
 use revm::primitives::Env;
 
@@ -50,6 +51,7 @@ impl UniswapCustomQuoterEncoder {
                 Ok(r.amountOut)
             }
             Err(e) => {
+                error!("Cannot decode exact input {}", e);
                 Err(eyre!("CANNOT_DECODE_EXACT_INPUT_RETURN"))
             }
         }
@@ -61,6 +63,7 @@ impl UniswapCustomQuoterEncoder {
                 Ok(r.amountIn)
             }
             Err(e) => {
+                error!("Cannot decode exact input {}", e);
                 Err(eyre!("CANNOT_DECODE_EXACT_INPUT_RETURN"))
             }
         }

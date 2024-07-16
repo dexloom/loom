@@ -1,7 +1,7 @@
 use std::ops::RangeInclusive;
 
 use alloy_eips::BlockId;
-use alloy_network::{Ethereum, Network};
+use alloy_network::Ethereum;
 use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, BlockTransactionsKind, Filter, Header};

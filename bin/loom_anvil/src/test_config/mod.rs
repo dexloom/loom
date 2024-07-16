@@ -20,6 +20,7 @@ fn default_true() -> bool {
     true
 }
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct Modules {
     #[serde(default = "default_true")]
@@ -41,6 +42,7 @@ pub struct Modules {
 }
 
 
+#[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct Settings {
     pub block: u64,

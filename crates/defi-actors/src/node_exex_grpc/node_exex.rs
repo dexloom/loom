@@ -1,6 +1,5 @@
 use std::any::type_name;
 
-use alloy_network::Network;
 use alloy_rpc_types::{Block, Header};
 use async_trait::async_trait;
 

@@ -1,6 +1,6 @@
 use aes::Aes128;
 use aes::cipher::{Block, BlockEncrypt, KeyInit};
-use clap::{arg, Parser, Subcommand};
+use clap::{arg, Parser};
 use eyre::Result;
 use rand::{Rng, thread_rng};
 use sha2::{Digest, Sha512};

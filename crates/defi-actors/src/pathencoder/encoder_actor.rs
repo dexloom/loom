@@ -6,9 +6,9 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{AccountNonceAndBalanceState, LatestBlock, Swap, SwapAmountType, SwapLine, SwapStep, TxSigners};
+use defi_entities::{AccountNonceAndBalanceState, Swap, SwapStep, TxSigners};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
-use defi_types::{Mempool, MulticallerCalls};
+use defi_types::MulticallerCalls;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;

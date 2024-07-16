@@ -2,33 +2,24 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use alloy::primitives::{Address, BlockNumber, U256};
-use alloy::providers::WsConnect;
-use alloy_network::Network;
 use alloy_primitives::Bytes;
-use alloy_provider::{Provider, ProviderBuilder};
+use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, TransactionInput, TransactionRequest};
-use alloy_transport::Transport;
 use clap::Parser;
 use colored::*;
-use eyre::{eyre, OptionExt, Result};
-use lazy_static::lazy_static;
-use log::{debug, error, info};
-use revm::db::EmptyDB;
-use revm::InMemoryDB;
+use eyre::{OptionExt, Result};
+use log::{error, info};
 use revm::primitives::Env;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
-use debug_provider::{AnvilDebugProviderFactory, AnvilProviderExt, DebugProviderExt};
-use defi_abi::IERC20::IERC20Instance;
-use defi_actors::{fetch_and_add_pool_by_address, preload_market_state};
-use defi_entities::{Market, MarketState, NWETH, PoolClass, PoolWrapper, Swap, SwapAmountType, SwapLine, SwapPath, Token};
+use debug_provider::AnvilDebugProviderFactory;
+use defi_actors::preload_market_state;
+use defi_entities::{Market, MarketState, NWETH, PoolWrapper, Swap, SwapAmountType, SwapLine};
 use loom_actors::SharedState;
 use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapEncoder};
 use loom_revm_db::LoomInMemoryDB;
-use loom_utils::evm::evm_call;
-use loom_utils::remv_db_direct_access::calc_hashmap_cell;
 
 use crate::balances::set_balance;
 use crate::cli::Cli;
@@ -151,7 +142,7 @@ async fn main() -> Result<()> {
     // Make tests
 
 
-    for (i, s) in swap_paths.iter().enumerate() {
+    for (_, s) in swap_paths.iter().enumerate() {
         if !s.tokens[0].is_weth() {
             continue;
         }

@@ -5,7 +5,6 @@ use alloy_transport::Transport;
 use eyre::{ErrReport, eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use log::error;
-use revm::InMemoryDB;
 use revm::primitives::Env;
 
 use defi_abi::IERC20;
@@ -23,6 +22,7 @@ lazy_static! {
     pub static ref QUOTER_ADDRESS : Address = "0x9980ce3b5570e41324904f46A06cE7B466925E23".parse().unwrap();
 }
 
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct MaverickPool {
     //contract_storage : ContractStorage,
@@ -312,7 +312,7 @@ impl Pool for MaverickPool
     }
 }
 
-
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 struct MaverickAbiSwapEncoder {
     pool_address: Address,

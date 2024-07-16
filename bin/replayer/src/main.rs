@@ -1,21 +1,17 @@
 use std::time::Duration;
 
 use alloy::{
-    providers::{Provider, ProviderBuilder},
+    providers::ProviderBuilder,
     rpc::client::ClientBuilder,
 };
-use alloy::rpc::types::{Block, Header};
 use eyre::Result;
 use log::{error, info};
 use tokio::select;
 use url::Url;
 
 use debug_provider::HttpCachedTransport;
-use defi_actors::{BlockchainActors, BlockHistoryActor, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockPlayerActor, NonceAndBalanceMonitorActor, TxSignersActor};
+use defi_actors::{BlockchainActors, NodeBlockPlayerActor};
 use defi_blockchain::Blockchain;
-use defi_entities::TxSigners;
-use defi_events::{BlockLogs, BlockStateUpdate};
-use loom_actors::{Accessor, Actor, ActorsManager, Broadcaster, Consumer, Producer, SharedState};
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -31,7 +27,7 @@ async fn main() -> Result<()> {
     let provider = ProviderBuilder::new().on_client(client);
 
     // creating singers
-    let tx_signers = SharedState::new(TxSigners::new());
+    //let tx_signers = SharedState::new(TxSigners::new());
 
     // new blockchain
     let bc = Blockchain::new(1);
@@ -96,7 +92,7 @@ async fn main() -> Result<()> {
     let mut logs_sub = bc.new_block_logs_channel().subscribe().await;
     let mut state_update_sub = bc.new_block_state_update_channel().subscribe().await;
 
-    let latest_block = bc.latest_block();
+    //let latest_block = bc.latest_block();
     let market_state = bc.market_state();
 
     loop {
@@ -152,5 +148,4 @@ async fn main() -> Result<()> {
 
         }
     }
-    Ok(())
 }

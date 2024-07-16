@@ -7,10 +7,8 @@ use alloy_rpc_client::ClientBuilder;
 use alloy_transport::BoxTransport;
 use alloy_transport_ipc::IpcConnect;
 use alloy_transport_ws::WsConnect;
-use example_exex_remote::ExExClient;
 use eyre::{eyre, OptionExt, Result};
 use log::{error, info, warn};
-use revm::db::{CacheDB, EmptyDB};
 use tokio::task::JoinHandle;
 
 use defi_actors::{BlockHistoryActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, TxSignersActor};

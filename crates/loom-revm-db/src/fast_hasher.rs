@@ -60,6 +60,8 @@ impl Hash for HashedAddressCell {
     }
 }
 
+
+#[derive(Default)]
 pub struct SimpleHasher {
     state: u64,
 }
@@ -68,9 +70,7 @@ impl SimpleHasher {
     #[inline]
     pub fn new() -> Self
     {
-        Self {
-            state: 0
-        }
+        Self::default()
     }
 }
 
@@ -91,7 +91,6 @@ impl Hasher for SimpleHasher {
 
             let mut state: u64 = 0x12345678;
             let mut array = [0u8; 8];
-            let mut ptr: usize = 0;
             for i in 0..l {
                 array.copy_from_slice(&bytes_buf[i * 8..i * 8 + 8]);
                 let value = u64::from_ne_bytes(array);

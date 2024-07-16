@@ -4,15 +4,13 @@ use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
-use revm::InMemoryDB;
 use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{AccountNonceAndBalanceState, LatestBlock, MarketState, Swap, SwapStep, TxSigners};
+use defi_entities::{LatestBlock, Swap, SwapStep};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
-use defi_types::Mempool;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;

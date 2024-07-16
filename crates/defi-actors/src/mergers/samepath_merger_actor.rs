@@ -15,7 +15,7 @@ use async_trait::async_trait;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
-use revm::{Evm, InMemoryDB};
+use revm::Evm;
 use revm::primitives::{BlockEnv, Env, SHANGHAI};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
@@ -23,9 +23,9 @@ use tokio::sync::RwLock;
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
-use defi_entities::{AccountNonceAndBalanceState, DataFetcher, FetchState, LatestBlock, MarketState, Swap, TxSigners};
+use defi_entities::{DataFetcher, FetchState, LatestBlock, MarketState, Swap};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
-use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
+use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, TRACING_CALL_OPTS};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomInMemoryDB;
@@ -293,9 +293,11 @@ async fn same_path_merger_worker<T: Transport + Clone, N: Network, P: Provider<T
                             *prestate.write().await = DataFetcher::<TxHash, GethStateUpdate>::new();
                             swap_paths = HashMap::new();
 
+                            let new_block_hash = block_hash;
+
                             for _counter in 0..5  {
-                                if let Ok(msg) = market_events_rx.recv().await {
-                                    if matches!(msg, MarketEvents::BlockStateUpdate{block_hash}) {
+                                if let Ok(MarketEvents::BlockStateUpdate{block_hash}) = market_events_rx.recv().await {
+                                    if new_block_hash == block_hash {
                                         cur_state_override = latest_block.read().await.node_state_override();
                                         debug!("Block state update received {} {}", block_number, block_hash);
                                         break;

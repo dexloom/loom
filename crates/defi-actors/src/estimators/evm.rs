@@ -1,8 +1,6 @@
-use std::sync::Arc;
-
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Bytes, TxKind, U256};
+use alloy_primitives::{Bytes, TxKind};
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use async_trait::async_trait;
 use eyre::{eyre, Result};

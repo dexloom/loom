@@ -1,8 +1,8 @@
 use std::convert::Infallible;
 
 use alloy_primitives::{Address, keccak256, U256};
-use eyre::{eyre, OptionExt, Result};
-use log::{debug, trace};
+use eyre::{eyre, Result};
+use log::debug;
 use revm::{DatabaseRef, InMemoryDB};
 
 pub fn calc_hashmap_cell<U0: Into<U256>, U1: Into<U256>>(offset: U0, cell: U1) -> U256 {

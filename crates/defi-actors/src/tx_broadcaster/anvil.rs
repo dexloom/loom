@@ -1,24 +1,20 @@
 use std::marker::PhantomData;
 
-use alloy_consensus::{ReceiptEnvelope, TxEnvelope};
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::{Ethereum, Network};
-use alloy_network::eip2718::Decodable2718;
 use alloy_provider::Provider;
-use alloy_rlp::Decodable;
 use alloy_rpc_types::BlockTransactions;
 use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::Result;
-use log::{debug, error, info};
+use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use debug_provider::AnvilProviderExt;
 use defi_blockchain::Blockchain;
-use defi_entities::LatestBlock;
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
+use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
 async fn broadcast_task<P, T, N>(

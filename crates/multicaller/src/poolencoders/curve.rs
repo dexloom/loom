@@ -167,13 +167,10 @@ impl CurveSwapEncoder {
                 swap_opcodes.add(balance_opcode);
             }
 
-            match next_pool.get_encoder().preswap_requirement() {
-                PreswapRequirement::Transfer(addr) => {
-                    let mut transfer_opcode = MulticallerCall::new_call(token_to_address, &EncoderHelper::encode_erc20_transfer(addr, U256::ZERO));
-                    transfer_opcode.set_call_stack(true, 0, 0x24, 0x20);
-                    swap_opcodes.add(transfer_opcode);
-                }
-                _ => {}
+            if let PreswapRequirement::Transfer(addr) = next_pool.get_encoder().preswap_requirement() {
+                let mut transfer_opcode = MulticallerCall::new_call(token_to_address, &EncoderHelper::encode_erc20_transfer(addr, U256::ZERO));
+                transfer_opcode.set_call_stack(true, 0, 0x24, 0x20);
+                swap_opcodes.add(transfer_opcode);
             }
         }
         Ok(())

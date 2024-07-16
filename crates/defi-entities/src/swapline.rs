@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
@@ -7,7 +6,6 @@ use alloy_primitives::{Address, I256, U256};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::debug;
-use revm::{DatabaseRef, InMemoryDB};
 use revm::primitives::Env;
 
 use defi_types::SwapError;
@@ -426,6 +424,7 @@ impl SwapLine {
         I256::from_raw(out_amount) - I256::from_raw(in_amount)
     }
 
+
     pub fn optimize_with_in_amount(&mut self, state: &LoomInMemoryDB, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
         let mut current_in_amount = in_amount;
         let mut bestprofit: Option<I256> = None;
@@ -480,7 +479,6 @@ impl SwapLine {
                     //debug!("inc direction changed {} {} {}", next_amount, current_profit, bestprofit.unwrap());
                 } else if first_step_change && !inc_direction {
                     //TODO : Check why is self aligned
-                    current_in_amount = current_in_amount;
                     inc_direction = true;
                     current_step /= U256::from(10);
                     bestprofit = Some(current_profit);

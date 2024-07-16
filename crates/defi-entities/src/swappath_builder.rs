@@ -21,9 +21,6 @@ impl SwapPathSet {
         }
     }
 
-    pub fn to_vec(self) -> Vec<SwapPath> {
-        self.set.into_iter().collect()
-    }
 
     pub fn to_arc_vec(self) -> Vec<Arc<SwapPath>> {
         self.set.into_iter().map(Arc::new).collect()

@@ -95,7 +95,7 @@ impl TxSigners {
     }
     pub fn add_privkey(&mut self, priv_key: Bytes) -> TxSigner {
         let wallet = PrivateKeySigner::from_bytes(&B256::from_slice(priv_key.as_ref())).unwrap();
-        if self.signers_vec.iter().find(|&item| item.address() == wallet.address()).is_none() {
+        if self.signers_vec.iter().find(|&item| item.address() == wallet.address()).is_some() {
             self.signers_vec.push(TxSigner::new(wallet.clone()));
         }
         TxSigner::new(wallet)
@@ -107,7 +107,7 @@ impl TxSigners {
 
 
     pub fn get_randon_signer(&self) -> Option<TxSigner> {
-        if self.len() == 0 {
+        if self.is_empty() {
             None
         } else {
             let rnd: usize = rand::thread_rng().gen();

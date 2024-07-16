@@ -8,7 +8,6 @@ use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use async_trait::async_trait;
-use eyre::eyre;
 use log::{error, info};
 
 use defi_blockchain::Blockchain;

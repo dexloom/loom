@@ -8,7 +8,6 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::eyre;
 use log::{debug, error, info};
-use revm::db::{CacheDB, EmptyDB};
 use revm::primitives::Env;
 
 use defi_entities::{Market, MarketState, Pool, PoolProtocol, PoolWrapper};

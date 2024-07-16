@@ -1,3 +1,5 @@
+#![allow(unused_assignments, unused_variables, dead_code, unused_must_use)]
+
 extern crate core;
 
 pub use account_nonce_balance::{AccountNonceAndBalances, AccountNonceAndBalanceState};

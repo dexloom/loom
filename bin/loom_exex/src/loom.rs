@@ -1,29 +1,24 @@
 use std::collections::HashMap;
 use std::env;
 use std::future::Future;
-use std::pin::Pin;
 use std::sync::Arc;
-use std::task::{Context, Poll, ready};
 
 use alloy::hex;
 use alloy::network::Ethereum;
 use alloy::primitives::{Address, TxHash, U256};
 use alloy::providers::Provider;
-use alloy::rpc::types::{Block, BlockTransactionsKind, Header, Log};
+use alloy::rpc::types::{Block, BlockTransactionsKind, Header};
 use alloy::transports::Transport;
-use eyre::{eyre, OptionExt};
-use futures_util::{Stream, StreamExt};
+use eyre::OptionExt;
 use reth::primitives::BlockNumHash;
 use reth::revm::db::{BundleAccount, StorageWithOriginalValues};
 use reth::revm::db::states::StorageSlot;
-use reth::rpc::server_types::eth::logs_utils::append_matching_block_logs;
 use reth::transaction_pool::{BlobStore, Pool, TransactionOrdering, TransactionPool, TransactionValidator};
-use reth_db::models::{NumTransactions, StoredBlockBodyIndices};
 use reth_execution_types::Chain;
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
-use reth_primitives::{IntoRecoveredTransaction, Receipt};
-use reth_tracing::tracing::{error, info, trace};
+use reth_primitives::IntoRecoveredTransaction;
+use reth_tracing::tracing::{error, info};
 use tokio::select;
 
 use debug_provider::DebugProviderExt;
@@ -32,8 +27,8 @@ use defi_blockchain::Blockchain;
 use defi_events::{BlockLogs, BlockStateUpdate, MessageMempoolDataUpdate, NodeMempoolDataUpdate};
 use defi_types::{GethStateUpdate, MempoolTx};
 use loom_actors::Broadcaster;
-use loom_topology::{EncoderConfig, Topology, TopologyConfig};
-use loom_utils::reth_types::{append_all_matching_block_logs, append_all_matching_block_logs_sealed};
+use loom_topology::{EncoderConfig, TopologyConfig};
+use loom_utils::reth_types::append_all_matching_block_logs_sealed;
 
 pub async fn init<Node: FullNodeComponents>(
     ctx: ExExContext<Node>,
@@ -96,7 +91,7 @@ async fn process_chain(
             let state_ref: &HashMap<Address, BundleAccount> = execution_outcome.bundle.state();
 
             for (address, accounts) in state_ref.iter() {
-                let mut account_state = state_update.entry(*address).or_default();
+                let account_state = state_update.entry(*address).or_default();
                 if let Some(account_info) = accounts.info.clone() {
                     account_state.code = account_info.code.map(|c| c.bytecode().clone());
                     account_state.balance = Some(account_info.balance);
@@ -200,8 +195,6 @@ where
             }
         }
     }
-
-    Ok(())
 }
 
 pub async fn start_loom<P, T>(provider: P, bc: Blockchain, topology_config: TopologyConfig) -> eyre::Result<()>
@@ -214,13 +207,15 @@ where
 
     info!(chain_id = ?chain_id, "Starting Loom" );
 
-    let (encoder_name, encoder) = topology_config.encoders.iter().next().ok_or_eyre("NO_ENCODER")?;
+    let (_encoder_name, encoder) = topology_config.encoders.iter().next().ok_or_eyre("NO_ENCODER")?;
 
-    let multicaller_address: Option<Address> = if let EncoderConfig::SwapStep(e) = encoder {
-        Some(e.address.parse()?)
-    } else {
-        None
+
+    let multicaller_address: Option<Address> = match encoder {
+        EncoderConfig::SwapStep(e) => {
+            e.address.parse().ok()
+        }
     };
+
 
     let multicaller_address = multicaller_address.ok_or_eyre("MULTICALLER_ADDRESS_NOT_SET")?;
     let private_key_encrypted = hex::decode(env::var("DATA")?)?;

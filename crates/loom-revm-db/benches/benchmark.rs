@@ -1,5 +1,5 @@
 use std::collections::{HashMap, HashSet};
-use std::hash::{BuildHasher, DefaultHasher, Hash, Hasher};
+use std::hash::{DefaultHasher, Hash, Hasher};
 
 use alloy::primitives::{Address, Bytes, U256};
 use criterion::{Criterion, criterion_group, criterion_main};

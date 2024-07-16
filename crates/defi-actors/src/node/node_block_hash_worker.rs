@@ -13,6 +13,7 @@ use log::{error, info};
 
 use loom_actors::{Broadcaster, run_async, WorkerResult};
 
+#[allow(dead_code)]
 pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, sender: Broadcaster<BlockHash>) -> Result<()>
 {
     info!("Starting node block hash worker");
@@ -48,10 +49,10 @@ pub async fn new_node_block_header_worker<P, T, N>(
     block_hash_channel: Broadcaster<BlockHash>,
     block_header_channel: Broadcaster<Header>)
     -> WorkerResult
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     info!("Starting node block hash worker");
     let sub = client.subscribe_blocks().await?;

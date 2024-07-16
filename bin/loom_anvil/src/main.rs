@@ -1,28 +1,23 @@
 use std::fmt::{Display, Formatter};
-use std::panic::panic_any;
-use std::sync::Arc;
 use std::time::Duration;
 
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::{Address, BlockHash, BlockNumber, TxHash, U256};
-use alloy_provider::{Provider, ProviderBuilder, ProviderLayer};
+use alloy_primitives::{Address, BlockHash, TxHash, U256};
 use alloy_provider::network::eip2718::Encodable2718;
-use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, BlockTransactionsKind, Header, Log};
-use alloy_transport_ws::WsConnect;
+use alloy_provider::Provider;
+use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, BlockTransactionsKind, Header};
 use clap::Parser;
 use env_logger::Env as EnvLog;
 use eyre::{OptionExt, Result};
-use log::{debug, error, info, LevelFilter};
-use revm::db::EmptyDB;
-use revm::InMemoryDB;
+use log::{debug, error, info};
 
-use debug_provider::{AnvilDebugProvider, AnvilDebugProviderFactory, DebugProviderExt};
-use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, StateChangeArbSearcherActor, TxSignersActor};
-use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, Pool, PoolClass, PoolWrapper, Swap, Token, TxSigners};
-use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, TxCompose};
+use debug_provider::AnvilDebugProviderFactory;
+use defi_actors::{AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, fetch_and_add_pool_by_address, fetch_state_and_add_pool, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, TxSignersActor};
+use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, NWETH, PoolClass, Swap, Token, TxSigners};
+use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageTxCompose, TxCompose};
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
-use defi_types::{ChainParameters, debug_trace_block, debug_trace_call_diff, GethStateUpdateVec, Mempool};
+use defi_types::{ChainParameters, debug_trace_block, Mempool};
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom_multicaller::{MulticallerDeployer, SwapStepEncoder};
 use loom_revm_db::LoomInMemoryDB;
@@ -63,6 +58,7 @@ impl Display for Stat {
 }
 
 
+#[allow(dead_code)]
 fn parse_tx_hashes(tx_hash_vec: Vec<&str>) -> Result<Vec<TxHash>> {
     let mut ret: Vec<TxHash> = Vec::new();
     for tx_hash in tx_hash_vec {
@@ -113,7 +109,7 @@ async fn main() -> Result<()> {
         .unwrap()
         .unwrap();
 
-    let mut cache_db = LoomInMemoryDB::default();
+    let cache_db = LoomInMemoryDB::default();
 
     let market_instance = Market::default();
 
@@ -127,32 +123,32 @@ async fn main() -> Result<()> {
     let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
     let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
 
-    let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(500);
+    //let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(500);
 
     let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(100);
     let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(500);
     let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(100);
 
 
-    let mut market_instance = SharedState::new(market_instance);
+    let market_instance = SharedState::new(market_instance);
 
-    let mut market_state = SharedState::new(market_state_instance);
+    let market_state = SharedState::new(market_state_instance);
 
-    let mut mempool_instance = SharedState::new(mempool_instance);
-    let mut gas_station_state = SharedState::new(GasStation::new());
+    let mempool_instance = SharedState::new(mempool_instance);
+    let gas_station_state = SharedState::new(GasStation::new());
 
-    let mut block_history_state =
+    let block_history_state =
         SharedState::new(BlockHistory::fetch(client.clone(), market_state.inner(), 10).await?);
 
     let tx_signers = TxSigners::new();
     let accounts_state = AccountNonceAndBalanceState::new();
 
-    let mut tx_signers = SharedState::new(tx_signers);
-    let mut accounts_state = SharedState::new(accounts_state);
+    let tx_signers = SharedState::new(tx_signers);
+    let accounts_state = SharedState::new(accounts_state);
 
     let block_hash: BlockHash = block_header.hash.unwrap_or_default();
 
-    let mut latest_block = SharedState::new(LatestBlock::new(block_nr, block_hash));
+    let latest_block = SharedState::new(LatestBlock::new(block_nr, block_hash));
 
     let (_, post) = debug_trace_block(
         client.clone(),
@@ -189,10 +185,10 @@ async fn main() -> Result<()> {
             token.set_eth_price(Some(price_u256));
         };
 
-        market_instance.write().await.add_token(token);
+        let _ = market_instance.write().await.add_token(token)?;
     }
 
-    for (pool_name, pool_config) in test_config.pools {
+    for (_pool_name, pool_config) in test_config.pools {
         match pool_config.class {
             PoolClass::UniswapV2 | PoolClass::UniswapV3 => {
                 fetch_and_add_pool_by_address(
@@ -230,8 +226,6 @@ async fn main() -> Result<()> {
         }
     }
 
-
-    let chain_params = ChainParameters::ethereum();
 
     info!("Starting initialize signers actor");
 
@@ -615,9 +609,8 @@ async fn main() -> Result<()> {
                 }
             }
             msg = tokio::time::sleep(timeout_duration) => {
-                info!("Timed out");
+                info!("Timed out : {:?} ", msg);
                 break;
-
             }
         }
     }

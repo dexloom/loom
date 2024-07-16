@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 pub use deploy::MulticallerDeployer;
 pub use swap_encoder::MulticallerSwapEncoder;
 pub use swap_encoder::SwapEncoder;

@@ -8,9 +8,7 @@ use alloy_transport::Transport;
 use eyre::{ErrReport, eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use log::{debug, error};
-use revm::InMemoryDB;
 use revm::primitives::Env;
-use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
 
 use defi_abi::IERC20;
 use defi_abi::uniswap3::IUniswapV3Pool;
@@ -33,9 +31,9 @@ lazy_static! {
     pub static ref SUSHI3_FACTORY_ADDRESS : Address =  "0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F".parse().unwrap();
 
 }
-
+#[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
-struct Slot0 {
+pub struct Slot0 {
     pub tick: i32,
     pub fee_protocol: u8,
     pub sqrt_price_x96: U256,
@@ -60,7 +58,7 @@ impl From<slot0Return> for Slot0 {
         }
     }
 }
-
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct UniswapV3Pool {
     //contract_storage : ContractStorage,
@@ -252,14 +250,14 @@ impl Pool for UniswapV3Pool
         )?;
 
         #[cfg(any(test, debug_assertions))] {
-            let (ret_evm, gas_used) = UniswapCustomQuoterStateReader::quote_exact_input(state_db,
-                                                                                        env,
-                                                                                        UniswapV3Protocol::get_custom_quoter_address(),
-                                                                                        self.get_address(),
-                                                                                        *token_address_from,
-                                                                                        *token_address_to,
-                                                                                        self.fee,
-                                                                                        in_amount)?;
+            let (ret_evm, _gas_used) = UniswapCustomQuoterStateReader::quote_exact_input(state_db,
+                                                                                         env,
+                                                                                         UniswapV3Protocol::get_custom_quoter_address(),
+                                                                                         self.get_address(),
+                                                                                         *token_address_from,
+                                                                                         *token_address_to,
+                                                                                         self.fee,
+                                                                                         in_amount)?;
 
 
             if ret != ret_evm {
@@ -289,14 +287,14 @@ impl Pool for UniswapV3Pool
 
 
         #[cfg(any(test, debug_assertions))] {
-            let (ret_evm, gas_used) = UniswapCustomQuoterStateReader::quote_exact_output(state_db,
-                                                                                         env,
-                                                                                         UniswapV3Protocol::get_custom_quoter_address(),
-                                                                                         self.get_address(),
-                                                                                         *token_address_from,
-                                                                                         *token_address_to,
-                                                                                         self.fee,
-                                                                                         out_amount + U256::from(0))?;
+            let (ret_evm, _gas_used) = UniswapCustomQuoterStateReader::quote_exact_output(state_db,
+                                                                                          env,
+                                                                                          UniswapV3Protocol::get_custom_quoter_address(),
+                                                                                          self.get_address(),
+                                                                                          *token_address_from,
+                                                                                          *token_address_to,
+                                                                                          self.fee,
+                                                                                          out_amount + U256::from(0))?;
 
 
             if ret != ret_evm {
@@ -380,6 +378,7 @@ impl Pool for UniswapV3Pool
     }
 }
 
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 struct UniswapV3AbiSwapEncoder {
     pool_address: Address,

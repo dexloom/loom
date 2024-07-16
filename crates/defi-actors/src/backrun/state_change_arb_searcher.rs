@@ -8,7 +8,6 @@ use eyre::{eyre, Result};
 use log::{debug, error, warn};
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use rayon::prelude::*;
-use revm::InMemoryDB;
 use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
@@ -34,7 +33,7 @@ async fn state_change_arb_searcher_task(
 
 
     let mut db = msg.market_state().clone();
-    db.apply_geth_update_vec(msg.state_update());
+    db.apply_geth_update_vec(msg.state_update().clone());
     //let mut current_market_state = MarketState::new(db);
 
     //current_market_state.apply_state_update(msg.state_update(), true, false);
@@ -112,7 +111,7 @@ async fn state_change_arb_searcher_task(
 
                         let pool_health_tx = req.3;
                         match pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {
-                            Err(ee) => { error!("try_send to pool_health_monitor error : {e:?}") }
+                            Err(ee) => { error!("try_send to pool_health_monitor error : {:?}", ee) }
                             _ => {}
                         }
                     }

@@ -134,7 +134,7 @@ where
                     }
                 }
                 Err(e) => {
-                    error!("Error getting curve contract from code {}", pool_address)
+                    error!("Error getting curve contract from code {} : {} ", pool_address, e)
                 }
             }
         }

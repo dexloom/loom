@@ -1,18 +1,13 @@
-use std::collections::BTreeMap;
-use std::convert::Infallible;
-use std::pin::Pin;
 use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::SolCall;
-use alloy_transport::{BoxTransport, Transport};
+use alloy_transport::Transport;
 use async_trait::async_trait;
-use eyre::{eyre, Report, Result};
-use log::{debug, error};
-use revm::db::DatabaseRef;
-use revm::InMemoryDB;
-use revm::primitives::{Bytes as rBytes, Env, ExecutionResult, Output, TransactTo, U256 as rU256};
+use eyre::{eyre, Result};
+use log::error;
+use revm::primitives::Env;
 
 use defi_abi::IERC20;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
@@ -119,7 +114,7 @@ where
             }
         }
 
-        let lp_token = match CurveCommonContract::lp_token(client.clone(), pool_contract.get_address()).await {
+        let lp_token = match CurveCommonContract::<P, T, N>::lp_token(pool_contract.get_address()).await {
             Ok(lp_token_address) => {
                 Some(lp_token_address)
             }
@@ -128,7 +123,7 @@ where
 
 
         let (underlying_tokens, is_meta) = match pool_contract.as_ref() {
-            CurveContract::I128_2_To_Meta(interface) => {
+            CurveContract::I128_2ToMeta(_interface) => {
                 (CurveProtocol::<P, N, T>::get_underlying_tokens(tokens[1])?, true)
             }
             _ => {
@@ -314,7 +309,7 @@ where
 
         if self.is_meta {
             match &self.pool_contract.as_ref() {
-                CurveContract::I128_2_To_Meta(interface) => {
+                CurveContract::I128_2ToMeta(_interface) => {
                     for j in 0..self.underlying_tokens.len() {
                         let value = self.balances[0] / U256::from(10);
                         match self.pool_contract.get_dy_call_data((0 as u32).into(), ((j + self.tokens.len()) as u32).into(), value) {
@@ -328,7 +323,7 @@ where
                 _ => { error!("CURVE_META_POOL_NOT_SUPPORTED") }
             }
         } else {
-            if let Some(lp_token) = self.lp_token {
+            if let Some(_lp_token) = self.lp_token {
                 for i in 0..self.tokens.len() {
                     let value = self.balances[i] / U256::from(10);
                     match self.pool_contract.get_add_liquidity_call_data((i as u32).into(), value, Address::ZERO) {
@@ -366,6 +361,7 @@ where
 }
 
 
+#[allow(dead_code)]
 #[derive(Clone)]
 struct CurveAbiSwapEncoder<P, T, N>
 where
@@ -442,11 +438,11 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    fn encode_swap_out_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_out_amount_provided(&self, _token_from_address: Address, _token_to_address: Address, _amount: U256, _recipient: Address, _payload: Bytes) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    fn encode_swap_in_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_in_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, _payload: Bytes) -> Result<Bytes> {
         if self.is_meta {
             let i: Result<u32> = self.get_coin_idx(token_from_address);
             let j: Result<u32> = self.get_coin_idx(token_to_address);
@@ -482,23 +478,23 @@ where
         PreswapRequirement::Allowance
     }
 
-    fn swap_in_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }
-    fn swap_out_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }
 
-    fn swap_out_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_out_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }
-    fn swap_in_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
+    fn swap_in_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }
-    fn swap_out_amount_return_script(&self, token_from_address: Address, token_to_address: Address) -> Option<Bytes> {
+    fn swap_out_amount_return_script(&self, _token_from_address: Address, _token_to_address: Address) -> Option<Bytes> {
         None
     }
-    fn swap_in_amount_return_script(&self, token_from_address: Address, token_to_address: Address) -> Option<Bytes> {
+    fn swap_in_amount_return_script(&self, _token_from_address: Address, _token_to_address: Address) -> Option<Bytes> {
         None
     }
 
@@ -546,7 +542,7 @@ mod tests {
         let client = ProviderBuilder::new().on_client(client).boxed();
 
         let mut market_state = MarketState::new(LoomInMemoryDB::new(Arc::new(FastCacheDB::new(EmptyDB::default()))));
-        
+
         let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
 
         for curve_contract in curve_contracts.into_iter() {

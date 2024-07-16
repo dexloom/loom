@@ -1,33 +1,28 @@
 use std::collections::{BTreeMap, HashMap};
-use std::collections::btree_map::Entry;
 use std::path::Path;
-use std::time::Duration;
 
 use alloy_eips::BlockNumHash;
 use alloy_network::Network;
 use alloy_primitives::{Address, B256, BlockHash};
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, BlockTransactions, FilteredParams, Header, Log, Transaction};
-use alloy_rpc_types::serde_helpers::storage;
+use alloy_rpc_types::{Block, Header, Log};
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use chrono::Utc;
 use futures::StreamExt;
-use log::{debug, error, info, trace, warn};
+use log::{debug, error, info, trace};
 use reth_chainspec::ChainSpecBuilder;
 use reth_db::open_db_read_only;
 use reth_primitives::{
-    BlockHashOrNumber, BlockWithSenders, TransactionSignedEcRecovered,
+    BlockHashOrNumber, BlockWithSenders,
 };
 use reth_provider::{
-    AccountExtReader, BlockReader, ChangeSetReader, ProviderFactory, ReceiptProvider,
-    StateProvider, StorageReader, TransactionsProvider, TransactionVariant,
+    AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider,
+    StateProvider, StorageReader, TransactionVariant,
 };
 use reth_provider::providers::StaticFileProvider;
 
-use defi_abi::uniswap3::IUniswapV3Pool::IUniswapV3PoolCalls::collect;
 use defi_events::{BlockLogs, BlockStateUpdate};
-use defi_types::GethStateUpdate;
 use loom_actors::{ActorResult, Broadcaster, WorkerResult};
 use loom_utils::reth_types::append_all_matching_block_logs;
 
@@ -162,27 +157,8 @@ where
 
 
                                 if let Some(block_state_update_channel) = &new_block_state_update_channel {
-                                    let changest = db_provider.account_block_changeset(block_number).unwrap();
-                                    //let state_provider = provider.state_provider_by_block_number(block_number)?;
                                     let changed_accounts = db_provider.changed_accounts_with_range(block_number..=block_number)?;
 
-                                    /*let accounts_update : BTreeMap<Address, AccountState> = changed_accounts.into_iter().map(|account|{
-                                        let balance = state_provider.account_balance(account);
-                                        let nonce = state_provider.account_nonce(account);
-                                        let code = state_provider.account_code(account);
-
-                                        let state = AccountState{
-                                            balance: balance.unwrap_or_default(),
-                                            code: code.unwrap_or_default().map(|x| x.bytes()),
-                                            nonce: nonce.unwrap_or_default(),
-                                            storage: Default::default(),
-                                        };
-
-                                        (account, state)
-
-                                    }).collect();
-
-                                     */
 
                                     let changed_storage = db_provider.changed_storages_with_range(block_number..=block_number)?;
 
@@ -204,12 +180,12 @@ where
                                         (acc, cells)
                                     }).collect();
 
-
+                                    // TODO : Check this code
                                     trace!("changed storage {block_number} {block_hash} : {storage_update:?}");
 
-                                    let state_update_map : HashMap<Address, AccountState> = HashMap::new();
+                                    //let state_update_map : HashMap<Address, AccountState> = HashMap::new();
 
-                                    let mut accounts = db_provider.basic_accounts(changed_accounts)?;
+                                    let  accounts = db_provider.basic_accounts(changed_accounts)?;
 
                                     let mut account_btree : BTreeMap<Address, AccountState> = accounts.into_iter().map(|(address, account)|{
                                         let account = account.unwrap_or_default();
@@ -219,8 +195,7 @@ where
                                             None
                                         };
 
-                                        let storage = storage_update.get(&address).cloned().unwrap_or_default();
-
+                                        
                                         (address, AccountState{
                                             balance: Some(account.balance),
                                             code: account_code.map(|c|c.bytes()),

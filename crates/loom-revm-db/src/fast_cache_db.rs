@@ -1,6 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
-use std::ops::Deref;
 use std::sync::Arc;
 use std::vec::Vec;
 
@@ -44,12 +43,12 @@ impl FastInMemoryDB {
         for (k, v) in self.contracts.iter() {
             db.contracts.insert(*k, v.clone());
         }
-        db.logs = self.logs.clone();
+        db.logs.clone_from(&self.logs);
         for (address, account) in self.accounts.iter() {
             let mut info = account.info.clone();
             db.insert_contract(&mut info);
 
-            let mut entry = db.accounts.entry(*address).or_default();
+            let entry = db.accounts.entry(*address).or_default();
             entry.info = info;
             for (k, v) in account.storage.iter() {
                 entry.storage.insert(*k, *v);
@@ -67,7 +66,7 @@ impl FastInMemoryDB {
         for (k, v) in self.contracts.iter() {
             db.contracts.entry(*k).and_modify(|k| k.clone_from(v));
         }
-        db.logs = self.logs.clone();
+        db.logs.clone_from(&self.logs);
 
         for (address, account) in self.accounts.iter() {
             db.accounts.entry(*address).and_modify(|db_account| {
@@ -90,7 +89,7 @@ impl FastInMemoryDB {
         for (k, v) in self.contracts.iter() {
             db.contracts.entry(*k).and_modify(|k| k.clone_from(v));
         }
-        db.logs = self.logs.clone();
+        db.logs.clone_from(&self.logs);
 
         for (address, account) in self.accounts.iter() {
             db.accounts.entry(*address).and_modify(|db_account| {
@@ -104,33 +103,30 @@ impl FastInMemoryDB {
         db
     }
 
-    pub fn apply_geth_update(&mut self, update: &BTreeMap<Address, GethAccountState>) {
-        for (addr, acc_state) in update.into_iter() {
+    pub fn apply_geth_update(&mut self, update: BTreeMap<Address, GethAccountState>) {
+        for (addr, acc_state) in update {
             for (k, v) in acc_state.storage.iter() {
-                self.insert_account_storage(*addr, (*k).into(), (*v).into());
+                let _ = self.insert_account_storage(addr, (*k).into(), (*v).into());
             }
-            match self.load_account(*addr) {
-                Ok(account) => {
-                    if let Some(code) = acc_state.code.clone() {
-                        let bytecode = Bytecode::new_raw(code);
-                        account.info.code_hash = bytecode.hash_slow();
-                        account.info.code = Some(bytecode);
-                    }
-                    if let Some(nonce) = acc_state.nonce {
-                        account.info.nonce = nonce;
-                    }
-                    if let Some(balance) = acc_state.balance {
-                        account.info.balance = balance;
-                    }
+            if let Ok(account) = self.load_account(addr) {
+                if let Some(code) = acc_state.code.clone() {
+                    let bytecode = Bytecode::new_raw(code);
+                    account.info.code_hash = bytecode.hash_slow();
+                    account.info.code = Some(bytecode);
                 }
-                _ => {}
+                if let Some(nonce) = acc_state.nonce {
+                    account.info.nonce = nonce;
+                }
+                if let Some(balance) = acc_state.balance {
+                    account.info.balance = balance;
+                }
             }
         }
     }
 
-    pub fn apply_geth_update_vec(&mut self, update: &Vec<BTreeMap<Address, GethAccountState>>) {
-        for e in update.iter() {
-            self.apply_geth_update(e);
+    pub fn apply_geth_update_vec(&mut self, update: Vec<BTreeMap<Address, GethAccountState>>) {
+        for entry in update.into_iter() {
+            self.apply_geth_update(entry);
         }
     }
 }
@@ -599,7 +595,7 @@ mod tests {
 
         let update: BTreeMap<Address, GethAccountState> = [(account, update_record)].into();
 
-        new_state.apply_geth_update(&update);
+        new_state.apply_geth_update(update);
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().code, Some(code.clone()));
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce + 1);

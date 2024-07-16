@@ -4,7 +4,6 @@ use std::sync::Arc;
 use alloy_primitives::{Address, I256, U256};
 use eyre::{eyre, Result};
 use log::error;
-use revm::InMemoryDB;
 use revm::primitives::Env;
 
 use loom_revm_db::LoomInMemoryDB;
@@ -136,6 +135,7 @@ impl SwapStep {
         ret
     }
 
+    #[allow(unused_variables)]
     pub fn merge_swap_paths(swap_path_0: SwapLine, swap_path_1: SwapLine, multicaller: Address) -> Result<(SwapStep, SwapStep)> {
         let mut split_index_start = 0;
         let mut split_index_end = 0;
@@ -685,7 +685,7 @@ impl SwapStep {
             let in_amount = step_0_out_amount * swap_path_1.amount_out.unwrap() / step_1_out_amount;
             swap_path_1.amount_in = SwapAmountType::Set(in_amount);
         }
-        step_1.calculate_with_in_amount(state, env.clone(), None);
+        let _ = step_1.calculate_with_in_amount(state, env.clone(), None)?;
 
 
         //debug!("AfterCalc SwapStep0 {:?}", step_0);

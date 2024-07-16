@@ -1,4 +1,3 @@
-use alloy_network::TransactionBuilderError::Signer;
 use alloy_primitives::{B256, Bytes, hex};
 use async_trait::async_trait;
 use log::{error, info};

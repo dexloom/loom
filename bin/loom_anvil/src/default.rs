@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use log::{error, info};
@@ -10,8 +8,8 @@ use defi_entities::{Market, MarketState, Pool, PoolClass, Token};
 use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
 use loom_actors::SharedState;
-use loom_multicaller::SwapStepEncoder;
 
+#[allow(dead_code)]
 async fn load_pools<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static>(
     client: P,
     market: SharedState<Market>,
@@ -320,10 +318,10 @@ async fn load_pools<P: Provider + DebugProviderExt + Send + Sync + Clone + 'stat
 }
 
 
+#[allow(dead_code)]
 async fn load_tokens<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static>(
-    client: P,
+    _client: P,
     market_instance: SharedState<Market>,
-    market_state: SharedState<MarketState>,
 ) -> eyre::Result<()> {
     let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"
         .parse()
@@ -348,7 +346,7 @@ async fn load_tokens<P: Provider + DebugProviderExt + Send + Sync + Clone + 'sta
         .unwrap();
 
 
-    let mut weth_token = Token::new_with_data(
+    let weth_token = Token::new_with_data(
         weth_address,
         Some("WETH".to_string()),
         None,
@@ -356,7 +354,7 @@ async fn load_tokens<P: Provider + DebugProviderExt + Send + Sync + Clone + 'sta
         true,
         false,
     );
-    let mut usdc_token = Token::new_with_data(
+    let usdc_token = Token::new_with_data(
         usdc_address,
         Some("USDC".to_string()),
         None,
@@ -364,7 +362,7 @@ async fn load_tokens<P: Provider + DebugProviderExt + Send + Sync + Clone + 'sta
         true,
         false,
     );
-    let mut usdt_token = Token::new_with_data(
+    let usdt_token = Token::new_with_data(
         usdt_address,
         Some("USDT".to_string()),
         None,
@@ -372,7 +370,7 @@ async fn load_tokens<P: Provider + DebugProviderExt + Send + Sync + Clone + 'sta
         true,
         false,
     );
-    let mut dai_token = Token::new_with_data(
+    let dai_token = Token::new_with_data(
         dai_address,
         Some("DAI".to_string()),
         None,
@@ -380,7 +378,7 @@ async fn load_tokens<P: Provider + DebugProviderExt + Send + Sync + Clone + 'sta
         true,
         false,
     );
-    let mut wbtc_token = Token::new_with_data(
+    let wbtc_token = Token::new_with_data(
         wbtc_address,
         Some("WBTC".to_string()),
         None,
@@ -388,7 +386,7 @@ async fn load_tokens<P: Provider + DebugProviderExt + Send + Sync + Clone + 'sta
         true,
         false,
     );
-    let mut threecrv_token = Token::new_with_data(
+    let threecrv_token = Token::new_with_data(
         threecrv_address,
         Some("3Crv".to_string()),
         None,
@@ -396,7 +394,7 @@ async fn load_tokens<P: Provider + DebugProviderExt + Send + Sync + Clone + 'sta
         false,
         true,
     );
-    let mut crv_token = Token::new_with_data(
+    let crv_token = Token::new_with_data(
         crv_address,
         Some("Crv".to_string()),
         None,
@@ -408,12 +406,12 @@ async fn load_tokens<P: Provider + DebugProviderExt + Send + Sync + Clone + 'sta
     let mut market_guard = market_instance.write().await;
 
     market_guard.add_token(weth_token)?;
-    market_guard.add_token(usdc_token);
-    market_guard.add_token(usdt_token);
-    market_guard.add_token(dai_token);
-    market_guard.add_token(wbtc_token);
-    market_guard.add_token(threecrv_token);
-    market_guard.add_token(crv_token);
+    market_guard.add_token(usdc_token)?;
+    market_guard.add_token(usdt_token)?;
+    market_guard.add_token(dai_token)?;
+    market_guard.add_token(wbtc_token)?;
+    market_guard.add_token(threecrv_token)?;
+    market_guard.add_token(crv_token)?;
 
     Ok(())
 }

@@ -1,7 +1,7 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use alloy_network::{Ethereum, Network};
+use alloy_network::Ethereum;
 use alloy_primitives::{TxHash, U64};
 use alloy_provider::Provider;
 use alloy_transport::Transport;

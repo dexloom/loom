@@ -4,10 +4,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
 use alloy_transport::Transport;
 use log::error;
-use reth_provider::{
-    AccountReader, BlockReader, BlockSource, HeaderProvider, ProviderFactory,
-    providers::StaticFileProvider, ReceiptProvider, StateProvider, TransactionsProvider,
-};
 use tokio::sync::broadcast::Receiver;
 
 use defi_events::BlockLogs;
@@ -31,6 +27,7 @@ pub async fn new_node_block_logs_worker<T: Transport + Clone, N: Network, P: Pro
     }
 }
 
+#[allow(dead_code)]
 pub async fn new_node_block_logs_worker_reth<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + 'static>(
     client: P,
     mut block_hash_receiver: Receiver<BlockHash>,

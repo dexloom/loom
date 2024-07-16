@@ -106,6 +106,7 @@ async fn estimator_worker<P: Provider + DebugProviderExt + Send + Sync + Clone +
     }
 }
 
+#[allow(dead_code)]
 #[derive(Consumer, Producer)]
 pub struct HardhatEstimatorActor<P>
 {

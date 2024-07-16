@@ -6,7 +6,7 @@ use alloy_transport::Transport;
 use eyre::{ErrReport, eyre, Result};
 use lazy_static::lazy_static;
 use log::debug;
-use revm::{DatabaseRef, InMemoryDB};
+use revm::DatabaseRef;
 use revm::primitives::Env;
 
 use defi_abi::IERC20;
@@ -20,7 +20,7 @@ use crate::state_readers::UniswapV2StateReader;
 lazy_static! {
     static ref U112_MASK : U256 = (U256::from(1) << 112) - U256::from(1);
 }
-
+#[allow(dead_code)]
 #[derive(Clone)]
 pub struct UniswapV2Pool {
     address: Address,
@@ -191,8 +191,8 @@ impl Pool for UniswapV2Pool
         self.protocol
     }
 
-    fn get_fee(&self) -> U256 {
-        self.fee
+    fn get_address(&self) -> Address {
+        return self.address;
     }
 
     /*
@@ -202,16 +202,12 @@ impl Pool for UniswapV2Pool
 
      */
 
-    fn get_address(&self) -> Address {
-        return self.address;
+    fn get_fee(&self) -> U256 {
+        self.fee
     }
 
     fn get_tokens(&self) -> Vec<Address> {
         vec![self.token0, self.token1]
-    }
-
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
-        &self.encoder
     }
 
     fn get_swap_directions(&self) -> Vec<(Address, Address)> {
@@ -319,6 +315,10 @@ impl Pool for UniswapV2Pool
         true
     }
 
+    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
+        &self.encoder
+    }
+
     fn get_state_required(&self) -> Result<RequiredState> {
         let mut state_required = RequiredState::new();
 
@@ -371,6 +371,10 @@ impl AbiSwapEncoder for UniswapV2AbiSwapEncoder {
         Ok(Bytes::from(IUniswapV2Pair::IUniswapV2PairCalls::swap(swap_call).abi_encode()))
     }
 
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Transfer(self.pool_address)
+    }
+
     fn swap_out_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
         if token_from_address < token_to_address {
             Some(0x24)
@@ -379,17 +383,13 @@ impl AbiSwapEncoder for UniswapV2AbiSwapEncoder {
         }
     }
 
+
     fn swap_out_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
         if token_from_address < token_to_address {
             Some(0x20)
         } else {
             Some(0x00)
         }
-    }
-
-
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Transfer(self.pool_address)
     }
 }
 
@@ -423,7 +423,7 @@ mod tests {
         let provider = ProviderBuilder::new().on_client(client).boxed();
 
 
-        let mut market_state = MarketState::new(InMemoryDB::default());
+        let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
 
         let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();

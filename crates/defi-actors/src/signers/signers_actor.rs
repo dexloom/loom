@@ -7,9 +7,8 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
-use defi_entities::TxSigners;
 use defi_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData, TxState};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 async fn sign_task(

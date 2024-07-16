@@ -23,7 +23,6 @@ lazy_static! {
 
 pub struct MulticallerDeployer {
     code: Bytes,
-    owner: Option<Address>,
     address: Option<Address>,
 }
 
@@ -37,7 +36,6 @@ impl MulticallerDeployer {
     pub fn new() -> Self {
         Self {
             code: Bytes::from(NO_OWNER_CODE.clone()),
-            owner: None,
             address: None,
         }
     }
@@ -110,7 +108,7 @@ impl MulticallerDeployer {
 
         let final_block = block_number + 10;
         while block_number < final_block {
-            let receipt = client.get_transaction_receipt(*tx.tx_hash()).await?;
+            let receipt = client.get_transaction_receipt(*pending_tx.tx_hash()).await?;
             match receipt {
                 Some(receipt) => {
                     let address = receipt.contract_address.ok_or_eyre("NOT_DEPLOYED")?;

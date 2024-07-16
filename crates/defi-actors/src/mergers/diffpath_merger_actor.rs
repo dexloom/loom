@@ -10,10 +10,9 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{AccountNonceAndBalanceState, LatestBlock, MarketState, NWETH, Swap, TxSigners};
+use defi_entities::{MarketState, NWETH, Swap};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
-use defi_types::Mempool;
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 lazy_static! {

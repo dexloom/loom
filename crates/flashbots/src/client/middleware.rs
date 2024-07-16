@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 use alloy_json_rpc::RpcError;
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
-use alloy_signer_local::LocalWallet;
+use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::{Transport, TransportErrorKind};
 use eyre::Result;
 use thiserror::Error;
@@ -58,7 +58,7 @@ where
     pub fn new(relay_url: impl Into<Url>, provider: P) -> Self {
         Self {
             provider,
-            relay: Relay::new(relay_url, Some(LocalWallet::random())),
+            relay: Relay::new(relay_url, Some(PrivateKeySigner::random())),
             simulation_relay: None,
             _t: PhantomData,
         }

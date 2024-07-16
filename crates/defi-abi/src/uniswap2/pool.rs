@@ -7,6 +7,7 @@ sol! {
        function uniswapV2Call(address sender, uint amount0, uint amount1, bytes calldata data) external;
     }
 
+    #[allow(clippy::too_many_arguments)]
     #[sol(abi=true,rpc)]
     #[derive(Debug, PartialEq, Eq)]
     interface IUniswapV2Pair {

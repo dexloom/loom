@@ -65,7 +65,7 @@ mod test {
 
         let dyn_prv = DynProvider::from(dyn_prv);
 
-        dyn_prv.anvil_drop_all_transactions().await;
+        let _ = dyn_prv.anvil_drop_all_transactions().await;
 
         Ok(())
     }

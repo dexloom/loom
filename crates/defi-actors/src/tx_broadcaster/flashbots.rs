@@ -12,10 +12,9 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
-use defi_entities::LatestBlock;
 use defi_events::{BestTxCompose, MessageTxCompose, RlpState, TxCompose, TxComposeData};
 use flashbots::Flashbots;
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
+use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
 async fn broadcast_task<P, T>(
