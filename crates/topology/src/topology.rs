@@ -398,7 +398,7 @@ impl Topology
                                 info!("Flashbots broadcaster actor {name} started successfully for {}", blockchain.chain_id())
                             }
                             Err(e) => {
-                                panic!("Error starting flashbots broadcaster actor {name} for {} : {e}", blockchain.chain_id())
+                                panic!("Error starting flashbots broadcaster actor {name} for {} : {}", blockchain.chain_id(), e)
                             }
                         }
                     }
