@@ -7,7 +7,7 @@ use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
 use eyre::{ErrReport, eyre, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::{debug, error};
+use log::debug;
 use revm::primitives::Env;
 
 use defi_abi::IERC20;
@@ -18,8 +18,11 @@ use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequir
 use defi_entities::required_state::RequiredState;
 use loom_revm_db::LoomInMemoryDB;
 
+#[cfg(test)]
 use crate::protocols::UniswapV3Protocol;
-use crate::state_readers::{UniswapCustomQuoterStateReader, UniswapV3QuoterEncoder, UniswapV3StateReader};
+use crate::state_readers::{UniswapV3QuoterEncoder, UniswapV3StateReader};
+#[cfg(test)]
+use crate::state_readers::UniswapCustomQuoterStateReader;
 use crate::virtual_impl::UniswapV3PoolVirtual;
 
 lazy_static! {
@@ -238,7 +241,7 @@ impl Pool for UniswapV3Pool
         vec![(self.token0, self.token1), (self.token1, self.token0)]
     }
 
-    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, _token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
         env.tx.gas_limit = 1_000_000;
 
@@ -255,7 +258,7 @@ impl Pool for UniswapV3Pool
                                                                                          UniswapV3Protocol::get_custom_quoter_address(),
                                                                                          self.get_address(),
                                                                                          *token_address_from,
-                                                                                         *token_address_to,
+                                                                                         *_token_address_to,
                                                                                          self.fee,
                                                                                          in_amount)?;
 
