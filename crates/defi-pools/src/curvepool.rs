@@ -545,18 +545,8 @@ mod tests {
 
         let client = ProviderBuilder::new().on_client(client).boxed();
 
-
-        //let provider = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19109956).await.unwrap();
-
-        //let client = Arc::new(provider);
-        //let client = provider;
-
         let mut market_state = MarketState::new(LoomInMemoryDB::new(Arc::new(FastCacheDB::new(EmptyDB::default()))));
-
-        //let pool_address : Address = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".parse().unwrap(); //
-
-        //let curve_contract = CurveProtocol::new_I128_3(client.clone(), pool_address);
-
+        
         let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
 
         for curve_contract in curve_contracts.into_iter() {

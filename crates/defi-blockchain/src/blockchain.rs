@@ -2,8 +2,6 @@ use alloy::{
     primitives::{Address, BlockHash},
     rpc::types::{Block, Header},
 };
-use revm::db::EmptyDB;
-use revm::InMemoryDB;
 
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Token};
 use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent};
@@ -38,8 +36,6 @@ pub struct Blockchain
 impl Blockchain
 {
     pub fn new(chain_id: i64) -> Blockchain {
-        let db = InMemoryDB::new(EmptyDB::new());
-
         let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
         let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);

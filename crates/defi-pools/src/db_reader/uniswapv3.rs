@@ -24,17 +24,17 @@ lazy_static! {
     static ref BITS1MASK : U256 = U256::from(1);
 }
 impl UniswapV3DBReader {
-    pub fn feeGrowthGlobal0X128(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
+    pub fn fee_growth_global0_x128(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
         let cell = try_read_cell(db, &address, &U256::from(1))?;
         Ok(cell)
     }
 
-    pub fn feeGrowthGlobal1X128(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
+    pub fn fee_growth_global1_x128(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
         let cell = try_read_cell(db, &address, &U256::from(2))?;
         Ok(cell)
     }
 
-    pub fn protocolFees(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
+    pub fn protocol_fees(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
         let cell = try_read_cell(db, &address, &U256::from(3))?;
         Ok(cell)
     }
@@ -56,14 +56,14 @@ impl UniswapV3DBReader {
 
         Ok(li128)
     }
-    pub fn tickBitmap(db: &LoomInMemoryDB, address: Address, tick: i16) -> Result<U256> {
+    pub fn tick_bitmap(db: &LoomInMemoryDB, address: Address, tick: i16) -> Result<U256> {
         //i16
         let cell = try_read_hashmap_cell(db, &address, &U256::from(6), &U256::from_be_bytes(I256::try_from(tick)?.to_be_bytes::<32>()))?;
         trace!("tickBitmap {address} {tick} {cell}");
         Ok(cell)
     }
 
-    pub fn positionInfo(db: &LoomInMemoryDB, address: Address, position: B256) -> Result<U256> {
+    pub fn position_info(db: &LoomInMemoryDB, address: Address, position: B256) -> Result<U256> {
         //i16
         let position = U256::try_from(position)?;
         let cell = try_read_hashmap_cell(db, &address, &U256::from(7), &position)?;

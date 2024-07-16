@@ -53,7 +53,7 @@ impl<P> ArchiveHistoryProvider<P, HttpCachedTransport>
 where
     P: Provider<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(provider: P, start_block: u64, end_block: u64) -> Self {
+    pub fn new(provider: P, start_block: u64) -> Self {
         provider.client().transport().set_block_number(start_block);
         Self {
             provider,

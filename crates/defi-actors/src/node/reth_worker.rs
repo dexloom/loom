@@ -190,7 +190,7 @@ where
                                         let cells : BTreeMap<B256, B256> = cells.into_iter().filter_map(|cell|
                                             match state_provider.storage(acc, cell){
                                                 Ok(x)=>{
-                                                    match(x) {
+                                                    match x {
                                                         Some(x)=>{
                                                             Some( (cell, B256::from(x)  ))
                                                         }

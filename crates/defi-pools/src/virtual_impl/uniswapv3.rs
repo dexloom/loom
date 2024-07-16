@@ -130,7 +130,7 @@ impl UniswapV3PoolVirtual {
             let (word_pos, bit_pos) = position(current_state.tick / (tick_spacing as i32));
 
             for i in word_pos - 1..=word_pos + 1 {
-                tick_bitmap.insert(i as i16, UniswapV3DBReader::tickBitmap(db, pool_address, i).unwrap_or_default());
+                tick_bitmap.insert(i as i16, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
             }
 
             // Get the next tick from the current tick
@@ -285,7 +285,7 @@ impl UniswapV3PoolVirtual {
             let (word_pos, bit_pos) = position(current_state.tick / (tick_spacing as i32));
 
             for i in word_pos - 2..=word_pos + 2 {
-                tick_bitmap.insert(i as i16, UniswapV3DBReader::tickBitmap(db, pool_address, i).unwrap_or_default());
+                tick_bitmap.insert(i as i16, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
             }
 
 

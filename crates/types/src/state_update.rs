@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 
 use alloy_primitives::{Address, TxHash};
 use alloy_provider::{Network, Provider};
