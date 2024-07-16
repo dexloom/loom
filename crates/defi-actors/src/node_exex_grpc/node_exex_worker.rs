@@ -7,7 +7,6 @@ use alloy_primitives::{Address, U256};
 use alloy_rpc_types::{Block, BlockTransactionsKind, Header, Transaction};
 use chrono::Utc;
 use example_exex_remote::ExExClient;
-use example_exex_remote::proto::{SubscribeRequest, Transaction as ProtoTransaction};
 use example_exex_remote::proto::remote_ex_ex_client::RemoteExExClient;
 use eyre::Report;
 use futures::{FutureExt, pin_mut, Stream, StreamExt};

@@ -29,7 +29,6 @@ pub struct ArchiveHistoryProvider<P, T> {
     provider: P,
     current_block: Arc<AtomicU64>,
     new_block_filter: Arc<RwLock<HashMap<U256, u64>>>,
-    end_block: u64,
     _t: PhantomData<T>,
 }
 
@@ -60,7 +59,6 @@ where
             provider,
             current_block: Arc::new(AtomicU64::new(start_block)),
             new_block_filter: Arc::new(RwLock::new(HashMap::new())),
-            end_block,
             _t: PhantomData,
         }
     }

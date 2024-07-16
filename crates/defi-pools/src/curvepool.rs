@@ -510,6 +510,8 @@ where
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Arc;
+
     use alloy_primitives::U256;
     use alloy_provider::{Provider, ProviderBuilder};
     use alloy_provider::network::Ethereum;
@@ -525,6 +527,7 @@ mod tests {
     use debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use defi_entities::{MarketState, Pool};
     use defi_entities::required_state::RequiredStateReader;
+    use loom_revm_db::LoomInMemoryDB;
 
     use crate::CurvePool;
     use crate::protocols::CurveProtocol;
@@ -547,7 +550,7 @@ mod tests {
         //let client = Arc::new(provider);
         //let client = provider;
 
-        let mut market_state = MarketState::new(InMemoryDB::new(EmptyDB::default()));
+        let mut market_state = MarketState::new(LoomInMemoryDB::new(Arc::new(EmptyDB::default())));
 
         //let pool_address : Address = "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".parse().unwrap(); //
 

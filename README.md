@@ -7,7 +7,7 @@
 - [debug-provider](./crates/debug-provider) - debug api provider for node + anvil, HttpCachedTransport
 - [defi-abi](./crates/defi-abi) - sol! wrapper for contracts interface
 - [defi-actors](./crates/defi-actors) - defi actors crate
-- [defi-blockchain](./crates/defi-blockchian) - loom configuration module
+- [defi-blockchain](./crates/defi-blockchain) - loom configuration module
 - [defi-entities](./crates/defi-entities) - defi entities crate
 - [defi-events](./crates/defi-events) - defi events crate
 - [defi-pools](./crates/defi-pools) - defi exchange pools implementation

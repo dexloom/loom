@@ -203,7 +203,7 @@ impl Topology
                             info!("Signers have been initialized")
                         }
                         Err(e) => {
-                            panic!("Cannot initialize signers {e}");
+                            panic!("Cannot initialize signers {}", e);
                         }
                     }
 
@@ -217,7 +217,7 @@ impl Topology
                             info!("Signers actor has been started")
                         }
                         Err(e) => {
-                            panic!("Cannot start signers actor {e}")
+                            panic!("Cannot start signers actor {}", e)
                         }
                     }
                     topology.signers.insert(name.clone(), signers);
@@ -244,7 +244,7 @@ impl Topology
                         info!("Market state preload actor started successfully {name}")
                     }
                     Err(e) => {
-                        panic!("MarketStatePreloadedActor : {e}")
+                        panic!("MarketStatePreloadedActor : {}", e)
                     }
                 }
             }
@@ -344,10 +344,10 @@ impl Topology
                     .start().await {
                     Ok(r) => {
                         tasks.extend(r);
-                        info!("Price actor has been initialized : {name}")
+                        info!("Price actor has been initialized : {}", name)
                     }
                     Err(e) => {
-                        panic!("Cannot initialize price actor {name} : {e}");
+                        panic!("Cannot initialize price actor {} : {}", name, e);
                     }
                 }
             }
@@ -373,7 +373,7 @@ impl Topology
                         info!("Nonce monitor has been initialized {name} for {}", blockchain.chain_id())
                     }
                     Err(e) => {
-                        panic!("Cannot initialize nonce and balance monitor {name} : {e}");
+                        panic!("Cannot initialize nonce and balance monitor {} : {}", name, e);
                     }
                 }
             }
@@ -439,7 +439,7 @@ impl Topology
                         .access(blockchain.market_state())
                         .start().await {
                         Err(e) => {
-                            panic!("ProtocolPoolLoaderActor {e}")
+                            panic!("ProtocolPoolLoaderActor : {}", e)
                         }
                         Ok(r) => {
                             tasks.extend(r);
@@ -485,7 +485,7 @@ impl Topology
                                 info!("EVM estimator actor started successfully {name} @ {}", blockchain.chain_id())
                             }
                             Err(e) => {
-                                panic!("Error starting EVM estimator actor {name} @ {} : {e}", blockchain.chain_id())
+                                panic!("Error starting EVM estimator actor {name} @ {} : {}", blockchain.chain_id(), e)
                             }
                         }
                     }
@@ -506,7 +506,7 @@ impl Topology
                                 info!("Geth estimator actor started successfully {name} @ {}", blockchain.chain_id())
                             }
                             Err(e) => {
-                                panic!("Error starting Geth estimator actor for {name} @ {} : {e}", blockchain.chain_id())
+                                panic!("Error starting Geth estimator actor for {name} @ {} : {}", blockchain.chain_id(), e)
                             }
                         }
                     }
