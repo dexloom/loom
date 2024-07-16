@@ -29,6 +29,11 @@ bench:
 clippy:
 	cargo clippy --all-targets --all-features -- -D warnings
 
+# check files format fmt
+.PHONY: clippy
+fmt-check:
+	cargo +stable fmt --all --check
+
 # check files format with fmt and clippy
 .PHONY: clippy
 pre-release:

@@ -56,10 +56,7 @@ where
                 let filter = Filter::new().at_block_hash(curblock_hash);
                 match provider.get_logs(&filter).await {
                     Ok(logs) => {
-                        let logs_update = BlockLogs {
-                            block_hash: curblock_hash,
-                            logs,
-                        };
+                        let logs_update = BlockLogs { block_hash: curblock_hash, logs };
                         if let Err(e) = block_logs_channel.send(logs_update).await {
                             error!("new_block_logs_channel.send error: {e}");
                         }
@@ -73,7 +70,9 @@ where
             if let Some(block_state_update_channel) = &new_block_state_update_channel {
                 match debug_trace_block(provider.clone(), BlockId::Hash(curblock_hash.into()), true).await {
                     Ok((_, post)) => {
-                        if let Err(e) = block_state_update_channel.send(BlockStateUpdate { block_hash: curblock_hash, state_update: post }).await {
+                        if let Err(e) =
+                            block_state_update_channel.send(BlockStateUpdate { block_hash: curblock_hash, state_update: post }).await
+                        {
                             error!("new_block_state_update_channel error: {e}");
                         }
                     }
@@ -85,8 +84,5 @@ where
         }
     }
 
-
     Ok("DONE".to_string())
 }
-
-

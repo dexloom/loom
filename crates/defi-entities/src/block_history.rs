@@ -17,8 +17,7 @@ use loom_revm_db::LoomInMemoryDB;
 use crate::MarketState;
 
 #[derive(Clone, Debug, Default)]
-pub struct BlockHistoryEntry
-{
+pub struct BlockHistoryEntry {
     pub header: Option<Header>,
     pub block: Option<Block>,
     pub logs: Option<Vec<Log>>,
@@ -26,45 +25,30 @@ pub struct BlockHistoryEntry
     pub state_db: Option<LoomInMemoryDB>,
 }
 
-impl BlockHistoryEntry
-{
-    fn new(header: Option<Header>,
-           block: Option<Block>,
-           logs: Option<Vec<Log>>,
-           state_update: Option<GethStateUpdateVec>,
-           state_db: Option<LoomInMemoryDB>) -> BlockHistoryEntry {
-        BlockHistoryEntry {
-            header,
-            block,
-            logs,
-            state_update,
-            state_db,
-        }
+impl BlockHistoryEntry {
+    fn new(
+        header: Option<Header>,
+        block: Option<Block>,
+        logs: Option<Vec<Log>>,
+        state_update: Option<GethStateUpdateVec>,
+        state_db: Option<LoomInMemoryDB>,
+    ) -> BlockHistoryEntry {
+        BlockHistoryEntry { header, block, logs, state_update, state_db }
     }
 }
 
-
 #[derive(Debug, Clone)]
-pub struct BlockHistory
-{
+pub struct BlockHistory {
     depth: usize,
     pub latest_block_number: u64,
     block_entries: HashMap<BlockHash, BlockHistoryEntry>,
     block_numbers: HashMap<u64, BlockHash>,
 }
 
-
-impl BlockHistory
-{
+impl BlockHistory {
     pub fn new(depth: usize) -> BlockHistory {
-        BlockHistory {
-            depth,
-            latest_block_number: 0,
-            block_entries: HashMap::new(),
-            block_numbers: HashMap::new(),
-        }
+        BlockHistory { depth, latest_block_number: 0, block_entries: HashMap::new(), block_numbers: HashMap::new() }
     }
-
 
     pub async fn fetch<P, T, N>(client: P, current_state: Arc<RwLock<MarketState>>, depth: usize) -> Result<BlockHistory>
     where
@@ -72,7 +56,6 @@ impl BlockHistory
         T: Transport + Clone,
         P: Provider<T, N> + Send + Sync + Clone + 'static,
     {
-
         //let market_guard = current_market.read().await;
 
         let latest_block_number = client.get_block_number().await?;
@@ -91,12 +74,7 @@ impl BlockHistory
         let mut block_numbers: HashMap<u64, BlockHash> = HashMap::new();
         block_numbers.insert(latest_block_number, block_hash);
 
-        Ok(BlockHistory {
-            depth,
-            latest_block_number,
-            block_entries,
-            block_numbers,
-        })
+        Ok(BlockHistory { depth, latest_block_number, block_entries, block_numbers })
     }
 
     pub fn len(&self) -> usize {
@@ -131,7 +109,8 @@ impl BlockHistory
         let market_history_entry = self.process_block_number_with_hash(block_number, block_hash);
 
         if market_history_entry.header.is_some() {
-            warn!("Block is already processed header: {} block : {} state_update : {} logs : {}",
+            warn!(
+                "Block is already processed header: {} block : {} state_update : {} logs : {}",
                 market_history_entry.header.is_some(),
                 market_history_entry.block.is_some(),
                 market_history_entry.state_update.is_some(),
@@ -191,7 +170,6 @@ impl BlockHistory
             Err(ErrReport::msg("BLOCK_LOGS_ARE_ALREADY_PROCESSED"))
         }
     }
-
 
     pub fn get_market_history_entry(&self, block_hash: &BlockHash) -> Option<&BlockHistoryEntry> {
         self.block_entries.get(block_hash)

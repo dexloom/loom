@@ -21,26 +21,23 @@ async fn arb_swap_steps_optimizer_task(
     state_db: Arc<LoomInMemoryDB>,
     evm_env: Env,
     request: TxComposeData,
-) -> Result<()>
-{
+) -> Result<()> {
     info!("Step Simulation started");
 
     if let Swap::BackrunSwapSteps((sp0, sp1)) = request.swap {
         let start_time = chrono::Local::now();
         match SwapStep::optimize_swap_steps(&state_db, evm_env, &sp0, &sp1, None) {
             Ok((s0, s1)) => {
-                let encode_request = MessageTxCompose::encode(
-                    TxComposeData {
-                        origin: Some("merger_searcher".to_string()),
-                        tips_pct: None,
-                        swap: Swap::BackrunSwapSteps((s0, s1)),
-                        ..request
-                    }
-                );
+                let encode_request = MessageTxCompose::encode(TxComposeData {
+                    origin: Some("merger_searcher".to_string()),
+                    tips_pct: None,
+                    swap: Swap::BackrunSwapSteps((s0, s1)),
+                    ..request
+                });
                 compose_channel_tx.send(encode_request).await?;
             }
             Err(e) => {
-                error!("Optimization error:{}",e);
+                error!("Optimization error:{}", e);
                 return Err(eyre!("OPTIMIZATION_ERROR"));
             }
         }
@@ -53,7 +50,6 @@ async fn arb_swap_steps_optimizer_task(
     Ok(())
 }
 
-
 async fn arb_swap_path_merger_worker(
     encoder: SwapStepEncoder,
     //signers: SharedState<TxSigners>,
@@ -64,8 +60,7 @@ async fn arb_swap_path_merger_worker(
     mut market_events_rx: Receiver<MarketEvents>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     let mut ready_requests: Vec<TxComposeData> = Vec::new();
     //let mut state_db : InMemoryDB;
 
@@ -176,10 +171,8 @@ async fn arb_swap_path_merger_worker(
     }
 }
 
-
 #[derive(Consumer, Producer, Accessor)]
-pub struct ArbSwapPathMergerActor
-{
+pub struct ArbSwapPathMergerActor {
     encoder: SwapStepEncoder,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
@@ -191,8 +184,7 @@ pub struct ArbSwapPathMergerActor
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
 }
 
-impl ArbSwapPathMergerActor
-{
+impl ArbSwapPathMergerActor {
     pub fn new(multicaller: Address) -> ArbSwapPathMergerActor {
         ArbSwapPathMergerActor {
             encoder: SwapStepEncoder::new(multicaller),
@@ -214,18 +206,15 @@ impl ArbSwapPathMergerActor
 }
 
 #[async_trait]
-impl Actor for ArbSwapPathMergerActor
-{
+impl Actor for ArbSwapPathMergerActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            arb_swap_path_merger_worker(
-                self.encoder.clone(),
-                self.latest_block.clone().unwrap(),
-                self.market_events.clone().unwrap().subscribe().await,
-                self.compose_channel_rx.clone().unwrap().subscribe().await,
-                self.compose_channel_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(arb_swap_path_merger_worker(
+            self.encoder.clone(),
+            self.latest_block.clone().unwrap(),
+            self.market_events.clone().unwrap().subscribe().await,
+            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
 
@@ -238,8 +227,8 @@ impl Actor for ArbSwapPathMergerActor
 mod test {
     use alloy_primitives::{Address, U256};
 
-    use defi_entities::{SwapAmountType, SwapLine, Token};
-    use defi_events::{Swap, TxComposeData};
+    use defi_entities::{Swap, SwapAmountType, SwapLine, Token};
+    use defi_events::TxComposeData;
 
     #[test]
     pub fn test_sort() {
@@ -255,19 +244,11 @@ mod test {
         //sp0.tokens = vec![token.clone(), token.clone()];
         //sp1.tokens = vec![token.clone(), token.clone()];
 
-
-        let r0 = TxComposeData {
-            swap: Swap::BackrunSwapLine(sp0),
-            ..TxComposeData::default()
-        };
-        let r1 = TxComposeData {
-            swap: Swap::BackrunSwapLine(sp1),
-            ..TxComposeData::default()
-        };
+        let r0 = TxComposeData { swap: Swap::BackrunSwapLine(sp0), ..TxComposeData::default() };
+        let r1 = TxComposeData { swap: Swap::BackrunSwapLine(sp1), ..TxComposeData::default() };
 
         ready_requests.push(r0);
         ready_requests.push(r1);
-
 
         ready_requests.sort_by(|r0, r1| r1.swap.abs_profit().cmp(&r0.swap.abs_profit()));
         for r in ready_requests.iter() {

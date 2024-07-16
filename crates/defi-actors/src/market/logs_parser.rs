@@ -22,57 +22,57 @@ fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
     {
         let log_entry: Option<EVMLog> = EVMLog::new(log_entry.address(), log_entry.topics().to_vec(), log_entry.data().data.clone());
         match log_entry {
-            Some(log_entry) =>
-                match IUniswapV3PoolEvents::decode_log(&log_entry, false) {
-                    Ok(event) => {
-                        match event.data {
-                            IUniswapV3PoolEvents::Swap(_) | IUniswapV3PoolEvents::Mint(_) | IUniswapV3PoolEvents::Burn(_) | IUniswapV3PoolEvents::Initialize(_) => {
-                                Some(PoolClass::UniswapV3)
-                            }
-                            _ => None
-                        }
-                    }
-                    Err(_) => None
-                }.or_else(|| {
+            Some(log_entry) => match IUniswapV3PoolEvents::decode_log(&log_entry, false) {
+                Ok(event) => match event.data {
+                    IUniswapV3PoolEvents::Swap(_)
+                    | IUniswapV3PoolEvents::Mint(_)
+                    | IUniswapV3PoolEvents::Burn(_)
+                    | IUniswapV3PoolEvents::Initialize(_) => Some(PoolClass::UniswapV3),
+                    _ => None,
+                },
+                Err(_) => None,
+            }
+            .or_else(|| {
+                {
                     match IMaverickPoolEvents::decode_log(&log_entry, false) {
-                        Ok(event) => {
-                            match event.data {
-                                IMaverickPoolEvents::Swap(_) | IMaverickPoolEvents::AddLiquidity(_) | IMaverickPoolEvents::RemoveLiquidity(_) => {
-                                    Some(PoolClass::UniswapV3)
-                                }
-                                _ => None
-                            }
-                        }
-                        Err(_) => None
-                    }
-                }.or_else(|| {
-                    match IUniswapV2PairEvents::decode_log(&log_entry.clone().into(), false) {
-                        Ok(event) => {
-                            match event.data {
-                                IUniswapV2PairEvents::Swap(_) | IUniswapV2PairEvents::Mint(_) | IUniswapV2PairEvents::Burn(_) | IUniswapV2PairEvents::Sync(_) => {
-                                    Some(PoolClass::UniswapV2)
-                                }
-                                _ => None
-                            }
-                        }
-                        Err(_) => {
-                            None
-                        }
-                    }
-                }/*).or_else(|| {
-            match parse_log::<PancakeV3PoolEvents>(log_entry.clone()) {
-                Ok(event) => {
-                    match event {
-                        PancakeV3PoolEvents::SwapFilter(_) | PancakeV3PoolEvents::MintFilter(_) | PancakeV3PoolEvents::BurnFilter(_) | PancakeV3PoolEvents::InitializeFilter(_) => {
-                            Some(PoolClass::UniswapV3)
-                        }
-                        _ => None
+                        Ok(event) => match event.data {
+                            IMaverickPoolEvents::Swap(_)
+                            | IMaverickPoolEvents::AddLiquidity(_)
+                            | IMaverickPoolEvents::RemoveLiquidity(_) => Some(PoolClass::UniswapV3),
+                            _ => None,
+                        },
+                        Err(_) => None,
                     }
                 }
-                Err(_) => None
-            }
-        })*/.or_else(|| None))),
-            _ => None
+                .or_else(|| {
+                    {
+                        match IUniswapV2PairEvents::decode_log(&log_entry.clone().into(), false) {
+                            Ok(event) => match event.data {
+                                IUniswapV2PairEvents::Swap(_)
+                                | IUniswapV2PairEvents::Mint(_)
+                                | IUniswapV2PairEvents::Burn(_)
+                                | IUniswapV2PairEvents::Sync(_) => Some(PoolClass::UniswapV2),
+                                _ => None,
+                            },
+                            Err(_) => None,
+                        }
+                    } /*).or_else(|| {
+                        match parse_log::<PancakeV3PoolEvents>(log_entry.clone()) {
+                            Ok(event) => {
+                                match event {
+                                    PancakeV3PoolEvents::SwapFilter(_) | PancakeV3PoolEvents::MintFilter(_) | PancakeV3PoolEvents::BurnFilter(_) | PancakeV3PoolEvents::InitializeFilter(_) => {
+                                        Some(PoolClass::UniswapV3)
+                                    }
+                                    _ => None
+                                }
+                            }
+                            Err(_) => None
+                        }
+                    })*/
+                    .or_else(|| None)
+                })
+            }),
+            _ => None,
         }
     }
 }
@@ -83,10 +83,10 @@ pub async fn process_log_entries<P, T, N>(
     market_state: SharedState<MarketState>,
     log_entries: Vec<Log>,
 ) -> Result<Vec<Address>>
-    where
-        T: Transport + Clone,
-        N: Network,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     let mut tasks: Vec<JoinHandle<_>> = Vec::new();
     let mut pool_address_vec: Vec<Address> = Vec::new();
@@ -107,9 +107,13 @@ pub async fn process_log_entries<P, T, N>(
 
                     pool_address_vec.push(log_entry.address());
 
-                    tasks.push(tokio::task::spawn(
-                        fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(), log_entry.address(), pool_class)
-                    ));
+                    tasks.push(tokio::task::spawn(fetch_and_add_pool_by_address(
+                        client.clone(),
+                        market.clone(),
+                        market_state.clone(),
+                        log_entry.address(),
+                        pool_class,
+                    )));
                 }
             }
             _ => {}
@@ -118,7 +122,9 @@ pub async fn process_log_entries<P, T, N>(
 
     for task in tasks {
         match task.await {
-            Err(e) => { error!("Fetching pool task error : {}", e) }
+            Err(e) => {
+                error!("Fetching pool task error : {}", e)
+            }
             _ => {}
         }
     }

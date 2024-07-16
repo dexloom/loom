@@ -26,10 +26,7 @@ where
 
         let name = url.to_string();
 
-        FlashbotsClient {
-            flashbots_middleware,
-            name,
-        }
+        FlashbotsClient { flashbots_middleware, name }
     }
 
     pub fn new_no_sign(provider: P, url: &str) -> Self {
@@ -37,32 +34,21 @@ where
 
         let name = url.to_string();
 
-        FlashbotsClient {
-            flashbots_middleware: flashbots_client,
-            name,
-        }
+        FlashbotsClient { flashbots_middleware: flashbots_client, name }
     }
 
-
     fn create_flashbots_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P, T> {
-        let flashbots: FlashbotsMiddleware<P, T> = FlashbotsMiddleware::new(
-            Url::parse(url).unwrap(),
-            provider,
-        );
+        let flashbots: FlashbotsMiddleware<P, T> = FlashbotsMiddleware::new(Url::parse(url).unwrap(), provider);
 
         flashbots
     }
 
     fn create_flashbots_no_signer_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P, T> {
-        let flashbots: FlashbotsMiddleware<P, T> = FlashbotsMiddleware::new_no_signer(
-            Url::parse(url).unwrap(),
-            provider,
-        );
+        let flashbots: FlashbotsMiddleware<P, T> = FlashbotsMiddleware::new_no_signer(Url::parse(url).unwrap(), provider);
         flashbots
     }
 
-    pub async fn call_bundle(&self, request: &BundleRequest) -> Result<SimulatedBundle>
-    {
+    pub async fn call_bundle(&self, request: &BundleRequest) -> Result<SimulatedBundle> {
         match self.flashbots_middleware.simulate_local_bundle(request).await {
             Ok(x) => Ok(x),
             Err(e) => {
@@ -85,49 +71,42 @@ where
         }
     }
 
-
     pub async fn send_bundle(&self, request: &BundleRequest) -> Result<()> {
         match self.flashbots_middleware.send_bundle(request).await {
             Ok(_resp) => {
-                info!("Bundle sent to : {}", self.name );
+                info!("Bundle sent to : {}", self.name);
                 Ok(())
             }
-            Err(error) => {
-                match error {
-                    FlashbotsMiddlewareError::MissingParameters => {
-                        error!("{} : Missing paramter", self.name);
-                        Err(eyre!("FLASHBOTS_MISSING_PARAMETER"))
-                    }
-                    FlashbotsMiddlewareError::RelayError(x) => {
-                        error!("{} {}", self.name, x.to_string() );
-                        Err(eyre!("FLASHBOTS_RELAY_ERROR"))
-                    }
-                    FlashbotsMiddlewareError::MiddlewareError(x) => {
-                        error!("{} {}", self.name, x.to_string() );
-                        Err(eyre!("FLASHBOTS_MIDDLEWARE_ERROR"))
-                    }
+            Err(error) => match error {
+                FlashbotsMiddlewareError::MissingParameters => {
+                    error!("{} : Missing paramter", self.name);
+                    Err(eyre!("FLASHBOTS_MISSING_PARAMETER"))
                 }
-            }
+                FlashbotsMiddlewareError::RelayError(x) => {
+                    error!("{} {}", self.name, x.to_string());
+                    Err(eyre!("FLASHBOTS_RELAY_ERROR"))
+                }
+                FlashbotsMiddlewareError::MiddlewareError(x) => {
+                    error!("{} {}", self.name, x.to_string());
+                    Err(eyre!("FLASHBOTS_MIDDLEWARE_ERROR"))
+                }
+            },
         }
     }
 }
 
-pub struct Flashbots<P, T>
-{
+pub struct Flashbots<P, T> {
     simulation_client: FlashbotsClient<P, T>,
     clients: Vec<Arc<FlashbotsClient<P, T>>>,
     _t: PhantomData<T>,
 }
 
-
 impl<P, T> Flashbots<P, T>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
-
 {
-    pub fn new(provider: P, simulation_endpoint: &str) -> Self
-    {
+    pub fn new(provider: P, simulation_endpoint: &str) -> Self {
         let flashbots = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
         let beaverbuild = FlashbotsClient::new(provider.clone(), "https://rpc.beaverbuild.org/");
         let titan = FlashbotsClient::new(provider.clone(), "https://rpc.titanbuilder.xyz");
@@ -146,8 +125,23 @@ where
         let penguinbuilder = FlashbotsClient::new(provider.clone(), "https://rpc.penguinbuild.org");
         let gambitbuilder = FlashbotsClient::new(provider.clone(), "https://builder.gmbit.co/rpc");
 
-
-        let clients_vec = vec![flashbots, /* builder0x69,*/ titan, fibio, eden, eth_builder, beaverbuild, secureapi, rsync, /*blocknative,*/ buildai, payloadde, loki, ibuilder, jetbuilder, penguinbuilder, gambitbuilder];
+        let clients_vec = vec![
+            flashbots,
+            /* builder0x69,*/ titan,
+            fibio,
+            eden,
+            eth_builder,
+            beaverbuild,
+            secureapi,
+            rsync,
+            /*blocknative,*/ buildai,
+            payloadde,
+            loki,
+            ibuilder,
+            jetbuilder,
+            penguinbuilder,
+            gambitbuilder,
+        ];
 
         Flashbots {
             clients: clients_vec.into_iter().map(Arc::new).collect(),
@@ -156,8 +150,12 @@ where
         }
     }
 
-
-    pub async fn simulate_txes<TX>(&self, txs: Vec<TX>, block_number: u64, access_list_request: Option<Vec<TxHash>>) -> Result<SimulatedBundle>
+    pub async fn simulate_txes<TX>(
+        &self,
+        txs: Vec<TX>,
+        block_number: u64,
+        access_list_request: Option<Vec<TxHash>>,
+    ) -> Result<SimulatedBundle>
     where
         BundleTransaction: std::convert::From<TX>,
     {
@@ -172,7 +170,6 @@ where
 
         self.simulation_client.call_bundle(&bundle).await
     }
-
 
     pub async fn broadcast_txes<TX>(&self, txs: Vec<TX>, block: u64) -> Result<()>
     where
@@ -201,8 +198,7 @@ where
                     }
                 }
             });
-        };
-
+        }
 
         Ok(())
     }
@@ -239,4 +235,3 @@ mod test {
         Ok(())
     }
 }
-

@@ -17,10 +17,7 @@ use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
 use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
-async fn broadcast_task<P, T, N>(
-    client: P,
-    request: TxComposeData,
-) -> Result<()>
+async fn broadcast_task<P, T, N>(client: P, request: TxComposeData) -> Result<()>
 where
     N: Network,
     T: Transport + Clone,
@@ -62,37 +59,24 @@ where
                 let broadcast_msg : Result<MessageTxCompose, RecvError> = msg;
                 match broadcast_msg {
                     Ok(compose_request) => {
-                        match compose_request.inner {
-                            TxCompose::Broadcast(broadcast_request) => {
-                                info!("Broadcasting to hardhat:" );
-                                let snap_shot = client.snapshot().await?;
-                                client.set_automine(false).await?;
-                                match broadcast_task(client.clone(), broadcast_request).await{
-                                    Err(e)=>error!("{e}"),
-                                    Ok(_)=>info!("Hardhat broadcast successful")
-                                }
-                                client.mine().await?;
-
-                                let block = client.get_block_by_number(BlockNumberOrTag::Latest, false).await?.unwrap_or_default();
-                                match block.transactions {
-                                    BlockTransactions::Hashes(hashes) => {
-                                        for tx_hash in hashes {
-                                            let reciept = client.get_transaction_receipt(tx_hash).await?.unwrap();
-                                            info!("Block : {} Mined: {} hash:  {} gas : {}", reciept.block_number.unwrap_or_default(), reciept.status(), tx_hash, reciept.gas_used, );
-                                        }
-
-                                    }
-                                    _=>{
-
-                                    }
-                                }
-
-
-
-                                client.revert(snap_shot).await?;
-                                //client.set_automine(true).await?;
+                        if let TxCompose::Broadcast(broadcast_request) = compose_request.inner {
+                            info!("Broadcasting to hardhat:" );
+                            let snap_shot = client.snapshot().await?;
+                            client.set_automine(false).await?;
+                            match broadcast_task(client.clone(), broadcast_request).await{
+                                Err(e)=>error!("{e}"),
+                                Ok(_)=>info!("Hardhat broadcast successful")
                             }
-                            _=>{}
+                            client.mine().await?;
+
+                            let block = client.get_block_by_number(BlockNumberOrTag::Latest, false).await?.unwrap_or_default();
+                            if let BlockTransactions::Hashes(hashes) = block.transactions {
+                                for tx_hash in hashes {
+                                    let reciept = client.get_transaction_receipt(tx_hash).await?.unwrap();
+                                    info!("Block : {} Mined: {} hash:  {} gas : {}", reciept.block_number.unwrap_or_default(), reciept.status(), tx_hash, reciept.gas_used, );
+                                }
+                            }
+                            client.revert(snap_shot).await?;
                         }
                     }
                     Err(e)=>{
@@ -105,8 +89,7 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct AnvilBroadcastActor<P, T>
-{
+pub struct AnvilBroadcastActor<P, T> {
     client: P,
     #[consumer]
     tx_compose_rx: Option<Broadcaster<MessageTxCompose>>,
@@ -119,18 +102,11 @@ where
     P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> AnvilBroadcastActor<P, T> {
-        Self {
-            client,
-            tx_compose_rx: None,
-            _t: PhantomData::default(),
-        }
+        Self { client, tx_compose_rx: None, _t: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self {
-            tx_compose_rx: Some(bc.compose_channel()),
-            ..self
-        }
+        Self { tx_compose_rx: Some(bc.compose_channel()), ..self }
     }
 }
 
@@ -141,12 +117,7 @@ where
     P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            anvil_broadcaster_worker(
-                self.client.clone(),
-                self.tx_compose_rx.clone().unwrap().subscribe().await,
-            )
-        );
+        let task = tokio::task::spawn(anvil_broadcaster_worker(self.client.clone(), self.tx_compose_rx.clone().unwrap().subscribe().await));
         Ok(vec![task])
     }
 

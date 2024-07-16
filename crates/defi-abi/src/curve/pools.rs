@@ -43,7 +43,6 @@ sol! {
     }
 }
 
-
 sol! {
     #[sol(abi = true, rpc)]
     #[derive(Debug, PartialEq, Eq)]
@@ -56,8 +55,6 @@ sol! {
         function add_liquidity(uint256[3],uint256) external;
     }
 }
-
-
 
 sol! {
     #[sol(abi = true, rpc)]
@@ -123,7 +120,6 @@ sol! {
     }
 }
 
-
 sol! {
     #[sol(abi = true, rpc)]
     #[derive(Debug, PartialEq, Eq)]
@@ -137,7 +133,6 @@ sol! {
         function add_liquidity(uint256[3],uint256) external;
     }
 }
-
 
 sol! {
     #[sol(abi = true, rpc)]

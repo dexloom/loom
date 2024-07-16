@@ -11,8 +11,7 @@ use loom_actors_macros::Producer;
 use crate::node_exex_grpc::node_exex_worker::node_exex_grpc_worker;
 
 #[derive(Producer)]
-pub struct NodeExExGrpcActor
-{
+pub struct NodeExExGrpcActor {
     url: String,
     #[producer]
     block_header_channel: Option<Broadcaster<Header>>,
@@ -26,8 +25,7 @@ pub struct NodeExExGrpcActor
     mempool_update_channel: Option<Broadcaster<MessageMempoolDataUpdate>>,
 }
 
-impl NodeExExGrpcActor
-{
+impl NodeExExGrpcActor {
     pub fn new(url: String) -> NodeExExGrpcActor {
         NodeExExGrpcActor {
             url,
@@ -52,19 +50,16 @@ impl NodeExExGrpcActor
 }
 
 #[async_trait]
-impl Actor for NodeExExGrpcActor
-{
+impl Actor for NodeExExGrpcActor {
     async fn start(&self) -> ActorResult {
-        let handler = tokio::task::spawn(
-            node_exex_grpc_worker(
-                Some(self.url.clone()),
-                self.block_header_channel.clone().unwrap(),
-                self.block_with_tx_channel.clone().unwrap(),
-                self.block_logs_channel.clone().unwrap(),
-                self.block_state_update_channel.clone().unwrap(),
-                self.mempool_update_channel.clone().unwrap(),
-            )
-        );
+        let handler = tokio::task::spawn(node_exex_grpc_worker(
+            Some(self.url.clone()),
+            self.block_header_channel.clone().unwrap(),
+            self.block_with_tx_channel.clone().unwrap(),
+            self.block_logs_channel.clone().unwrap(),
+            self.block_state_update_channel.clone().unwrap(),
+            self.mempool_update_channel.clone().unwrap(),
+        ));
         Ok(vec![handler])
     }
 
@@ -72,4 +67,3 @@ impl Actor for NodeExExGrpcActor
         type_name::<Self>().rsplit("::").next().unwrap_or(type_name::<Self>())
     }
 }
-

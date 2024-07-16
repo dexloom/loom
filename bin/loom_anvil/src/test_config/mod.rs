@@ -41,7 +41,6 @@ pub struct Modules {
     pub arb_mempool: bool,
 }
 
-
 #[allow(dead_code)]
 #[derive(Deserialize, Debug)]
 pub struct Settings {
@@ -50,13 +49,11 @@ pub struct Settings {
     pub multicaller: Option<Address>,
 }
 
-
 #[derive(Deserialize, Debug)]
 pub struct PoolConfig {
     pub address: Address,
     pub class: PoolClass,
 }
-
 
 #[derive(Deserialize, Debug)]
 pub struct TransactionConfig {
@@ -74,7 +71,6 @@ pub struct TokenConfig {
     pub middle: Option<bool>,
     pub price: Option<f64>,
 }
-
 
 impl TestConfig {
     pub async fn from_file(filename: String) -> Result<TestConfig> {

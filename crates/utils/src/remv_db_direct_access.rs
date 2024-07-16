@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 
-use alloy_primitives::{Address, keccak256, U256};
+use alloy_primitives::{keccak256, Address, U256};
 use eyre::{eyre, Result};
 use log::debug;
 use revm::{DatabaseRef, InMemoryDB};
@@ -16,12 +16,7 @@ pub fn calc_hashmap_cell<U0: Into<U256>, U1: Into<U256>>(offset: U0, cell: U1) -
     keccak256(buf).into()
 }
 
-pub fn try_write_cell(
-    db: &mut InMemoryDB,
-    account: &Address,
-    cell: U256,
-    value: U256,
-) -> Result<()> {
+pub fn try_write_cell(db: &mut InMemoryDB, account: &Address, cell: U256, value: U256) -> Result<()> {
     match db.accounts.get_mut(account) {
         Some(account) => {
             account.storage.insert(cell, value);
@@ -31,11 +26,11 @@ pub fn try_write_cell(
     }
 }
 
-pub fn try_read_cell<DB: DatabaseRef<Error=Infallible>>(db: DB, account: &Address, cell: &U256) -> Result<U256> {
+pub fn try_read_cell<DB: DatabaseRef<Error = Infallible>>(db: DB, account: &Address, cell: &U256) -> Result<U256> {
     db.storage_ref(*account, *cell).map_err(|_| eyre!("READ_CELL_FAILED"))
 }
 
-pub fn try_read_hashmap_cell<DB: DatabaseRef<Error=Infallible>>(
+pub fn try_read_hashmap_cell<DB: DatabaseRef<Error = Infallible>>(
     db: DB,
     account: &Address,
     hashmap_offset: &U256,

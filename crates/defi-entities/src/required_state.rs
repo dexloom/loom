@@ -45,7 +45,6 @@ impl RequiredState {
         self
     }
 
-
     pub fn add_empty_slot_range(&mut self, address: Address, start_slot: U256, size: usize) -> &mut Self {
         let mut cur_slot = start_slot;
         for _ in 0..size {
@@ -68,8 +67,13 @@ impl RequiredState {
 pub struct RequiredStateReader {}
 
 impl RequiredStateReader {
-    pub async fn fetch_calls_and_slots<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N> + Provider<T, N> + Clone + 'static>(client: C, required_state: RequiredState, block_number: Option<BlockNumber>) -> Result<GethStateUpdate> {
-        let block_id = if block_number.is_none() { BlockNumberOrTag::Latest } else { BlockNumberOrTag::Number(block_number.unwrap_or_default()) };
+    pub async fn fetch_calls_and_slots<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N> + Provider<T, N> + Clone + 'static>(
+        client: C,
+        required_state: RequiredState,
+        block_number: Option<BlockNumber>,
+    ) -> Result<GethStateUpdate> {
+        let block_id =
+            if block_number.is_none() { BlockNumberOrTag::Latest } else { BlockNumberOrTag::Number(block_number.unwrap_or_default()) };
 
         let mut ret: GethStateUpdate = GethStateUpdate::new();
         for req in required_state.calls.into_iter() {
@@ -101,7 +105,9 @@ impl RequiredStateReader {
                     let entry = ret.entry(address).or_default();
                     entry.storage.insert(slot.into(), value.into());
                 }
-                Err(e) => { error!("{}",e) }
+                Err(e) => {
+                    error!("{}", e)
+                }
             }
         }
 

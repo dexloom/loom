@@ -11,18 +11,16 @@ use eyre::Result;
 use futures::StreamExt;
 use log::{error, info};
 
-use loom_actors::{Broadcaster, run_async, WorkerResult};
+use loom_actors::{run_async, Broadcaster, WorkerResult};
 
 #[allow(dead_code)]
-pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, sender: Broadcaster<BlockHash>) -> Result<()>
-{
+pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, sender: Broadcaster<BlockHash>) -> Result<()> {
     info!("Starting node block hash worker");
     let sub = client.subscribe_blocks().await?;
 
     let mut block_processed: HashMap<BlockHash, chrono::DateTime<Utc>> = HashMap::new();
 
     let mut stream = sub.into_stream();
-
 
     loop {
         tokio::select! {
@@ -43,12 +41,11 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
     }
 }
 
-
 pub async fn new_node_block_header_worker<P, T, N>(
     client: P,
     block_hash_channel: Broadcaster<BlockHash>,
-    block_header_channel: Broadcaster<Header>)
-    -> WorkerResult
+    block_header_channel: Broadcaster<Header>,
+) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
@@ -57,7 +54,6 @@ where
     info!("Starting node block hash worker");
     let sub = client.subscribe_blocks().await?;
     let mut stream = sub.into_stream();
-
 
     let mut block_processed: HashMap<BlockHash, chrono::DateTime<Utc>> = HashMap::new();
 
@@ -85,4 +81,3 @@ where
         }
     }
 }
-

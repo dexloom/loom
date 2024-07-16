@@ -61,7 +61,6 @@ async fn encoder_task(
             let nonce = account_monitor.read().await.get_account(&signer.address()).unwrap().get_nonce();
             let eth_balance = account_monitor.read().await.get_account(&signer.address()).unwrap().get_eth_balance();
 
-
             let gas_fee: u128 = encode_request.gas_fee;
 
             if gas_fee == 0 {
@@ -70,7 +69,6 @@ async fn encoder_task(
                 let gas = (encode_request.swap.pre_estimate_gas() as u128) * 2;
                 let value = U256::ZERO;
                 let priority_gas_fee: u128 = 10_u128.pow(9);
-
 
                 let estimate_request = TxComposeData {
                     signer: Some(signer),
@@ -91,13 +89,11 @@ async fn encoder_task(
                         error!("{e}");
                         Err(eyre!(e))
                     }
-                    Ok(_) => { Ok(()) }
+                    Ok(_) => Ok(()),
                 }
             }
         }
-        None => {
-            Err(eyre!("NO_SIGNER_AVAILABLE"))
-        }
+        None => Err(eyre!("NO_SIGNER_AVAILABLE")),
     }
 }
 
@@ -107,8 +103,7 @@ async fn arb_swap_path_encoder_worker(
     account_monitor: SharedState<AccountNonceAndBalanceState>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
@@ -138,10 +133,8 @@ async fn arb_swap_path_encoder_worker(
     }
 }
 
-
 #[derive(Consumer, Producer, Accessor)]
-pub struct ArbSwapPathEncoderActor
-{
+pub struct ArbSwapPathEncoderActor {
     encoder: SwapStepEncoder,
     #[accessor]
     signers: Option<SharedState<TxSigners>>,
@@ -165,10 +158,7 @@ impl ArbSwapPathEncoderActor {
     }
 
     pub fn with_signers(self, signers: SharedState<TxSigners>) -> Self {
-        Self {
-            signers: Some(signers),
-            ..self
-        }
+        Self { signers: Some(signers), ..self }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -184,15 +174,13 @@ impl ArbSwapPathEncoderActor {
 #[async_trait]
 impl Actor for ArbSwapPathEncoderActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            arb_swap_path_encoder_worker(
-                self.encoder.clone(),
-                self.signers.clone().unwrap(),
-                self.account_nonce_balance.clone().unwrap(),
-                self.compose_channel_rx.clone().unwrap().subscribe().await,
-                self.compose_channel_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(arb_swap_path_encoder_worker(
+            self.encoder.clone(),
+            self.signers.clone().unwrap(),
+            self.account_nonce_balance.clone().unwrap(),
+            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
 

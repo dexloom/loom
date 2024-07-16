@@ -5,7 +5,10 @@ use alloy_provider::{Network, Provider};
 use alloy_provider::ext::DebugApi;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionRequest};
 use alloy_rpc_types_trace::common::TraceResult;
-use alloy_rpc_types_trace::geth::{AccountState, GethDebugBuiltInTracerType, GethDebugTracerConfig, GethDebugTracerType, GethDebugTracingCallOptions, GethDebugTracingOptions, GethDefaultTracingOptions, GethTrace, PreStateConfig, PreStateFrame};
+use alloy_rpc_types_trace::geth::{
+    AccountState, GethDebugBuiltInTracerType, GethDebugTracerConfig, GethDebugTracerType, GethDebugTracingCallOptions,
+    GethDebugTracingOptions, GethDefaultTracingOptions, GethTrace, PreStateConfig, PreStateFrame,
+};
 use alloy_rpc_types_trace::geth::GethDebugBuiltInTracerType::PreStateTracer;
 use alloy_rpc_types_trace::geth::GethDebugTracerType::BuiltInTracer;
 use alloy_transport::Transport;
@@ -17,161 +20,157 @@ use debug_provider::DebugProviderExt;
 
 pub type GethStateUpdate = BTreeMap<Address, AccountState>;
 
-
 pub type GethStateUpdateVec = Vec<BTreeMap<Address, AccountState>>;
 
-
-
-
 lazy_static! {
-pub static ref TRACING_OPTS: GethDebugTracingOptions = GethDebugTracingOptions {
-    tracer: Some(GethDebugTracerType::BuiltInTracer(
-        GethDebugBuiltInTracerType::PreStateTracer,
-    )),
-    tracer_config: GethDebugTracerConfig::default(),
-    config: GethDefaultTracingOptions::default().disable_storage().disable_stack().disable_memory().disable_return_data(),
-    timeout: None,
-};
-
-pub static ref TRACING_CALL_OPTS: GethDebugTracingCallOptions = GethDebugTracingCallOptions {
-    tracing_options: TRACING_OPTS.clone(),
-    state_overrides: None,
-    block_overrides: None,
-
-};
-
+    pub static ref TRACING_OPTS: GethDebugTracingOptions = GethDebugTracingOptions {
+        tracer: Some(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::PreStateTracer,)),
+        tracer_config: GethDebugTracerConfig::default(),
+        config: GethDefaultTracingOptions::default().disable_storage().disable_stack().disable_memory().disable_return_data(),
+        timeout: None,
+    };
+    pub static ref TRACING_CALL_OPTS: GethDebugTracingCallOptions =
+        GethDebugTracingCallOptions { tracing_options: TRACING_OPTS.clone(), state_overrides: None, block_overrides: None };
 }
 
-
-pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugProviderExt<T, N>>(client: P, block_id: BlockId, diff_mode: bool) -> eyre::Result<(GethStateUpdateVec, GethStateUpdateVec)> {
-    let tracer_opts = GethDebugTracingOptions {
-        config: GethDefaultTracingOptions::default(),
-        ..GethDebugTracingOptions::default()
-    }.with_tracer(BuiltInTracer(PreStateTracer)).with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
+pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugProviderExt<T, N>>(
+    client: P,
+    block_id: BlockId,
+    diff_mode: bool,
+) -> eyre::Result<(GethStateUpdateVec, GethStateUpdateVec)> {
+    let tracer_opts = GethDebugTracingOptions { config: GethDefaultTracingOptions::default(), ..GethDebugTracingOptions::default() }
+        .with_tracer(BuiltInTracer(PreStateTracer))
+        .with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
 
     let trace_result_vec = match block_id {
-        BlockId::Number(block_number) => {
-            client.geth_debug_trace_block_by_number(block_number, tracer_opts).await?
-        }
+        BlockId::Number(block_number) => client.geth_debug_trace_block_by_number(block_number, tracer_opts).await?,
         BlockId::Hash(rpc_block_hash) => {
             //client.debug_trace_block_by_number(BlockNumber::from(19776525u32), tracer_opts).await?
             client.geth_debug_trace_block_by_hash(rpc_block_hash.block_hash, tracer_opts).await?
         }
     };
 
-
     trace!("block trace {}", trace_result_vec.len());
 
     let mut pre: Vec<BTreeMap<Address, AccountState>> = Vec::new();
     let mut post: Vec<BTreeMap<Address, AccountState>> = Vec::new();
 
-
     for trace_result in trace_result_vec.into_iter() {
         if let TraceResult::Success { result, .. } = trace_result {
             match result {
-                GethTrace::PreStateTracer(geth_trace_frame) => {
-                    match geth_trace_frame {
-                        PreStateFrame::Diff(diff_frame) => {
-                            pre.push(diff_frame.pre);
-                            post.push(diff_frame.post);
-                        }
-                        PreStateFrame::Default(diff_frame) => {
-                            pre.push(diff_frame.0.into_iter().collect());
-                        }
+                GethTrace::PreStateTracer(geth_trace_frame) => match geth_trace_frame {
+                    PreStateFrame::Diff(diff_frame) => {
+                        pre.push(diff_frame.pre);
+                        post.push(diff_frame.post);
                     }
-                }
+                    PreStateFrame::Default(diff_frame) => {
+                        pre.push(diff_frame.0.into_iter().collect());
+                    }
+                },
                 _ => {
                     return Err(eyre::eyre!("TRACE_RESULT_FAILED"));
                 }
             }
         }
-    };
+    }
     Ok((pre, post))
 }
 
-
-async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(client: C, req: TR, block: BlockNumberOrTag, opts: Option<GethDebugTracingCallOptions>, diff_mode: bool) -> Result<(GethStateUpdate, GethStateUpdate)> {
-    let tracer_opts = GethDebugTracingOptions {
-        config: GethDefaultTracingOptions::default(),
-        ..GethDebugTracingOptions::default()
-    }.with_tracer(BuiltInTracer(PreStateTracer)).with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
-
+async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(
+    client: C,
+    req: TR,
+    block: BlockNumberOrTag,
+    opts: Option<GethDebugTracingCallOptions>,
+    diff_mode: bool,
+) -> Result<(GethStateUpdate, GethStateUpdate)> {
+    let tracer_opts = GethDebugTracingOptions { config: GethDefaultTracingOptions::default(), ..GethDebugTracingOptions::default() }
+        .with_tracer(BuiltInTracer(PreStateTracer))
+        .with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
 
     let tracer_call_opts = GethDebugTracingCallOptions {
         tracing_options: tracer_opts.clone(),
         state_overrides: opts.clone().and_then(|x| x.state_overrides),
         block_overrides: opts.and_then(|x| x.block_overrides),
-
     };
 
-
     let trace_result = client.geth_debug_trace_call(req.into(), block, tracer_call_opts.clone()).await?;
-    trace!("{} {} {:?} {:?}", tracer_opts.config.is_stack_enabled(), tracer_opts.config.is_storage_enabled(),tracer_call_opts.clone(), trace_result);
+    trace!(
+        "{} {} {:?} {:?}",
+        tracer_opts.config.is_stack_enabled(),
+        tracer_opts.config.is_storage_enabled(),
+        tracer_call_opts.clone(),
+        trace_result
+    );
 
     match trace_result {
-        GethTrace::PreStateTracer(geth_trace_frame) => {
-            match geth_trace_frame {
-                PreStateFrame::Diff(diff_frame) => {
-                    Ok((
-                        diff_frame.pre,
-                        diff_frame.post))
-                }
-                PreStateFrame::Default(diff_frame) => {
-                    Ok((
-                        diff_frame.0,
-                        BTreeMap::new()))
-                }
-            }
-        }
-        _ => {
-            Err(eyre::eyre!("TRACE_RESULT_FAILED"))
-        }
+        GethTrace::PreStateTracer(geth_trace_frame) => match geth_trace_frame {
+            PreStateFrame::Diff(diff_frame) => Ok((diff_frame.pre, diff_frame.post)),
+            PreStateFrame::Default(diff_frame) => Ok((diff_frame.0, BTreeMap::new())),
+        },
+        _ => Err(eyre::eyre!("TRACE_RESULT_FAILED")),
     }
 }
 
-
-pub async fn debug_trace_call_pre_state<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(client: C, req: TR, block: BlockNumberOrTag, opts: Option<GethDebugTracingCallOptions>) -> eyre::Result<GethStateUpdate> {
+pub async fn debug_trace_call_pre_state<
+    T: Transport + Clone,
+    N: Network,
+    C: DebugProviderExt<T, N>,
+    TR: Into<TransactionRequest> + Send + Sync,
+>(
+    client: C,
+    req: TR,
+    block: BlockNumberOrTag,
+    opts: Option<GethDebugTracingCallOptions>,
+) -> eyre::Result<GethStateUpdate> {
     Ok(debug_trace_call(client, req, block, opts, false).await?.0)
 }
 
-
-pub async fn debug_trace_call_post_state<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(client: C, req: TR, block: BlockNumberOrTag, opts: Option<GethDebugTracingCallOptions>) -> eyre::Result<GethStateUpdate> {
+pub async fn debug_trace_call_post_state<
+    T: Transport + Clone,
+    N: Network,
+    C: DebugProviderExt<T, N>,
+    TR: Into<TransactionRequest> + Send + Sync,
+>(
+    client: C,
+    req: TR,
+    block: BlockNumberOrTag,
+    opts: Option<GethDebugTracingCallOptions>,
+) -> eyre::Result<GethStateUpdate> {
     Ok(debug_trace_call(client, req, block, opts, true).await?.1)
 }
 
-pub async fn debug_trace_call_diff<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(client: C, req: TR, block: BlockNumberOrTag, call_opts: Option<GethDebugTracingCallOptions>) -> eyre::Result<(GethStateUpdate, GethStateUpdate)> {
+pub async fn debug_trace_call_diff<
+    T: Transport + Clone,
+    N: Network,
+    C: DebugProviderExt<T, N>,
+    TR: Into<TransactionRequest> + Send + Sync,
+>(
+    client: C,
+    req: TR,
+    block: BlockNumberOrTag,
+    call_opts: Option<GethDebugTracingCallOptions>,
+) -> eyre::Result<(GethStateUpdate, GethStateUpdate)> {
     debug_trace_call(client, req, block, call_opts, true).await
 }
 
-
-pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugApi<N, T>>(client: P, req: TxHash, diff_mode: bool) -> Result<(GethStateUpdate, GethStateUpdate)> {
-    let tracer_opts = GethDebugTracingOptions {
-        config: GethDefaultTracingOptions::default(),
-        ..GethDebugTracingOptions::default()
-    }.with_tracer(BuiltInTracer(PreStateTracer)).with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
-
+pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugApi<N, T>>(
+    client: P,
+    req: TxHash,
+    diff_mode: bool,
+) -> Result<(GethStateUpdate, GethStateUpdate)> {
+    let tracer_opts = GethDebugTracingOptions { config: GethDefaultTracingOptions::default(), ..GethDebugTracingOptions::default() }
+        .with_tracer(BuiltInTracer(PreStateTracer))
+        .with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
 
     let trace_result = client.debug_trace_transaction(req, tracer_opts).await?;
     trace!("{:?}", trace_result);
 
     match trace_result {
-        GethTrace::PreStateTracer(geth_trace_frame) => {
-            match geth_trace_frame {
-                PreStateFrame::Diff(diff_frame) => {
-                    Ok((
-                        diff_frame.pre.into_iter().collect(),
-                        diff_frame.post.into_iter().collect()))
-                }
-                PreStateFrame::Default(diff_frame) => {
-                    Ok((
-                        diff_frame.0.into_iter().collect(),
-                        BTreeMap::new()))
-                }
-            }
-        }
-        _ => {
-            Err(eyre::eyre!("TRACE_RESULT_FAILED"))
-        }
+        GethTrace::PreStateTracer(geth_trace_frame) => match geth_trace_frame {
+            PreStateFrame::Diff(diff_frame) => Ok((diff_frame.pre.into_iter().collect(), diff_frame.post.into_iter().collect())),
+            PreStateFrame::Default(diff_frame) => Ok((diff_frame.0.into_iter().collect(), BTreeMap::new())),
+        },
+        _ => Err(eyre::eyre!("TRACE_RESULT_FAILED")),
     }
 }
 
@@ -203,19 +202,19 @@ mod test {
 
         let client = ProviderBuilder::new().on_client(client).boxed();
 
-        let tracer_opts = GethDebugTracingOptions {
-            config: GethDefaultTracingOptions::default(),
-            ..GethDebugTracingOptions::default()
-        }.with_tracer(BuiltInTracer(PreStateTracer)).with_prestate_config(PreStateConfig { diff_mode: Some(true) });
+        // TODO : find out if they are necessary
+        // let tracer_opts = GethDebugTracingOptions { config: GethDefaultTracingOptions::default(), ..GethDebugTracingOptions::default() }
+        //     .with_tracer(BuiltInTracer(PreStateTracer))
+        //     .with_prestate_config(PreStateConfig { diff_mode: Some(true) });
 
         let blocknumber = client.get_block_number().await?;
-        let block = client.get_block_by_number(blocknumber.into(), false).await?.unwrap();
+        let _block = client.get_block_by_number(blocknumber.into(), false).await?.unwrap();
         //let blockhash = block.header.hash.unwrap();
 
         //let ret = client.debug_trace_block_by_number(blocknumber.into(), tracer_opts).await?;
         //let blockhash: BlockHash = "0xd16074b40a4cb1e0b24fea1ffb5dcadb7363d38f93a9efa9eb43fc161a7e16f6".parse()?;
         //let ret = client.debug_trace_block_by_hash(blockhash, tracer_opts).await?;
-        let ret = debug_trace_block(client, BlockId::Number(blocknumber.into()), true).await?;
+        let _ret = debug_trace_block(client, BlockId::Number(blocknumber.into()), true).await?;
 
         Ok(())
     }

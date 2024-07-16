@@ -11,7 +11,6 @@ pub enum CallType {
     CalculationCall,
 }
 
-
 #[derive(Clone, Debug)]
 pub struct MulticallerCall {
     pub call_type: CallType,
@@ -22,17 +21,9 @@ pub struct MulticallerCall {
     pub return_stack: u32,
 }
 
-
 impl MulticallerCall {
     pub fn new(opcode_type: CallType, to: Address, call_data: &Bytes, value: Option<U256>) -> MulticallerCall {
-        MulticallerCall {
-            call_type: opcode_type,
-            to,
-            call_data: call_data.clone(),
-            value,
-            call_stack: 0,
-            return_stack: 0,
-        }
+        MulticallerCall { call_type: opcode_type, to, call_data: call_data.clone(), value, call_stack: 0, return_stack: 0 }
     }
 
     pub fn new_call(to: Address, call_data: &Bytes) -> MulticallerCall {
@@ -57,7 +48,6 @@ impl MulticallerCall {
         MulticallerCall::new(CallType::StaticCall, to, call_data, None)
     }
 
-
     fn encode_data_offset(is_relative: bool, stack_offset: u32, data_offset: u32, data_len: usize) -> u32 {
         let mut ret = if is_relative { 0x800000 } else { 0x0 };
         ret |= (stack_offset & 0x7) << 20;
@@ -67,15 +57,12 @@ impl MulticallerCall {
     }
 
     pub fn set_call_stack(&mut self, is_relative: bool, stack_offset: u32, data_offset: u32, data_len: usize) -> &mut Self {
-        self.call_stack =
-            match self.call_type {
-                CallType::InternalCall | CallType::CalculationCall => {
-                    MulticallerCall::encode_data_offset(is_relative, stack_offset, data_offset + 0xC, data_len)
-                }
-                _ => {
-                    MulticallerCall::encode_data_offset(is_relative, stack_offset, data_offset + 0x20, data_len)
-                }
-            };
+        self.call_stack = match self.call_type {
+            CallType::InternalCall | CallType::CalculationCall => {
+                MulticallerCall::encode_data_offset(is_relative, stack_offset, data_offset + 0xC, data_len)
+            }
+            _ => MulticallerCall::encode_data_offset(is_relative, stack_offset, data_offset + 0x20, data_len),
+        };
         self
     }
 
@@ -91,7 +78,6 @@ impl MulticallerCall {
     }
 
      */
-
 
     pub fn set_return_stack(&mut self, is_relative: bool, stack_offset: u32, data_offset: u32, data_len: usize) -> &mut Self {
         self.return_stack = MulticallerCall::encode_data_offset(is_relative, stack_offset, data_offset, data_len);
@@ -136,12 +122,10 @@ impl MulticallerCalls {
         self
     }
 
-
     pub fn merge(&mut self, opcodes: MulticallerCalls) -> &mut Self {
         self.opcodes_vec.extend(opcodes.opcodes_vec);
         self
     }
-
 
     pub fn get(&self, idx: usize) -> Option<&MulticallerCall> {
         self.opcodes_vec.get(idx)

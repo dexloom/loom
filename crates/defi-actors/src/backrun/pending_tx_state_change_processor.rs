@@ -7,8 +7,8 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_network::{Network, TransactionBuilder};
 use alloy_primitives::{Address, BlockNumber, TxHash, U256, U64};
 use alloy_provider::Provider;
-use alloy_rpc_types::{BlockOverrides, TransactionRequest};
 use alloy_rpc_types::state::StateOverride;
+use alloy_rpc_types::{BlockOverrides, TransactionRequest};
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_transport::Transport;
 use async_trait::async_trait;
@@ -21,8 +21,8 @@ use tokio::sync::RwLock;
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
-use defi_entities::{LatestBlock, Market, MarketState};
 use defi_entities::required_state::accounts_vec_len;
+use defi_entities::{LatestBlock, Market, MarketState};
 use defi_events::{MarketEvents, MempoolEvents, StateUpdateEvent};
 use defi_types::{debug_trace_call_diff, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
@@ -32,10 +32,8 @@ use super::affected_pools::get_affected_pools;
 use super::affected_pools_code::{get_affected_pools_from_code, is_pool_code};
 
 lazy_static! {
-    static ref COINBASE : Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
+    static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
-
-
 
 pub async fn pending_tx_state_change_task<P, T, N>(
     client: P,
@@ -55,22 +53,20 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-
 {
     let mut state_update_vec: GethStateUpdateVec = Vec::new();
     let mut state_required_vec: GethStateUpdateVec = Vec::new();
 
     let mut merged_state_update_vec: GethStateUpdateVec = Vec::new();
 
-
     let mempool_tx = match mempool.read().await.get_tx_by_hash(&tx_hash).cloned() {
         Some(tx) => tx,
-        None => return Err(eyre!("MEMPOOL_TX_NOT_FOUND"))
+        None => return Err(eyre!("MEMPOOL_TX_NOT_FOUND")),
     };
 
     let tx = match mempool_tx.tx.clone() {
         Some(tx) => tx,
-        None => return Err(eyre!("NO_TX_IN_MEMPOOL"))
+        None => return Err(eyre!("NO_TX_IN_MEMPOOL")),
     };
 
     let source = mempool_tx.source.clone();
@@ -85,7 +81,10 @@ where
                 }
             }
             None => {
-                error!("No gas price{:?} {:?} {:?}", transaction_request.gas_price, transaction_request.max_fee_per_gas, transaction_request.max_priority_fee_per_gas);
+                error!(
+                    "No gas price{:?} {:?} {:?}",
+                    transaction_request.gas_price, transaction_request.max_fee_per_gas, transaction_request.max_priority_fee_per_gas
+                );
                 return Err(eyre!("NO_GAS_PRICE"));
             }
         }
@@ -97,12 +96,14 @@ where
                 }
             }
             None => {
-                error!("No base fee {:?} {:?} {:?}", transaction_request.gas_price, transaction_request.max_fee_per_gas, transaction_request.max_priority_fee_per_gas);
+                error!(
+                    "No base fee {:?} {:?} {:?}",
+                    transaction_request.gas_price, transaction_request.max_fee_per_gas, transaction_request.max_priority_fee_per_gas
+                );
                 return Err(eyre!("NO_BASE_FEE"));
             }
         }
     }
-
 
     let call_opts: GethDebugTracingCallOptions = GethDebugTracingCallOptions {
         block_overrides: Some(BlockOverrides {
@@ -116,11 +117,9 @@ where
         ..TRACING_CALL_OPTS.clone()
     };
 
-
     if !(*affecting_tx.read().await.get(&tx_hash).unwrap_or(&true)) {
         return Err(eyre!("NON_AFFECTING_TX"));
     }
-
 
     let diff_trace_result = debug_trace_call_diff(client.clone(), transaction_request, BlockNumberOrTag::Latest, Some(call_opts)).await;
     match diff_trace_result {
@@ -137,18 +136,16 @@ where
         }
     }
 
-
     let affected_pools = get_affected_pools(market.clone(), &state_update_vec).await;
     match affected_pools {
         Ok(affected_pools) => {
             let storage_len = accounts_vec_len(&state_update_vec);
 
-            debug!("Mempool affected pools {:?} {} update len : {} strg : {}", tx_hash, source, affected_pools.len(),  storage_len);
+            debug!("Mempool affected pools {:?} {} update len : {} strg : {}", tx_hash, source, affected_pools.len(), storage_len);
 
             affecting_tx.write().await.insert(tx_hash, affected_pools.len() > 0);
 
-
-            //TODO : Fix Latest header is empty 
+            //TODO : Fix Latest header is empty
             if let Some(latest_header) = latest_block.read().await.block_header.clone() {
                 let block_number = latest_header.number.unwrap().as_u64() + 1;
                 let block_timestamp = latest_header.timestamp.as_u64() + 12;
@@ -169,7 +166,9 @@ where
                         9000,
                     );
                     match state_updates_broadcaster.send(request).await {
-                        Err(e) => { error!("state_updates_broadcaster : {}", e) }
+                        Err(e) => {
+                            error!("state_updates_broadcaster : {}", e)
+                        }
                         _ => {}
                     }
                 }
@@ -239,7 +238,6 @@ where
     }
 }
 
-
 pub async fn pending_tx_state_change_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
@@ -261,7 +259,6 @@ where
     let mut cur_block_number: Option<BlockNumber> = None;
     let mut cur_block_time: Option<u64> = None;
     let mut cur_state_override: StateOverride = StateOverride::default();
-
 
     loop {
         tokio::select! {
@@ -321,8 +318,7 @@ where
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct PendingTxStateChangeProcessorActor<P, T, N>
-{
+pub struct PendingTxStateChangeProcessorActor<P, T, N> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
@@ -385,18 +381,16 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            pending_tx_state_change_worker(
-                self.client.clone(),
-                self.market.clone().unwrap(),
-                self.mempool.clone().unwrap(),
-                self.latest_block.clone().unwrap(),
-                self.market_state.clone().unwrap(),
-                self.mempool_events_rx.clone().unwrap().subscribe().await,
-                self.market_events_rx.clone().unwrap().subscribe().await,
-                self.state_updates_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(pending_tx_state_change_worker(
+            self.client.clone(),
+            self.market.clone().unwrap(),
+            self.mempool.clone().unwrap(),
+            self.latest_block.clone().unwrap(),
+            self.market_state.clone().unwrap(),
+            self.mempool_events_rx.clone().unwrap().subscribe().await,
+            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.state_updates_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
 

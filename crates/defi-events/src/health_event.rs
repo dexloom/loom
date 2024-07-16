@@ -10,5 +10,4 @@ pub enum HealthEvent {
     MonitorTx(TxHash),
 }
 
-
 pub type MessageHealthEvent = Message<HealthEvent>;

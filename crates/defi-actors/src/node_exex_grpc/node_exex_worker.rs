@@ -9,13 +9,11 @@ use futures::{pin_mut, StreamExt};
 use log::{error, info};
 use reth_exex::ExExNotification;
 use reth_provider::Chain;
-use revm::db::{BundleAccount, StorageWithOriginalValues};
 use revm::db::states::StorageSlot;
+use revm::db::{BundleAccount, StorageWithOriginalValues};
 use tokio::select;
 
-use defi_events::{
-    BlockLogs, BlockStateUpdate, Message, MessageMempoolDataUpdate, NodeMempoolDataUpdate,
-};
+use defi_events::{BlockLogs, BlockStateUpdate, Message, MessageMempoolDataUpdate, NodeMempoolDataUpdate};
 use defi_types::{GethStateUpdate, MempoolTx};
 use loom_actors::{Broadcaster, WorkerResult};
 use loom_utils::reth_types::append_all_matching_block_logs_sealed;
@@ -41,10 +39,7 @@ async fn process_chain_task(
 
         let block_hash_num = BlockNumHash { number, hash };
 
-        info!(
-            "Processing block block_number={} block_hash={}",
-            block_hash_num.number, block_hash_num.hash
-        );
+        info!("Processing block block_number={} block_hash={}", block_hash_num.number, block_hash_num.hash);
         match reth_rpc_types_compat::block::from_block(
             sealed_block.clone().unseal(),
             sealed_block.difficulty,
@@ -65,18 +60,9 @@ async fn process_chain_task(
 
         let receipts = receipts.iter().filter_map(|r| r.clone()).collect();
 
-        append_all_matching_block_logs_sealed(
-            &mut logs,
-            block_hash_num.clone(),
-            receipts,
-            false,
-            &sealed_block,
-        )?;
+        append_all_matching_block_logs_sealed(&mut logs, block_hash_num.clone(), receipts, false, &sealed_block)?;
 
-        let log_update = BlockLogs {
-            block_hash: sealed_block.hash(),
-            logs,
-        };
+        let log_update = BlockLogs { block_hash: sealed_block.hash(), logs };
 
         if let Err(e) = logs_channel.send(log_update).await {
             error!("logs_channel.send error : {}", e)
@@ -99,16 +85,11 @@ async fn process_chain_task(
 
                 for (key, storage_slot) in storage.iter() {
                     let (key, storage_slot): (&U256, &StorageSlot) = (key, storage_slot);
-                    account_state
-                        .storage
-                        .insert((*key).into(), storage_slot.present_value.into());
+                    account_state.storage.insert((*key).into(), storage_slot.present_value.into());
                 }
             }
 
-            let block_state_update = BlockStateUpdate {
-                block_hash: block_hash_num.hash,
-                state_update: vec![state_update],
-            };
+            let block_state_update = BlockStateUpdate { block_hash: block_hash_num.hash, state_update: vec![state_update] };
 
             if let Err(e) = state_update_channel.send(block_state_update).await {
                 error!("state_update_channel.send error : {}", e)
@@ -118,7 +99,6 @@ async fn process_chain_task(
 
     Ok(())
 }
-
 
 #[allow(dead_code)]
 fn get_current_chain(notification: ExExNotification) -> Option<Arc<Chain>> {
@@ -146,9 +126,7 @@ pub async fn node_exex_grpc_worker(
     state_update_channel: Broadcaster<BlockStateUpdate>,
     mempool_channel: Broadcaster<MessageMempoolDataUpdate>,
 ) -> WorkerResult {
-    let client =
-        example_exex_remote::ExExClient::connect(url.unwrap_or("http://[::1]:10000".to_string())).await?;
-
+    let client = example_exex_remote::ExExClient::connect(url.unwrap_or("http://[::1]:10000".to_string())).await?;
 
     let stream_header = client.subscribe_header().await?;
     pin_mut!(stream_header);
@@ -164,7 +142,6 @@ pub async fn node_exex_grpc_worker(
 
     let stream_tx = client.subscribe_mempool_tx().await?;
     pin_mut!(stream_tx);
-
 
     loop {
         select! {

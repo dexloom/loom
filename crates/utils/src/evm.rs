@@ -2,7 +2,7 @@ use std::convert::Infallible;
 
 use alloy_primitives::{Address, B256, Bytes, U256};
 use alloy_rpc_types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest};
-use eyre::{eyre, Result};
+use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, trace};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
@@ -25,25 +25,17 @@ where
     env.tx.data = Bytes::from(call_data_vec);
     env.tx.value = U256::from(0);
 
-    let mut evm = Evm::builder()
-        .with_spec_id(SpecId::SHANGHAI)
-        .with_ref_db(state_db).with_env(Box::new(env))
-        .build();
-
+    let mut evm = Evm::builder().with_spec_id(SpecId::SHANGHAI).with_ref_db(state_db).with_env(Box::new(env)).build();
 
     let ref_tx = evm.transact()?;
     let result = ref_tx.result;
-
 
     let gas_used = result.gas_used();
 
     // unpack output call enum into raw bytes
     let value = match result {
-        ExecutionResult::Success { output, .. } => {
-            match output {
-                Output::Call(value) => Some(value),
-                _ => None,
-            }
+        ExecutionResult::Success { output: Output::Call(value), .. } => {
+            Some((value.to_vec(), gas_used))
         }
         ExecutionResult::Revert { output, gas_used } => {
             trace!("Revert {} : {:?}", gas_used, output);
@@ -52,12 +44,7 @@ where
         _ => None,
     };
 
-    match value {
-        Some(v) => {
-            Ok((v.to_vec(), gas_used))
-        }
-        None => Err(eyre!("CALL_RESULT_IS_EMPTY"))
-    }
+    value.ok_or_eyre("CALL_RESULT_IS_EMPTY")
 }
 
 pub fn evm_transact<DB>(evm: &mut Evm<(), DB>, tx: &Transaction) -> Result<()>
@@ -75,26 +62,23 @@ where
     env.tx.gas_limit = tx.gas as u64;
     env.tx.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas.unwrap_or_default()));
 
-
     match evm.transact_commit() {
-        Ok(execution_result) => {
-            match execution_result {
-                ExecutionResult::Success { output, gas_used, reason, .. } => {
-                    debug!("Transact Gas used : {gas_used} reason:  {reason:?}");
-                    debug!("Transact Output : {output:?}");
+        Ok(execution_result) => match execution_result {
+            ExecutionResult::Success { output, gas_used, reason, .. } => {
+                debug!("Transact Gas used : {gas_used} reason:  {reason:?}");
+                debug!("Transact Output : {output:?}");
 
-                    Ok(())
-                }
-                ExecutionResult::Revert { output, gas_used } => {
-                    error!("Revert {output} Gas used {gas_used}");
-                    Err(eyre!("EXECUTION_REVERTED"))
-                }
-                ExecutionResult::Halt { reason, .. } => {
-                    error!("Halt {reason:?}");
-                    Err(eyre!("EXECUTION_HALT"))
-                }
+                Ok(())
             }
-        }
+            ExecutionResult::Revert { output, gas_used } => {
+                error!("Revert {output} Gas used {gas_used}");
+                Err(eyre!("EXECUTION_REVERTED"))
+            }
+            ExecutionResult::Halt { reason, .. } => {
+                error!("Halt {reason:?}");
+                Err(eyre!("EXECUTION_HALT"))
+            }
+        },
         Err(e) => {
             error!("Execution error : {e}");
             Err(eyre!("EXECUTION_ERROR"))
@@ -102,9 +86,8 @@ where
     }
 }
 
-
 lazy_static! {
-    static ref COINBASE : Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
+    static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
 pub fn evm_access_list<DB>(state_db: DB, env: &Env, tx: &TransactionRequest) -> Result<(u64, AccessList)>
@@ -130,30 +113,28 @@ where
     let mut evm = Evm::builder().with_ref_db(state_db).with_spec_id(SHANGHAI).with_env(Box::new(env)).build();
 
     match evm.transact() {
-        Ok(execution_result) => {
-            match execution_result.result {
-                ExecutionResult::Success { output, gas_used, reason, .. } => {
-                    debug!("AccessList Gas used : {gas_used} reason : {reason:?}");
-                    debug!("AccessList Output : {output:?}");
-                    let mut acl = AccessList::default();
+        Ok(execution_result) => match execution_result.result {
+            ExecutionResult::Success { output, gas_used, reason, .. } => {
+                debug!("AccessList Gas used : {gas_used} reason : {reason:?}");
+                debug!("AccessList Output : {output:?}");
+                let mut acl = AccessList::default();
 
-                    for (addr, acc) in execution_result.state {
-                        let storage_keys: Vec<B256> = acc.storage.keys().map(|x| (*x).into()).collect();
-                        acl.0.push(AccessListItem { address: addr, storage_keys });
-                    }
+                for (addr, acc) in execution_result.state {
+                    let storage_keys: Vec<B256> = acc.storage.keys().map(|x| (*x).into()).collect();
+                    acl.0.push(AccessListItem { address: addr, storage_keys });
+                }
 
-                    Ok((gas_used, acl))
-                }
-                ExecutionResult::Revert { output, gas_used } => {
-                    error!("Revert {output} gas used {gas_used}");
-                    Err(eyre!("EXECUTION_REVERTED"))
-                }
-                ExecutionResult::Halt { reason, .. } => {
-                    error!("Halt {reason:?}");
-                    Err(eyre!("EXECUTION_HALT"))
-                }
+                Ok((gas_used, acl))
             }
-        }
+            ExecutionResult::Revert { output, gas_used } => {
+                error!("Revert {output} gas used {gas_used}");
+                Err(eyre!("EXECUTION_REVERTED"))
+            }
+            ExecutionResult::Halt { reason, .. } => {
+                error!("Halt {reason:?}");
+                Err(eyre!("EXECUTION_HALT"))
+            }
+        },
         Err(e) => {
             error!("Execution error : {e}");
             Err(eyre!("EXECUTION_ERROR"))

@@ -7,16 +7,16 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_network::Network;
 use alloy_primitives::{Address, TxHash, U256, U64};
 use alloy_provider::Provider;
-use alloy_rpc_types::{BlockOverrides, Transaction};
 use alloy_rpc_types::state::StateOverride;
+use alloy_rpc_types::{BlockOverrides, Transaction};
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
-use revm::Evm;
 use revm::primitives::{BlockEnv, Env, SHANGHAI};
+use revm::Evm;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
@@ -32,7 +32,7 @@ use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_transact;
 
 lazy_static! {
-    static ref COINBASE : Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
+    static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
 fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a HashMap<TxHash, Vec<TxComposeData>>) -> Vec<&'a TxComposeData> {
@@ -45,25 +45,22 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a HashMap<TxHash, V
 
     let swap_stuffing_hash = request.first_stuffing_hash();
 
-    let mut ret: Vec<&TxComposeData> =
-        swap_paths.iter().filter(|(k, _)| **k != swap_stuffing_hash).map(|(_k, v)|
-        v.iter().find(|a| {
-            if let Swap::BackrunSwapLine(a_line) = &a.swap {
-                a_line.path == swap_line.path
-            } else {
-                false
-            }
-        }).clone()
-        ).filter(|x| x.is_some()).map(|x| x.unwrap()).collect();
+    let mut ret: Vec<&TxComposeData> = swap_paths
+        .iter()
+        .filter(|(k, _)| **k != swap_stuffing_hash)
+        .map(|(_k, v)| {
+            v.iter().find(|a| if let Swap::BackrunSwapLine(a_line) = &a.swap { a_line.path == swap_line.path } else { false }).clone()
+        })
+        .filter(|x| x.is_some())
+        .map(|x| x.unwrap())
+        .collect();
 
     ret.sort_by(|a, b| b.swap.abs_profit_eth().cmp(&a.swap.abs_profit_eth()));
-
 
     ret
 }
 
-async fn same_path_merger_task<P, T, N>
-(
+async fn same_path_merger_task<P, T, N>(
     client: P,
     stuffing_txes: Vec<Transaction>,
     pre_states: Arc<RwLock<DataFetcher<TxHash, GethStateUpdate>>>,
@@ -77,21 +74,16 @@ where
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    info!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len() );
+    info!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len());
 
     let mut prestate_guard = pre_states.write().await;
 
     let mut stuffing_state_locks: Vec<(Transaction, FetchState<GethStateUpdate>)> = Vec::new();
 
     let env = Env {
-        block: BlockEnv {
-            number: U256::from(request.block),
-            timestamp: U256::from(request.block_timestamp),
-            ..BlockEnv::default()
-        },
+        block: BlockEnv { number: U256::from(request.block), timestamp: U256::from(request.block_timestamp), ..BlockEnv::default() },
         ..Env::default()
     };
-
 
     for tx in stuffing_txes.into_iter() {
         let client_clone = client.clone(); //Pin::new(Box::new(client.clone()));
@@ -99,9 +91,11 @@ where
         let tx_hash: TxHash = tx.hash;
         let call_opts_clone = call_opts.clone();
 
-        let lock = prestate_guard.fetch(tx_hash, |_tx_hash| async move {
-            debug_trace_call_pre_state(client_clone, tx_clone, BlockNumberOrTag::Latest, Some(call_opts_clone)).await
-        }).await;
+        let lock = prestate_guard
+            .fetch(tx_hash, |_tx_hash| async move {
+                debug_trace_call_pre_state(client_clone, tx_clone, BlockNumberOrTag::Latest, Some(call_opts_clone)).await
+            })
+            .await;
 
         stuffing_state_locks.push((tx, lock));
     }
@@ -112,20 +106,15 @@ where
 
     for (tx, lock) in stuffing_state_locks.into_iter() {
         match lock {
-            FetchState::Fetching(lock) => {
-                match lock.read().await.deref() {
-                    Some(t) => {
-                        stuffing_states.push((tx, t.clone()))
-                    }
-                    _ => {}
-                }
-            }
+            FetchState::Fetching(lock) => match lock.read().await.deref() {
+                Some(t) => stuffing_states.push((tx, t.clone())),
+                _ => {}
+            },
             _ => {}
         }
     }
 
     let mut tx_order: Vec<usize> = (0..stuffing_states.len()).into_iter().collect();
-
 
     let mut changing: Option<usize> = None;
     let mut counter = 0;
@@ -159,7 +148,7 @@ where
                     info!("Transaction committed successfully {:?}", tx.hash);
                 }
                 Err(e) => {
-                    error!("Transaction {:?} commit error: {}", tx.hash, e );
+                    error!("Transaction {:?} commit error: {}", tx.hash, e);
                     match changing.clone() {
                         Some(changing_idx) => {
                             if (changing_idx == idx && idx == 0) || (changing_idx == idx - 1) {
@@ -167,15 +156,16 @@ where
                                 debug!("Removing Some {idx} {changing_idx}");
                                 changing = None;
                                 //TODO : Check idx > 1 condition
-                            } else if idx < tx_order.len() && idx > 0 { // Next
+                            } else if idx < tx_order.len() && idx > 0 {
+                                // Next
                                 tx_order.swap(idx, idx - 1);
                                 debug!("Swapping Some {idx} {changing_idx}");
                                 changing = Some(idx - 1)
                             } /*else {
-                                debug!("Removing Some 2 {idx} {changing_idx}");
-                                tx_order.remove(idx);
-                                ok = true;
-                            }*/
+                                  debug!("Removing Some 2 {idx} {changing_idx}");
+                                  tx_order.remove(idx);
+                                  ok = true;
+                              }*/
                         }
                         None => {
                             if idx > 0 {
@@ -213,24 +203,24 @@ where
             match swap_line.optimize_with_in_amount(&db, env.clone(), amount_in) {
                 Ok(_r) => {
                     let arc_db = Arc::new(db);
-                    let encode_request = MessageTxCompose::encode(
-                        TxComposeData {
-                            stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.hash).collect(),
-                            stuffing_txs: tx_order.iter().map(|i| stuffing_states[*i].0.clone()).collect(),
-                            swap: Swap::BackrunSwapLine(swap_line.clone()),
-                            origin: Some("samepath_merger".to_string()),
-                            tips_pct: None,
-                            poststate: Some(arc_db.clone()),
-                            poststate_update: None,
-                            ..request
-                        }
-                    );
+                    let encode_request = MessageTxCompose::encode(TxComposeData {
+                        stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.hash).collect(),
+                        stuffing_txs: tx_order.iter().map(|i| stuffing_states[*i].0.clone()).collect(),
+                        swap: Swap::BackrunSwapLine(swap_line.clone()),
+                        origin: Some("samepath_merger".to_string()),
+                        tips_pct: None,
+                        poststate: Some(arc_db.clone()),
+                        poststate_update: None,
+                        ..request
+                    });
 
                     match swap_request_tx.send(encode_request).await {
-                        Err(e) => { error!("{}",e) }
+                        Err(e) => {
+                            error!("{}", e)
+                        }
                         _ => {}
                     }
-                    info!("+++ Calculation finished {swap_line}" );
+                    info!("+++ Calculation finished {swap_line}");
                 }
                 Err(e) => {
                     error!("optimization error : {e:?}")
@@ -239,21 +229,22 @@ where
         }
     }
 
-
     //let (db,_) = evm.into_db_and_env_with_handler_cfg();
 
     /*for (addr,acc) in db.accounts.iter(){
         debug!("-- {} : {:?} code len: {} storage len: {}", addr, acc.account_state, acc.info.code.as_ref().map_or(0, |c| c.len()), acc.storage.len() )
     }*/
 
-    info!("same_path_merger_task stuffing_states len {}", stuffing_states.len() );
-
+    info!("same_path_merger_task stuffing_states len {}", stuffing_states.len());
 
     Ok(())
 }
 
-
-async fn same_path_merger_worker<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static>(
+async fn same_path_merger_worker<
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+>(
     client: P,
     //encoder: SwapStepEncoder,
     //signers: SharedState<TxSigners>,
@@ -264,8 +255,7 @@ async fn same_path_merger_worker<T: Transport + Clone, N: Network, P: Provider<T
     mut market_events_rx: Receiver<MarketEvents>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     let mut swap_paths: HashMap<TxHash, Vec<TxComposeData>> = HashMap::new();
 
     let prestate = Arc::new(RwLock::new(DataFetcher::<TxHash, GethStateUpdate>::new()));
@@ -276,7 +266,6 @@ async fn same_path_merger_worker<T: Transport + Clone, N: Network, P: Provider<T
     let mut cur_block_number: Option<alloy_primitives::BlockNumber> = None;
     let mut cur_block_time: Option<u64> = None;
     let mut cur_state_override: StateOverride = StateOverride::default();
-
 
     loop {
         tokio::select! {
@@ -367,12 +356,11 @@ async fn same_path_merger_worker<T: Transport + Clone, N: Network, P: Provider<T
                 }
             }
         }
-    };
+    }
 }
 
 #[derive(Consumer, Producer, Accessor)]
-pub struct SamePathMergerActor<P, T, N>
-{
+pub struct SamePathMergerActor<P, T, N> {
     client: P,
     //encoder: SwapStepEncoder,
     #[accessor]
@@ -428,16 +416,14 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            same_path_merger_worker(
-                self.client.clone(),
-                self.latest_block.clone().unwrap(),
-                self.market_state.clone().unwrap(),
-                self.market_events.clone().unwrap().subscribe().await,
-                self.compose_channel_rx.clone().unwrap().subscribe().await,
-                self.compose_channel_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(same_path_merger_worker(
+            self.client.clone(),
+            self.latest_block.clone().unwrap(),
+            self.market_state.clone().unwrap(),
+            self.market_events.clone().unwrap().subscribe().await,
+            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
 

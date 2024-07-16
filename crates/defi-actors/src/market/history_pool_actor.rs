@@ -15,11 +15,7 @@ use loom_actors_macros::Accessor;
 
 use crate::market::logs_parser::process_log_entries;
 
-async fn history_pool_loader_worker<P, T, N>(
-    client: P,
-    market: SharedState<Market>,
-    market_state: SharedState<MarketState>,
-) -> WorkerResult
+async fn history_pool_loader_worker<P, T, N>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState>) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
@@ -38,26 +34,20 @@ where
         let filter = Filter::new().from_block(current_block).to_block(current_block + block_size - 1);
         match client.get_logs(&filter).await {
             Ok(logs) => {
-                let _ = process_log_entries(
-                    client.clone(),
-                    market.clone(),
-                    market_state.clone(),
-                    logs,
-                ).await;
+                let _ = process_log_entries(client.clone(), market.clone(), market_state.clone(), logs).await;
             }
-            Err(e) => { error!("{}", e) }
+            Err(e) => {
+                error!("{}", e)
+            }
         }
     }
     info!("history_pool_loader_worker finished");
 
-
     Ok("history_pool_loader_worker".to_string())
 }
 
-
 #[derive(Accessor)]
-pub struct HistoryPoolLoaderActor<P, T, N>
-{
+pub struct HistoryPoolLoaderActor<P, T, N> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
@@ -74,21 +64,11 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
-        Self {
-            client,
-            market: None,
-            market_state: None,
-            _t: PhantomData::default(),
-            _n: PhantomData::default(),
-        }
+        Self { client, market: None, market_state: None, _t: PhantomData::default(), _n: PhantomData::default() }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self {
-            market: Some(bc.market()),
-            market_state: Some(bc.market_state()),
-            ..self
-        }
+        Self { market: Some(bc.market()), market_state: Some(bc.market_state()), ..self }
     }
 }
 
@@ -100,13 +80,11 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            history_pool_loader_worker(
-                self.client.clone(),
-                self.market.clone().unwrap(),
-                self.market_state.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(history_pool_loader_worker(
+            self.client.clone(),
+            self.market.clone().unwrap(),
+            self.market_state.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
 

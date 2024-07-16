@@ -1,5 +1,5 @@
-use aes::Aes128;
 use aes::cipher::{Block, BlockDecrypt, KeyInit};
+use aes::Aes128;
 use eyre::{ErrReport, Result};
 use sha2::{Digest, Sha512};
 
@@ -12,12 +12,9 @@ pub struct KeyStore {
     pwd: Vec<u8>,
 }
 
-
 impl KeyStore {
     pub fn new() -> KeyStore {
-        KeyStore {
-            pwd: KEY_ENCRYPTION_PWD.to_vec()
-        }
+        KeyStore { pwd: KEY_ENCRYPTION_PWD.to_vec() }
     }
 
     pub fn new_from_string(pwd: String) -> KeyStore {
@@ -62,7 +59,6 @@ impl KeyStore {
         Ok(ret)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

@@ -11,4 +11,3 @@ pub struct Cli {
     #[arg(value_name = "File", help = "File name")]
     pub file: Option<String>,
 }
-

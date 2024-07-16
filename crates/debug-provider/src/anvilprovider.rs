@@ -1,6 +1,6 @@
 use alloy::{
-    primitives::{Address, B256, Bytes, U256, U64},
-    providers::{Network, network::Ethereum, Provider, RootProvider},
+    primitives::{Address, Bytes, B256, U256, U64},
+    providers::{network::Ethereum, Network, Provider, RootProvider},
     transports::{BoxTransport, Transport, TransportResult},
 };
 
@@ -15,23 +15,20 @@ where
     N: Network,
     T: Transport + Clone,
 {
-    fn snapshot(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send;
-    fn revert(&self, snap_id: u64) -> impl std::future::Future<Output=TransportResult<bool>> + Send;
+    fn snapshot(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send;
+    fn revert(&self, snap_id: u64) -> impl std::future::Future<Output = TransportResult<bool>> + Send;
 
+    fn mine(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send;
 
-    fn mine(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send;
+    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output = TransportResult<()>> + Send;
 
-    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output=TransportResult<()>> + Send;
+    fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output = TransportResult<()>> + Send;
 
-
-    fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output=TransportResult<()>> + Send;
-
-    fn set_balance(&self, address: Address, balance: U256) -> impl std::future::Future<Output=TransportResult<()>> + Send;
+    fn set_balance(&self, address: Address, balance: U256) -> impl std::future::Future<Output = TransportResult<()>> + Send;
 
     //fn get_storage(&self, address: Address, cell: U256) -> impl std::future::Future<Output=TransportResult<U256>> + Send;
-    fn set_storage(&self, address: Address, cell: B256, value: B256) -> impl std::future::Future<Output=TransportResult<bool>> + Send;
+    fn set_storage(&self, address: Address, cell: B256, value: B256) -> impl std::future::Future<Output = TransportResult<bool>> + Send;
 }
-
 
 impl<PN, PA, TN, TA, N> AnvilProviderExt<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N>
 where
@@ -41,71 +38,68 @@ where
     PN: Provider<TN, N> + Send + Sync + Clone + 'static,
     PA: Provider<TA, N> + Send + Sync + Clone + 'static,
 {
-    fn snapshot(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
+    fn snapshot(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send {
         self.anvil().client().request("evm_snapshot", ()).map_resp(convert_u64)
     }
-    fn revert(&self, snap_id: u64) -> impl std::future::Future<Output=TransportResult<bool>> + Send {
+    fn revert(&self, snap_id: u64) -> impl std::future::Future<Output = TransportResult<bool>> + Send {
         self.anvil().client().request("evm_revert", (U64::from(snap_id),))
     }
 
-    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output=TransportResult<()>> + Send {
+    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output = TransportResult<()>> + Send {
         self.anvil().client().request("evm_setAutomine", (to_mine,))
     }
 
-    fn mine(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
+    fn mine(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send {
         self.anvil().client().request("evm_mine", ()).map_resp(convert_u64)
     }
 
-    fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output=TransportResult<()>> + Send {
+    fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output = TransportResult<()>> + Send {
         self.anvil().client().request("anvil_setCode", (address, code))
     }
 
-    fn set_balance(&self, address: Address, balance: U256) -> impl std::future::Future<Output=TransportResult<()>> + Send {
+    fn set_balance(&self, address: Address, balance: U256) -> impl std::future::Future<Output = TransportResult<()>> + Send {
         self.anvil().client().request("anvil_setBalance", (address, balance))
     }
 
-    fn set_storage(&self, address: Address, cell: B256, value: B256) -> impl std::future::Future<Output=TransportResult<bool>> + Send {
-        self.anvil().client().request("anvil_setStorageAt", (address, cell, value,))
+    fn set_storage(&self, address: Address, cell: B256, value: B256) -> impl std::future::Future<Output = TransportResult<bool>> + Send {
+        self.anvil().client().request("anvil_setStorageAt", (address, cell, value))
     }
     /*    fn get_storage(&self, address: Address, cell: U256) -> impl std::future::Future<Output=TransportResult<U256>> + Send {
-            self.anvil().client().request("anvil_getStorageAt", (address, cell))
-        }*/
+        self.anvil().client().request("anvil_getStorageAt", (address, cell))
+    }*/
 }
 
-
-impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport>
-{
-    fn snapshot(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
+impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport> {
+    fn snapshot(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send {
         self.client().request("evm_snapshot", ()).map_resp(convert_u64)
     }
-    fn revert(&self, snap_id: u64) -> impl std::future::Future<Output=TransportResult<bool>> + Send {
+    fn revert(&self, snap_id: u64) -> impl std::future::Future<Output = TransportResult<bool>> + Send {
         self.client().request("evm_revert", (U64::from(snap_id),))
     }
 
-    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output=TransportResult<()>> + Send {
+    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output = TransportResult<()>> + Send {
         self.client().request("evm_setAutomine", (to_mine,))
     }
 
-    fn mine(&self) -> impl std::future::Future<Output=TransportResult<u64>> + Send {
+    fn mine(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send {
         self.client().request("evm_mine", ()).map_resp(convert_u64)
     }
 
-    fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output=TransportResult<()>> + Send {
+    fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output = TransportResult<()>> + Send {
         self.client().request("anvil_setCode", (address, code))
     }
 
-    fn set_balance(&self, address: Address, balance: U256) -> impl std::future::Future<Output=TransportResult<()>> + Send {
+    fn set_balance(&self, address: Address, balance: U256) -> impl std::future::Future<Output = TransportResult<()>> + Send {
         self.client().request("anvil_setBalance", (address, balance))
     }
 
-    fn set_storage(&self, address: Address, cell: B256, value: B256) -> impl std::future::Future<Output=TransportResult<bool>> + Send {
-        self.client().request("anvil_setStorageAt", (address, cell, value,))
+    fn set_storage(&self, address: Address, cell: B256, value: B256) -> impl std::future::Future<Output = TransportResult<bool>> + Send {
+        self.client().request("anvil_setStorageAt", (address, cell, value))
     }
     /*    fn get_storage(&self, address: Address, cell: U256) -> impl std::future::Future<Output=TransportResult<U256>> + Send {
-            self.anvil().client().request("anvil_getStorageAt", (address, cell))
-        }*/
+        self.anvil().client().request("anvil_getStorageAt", (address, cell))
+    }*/
 }
-
 
 #[cfg(test)]
 mod test {
@@ -146,10 +140,8 @@ mod test {
             panic!("Incorrect value {value}");
         }
 
-
         Ok(())
     }
-
 
     #[tokio::test]
     async fn test() -> Result<()> {
@@ -168,11 +160,9 @@ mod test {
         let client_node = ClientBuilder::default().http(node_url).boxed();
         let provider_node = ProviderBuilder::new().on_client(client_node).boxed();
 
-
         let provider = AnvilDebugProvider::new(provider_node, provider_anvil, BlockNumberOrTag::Number(10));
 
         let client = Arc::new(provider);
-
 
         let snap = client.snapshot().await?;
         let _ = client.revert(snap).await?;
@@ -180,7 +170,6 @@ mod test {
         let _ = client.mine().await;
         client.set_automine(true).await?;
         //let reset_result = client.reset().await?;
-
 
         Ok(())
     }
@@ -201,7 +190,6 @@ mod test {
         }
     }
 
-
     struct DynProvider {
         inner: DynPrv<BoxTransport>,
     }
@@ -219,16 +207,13 @@ mod test {
         }
     }
 
-
     #[tokio::test]
     async fn test_dyn_provider() -> Result<()> {
         let provider = ProviderBuilder::new().with_recommended_fillers().on_anvil();
 
         let dyn_prv = Arc::new(Box::new(provider) as Box<dyn Provider<_>>);
 
-        let dyn_prv = DynPrv {
-            provider: dyn_prv.clone()
-        };
+        let dyn_prv = DynPrv { provider: dyn_prv.clone() };
 
         let dyn_prv = DynProvider::from(dyn_prv);
 

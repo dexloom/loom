@@ -10,7 +10,6 @@ pub enum MarketEvents {
     GasUpdate { next_block_base_fee: u128 },
 }
 
-
 #[derive(Clone, Debug)]
 pub enum MempoolEvents {
     MempoolActualTxUpdate { tx_hash: TxHash },
@@ -19,4 +18,3 @@ pub enum MempoolEvents {
     MempoolStateUpdate { tx_hash: TxHash },
     MempoolLogUpdate { tx_hash: TxHash },
 }
-

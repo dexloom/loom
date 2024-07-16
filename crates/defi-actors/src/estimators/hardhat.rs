@@ -108,8 +108,7 @@ async fn estimator_worker<P: Provider + DebugProviderExt + Send + Sync + Clone +
 
 #[allow(dead_code)]
 #[derive(Consumer, Producer)]
-pub struct HardhatEstimatorActor<P>
-{
+pub struct HardhatEstimatorActor<P> {
     client: P,
     encoder: Arc<SwapStepEncoder>,
     #[consumer]
@@ -120,26 +119,19 @@ pub struct HardhatEstimatorActor<P>
 
 impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> HardhatEstimatorActor<P> {
     pub fn new(client: P, encoder: Arc<SwapStepEncoder>) -> Self {
-        Self {
-            client,
-            encoder,
-            compose_channel_tx: None,
-            compose_channel_rx: None,
-        }
+        Self { client, encoder, compose_channel_tx: None, compose_channel_rx: None }
     }
 }
 
 #[async_trait]
 impl<P: Provider + DebugProviderExt + Clone + Send + Sync + 'static> Actor for HardhatEstimatorActor<P> {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            estimator_worker::<P>(
-                //self.client.clone(),
-                self.encoder.clone(),
-                self.compose_channel_rx.clone().unwrap().subscribe().await,
-                self.compose_channel_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(estimator_worker::<P>(
+            //self.client.clone(),
+            self.encoder.clone(),
+            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
 

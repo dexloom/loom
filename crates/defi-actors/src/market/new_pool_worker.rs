@@ -57,8 +57,7 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct NewPoolLoaderActor<P, T, N>
-{
+pub struct NewPoolLoaderActor<P, T, N> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
@@ -88,15 +87,9 @@ where
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self {
-            market: Some(bc.market()),
-            market_state: Some(bc.market_state()),
-            log_update_rx: Some(bc.new_block_logs_channel()),
-            ..self
-        }
+        Self { market: Some(bc.market()), market_state: Some(bc.market_state()), log_update_rx: Some(bc.new_block_logs_channel()), ..self }
     }
 }
-
 
 #[async_trait]
 impl<P, T, N> Actor for NewPoolLoaderActor<P, T, N>
@@ -106,14 +99,12 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            new_pool_worker(
-                self.client.clone(),
-                self.market.clone().unwrap(),
-                self.market_state.clone().unwrap(),
-                self.log_update_rx.clone().unwrap().subscribe().await,
-            )
-        );
+        let task = tokio::task::spawn(new_pool_worker(
+            self.client.clone(),
+            self.market.clone().unwrap(),
+            self.market_state.clone().unwrap(),
+            self.log_update_rx.clone().unwrap().subscribe().await,
+        ));
         Ok(vec![task])
     }
 

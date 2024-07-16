@@ -28,7 +28,6 @@ impl ActorsManager {
         }
     }
 
-
     pub async fn wait(self) {
         let mut f_remaining_futures = self.tasks;
         let mut futures_counter = f_remaining_futures.len();
@@ -36,18 +35,16 @@ impl ActorsManager {
         while futures_counter > 0 {
             let (result, _index, remaining_futures) = futures::future::select_all(f_remaining_futures).await;
             match result {
-                Ok(work_result) => {
-                    match work_result {
-                        Ok(s) => {
-                            info!("ActorWorker {_index} finished : {s}")
-                        }
-                        Err(e) => {
-                            error!("ActorWorker {_index} error : {e}")
-                        }
+                Ok(work_result) => match work_result {
+                    Ok(s) => {
+                        info!("ActorWorker {_index} finished : {s}")
                     }
-                }
+                    Err(e) => {
+                        error!("ActorWorker {_index} error : {e}")
+                    }
+                },
                 Err(e) => {
-                    error!("ActorWorker join error {_index} : {e}" )
+                    error!("ActorWorker join error {_index} : {e}")
                 }
             }
             f_remaining_futures = remaining_futures;

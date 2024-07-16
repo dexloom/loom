@@ -12,15 +12,18 @@ use log::{error, info};
 
 use defi_blockchain::Blockchain;
 use defi_entities::Market;
-use defi_pools::CurvePool;
 use defi_pools::protocols::CurveProtocol;
+use defi_pools::CurvePool;
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 
 //use market::{CurveProtocol, Market, PoolSetup};
 //use market::contracts::CurvePool;
 
-async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(client: P, market: SharedState<Market>) -> WorkerResult {
+async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(
+    client: P,
+    market: SharedState<Market>,
+) -> WorkerResult {
     let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
 
     let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
@@ -28,9 +31,10 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
     let dai_address: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();
     let wbtc_address: Address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".parse().unwrap();
 
-
-    let curve_tricrypto_usdc = CurveProtocol::new_u256_3_eth_to(client.clone(), "0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B".parse().unwrap());
-    let curve_tricrypto_usdt = CurveProtocol::new_u256_3_eth_to(client.clone(), "0xf5f5b97624542d72a9e06f04804bf81baa15e2b4".parse().unwrap());
+    let curve_tricrypto_usdc =
+        CurveProtocol::new_u256_3_eth_to(client.clone(), "0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B".parse().unwrap());
+    let curve_tricrypto_usdt =
+        CurveProtocol::new_u256_3_eth_to(client.clone(), "0xf5f5b97624542d72a9e06f04804bf81baa15e2b4".parse().unwrap());
 
     let mut coins_hash_map: HashMap<Address, CurvePool<P, T, N>> = HashMap::new();
 
@@ -49,7 +53,9 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
         Some(token) => {
             token.set_eth_price(Some(one_ether));
         }
-        _ => { error!("WETH_NOT_FOUND") }
+        _ => {
+            error!("WETH_NOT_FOUND")
+        }
     }
 
     loop {
@@ -59,11 +65,17 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
                     let price = out_amount.mul(one_ether).div(weth_amount);
                     info!("{token_address:#20x} {price}");
                     match market.read().await.get_token(token_address) {
-                        Some(tkn) => { tkn.set_eth_price(Some(price)); }
-                        _ => { error!("Token {token_address:#20x} not found"); }
+                        Some(tkn) => {
+                            tkn.set_eth_price(Some(price));
+                        }
+                        _ => {
+                            error!("Token {token_address:#20x} not found");
+                        }
                     }
                 }
-                Err(e) => { error!("fetch_out_amount : {e}") }
+                Err(e) => {
+                    error!("fetch_out_amount : {e}")
+                }
             }
         }
 
@@ -79,19 +91,21 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
 
         if let Some(usd_price) = usd_price {
             match market.read().await.get_token(&dai_address) {
-                Some(tkn) => { tkn.set_eth_price(Some(U256::from(10).pow(U256::from(12)).mul(usd_price))); }
-                _ => { error!("Token {dai_address:#20x} not found"); }
+                Some(tkn) => {
+                    tkn.set_eth_price(Some(U256::from(10).pow(U256::from(12)).mul(usd_price)));
+                }
+                _ => {
+                    error!("Token {dai_address:#20x} not found");
+                }
             }
         }
-
 
         let _ = tokio::time::sleep(Duration::new(60, 0)).await;
     }
 }
 
 #[derive(Accessor)]
-pub struct PriceActor<P, T, N>
-{
+pub struct PriceActor<P, T, N> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
@@ -106,19 +120,11 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
-        Self {
-            client,
-            market: None,
-            _t: PhantomData::default(),
-            _n: PhantomData::default(),
-        }
+        Self { client, market: None, _t: PhantomData::default(), _n: PhantomData::default() }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self {
-            market: Some(bc.market()),
-            ..self
-        }
+        Self { market: Some(bc.market()), ..self }
     }
 }
 
@@ -130,12 +136,7 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            price_worker(
-                self.client.clone(),
-                self.market.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(price_worker(self.client.clone(), self.market.clone().unwrap()));
         Ok(vec![task])
     }
 

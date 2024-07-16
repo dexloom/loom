@@ -1,4 +1,3 @@
-pub use preloader_actor::{MarketStatePreloadedActor, preload_market_state};
+pub use preloader_actor::{preload_market_state, MarketStatePreloadedActor};
 
 mod preloader_actor;
-

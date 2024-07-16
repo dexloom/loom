@@ -20,12 +20,14 @@ pub struct Tips {
 
 impl Display for Tips {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{} : tips {} min_change {} profit : {} eth : {} ",
-               self.token_in.get_symbol(),
-               NWETH::to_float(self.tips),
-               self.token_in.to_float(self.min_change),
-               self.token_in.to_float(self.profit),
-               NWETH::to_float(self.profit_eth),
+        write!(
+            f,
+            "{} : tips {} min_change {} profit : {} eth : {} ",
+            self.token_in.get_symbol(),
+            NWETH::to_float(self.tips),
+            self.token_in.to_float(self.min_change),
+            self.token_in.to_float(self.profit),
+            NWETH::to_float(self.profit_eth),
         )
     }
 }
@@ -78,28 +80,16 @@ pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost
                 return Err(eyre!("NO_PROFIT_EXCEEDING_GAS"));
             }
 
-
             let mut tips = profit_eth.checked_sub(gas_cost).ok_or_eyre("SUBTRACTION_OVERFLOWN")? * U256::from(tips_pct) / U256::from(10000);
             let min_change = token_in.calc_token_value_from_eth(gas_cost + tips).unwrap();
-            let mut value = if token_in.is_weth() {
-                U256::ZERO
-            } else {
-                tips
-            };
+            let mut value = if token_in.is_weth() { U256::ZERO } else { tips };
 
             if !token_in.is_weth() && (tips > ((eth_balance * U256::from(9000)) / U256::from(10000))) {
                 tips = (eth_balance * U256::from(9000)) / U256::from(10000);
                 value = tips;
             }
 
-
-            Ok((vec![Tips {
-                token_in,
-                profit,
-                profit_eth,
-                tips,
-                min_change,
-            }], value))
+            Ok((vec![Tips { token_in, profit, profit_eth, tips, min_change }], value))
         }
         Swap::Multiple(swap_vec) => {
             let mut tips_hashset: HashMap<Address, Tips> = HashMap::new();
@@ -110,9 +100,7 @@ pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost
                 return Err(eyre!("NO_PROFIT_EXCEEDING_GAS"));
             }
 
-
             let gas_cost_per_record = gas_cost / U256::from(swap_vec.len());
-
 
             for swap_record in swap_vec.iter() {
                 let token_in = swap_record.get_first_token().ok_or_eyre("NO_FIRST_TOKEN")?.clone();
@@ -124,18 +112,17 @@ pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost
 
                 let profit_eth = token_in.calc_eth_value(profit).ok_or_eyre("CALC_ETH_VALUE_FAILED")?;
 
-                let tips = profit_eth.checked_sub(gas_cost_per_record).ok_or_eyre("SUBTRACTION_OVERFLOWN")? * U256::from(tips_pct) / U256::from(10000);
+                let tips = profit_eth.checked_sub(gas_cost_per_record).ok_or_eyre("SUBTRACTION_OVERFLOWN")? * U256::from(tips_pct)
+                    / U256::from(10000);
                 let min_change = token_in.calc_token_value_from_eth(tips + gas_cost_per_record).unwrap();
 
-                let entry = tips_hashset.entry(token_in.get_address()).or_insert(
-                    Tips {
-                        token_in,
-                        profit: U256::ZERO,
-                        profit_eth: U256::ZERO,
-                        tips: U256::ZERO,
-                        min_change: U256::ZERO,
-                    }
-                );
+                let entry = tips_hashset.entry(token_in.get_address()).or_insert(Tips {
+                    token_in,
+                    profit: U256::ZERO,
+                    profit_eth: U256::ZERO,
+                    tips: U256::ZERO,
+                    min_change: U256::ZERO,
+                });
 
                 entry.profit += profit;
                 entry.profit_eth += profit_eth;
@@ -144,7 +131,6 @@ pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost
             }
 
             let mut value = U256::ZERO;
-
 
             if tips_hashset.iter().any(|(_, x)| x.token_in.is_weth()) {
                 let total_tips_eth: U256 = tips_hashset.iter().filter(|(_, x)| x.token_in.is_weth()).map(|(_, x)| x.tips).sum();
@@ -168,30 +154,16 @@ pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost
                 }
             } else {
                 let total_tips = tips_hashset.iter().map(|(_, x)| x.tips).sum::<U256>();
-                value = if total_tips >= eth_balance {
-                    eth_balance * U256::from(9000) / U256::from(10000)
-                } else {
-                    total_tips
-                };
-
+                value = if total_tips >= eth_balance { eth_balance * U256::from(9000) / U256::from(10000) } else { total_tips };
 
                 for (idx, (_, token_tips)) in tips_hashset.iter_mut().enumerate() {
-                    token_tips.tips = if idx == 0 {
-                        value
-                    } else {
-                        U256::ZERO
-                    };
+                    token_tips.tips = if idx == 0 { value } else { U256::ZERO };
                 }
             }
 
-            Ok((
-                tips_hashset.into_iter().map(|(_, t)| t).collect(),
-                value + U256::from(100)
-            ))
+            Ok((tips_hashset.into_iter().map(|(_, t)| t).collect(), value + U256::from(100)))
         }
 
-        _ => {
-            Err(eyre!("NOT_IMPLEMENTED"))
-        }
+        _ => Err(eyre!("NOT_IMPLEMENTED")),
     }
 }

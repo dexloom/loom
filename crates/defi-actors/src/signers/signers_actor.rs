@@ -11,14 +11,15 @@ use defi_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData, TxState}
 use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
-async fn sign_task(
-    sign_request: TxComposeData,
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
-) -> Result<()> {
+async fn sign_task(sign_request: TxComposeData, compose_channel_tx: Broadcaster<MessageTxCompose>) -> Result<()> {
     let signer = sign_request.signer.clone().unwrap();
 
-    let rlp_bundle: Vec<RlpState> = sign_request.tx_bundle.clone().unwrap().iter().map(|tx_request| {
-        match &tx_request {
+    let rlp_bundle: Vec<RlpState> = sign_request
+        .tx_bundle
+        .clone()
+        .unwrap()
+        .iter()
+        .map(|tx_request| match &tx_request {
             TxState::Stuffing(t) => {
                 let typed_tx: Result<TxEnvelope, _> = t.clone().try_into();
 
@@ -28,9 +29,7 @@ async fn sign_task(
                         typed_tx.encode(&mut v);
                         RlpState::Stuffing(v.into())
                     }
-                    _ => {
-                        RlpState::None
-                    }
+                    _ => RlpState::None,
                 }
             }
             TxState::SignatureRequired(t) => {
@@ -38,14 +37,10 @@ async fn sign_task(
                 info!("Tx signed {tx_hash:?}");
                 RlpState::Backrun(signed_tx_bytes)
             }
-            TxState::ReadyForBroadcast(t) => {
-                RlpState::Backrun(t.clone())
-            }
-            TxState::ReadyForBroadcastStuffing(t) => {
-                RlpState::Stuffing(t.clone())
-            }
-        }
-    }).collect();
+            TxState::ReadyForBroadcast(t) => RlpState::Backrun(t.clone()),
+            TxState::ReadyForBroadcastStuffing(t) => RlpState::Stuffing(t.clone()),
+        })
+        .collect();
 
     if rlp_bundle.iter().any(|item| item.is_none()) {
         error!("Bundle is not ready. Cannot sign");
@@ -53,28 +48,21 @@ async fn sign_task(
     }
     //let rlp_bundle= rlp_bundle.into_iter().map(|item| item.unwrap()).collect();
 
-    let broadcast_request = TxComposeData {
-        rlp_bundle: Some(rlp_bundle),
-        ..sign_request
-    };
+    let broadcast_request = TxComposeData { rlp_bundle: Some(rlp_bundle), ..sign_request };
 
-
-    match compose_channel_tx.send(
-        MessageTxCompose::broadcast(broadcast_request),
-    ).await {
+    match compose_channel_tx.send(MessageTxCompose::broadcast(broadcast_request)).await {
         Err(e) => {
             error!("{e}");
             Err(eyre!("BROADCAST_ERROR"))
         }
-        _ => { Ok(()) }
+        _ => Ok(()),
     }
 }
 
 async fn request_listener_worker(
     mut compose_channel_rx: Receiver<MessageTxCompose>,
-    compose_channel_tx: Broadcaster<MessageTxCompose>)
-    -> WorkerResult
-{
+    compose_channel_tx: Broadcaster<MessageTxCompose>,
+) -> WorkerResult {
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
@@ -103,48 +91,31 @@ async fn request_listener_worker(
     }
 }
 
-
 #[derive(Accessor, Consumer, Producer)]
-pub struct TxSignersActor
-{
+pub struct TxSignersActor {
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
-
 }
 
-impl TxSignersActor
-{
+impl TxSignersActor {
     pub fn new() -> TxSignersActor {
-        TxSignersActor {
-            compose_channel_rx: None,
-            compose_channel_tx: None,
-        }
+        TxSignersActor { compose_channel_rx: None, compose_channel_tx: None }
     }
-
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self {
-            compose_channel_rx: Some(bc.compose_channel()),
-            compose_channel_tx: Some(bc.compose_channel()),
-            ..self
-        }
+        Self { compose_channel_rx: Some(bc.compose_channel()), compose_channel_tx: Some(bc.compose_channel()), ..self }
     }
 }
 
-
 #[async_trait]
-impl Actor for TxSignersActor
-{
+impl Actor for TxSignersActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            request_listener_worker(
-                self.compose_channel_rx.clone().unwrap().subscribe().await,
-                self.compose_channel_tx.clone().unwrap(),
-            )
-        );
-
+        let task = tokio::task::spawn(request_listener_worker(
+            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_tx.clone().unwrap(),
+        ));
 
         Ok(vec![task])
     }

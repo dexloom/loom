@@ -1,7 +1,7 @@
 use alloy_sol_types::sol;
 
 sol! {
-    
+
     #[sol(abi = true, rpc)]
     #[derive(Debug, PartialEq, Eq)]
     interface IWETH {

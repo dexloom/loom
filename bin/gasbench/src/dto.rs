@@ -15,7 +15,6 @@ pub struct SwapLineDTO {
     pub tokens: Vec<Address>,
 }
 
-
 // Implement the Ord and PartialOrd traits for X
 impl Ord for SwapLineDTO {
     fn cmp(&self, other: &Self) -> Ordering {
@@ -36,7 +35,6 @@ impl Ord for SwapLineDTO {
     }
 }
 
-
 impl PartialOrd for SwapLineDTO {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
@@ -51,7 +49,6 @@ impl PartialEq for SwapLineDTO {
 }
 
 impl Eq for SwapLineDTO {}
-
 
 impl Display for SwapLineDTO {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {

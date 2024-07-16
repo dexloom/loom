@@ -19,15 +19,10 @@ pub struct MempoolTx {
 
 impl MempoolTx {
     pub fn new() -> MempoolTx {
-        MempoolTx {
-            ..MempoolTx::default()
-        }
+        MempoolTx { ..MempoolTx::default() }
     }
     pub fn new_with_hash(tx_hash: TxHash) -> MempoolTx {
-        MempoolTx {
-            tx_hash,
-            ..MempoolTx::default()
-        }
+        MempoolTx { tx_hash, ..MempoolTx::default() }
     }
 }
 
@@ -46,4 +41,3 @@ impl Default for MempoolTx {
         }
     }
 }
-

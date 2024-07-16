@@ -28,9 +28,9 @@ contract MulticallerCallData  {{
 
 }}
         "#,
-        test_size, test_names, test_size, call_data)
+        test_size, test_names, test_size, call_data
+    )
 }
-
 
 pub fn create_sol_test(requests_vec: Vec<(String, Bytes)>) -> String {
     let requests_vec = requests_vec;

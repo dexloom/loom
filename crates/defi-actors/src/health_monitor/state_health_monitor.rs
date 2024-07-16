@@ -28,7 +28,6 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
     let account = market_state.write().await.state_db.load_account(address).cloned()?;
     let read_only_cell_hash_set = market_state.read().await.read_only_cells.get(&address).cloned().unwrap_or_default();
 
-
     for (cell, current_value) in account.storage.iter() {
         if read_only_cell_hash_set.contains(cell) {
             continue;
@@ -61,8 +60,7 @@ pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Et
     market_state: SharedState<MarketState>,
     mut tx_compose_channel_rx: Receiver<MessageTxCompose>,
     mut market_events_rx: Receiver<MarketEvents>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     let mut check_time_map: HashMap<Address, DateTime<Local>> = HashMap::new();
     let mut pool_address_to_verify_vec: Vec<Address> = Vec::new();
 
@@ -127,8 +125,7 @@ pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Et
 }
 
 #[derive(Accessor, Consumer)]
-pub struct StateHealthMonitorActor<P, T>
-{
+pub struct StateHealthMonitorActor<P, T> {
     client: P,
     #[accessor]
     market_state: Option<SharedState<MarketState>>,
@@ -145,13 +142,7 @@ where
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
-        StateHealthMonitorActor {
-            client,
-            market_state: None,
-            tx_compose_channel_rx: None,
-            market_events_rx: None,
-            _t: PhantomData,
-        }
+        StateHealthMonitorActor { client, market_state: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -164,7 +155,6 @@ where
     }
 }
 
-
 #[async_trait]
 impl<P, T> Actor for StateHealthMonitorActor<P, T>
 where
@@ -172,14 +162,12 @@ where
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            state_health_monitor_worker(
-                self.client.clone(),
-                self.market_state.clone().unwrap(),
-                self.tx_compose_channel_rx.clone().unwrap().subscribe().await,
-                self.market_events_rx.clone().unwrap().subscribe().await,
-            )
-        );
+        let task = tokio::task::spawn(state_health_monitor_worker(
+            self.client.clone(),
+            self.market_state.clone().unwrap(),
+            self.tx_compose_channel_rx.clone().unwrap().subscribe().await,
+            self.market_events_rx.clone().unwrap().subscribe().await,
+        ));
         Ok(vec![task])
     }
 

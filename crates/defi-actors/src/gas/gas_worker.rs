@@ -16,33 +16,29 @@ pub async fn new_gas_worker(
     market_history_state: SharedState<BlockHistory>,
     mut market_events_receiver: Receiver<MarketEvents>,
     broadcaster: Broadcaster<MarketEvents>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     loop {
         tokio::select! {
             msg = market_events_receiver.recv() => {
                 match msg {
                     Ok(market_event) => {
-                        match market_event {
-                            BlockTxUpdate{ block_number, block_hash } => {
-                                if let Some(entry) = market_history_state.read().await.get_market_history_entry(&block_hash).cloned() {
-                                    if let Some(block) = entry.block {
-                                        if let Some(cur_base_fee) = block.header.base_fee_per_gas {
-                                            let next_block_base_fee : u128 = chain_parameters.calc_next_block_base_fee(block.header.gas_used, block.header.gas_limit, cur_base_fee);
-                                            gas_station.write().await.next_block_base_fee = next_block_base_fee;
-                                            match broadcaster.send(MarketEvents::GasUpdate{ next_block_base_fee}).await {
-                                                Ok(_)=>{
-                                                    info!("Gas updated block: {} next base fee : {}", block_number, next_block_base_fee)
-                                                }
-                                                Err(e)=>{
-                                                    error!("{e}")
-                                                }
+                        if let BlockTxUpdate{ block_number, block_hash } = market_event {
+                            if let Some(entry) = market_history_state.read().await.get_market_history_entry(&block_hash).cloned() {
+                                if let Some(block) = entry.block {
+                                    if let Some(cur_base_fee) = block.header.base_fee_per_gas {
+                                        let next_block_base_fee : u128 = chain_parameters.calc_next_block_base_fee(block.header.gas_used, block.header.gas_limit, cur_base_fee);
+                                        gas_station.write().await.next_block_base_fee = next_block_base_fee;
+                                        match broadcaster.send(MarketEvents::GasUpdate{ next_block_base_fee}).await {
+                                            Ok(_)=>{
+                                                info!("Gas updated block: {} next base fee : {}", block_number, next_block_base_fee)
+                                            }
+                                            Err(e)=>{
+                                                error!("{e}")
                                             }
                                         }
                                     }
                                 }
                             }
-                            _=>{}
                         }
                     }
                     Err(e) => {
@@ -57,8 +53,7 @@ pub async fn new_gas_worker(
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct GasStationActor
-{
+pub struct GasStationActor {
     chain_parameters: ChainParameters,
     #[accessor]
     gas_station: Option<SharedState<GasStation>>,
@@ -70,8 +65,7 @@ pub struct GasStationActor
     market_events_tx: Option<Broadcaster<MarketEvents>>,
 }
 
-impl Default for GasStationActor
-{
+impl Default for GasStationActor {
     fn default() -> Self {
         GasStationActor {
             chain_parameters: ChainParameters::ethereum(),
@@ -83,13 +77,9 @@ impl Default for GasStationActor
     }
 }
 
-impl GasStationActor
-{
+impl GasStationActor {
     pub fn new() -> GasStationActor {
-        Self {
-            chain_parameters: ChainParameters::ethereum(),
-            ..Self::default()
-        }
+        Self { chain_parameters: ChainParameters::ethereum(), ..Self::default() }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -103,21 +93,16 @@ impl GasStationActor
     }
 }
 
-
 #[async_trait]
-impl Actor for GasStationActor
-{
+impl Actor for GasStationActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            new_gas_worker(
-                self.chain_parameters.clone(),
-                self.gas_station.clone().unwrap(),
-                self.block_history.clone().unwrap(),
-                self.market_events_rx.clone().unwrap().subscribe().await,
-                self.market_events_tx.clone().unwrap(),
-            )
-        );
-
+        let task = tokio::task::spawn(new_gas_worker(
+            self.chain_parameters.clone(),
+            self.gas_station.clone().unwrap(),
+            self.block_history.clone().unwrap(),
+            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.market_events_tx.clone().unwrap(),
+        ));
 
         Ok(vec![task])
     }

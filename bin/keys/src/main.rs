@@ -1,14 +1,13 @@
-use aes::Aes128;
 use aes::cipher::{Block, BlockEncrypt, KeyInit};
+use aes::Aes128;
 use clap::{arg, Parser};
 use eyre::Result;
-use rand::{Rng, thread_rng};
+use rand::{thread_rng, Rng};
 use sha2::{Digest, Sha512};
 
 use defi_entities::KeyStore;
 
 const BLOCK_SIZE: usize = 16;
-
 
 #[derive(Parser, Debug)]
 enum Commands {
@@ -67,7 +66,6 @@ fn main() -> Result<()> {
             }
         }
     }
-
 
     Ok(())
 }

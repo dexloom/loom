@@ -32,11 +32,10 @@ impl TxState {
                 Ok(Bytes::from(r))
             }
             TxState::ReadyForBroadcast(t) | TxState::ReadyForBroadcastStuffing(t) => Ok(t.clone()),
-            _ => Err(eyre!("NOT_READY_FOR_BROADCAST"))
+            _ => Err(eyre!("NOT_READY_FOR_BROADCAST")),
         }
     }
 }
-
 
 #[derive(Clone, Debug)]
 pub enum TxCompose {
@@ -57,7 +56,7 @@ impl Deref for TxCompose {
 impl TxCompose {
     pub fn data(&self) -> &TxComposeData {
         match self {
-            TxCompose::Encode(x) | TxCompose::Broadcast(x) | TxCompose::Sign(x) | TxCompose::Estimate(x) => { x }
+            TxCompose::Encode(x) | TxCompose::Broadcast(x) | TxCompose::Sign(x) | TxCompose::Estimate(x) => x,
         }
     }
 }
@@ -71,16 +70,13 @@ pub enum RlpState {
 
 impl RlpState {
     pub fn is_none(&self) -> bool {
-        match self {
-            RlpState::None => true,
-            _ => false
-        }
+        matches!(self, RlpState::None)
     }
 
     pub fn unwrap(&self) -> Bytes {
         match self.clone() {
-            RlpState::Backrun(val) | RlpState::Stuffing(val) => { val }
-            RlpState::None => Bytes::new()
+            RlpState::Backrun(val) | RlpState::Stuffing(val) => val,
+            RlpState::None => Bytes::new(),
         }
     }
 }
@@ -110,26 +106,22 @@ pub struct TxComposeData {
     pub tips: Option<U256>,
 }
 
-
 impl TxComposeData {
-    pub fn same_stuffing(&self, others_stuffing_txs_hashes: &Vec<TxHash>) -> bool {
+    pub fn same_stuffing(&self, others_stuffing_txs_hashes: &[TxHash]) -> bool {
         let tx_len = self.stuffing_txs_hashes.len();
 
         if tx_len != others_stuffing_txs_hashes.len() {
             false
+        } else if tx_len == 0 {
+            true
         } else {
-            if tx_len == 0 {
-                true
-            } else {
-                others_stuffing_txs_hashes.iter().all(|x| self.stuffing_txs_hashes.contains(x))
-            }
+            others_stuffing_txs_hashes.iter().all(|x| self.stuffing_txs_hashes.contains(x))
         }
     }
 
-    pub fn cross_pools(&self, others_pools: &Vec<Address>) -> bool {
+    pub fn cross_pools(&self, others_pools: &[Address]) -> bool {
         self.swap.get_pool_address_vec().iter().any(|x| others_pools.contains(x))
     }
-
 
     pub fn first_stuffing_hash(&self) -> TxHash {
         self.stuffing_txs_hashes.first().map_or(TxHash::default(), |x| *x)
@@ -184,7 +176,6 @@ impl Default for TxComposeData {
     }
 }
 
-
 pub type MessageTxCompose = Message<TxCompose>;
 
 impl MessageTxCompose {
@@ -205,17 +196,13 @@ impl MessageTxCompose {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use super::*;
 
     #[test]
     fn test() {
-        let v = vec![
-            RlpState::Stuffing(Bytes::from(vec![1])),
-            RlpState::Backrun(Bytes::from(vec![2])),
-        ];
+        let v = [RlpState::Stuffing(Bytes::from(vec![1])), RlpState::Backrun(Bytes::from(vec![2]))];
 
         let b: Vec<Bytes> = v.iter().filter(|i| matches!(i, RlpState::Backrun(_))).map(|i| i.unwrap()).collect();
 

@@ -53,7 +53,6 @@ pub enum PoolClass {
     //NomiswapStable,
 }
 
-
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PoolProtocol {
     Unknown,
@@ -111,23 +110,34 @@ pub struct EmptyPool {
 
 impl EmptyPool {
     pub fn new(address: Address) -> Self {
-        EmptyPool {
-            address
-        }
+        EmptyPool { address }
     }
 }
-
 
 impl Pool for EmptyPool {
     fn get_address(&self) -> Address {
         self.address
     }
 
-    fn calculate_out_amount(&self, _state: &LoomInMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _in_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(
+        &self,
+        _state: &LoomInMemoryDB,
+        _env: Env,
+        _token_address_from: &Address,
+        _token_address_to: &Address,
+        _in_amount: U256,
+    ) -> eyre::Result<(U256, u64), ErrReport> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    fn calculate_in_amount(&self, _state: &LoomInMemoryDB, _env: Env, _token_address_from: &Address, _token_address_to: &Address, _out_amount: U256) -> eyre::Result<(U256, u64), ErrReport> {
+    fn calculate_in_amount(
+        &self,
+        _state: &LoomInMemoryDB,
+        _env: Env,
+        _token_address_from: &Address,
+        _token_address_to: &Address,
+        _out_amount: U256,
+    ) -> eyre::Result<(U256, u64), ErrReport> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
@@ -143,7 +153,6 @@ impl Pool for EmptyPool {
         Ok(RequiredState::new())
     }
 }
-
 
 pub struct PoolWrapper {
     pub pool: Arc<dyn Pool>,
@@ -189,9 +198,7 @@ impl PartialEq for PoolWrapper {
 
 impl PoolWrapper {
     pub fn new(pool: Arc<dyn Pool>) -> Self {
-        PoolWrapper {
-            pool
-        }
+        PoolWrapper { pool }
     }
 
     pub fn empty(pool_address: Address) -> Self {
@@ -200,12 +207,9 @@ impl PoolWrapper {
     }
 }
 
-
 impl Clone for PoolWrapper {
     fn clone(&self) -> Self {
-        Self {
-            pool: self.pool.clone(),
-        }
+        Self { pool: self.pool.clone() }
     }
 }
 
@@ -219,15 +223,11 @@ impl Deref for PoolWrapper {
 
 impl<T: 'static + Pool + Clone> From<T> for PoolWrapper {
     fn from(pool: T) -> Self {
-        Self {
-            pool: Arc::new(pool),
-        }
+        Self { pool: Arc::new(pool) }
     }
 }
 
-
-pub trait Pool: Sync + Send
-{
+pub trait Pool: Sync + Send {
     fn get_class(&self) -> PoolClass {
         PoolClass::Unknown
     }
@@ -252,10 +252,24 @@ pub trait Pool: Sync + Send
         Vec::new()
     }
 
-    fn calculate_out_amount(&self, state: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport>;
+    fn calculate_out_amount(
+        &self,
+        state: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+        in_amount: U256,
+    ) -> Result<(U256, u64), ErrReport>;
 
     // returns (in_amount, gas_used)
-    fn calculate_in_amount(&self, state: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport>;
+    fn calculate_in_amount(
+        &self,
+        state: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+        out_amount: U256,
+    ) -> Result<(U256, u64), ErrReport>;
 
     fn can_flash_swap(&self) -> bool;
 
@@ -302,10 +316,24 @@ pub enum PreswapRequirement {
 }
 
 pub trait AbiSwapEncoder {
-    fn encode_swap_in_amount_provided(&self, _token_from_address: Address, _token_to_address: Address, _amount: U256, _recipient: Address, _payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_in_amount_provided(
+        &self,
+        _token_from_address: Address,
+        _token_to_address: Address,
+        _amount: U256,
+        _recipient: Address,
+        _payload: Bytes,
+    ) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
-    fn encode_swap_out_amount_provided(&self, _token_from_address: Address, _token_to_address: Address, _amount: U256, _recipient: Address, _payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_out_amount_provided(
+        &self,
+        _token_from_address: Address,
+        _token_to_address: Address,
+        _amount: U256,
+        _recipient: Address,
+        _payload: Bytes,
+    ) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
     fn preswap_requirement(&self) -> PreswapRequirement {
@@ -337,16 +365,12 @@ pub trait AbiSwapEncoder {
 }
 
 #[cfg(test)]
-mod test
-{
+mod test {
     use crate::PoolClass;
-
-    use super::*;
 
     #[test]
     fn test_strum() {
-        println!("{}", PoolClass::Unknown.to_string());
-        println!("{}", PoolClass::UniswapV2.to_string());
-        println!("{:?}", PoolClass::from_str("uniswap2"));
+        println!("{}", PoolClass::Unknown);
+        println!("{}", PoolClass::UniswapV2);
     }
 }

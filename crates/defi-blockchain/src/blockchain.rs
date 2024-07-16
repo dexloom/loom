@@ -4,13 +4,15 @@ use alloy::{
 };
 
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Token};
-use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent};
+use defi_events::{
+    BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose,
+    StateUpdateEvent,
+};
 use defi_types::{ChainParameters, Mempool};
 use loom_actors::{Broadcaster, SharedState};
 
 #[derive(Clone)]
-pub struct Blockchain
-{
+pub struct Blockchain {
     chain_id: i64,
     chain_parameters: ChainParameters,
     market: SharedState<Market>,
@@ -33,8 +35,7 @@ pub struct Blockchain
     state_update_channel: Broadcaster<StateUpdateEvent>,
 }
 
-impl Blockchain
-{
+impl Blockchain {
     pub fn new(chain_id: i64) -> Blockchain {
         let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
@@ -49,14 +50,12 @@ impl Blockchain
         let compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(1000);
         let state_update_channel: Broadcaster<StateUpdateEvent> = Broadcaster::new(1000);
 
-
         let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
         let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
         let usdt_address: Address = "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap();
         let dai_address: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();
         let wbtc_address: Address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".parse().unwrap();
         let threecrv_address: Address = "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse().unwrap();
-
 
         let mut market_instance = Market::default();
 
@@ -112,7 +111,6 @@ impl Blockchain
     pub fn latest_block(&self) -> SharedState<LatestBlock> {
         self.latest_block.clone()
     }
-
 
     pub fn market_state(&self) -> SharedState<MarketState> {
         self.market_state.clone()
@@ -173,4 +171,3 @@ impl Blockchain
         self.state_update_channel.clone()
     }
 }
-

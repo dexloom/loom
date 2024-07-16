@@ -11,8 +11,7 @@ use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::env_for_block;
 
 #[derive(Clone, Debug)]
-pub struct StateUpdateEvent
-{
+pub struct StateUpdateEvent {
     pub block: u64,
     pub block_timestamp: u64,
     pub gas_fee: u128,
@@ -24,11 +23,9 @@ pub struct StateUpdateEvent
     pub stuffing_txs: Vec<Transaction>,
     pub origin: String,
     pub tips_pct: u32,
-
 }
 
-impl StateUpdateEvent
-{
+impl StateUpdateEvent {
     pub fn new(
         block: u64,
         block_timestamp: u64,
@@ -61,7 +58,6 @@ impl StateUpdateEvent
         env_for_block(self.block, self.block_timestamp)
     }
 
-
     pub fn directions(&self) -> &BTreeMap<PoolWrapper, Vec<(Address, Address)>> {
         &self.directions
     }
@@ -77,7 +73,6 @@ impl StateUpdateEvent
     pub fn state_required(&self) -> &Option<GethStateUpdateVec> {
         &self.state_required
     }
-
 
     pub fn stuffing_len(&self) -> usize {
         self.stuffing_txs_hashes.len()

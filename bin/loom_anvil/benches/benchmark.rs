@@ -6,25 +6,25 @@ use std::time::Duration;
 
 use alloy_primitives::{Address, BlockNumber, U256};
 use chrono::Local;
-use criterion::{BenchmarkId, black_box, Criterion, criterion_group, criterion_main};
 use criterion::async_executor::AsyncExecutor;
+use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use eyre::Result;
 use log::{debug, error, info};
 use rand::prelude::{Rng, SeedableRng, StdRng};
 use rand::thread_rng;
-use rayon::{ThreadPool, ThreadPoolBuilder};
 use rayon::prelude::*;
+use rayon::{ThreadPool, ThreadPoolBuilder};
 use revm::db::{CacheDB, EmptyDB};
-use revm::InMemoryDB;
 use revm::primitives::Env;
+use revm::InMemoryDB;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
 use debug_provider::AnvilDebugProviderFactory;
-use defi_entities::{MarketState, Pool, PoolWrapper};
 use defi_entities::required_state::RequiredStateReader;
-use defi_pools::{UniswapV2Pool, UniswapV3Pool};
+use defi_entities::{MarketState, Pool, PoolWrapper};
 use defi_pools::protocols::UniswapV3Protocol;
+use defi_pools::{UniswapV2Pool, UniswapV3Pool};
 use loom_revm_db::LoomInMemoryDB;
 
 async fn performance_test() {
@@ -35,7 +35,6 @@ async fn performance_test() {
     for _ in 0..60_000 {
         //let random_u256 = rng.gen::<U256>();
         //let address = rng.gen::<Address>();
-
 
         let random_bytes: [u8; 32] = rng.gen();
         let random_u256 = U256::from_be_bytes(random_bytes);
@@ -52,7 +51,6 @@ async fn performance_test() {
     values.sort_unstable();
 }
 
-
 async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
     //let provider = Provider::<Ws>::connect_with_reconnects("ws://honey3.loop:8008/looper", 10).await.unwrap();
 
@@ -64,7 +62,6 @@ async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
 
     market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
-
     let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
     //let pool_address: Address = "0x5777d92f208679db4b9778590fa3cab3ac9e2168".parse().unwrap();
     let mut pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
@@ -72,7 +69,6 @@ async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
     //let pool_address: Address = "0x9c2dc3d5ffcecf61312c5f4c00660695b32fb3d1".parse().unwrap();
     //let pool_address: Address = "0xa478c2975ab1ea89e8196811f51a7b7ade33eb11".parse().unwrap();
     //let mut pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
-
 
     let state_required = pool.get_state_required()?;
 
@@ -108,7 +104,6 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
 
     let in_vec: Vec<U256> = range.map(|i| in_amount + (step * U256::from(i))).collect();
 
-
     let (result_tx, mut result_rx) = tokio::sync::mpsc::channel::<U256>(ITER_COUNT / 1);
 
     let state_db_clone = state_db.clone();
@@ -116,7 +111,6 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
     let tokens = pool.get_tokens();
     let token_from = tokens[1];
     let token_to = tokens[0];
-
 
     tokio::task::spawn(async move {
         threadpool.install(|| {
@@ -127,7 +121,9 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
                 }
 
                 match req.2.try_send(out_amount) {
-                    Err(e) => { error!("{e}") }
+                    Err(e) => {
+                        error!("{e}")
+                    }
                     _ => {}
                 }
             });
@@ -139,7 +135,6 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
 
     let mut counter: usize = 0;
 
-
     while let Some(result) = result_rx.recv().await {
         counter += 1;
     }
@@ -149,7 +144,6 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
     assert_eq!(counter, ITER_COUNT, "NOT_ALL_RESULTS");
 }
 
-
 async fn rayon_parallel_run<'a>(state_db: &LoomInMemoryDB, pool: PoolWrapper) {
     const TASKS_COUNT: u32 = 3;
     let mut tasks: Vec<JoinHandle<_>> = Vec::new();
@@ -158,20 +152,17 @@ async fn rayon_parallel_run<'a>(state_db: &LoomInMemoryDB, pool: PoolWrapper) {
     println!("Cpus {cpus}");
     let threadpool = Arc::new(ThreadPoolBuilder::new().num_threads(cpus - 2).build().unwrap());
 
-
     for i in 0..TASKS_COUNT {
         let pool_clone = pool.clone();
         let state_db_clone = state_db.clone();
         let threadpool_ptr = threadpool.clone();
-        tasks.push(
-            tokio::task::spawn(async move {
-                let start_time = Local::now();
-                println!("Task {i} started {start_time}");
-                rayon_run(&state_db_clone, pool_clone, threadpool_ptr).await;
-                let finish_time = Local::now();
-                println!("Task {i} finished {finish_time} elapsed : {}", finish_time - start_time);
-            })
-        );
+        tasks.push(tokio::task::spawn(async move {
+            let start_time = Local::now();
+            println!("Task {i} started {start_time}");
+            rayon_run(&state_db_clone, pool_clone, threadpool_ptr).await;
+            let finish_time = Local::now();
+            println!("Task {i} finished {finish_time} elapsed : {}", finish_time - start_time);
+        }));
     }
     for t in tasks {
         match t.await {
@@ -182,7 +173,6 @@ async fn rayon_parallel_run<'a>(state_db: &LoomInMemoryDB, pool: PoolWrapper) {
         }
     }
 }
-
 
 async fn tokio_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
     let evm_env = Env::default();
@@ -211,13 +201,17 @@ async fn tokio_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
                         drop(request_rx_guard);
                         match req {
                             Some(req) => {
-                                let (out_amount, gas_used) = pool.calculate_out_amount(req.0.deref(), req.1.as_ref().clone(), &pool.token1, &pool.token0, req.2).unwrap();
+                                let (out_amount, gas_used) = pool
+                                    .calculate_out_amount(req.0.deref(), req.1.as_ref().clone(), &pool.token1, &pool.token0, req.2)
+                                    .unwrap();
                                 if out_amount.is_zero() || gas_used < 50_000 {
                                     panic!("BAD CALC")
                                 }
 
                                 match result_tx_ptr.try_send(out_amount) {
-                                    Err(e) => { println!("result_tx_ptr error: {e}") }
+                                    Err(e) => {
+                                        println!("result_tx_ptr error: {e}")
+                                    }
                                     _ => {}
                                 }
                             }
@@ -227,7 +221,9 @@ async fn tokio_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
                             }
                         }
                     }
-                    None => { break; }
+                    None => {
+                        break;
+                    }
                 }
             }
             //println!("Worker {i} finished");
@@ -236,24 +232,26 @@ async fn tokio_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
 
     drop(result_tx);
 
-
     let range = 0..ITER_COUNT;
     let in_vec: Vec<U256> = range.map(|i| in_amount + (step * U256::from(i))).collect();
 
     let env_clone = Arc::new(evm_env);
     let state_db_clone = Arc::new(state_db.clone());
 
-
     for in_amount in in_vec.into_iter() {
         match request_tx.try_send(Some((state_db_clone.clone(), env_clone.clone(), in_amount))) {
-            Err(e) => { println!("error : {e}") }
+            Err(e) => {
+                println!("error : {e}")
+            }
             _ => {}
         }
     }
 
     for w in 0..WORKERS_COUNT {
         match request_tx.send(None).await {
-            Err(e) => { println!("error : {e}") }
+            Err(e) => {
+                println!("error : {e}")
+            }
             _ => {}
         }
     }
@@ -269,24 +267,20 @@ async fn tokio_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
     assert_eq!(counter, ITER_COUNT, "NOT_ALL_RESULTS");
 }
 
-
 async fn tokio_parallel_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
     const TASKS_COUNT: u32 = 3;
     let mut tasks: Vec<JoinHandle<_>> = Vec::new();
 
-
     for i in 0..TASKS_COUNT {
         let pool_clone = pool.clone();
         let state_db_clone = state_db.clone();
-        tasks.push(
-            tokio::task::spawn(async move {
-                let start_time = Local::now();
-                println!("Tokio Task {i} started {start_time}");
-                tokio_run(&state_db_clone, pool_clone).await;
-                let finish_time = Local::now();
-                println!("Tokio Task {i} finished {finish_time} elapsed : {}", finish_time - start_time);
-            })
-        );
+        tasks.push(tokio::task::spawn(async move {
+            let start_time = Local::now();
+            println!("Tokio Task {i} started {start_time}");
+            tokio_run(&state_db_clone, pool_clone).await;
+            let finish_time = Local::now();
+            println!("Tokio Task {i} finished {finish_time} elapsed : {}", finish_time - start_time);
+        }));
     }
     for t in tasks {
         match t.await {
@@ -303,15 +297,9 @@ fn benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("pool speed");
     group.measurement_time(Duration::from_secs(60));
 
+    let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
 
-    let rt = tokio::runtime::Builder::new_multi_thread()
-        .enable_all()
-        .build()
-        .unwrap();
-
-    let fetch_result = rt.block_on(
-        fetch_data_and_pool()
-    ).unwrap();
+    let fetch_result = rt.block_on(fetch_data_and_pool()).unwrap();
 
     let cache_db = fetch_result.0.state_db;
     let pool = fetch_result.1;
@@ -321,9 +309,7 @@ fn benchmark(c: &mut Criterion) {
     });
 
      */
-    group.bench_function("tokio_parallel_run", |b|
-    b.iter(|| rt.block_on(sync_run(black_box(&cache_db), black_box(pool.clone())))),
-    );
+    group.bench_function("tokio_parallel_run", |b| b.iter(|| rt.block_on(sync_run(black_box(&cache_db), black_box(pool.clone())))));
 
     group.finish();
 }
@@ -332,7 +318,6 @@ fn benchmark(c: &mut Criterion) {
 criterion_group!(benches, benchmark);
 #[cfg(not(test))]
 criterion_main!(benches);
-
 
 #[cfg(test)]
 #[tokio::main]

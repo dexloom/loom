@@ -8,8 +8,8 @@ use alloy_primitives::{Address, I256, U256};
 use lazy_static::lazy_static;
 
 lazy_static! {
-    static ref WETH_ADDRESS : Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-    static ref ONE_ETHER : U256 = U256::from(10).pow(U256::from(18));
+    static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
+    static ref ONE_ETHER: U256 = U256::from(10).pow(U256::from(18));
 }
 
 #[derive(Clone, Debug, Default)]
@@ -21,7 +21,6 @@ pub struct Token {
     name: Option<String>,
     symbol: Option<String>,
     eth_price: Arc<RwLock<Option<U256>>>,
-
 }
 
 pub type TokenWrapper = Arc<Token>;
@@ -70,35 +69,27 @@ impl PartialOrd for Token {
 
 impl Token {
     pub fn new(address: Address) -> Token {
-        Token {
-            address,
-            decimals: Some(18),
-            ..Token::default()
-        }
+        Token { address, decimals: Some(18), ..Token::default() }
     }
 
-    pub fn new_with_data(address: Address, symbol: Option<String>, name: Option<String>, decimals: Option<i32>, basic: bool, middle: bool) -> Token {
-        Token {
-            address,
-            symbol,
-            name,
-            decimals,
-            basic,
-            middle,
-            ..Default::default()
-        }
+    pub fn new_with_data(
+        address: Address,
+        symbol: Option<String>,
+        name: Option<String>,
+        decimals: Option<i32>,
+        basic: bool,
+        middle: bool,
+    ) -> Token {
+        Token { address, symbol, name, decimals, basic, middle, ..Default::default() }
     }
-
 
     pub fn get_eth_price(&self) -> Option<U256> {
         if self.is_weth() {
             Some(*ONE_ETHER)
         } else {
             match self.eth_price.read() {
-                Ok(x) => {
-                    *x
-                }
-                _ => None
+                Ok(x) => *x,
+                _ => None,
             }
         }
     }
@@ -117,7 +108,6 @@ impl Token {
         let x = self.get_eth_price();
         x.map(|x| eth_value.mul(x).div(*ONE_ETHER))
     }
-
 
     pub fn get_symbol(&self) -> String {
         self.symbol.clone().unwrap_or(self.address.to_string())
@@ -140,7 +130,6 @@ impl Token {
         }
     }
 
-
     pub fn get_address(&self) -> Address {
         self.address
     }
@@ -157,7 +146,6 @@ impl Token {
         self.basic = true;
         self
     }
-
 
     pub fn set_middle(&mut self) -> &mut Self {
         self.middle = true;
@@ -184,11 +172,7 @@ impl Token {
     }
 
     pub fn to_float_sign(&self, value: I256) -> f64 {
-        let r: U256 = if value.is_positive() {
-            value.into_raw()
-        } else {
-            value.neg().into_raw()
-        };
+        let r: U256 = if value.is_positive() { value.into_raw() } else { value.neg().into_raw() };
         let f = self.to_float(r);
         if value.is_positive() {
             f
@@ -196,7 +180,6 @@ impl Token {
             -f
         }
     }
-
 
     pub fn from_float(&self, value: f64) -> U256 {
         let multiplier = U256::from(value as i64);
@@ -208,7 +191,6 @@ impl Token {
         self.address == *WETH_ADDRESS
     }
 }
-
 
 pub struct NWETH {}
 
@@ -222,7 +204,6 @@ impl NWETH {
     pub fn to_float(value: U256) -> f64 {
         let divider = U256::from(Self::NWETH_EXP);
 
-
         let ret = value.div_rem(divider);
 
         let div = u64::try_from(ret.0);
@@ -234,7 +215,6 @@ impl NWETH {
             div.unwrap_or_default() as f64 + ((rem.unwrap_or_default() as f64) / Self::NWETH_EXP)
         }
     }
-
 
     pub fn to_float_gwei(value: u128) -> f64 {
         let div = value / Self::GWEI_EXP_U128;
@@ -249,7 +229,6 @@ impl NWETH {
 
         div as f64 + ((rem as f64) / Self::WEI_EXP)
     }
-
 
     pub fn from_float(value: f64) -> U256 {
         let multiplier = U256::from(value as i64);

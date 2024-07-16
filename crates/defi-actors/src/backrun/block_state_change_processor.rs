@@ -15,8 +15,7 @@ pub async fn block_state_change_worker(
     block_history: SharedState<BlockHistory>,
     mut market_events_rx: Receiver<MarketEvents>,
     state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     //let mut block_number;
     //let mut block_hash;
     //let mut timestamp;
@@ -71,13 +70,10 @@ pub async fn block_state_change_worker(
                                                 "block_searcher".to_string(),
                                                 9000
                                             );
-                                            match state_updates_broadcaster.send(request).await {
-                                                Err(e)=>{error!("{}", e)}
-                                                _=>{}
+                                            if let Err(e) = state_updates_broadcaster.send(request).await {
+                                                error!("{}", e)
                                             }
-
                                         }
-
                                     }
                                 }
                             }
@@ -93,10 +89,8 @@ pub async fn block_state_change_worker(
     }
 }
 
-
 #[derive(Accessor, Consumer, Producer)]
-pub struct BlockStateChangeProcessorActor
-{
+pub struct BlockStateChangeProcessorActor {
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
@@ -107,15 +101,9 @@ pub struct BlockStateChangeProcessorActor
     state_updates_tx: Option<Broadcaster<StateUpdateEvent>>,
 }
 
-impl BlockStateChangeProcessorActor
-{
+impl BlockStateChangeProcessorActor {
     pub fn new() -> BlockStateChangeProcessorActor {
-        BlockStateChangeProcessorActor {
-            market: None,
-            block_history: None,
-            market_events_rx: None,
-            state_updates_tx: None,
-        }
+        BlockStateChangeProcessorActor { market: None, block_history: None, market_events_rx: None, state_updates_tx: None }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -129,20 +117,16 @@ impl BlockStateChangeProcessorActor
 }
 
 #[async_trait]
-impl Actor for BlockStateChangeProcessorActor
-{
+impl Actor for BlockStateChangeProcessorActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            block_state_change_worker(
-                self.market.clone().unwrap(),
-                self.block_history.clone().unwrap(),
-                self.market_events_rx.clone().unwrap().subscribe().await,
-                self.state_updates_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(block_state_change_worker(
+            self.market.clone().unwrap(),
+            self.block_history.clone().unwrap(),
+            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.state_updates_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
-
 
     fn name(&self) -> &'static str {
         "BlockStateChangeProcessorActor"

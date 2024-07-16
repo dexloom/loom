@@ -39,7 +39,6 @@ pub enum FlashbotsMiddlewareError {
     MiddlewareError(#[from] RpcError<TransportErrorKind>),
 }
 
-
 pub struct FlashbotsMiddleware<P, T> {
     provider: P,
     relay: Relay,
@@ -56,21 +55,11 @@ where
     ///
     /// The signer is used to sign requests to the relay.
     pub fn new(relay_url: impl Into<Url>, provider: P) -> Self {
-        Self {
-            provider,
-            relay: Relay::new(relay_url, Some(PrivateKeySigner::random())),
-            simulation_relay: None,
-            _t: PhantomData,
-        }
+        Self { provider, relay: Relay::new(relay_url, Some(PrivateKeySigner::random())), simulation_relay: None, _t: PhantomData }
     }
 
     pub fn new_no_signer(relay_url: impl Into<Url>, provider: P) -> Self {
-        Self {
-            provider,
-            relay: Relay::new(relay_url, None),
-            simulation_relay: None,
-            _t: PhantomData,
-        }
+        Self { provider, relay: Relay::new(relay_url, None), simulation_relay: None, _t: PhantomData }
     }
 
     /// Get the relay client used by the middleware.
@@ -97,10 +86,7 @@ where
     /// See [`eth_callBundle`][fb_callBundle] for more information.
     ///
     /// [fb_callBundle]: https://docs.flashbots.net/flashbots-auction/searchers/advanced/rpc-endpoint#eth_callbundle
-    pub async fn simulate_bundle(
-        &self,
-        bundle: &BundleRequest,
-    ) -> Result<SimulatedBundle, FlashbotsMiddlewareError> {
+    pub async fn simulate_bundle(&self, bundle: &BundleRequest) -> Result<SimulatedBundle, FlashbotsMiddlewareError> {
         bundle
             .block()
             .and(bundle.simulation_block())
@@ -115,17 +101,10 @@ where
             .map_err(FlashbotsMiddlewareError::RelayError)
     }
 
-    pub async fn simulate_local_bundle(
-        &self,
-        bundle: &BundleRequest,
-    ) -> Result<SimulatedBundle, FlashbotsMiddlewareError> {
+    pub async fn simulate_local_bundle(&self, bundle: &BundleRequest) -> Result<SimulatedBundle, FlashbotsMiddlewareError> {
         match self.provider.client().request("eth_callBundle", [bundle]).await {
-            Ok(result) => {
-                Ok(result)
-            }
-            Err(e) => {
-                Err(FlashbotsMiddlewareError::MiddlewareError(e))
-            }
+            Ok(result) => Ok(result),
+            Err(e) => Err(FlashbotsMiddlewareError::MiddlewareError(e)),
         }
     }
 
@@ -134,26 +113,17 @@ where
     /// See [`eth_sendBundle`][fb_sendBundle] for more information.
     ///
     /// [fb_sendBundle]: https://docs.flashbots.net/flashbots-auction/searchers/advanced/rpc-endpoint#eth_sendbundle
-    pub async fn send_bundle(
-        &self,
-        bundle: &BundleRequest,
-    ) -> Result<(), FlashbotsMiddlewareError>
-    {
+    pub async fn send_bundle(&self, bundle: &BundleRequest) -> Result<(), FlashbotsMiddlewareError> {
         // The target block must be set
-        bundle
-            .block()
-            .ok_or(FlashbotsMiddlewareError::MissingParameters)?;
+        bundle.block().ok_or(FlashbotsMiddlewareError::MissingParameters)?;
 
         // `min_timestamp` and `max_timestamp` must both either be unset or set.
         if bundle.min_timestamp().xor(bundle.max_timestamp()).is_some() {
             return Err(FlashbotsMiddlewareError::MissingParameters);
         }
 
-        let _response: SendBundleResponse = self
-            .relay
-            .request("eth_sendBundle", [bundle])
-            .await
-            .map_err(FlashbotsMiddlewareError::RelayError)?;
+        let _response: SendBundleResponse =
+            self.relay.request("eth_sendBundle", [bundle]).await.map_err(FlashbotsMiddlewareError::RelayError)?;
 
         Ok(())
     }

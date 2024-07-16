@@ -13,7 +13,6 @@ pub struct NodeMempoolDataUpdate {
 
 pub type MessageMempoolDataUpdate = Message<NodeMempoolDataUpdate>;
 
-
 #[derive(Clone, Debug)]
 pub struct BlockStateUpdate {
     pub block_hash: BlockHash,

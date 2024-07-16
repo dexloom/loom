@@ -21,14 +21,17 @@ impl SwapPathSet {
         }
     }
 
-
     pub fn to_arc_vec(self) -> Vec<Arc<SwapPath>> {
         self.set.into_iter().map(Arc::new).collect()
     }
 }
 
-
-fn build_swap_path_two_hopes_basic_in(market: &Market, pool: &PoolWrapper, token_from_address: Address, token_to_address: Address) -> Result<Vec<SwapPath>> {
+fn build_swap_path_two_hopes_basic_in(
+    market: &Market,
+    pool: &PoolWrapper,
+    token_from_address: Address,
+    token_to_address: Address,
+) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
     if let Some(token_token_pools) = market.get_token_token_pools(&token_to_address, &token_from_address) {
         for pool_address in token_token_pools.iter() {
@@ -40,13 +43,10 @@ fn build_swap_path_two_hopes_basic_in(market: &Market, pool: &PoolWrapper, token
                 let token_from = market.get_token_or_default(&token_from_address);
                 let token_to = market.get_token_or_default(&token_to_address);
 
-
                 let mut swap_path = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
                 if !swap_path.contains_pool(loop_pool) {
                     swap_path.push_swap_hope(token_to, token_from, loop_pool.clone())?;
-                    ret.push(
-                        swap_path
-                    )
+                    ret.push(swap_path)
                 }
             }
         }
@@ -54,7 +54,12 @@ fn build_swap_path_two_hopes_basic_in(market: &Market, pool: &PoolWrapper, token
     Ok(ret)
 }
 
-fn build_swap_path_three_hopes_basic_in(market: &Market, pool: &PoolWrapper, token_from_address: Address, token_to_address: Address) -> Result<Vec<SwapPath>> {
+fn build_swap_path_three_hopes_basic_in(
+    market: &Market,
+    pool: &PoolWrapper,
+    token_from_address: Address,
+    token_to_address: Address,
+) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_to_address) {
         for token_middle_address in token_tokens.iter() {
@@ -89,9 +94,7 @@ fn build_swap_path_three_hopes_basic_in(market: &Market, pool: &PoolWrapper, tok
                                         continue;
                                     }
 
-                                    ret.push(
-                                        swap
-                                    )
+                                    ret.push(swap)
                                 }
                             }
                         }
@@ -103,7 +106,12 @@ fn build_swap_path_three_hopes_basic_in(market: &Market, pool: &PoolWrapper, tok
     Ok(ret)
 }
 
-fn build_swap_path_four_hopes_basic_in(market: &Market, pool: &PoolWrapper, token_from_address: Address, token_to_address: Address) -> Result<Vec<SwapPath>> {
+fn build_swap_path_four_hopes_basic_in(
+    market: &Market,
+    pool: &PoolWrapper,
+    token_from_address: Address,
+    token_to_address: Address,
+) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_to_address) {
         for token_middle_address in token_tokens.iter() {
@@ -141,7 +149,8 @@ fn build_swap_path_four_hopes_basic_in(market: &Market, pool: &PoolWrapper, toke
                                                         let token_middle = market.get_token_or_default(token_middle_address);
                                                         let token_middle_0 = market.get_token_or_default(token_middle_address_0);
 
-                                                        let mut swap = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
+                                                        let mut swap =
+                                                            SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
                                                         if !swap.contains_pool(pool_1) {
                                                             let _ = swap.push_swap_hope(token_to, token_middle.clone(), pool_1.clone());
                                                         } else {
@@ -149,7 +158,8 @@ fn build_swap_path_four_hopes_basic_in(market: &Market, pool: &PoolWrapper, toke
                                                         }
 
                                                         if !swap.contains_pool(pool_2) {
-                                                            let _ = swap.push_swap_hope(token_middle, token_middle_0.clone(), pool_2.clone());
+                                                            let _ =
+                                                                swap.push_swap_hope(token_middle, token_middle_0.clone(), pool_2.clone());
                                                         } else {
                                                             continue;
                                                         }
@@ -160,9 +170,7 @@ fn build_swap_path_four_hopes_basic_in(market: &Market, pool: &PoolWrapper, toke
                                                             continue;
                                                         }
 
-                                                        ret.push(
-                                                            swap
-                                                        )
+                                                        ret.push(swap)
                                                     }
                                                 }
                                             }
@@ -179,8 +187,12 @@ fn build_swap_path_four_hopes_basic_in(market: &Market, pool: &PoolWrapper, toke
     Ok(ret)
 }
 
-
-fn build_swap_path_two_hopes_basic_out(market: &Market, pool: &PoolWrapper, token_from_address: Address, token_to_address: Address) -> Result<Vec<SwapPath>> {
+fn build_swap_path_two_hopes_basic_out(
+    market: &Market,
+    pool: &PoolWrapper,
+    token_from_address: Address,
+    token_to_address: Address,
+) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
     if let Some(token_token_pools) = market.get_token_token_pools(&token_to_address, &token_from_address) {
         for pool_address in token_token_pools.iter() {
@@ -195,9 +207,7 @@ fn build_swap_path_two_hopes_basic_out(market: &Market, pool: &PoolWrapper, toke
                 let mut swap = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
                 if !swap.contains_pool(loop_pool) {
                     let _ = swap.insert_swap_hope(token_to, token_from, loop_pool.clone());
-                    ret.push(
-                        swap
-                    )
+                    ret.push(swap)
                 }
             }
         }
@@ -205,8 +215,12 @@ fn build_swap_path_two_hopes_basic_out(market: &Market, pool: &PoolWrapper, toke
     Ok(ret)
 }
 
-
-fn build_swap_path_three_hopes_basic_out(market: &Market, pool: &PoolWrapper, token_from_address: Address, token_to_address: Address) -> Result<Vec<SwapPath>> {
+fn build_swap_path_three_hopes_basic_out(
+    market: &Market,
+    pool: &PoolWrapper,
+    token_from_address: Address,
+    token_to_address: Address,
+) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_from_address) {
         for token_middle_address in token_tokens.iter() {
@@ -240,9 +254,7 @@ fn build_swap_path_three_hopes_basic_out(market: &Market, pool: &PoolWrapper, to
                                         continue;
                                     }
 
-                                    ret.push(
-                                        swap
-                                    )
+                                    ret.push(swap)
                                 }
                             }
                         }
@@ -254,8 +266,12 @@ fn build_swap_path_three_hopes_basic_out(market: &Market, pool: &PoolWrapper, to
     Ok(ret)
 }
 
-
-fn build_swap_path_four_hopes_basic_out(market: &Market, pool: &PoolWrapper, token_from_address: Address, token_to_address: Address) -> Result<Vec<SwapPath>> {
+fn build_swap_path_four_hopes_basic_out(
+    market: &Market,
+    pool: &PoolWrapper,
+    token_from_address: Address,
+    token_to_address: Address,
+) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_from_address) {
         for token_middle_address in token_tokens.iter() {
@@ -277,7 +293,6 @@ fn build_swap_path_four_hopes_basic_out(market: &Market, pool: &PoolWrapper, tok
                                         continue;
                                     }
 
-
                                     for pool_address_1 in token_token_pools_1.iter() {
                                         if !market.is_pool_ok(pool_address_1) {
                                             continue;
@@ -296,16 +311,22 @@ fn build_swap_path_four_hopes_basic_out(market: &Market, pool: &PoolWrapper, tok
                                                         let token_middle = market.get_token_or_default(token_middle_address);
                                                         let token_middle_0 = market.get_token_or_default(token_middle_address_0);
 
-                                                        let mut swap = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
+                                                        let mut swap =
+                                                            SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
 
                                                         if !swap.contains_pool(pool_2) {
-                                                            let _ = swap.insert_swap_hope(token_middle.clone(), token_from.clone(), pool_2.clone());
+                                                            let _ = swap.insert_swap_hope(
+                                                                token_middle.clone(),
+                                                                token_from.clone(),
+                                                                pool_2.clone(),
+                                                            );
                                                         } else {
                                                             continue;
                                                         }
 
                                                         if !swap.contains_pool(pool_1) {
-                                                            let _ = swap.insert_swap_hope(token_middle_0.clone(), token_middle, pool_1.clone());
+                                                            let _ =
+                                                                swap.insert_swap_hope(token_middle_0.clone(), token_middle, pool_1.clone());
                                                         } else {
                                                             continue;
                                                         }
@@ -316,10 +337,7 @@ fn build_swap_path_four_hopes_basic_out(market: &Market, pool: &PoolWrapper, tok
                                                             continue;
                                                         }
 
-
-                                                        ret.push(
-                                                            swap
-                                                        )
+                                                        ret.push(swap)
                                                     }
                                                 }
                                             }
@@ -336,8 +354,12 @@ fn build_swap_path_four_hopes_basic_out(market: &Market, pool: &PoolWrapper, tok
     Ok(ret)
 }
 
-
-fn build_swap_path_three_hopes_no_basic(market: &Market, pool: &PoolWrapper, token_from_address: Address, token_to_address: Address) -> Result<Vec<SwapPath>> {
+fn build_swap_path_three_hopes_no_basic(
+    market: &Market,
+    pool: &PoolWrapper,
+    token_from_address: Address,
+    token_to_address: Address,
+) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_from_address) {
         for token_basic_address in token_tokens.iter() {
@@ -376,9 +398,7 @@ fn build_swap_path_three_hopes_no_basic(market: &Market, pool: &PoolWrapper, tok
                                         continue;
                                     }
 
-                                    ret.push(
-                                        swap
-                                    )
+                                    ret.push(swap)
                                 }
                             }
                         }
@@ -390,11 +410,9 @@ fn build_swap_path_three_hopes_no_basic(market: &Market, pool: &PoolWrapper, tok
     Ok(ret)
 }
 
-
 pub fn build_swap_path_vec(market: &Market, directions: &BTreeMap<PoolWrapper, Vec<(Address, Address)>>) -> Result<Vec<Arc<SwapPath>>> {
     //let mut ret : Vec<SwapPath> = Vec::new();
     let mut ret_map = SwapPathSet::new();
-
 
     for (pool, directions) in directions.iter() {
         for direction in directions.iter() {
@@ -419,7 +437,9 @@ pub fn build_swap_path_vec(market: &Market, directions: &BTreeMap<PoolWrapper, V
                 }
             }
 
-            if (!market.is_basic_token(&token_from_address) && !market.is_basic_token(&token_to_address)) || (!Market::is_weth(&token_from_address) && !Market::is_weth(&token_to_address)) {
+            if (!market.is_basic_token(&token_from_address) && !market.is_basic_token(&token_to_address))
+                || (!Market::is_weth(&token_from_address) && !Market::is_weth(&token_to_address))
+            {
                 ret_map.extend(build_swap_path_three_hopes_no_basic(market, pool, token_from_address, token_to_address)?);
             }
         }

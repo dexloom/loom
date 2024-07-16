@@ -4,7 +4,7 @@ use std::sync::Arc;
 use alloy::{
     network::Ethereum,
     providers::{Provider, ProviderBuilder, RootProvider},
-    transports::{BoxTransport, http::Http, Transport},
+    transports::{http::Http, BoxTransport, Transport},
 };
 use reqwest::Client;
 
@@ -24,7 +24,6 @@ where
     }
 }
 
-
 struct DynProvider {
     inner: DynPrv<BoxTransport>,
 }
@@ -42,13 +41,12 @@ impl Provider for DynProvider {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use std::sync::Arc;
 
-    use alloy_provider::{Provider, ProviderBuilder};
     use alloy_provider::ext::AnvilApi;
+    use alloy_provider::{Provider, ProviderBuilder};
     use eyre::Result;
 
     use super::*;
@@ -59,9 +57,7 @@ mod test {
 
         let dyn_prv = Arc::new(Box::new(provider) as Box<dyn Provider<_>>);
 
-        let dyn_prv = DynPrv {
-            provider: dyn_prv.clone()
-        };
+        let dyn_prv = DynPrv { provider: dyn_prv.clone() };
 
         let dyn_prv = DynProvider::from(dyn_prv);
 

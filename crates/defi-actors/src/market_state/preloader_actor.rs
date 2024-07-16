@@ -20,11 +20,7 @@ use loom_actors::{Accessor, Actor, ActorResult, SharedState};
 use loom_actors_macros::Accessor;
 use loom_multicaller::SwapStepEncoder;
 
-pub async fn preload_market_state<P, T, N>(
-    client: P,
-    address_vec: Vec<Address>,
-    market_state: SharedState<MarketState>,
-) -> Result<()>
+pub async fn preload_market_state<P, T, N>(client: P, address_vec: Vec<Address>, market_state: SharedState<MarketState>) -> Result<()>
 where
     T: Transport + Clone,
     N: Network,
@@ -42,14 +38,8 @@ where
         let balance = client.get_balance(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
         let nonce = client.get_transaction_count(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
 
-        state.insert(address, AccountState {
-            balance: Some(balance),
-            code: Some(code),
-            nonce: Some(nonce),
-            storage: BTreeMap::new(),
-        });
+        state.insert(address, AccountState { balance: Some(balance), code: Some(code), nonce: Some(nonce), storage: BTreeMap::new() });
     }
-
 
     market_state_guard.add_state(&state);
 
@@ -58,8 +48,7 @@ where
 
 #[allow(dead_code)]
 #[derive(Accessor)]
-pub struct MarketStatePreloadedActor<P, T, N>
-{
+pub struct MarketStatePreloadedActor<P, T, N> {
     name: &'static str,
     client: P,
     addresses: Vec<Address>,
@@ -92,27 +81,18 @@ where
     }
 
     pub fn with_name(self, name: &'static str) -> Self {
-        Self {
-            name,
-            ..self
-        }
+        Self { name, ..self }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self {
-            market_state: Some(bc.market_state()),
-            ..self
-        }
+        Self { market_state: Some(bc.market_state()), ..self }
     }
 
     pub fn with_signers(self, tx_signers: SharedState<TxSigners>) -> Self {
         if let Ok(signers) = tx_signers.try_read() {
             let mut addresses = self.addresses;
             addresses.extend(signers.get_address_vec());
-            Self {
-                addresses,
-                ..self
-            }
+            Self { addresses, ..self }
         } else {
             self
         }
@@ -121,22 +101,15 @@ where
     pub fn with_encoder(self, encoder: &SwapStepEncoder) -> Self {
         let mut addresses = self.addresses;
         addresses.extend(vec![encoder.get_multicaller()]);
-        Self {
-            addresses,
-            ..self
-        }
+        Self { addresses, ..self }
     }
 
     pub fn with_address_vec(self, address_vec: Vec<Address>) -> Self {
         let mut addresses = self.addresses;
         addresses.extend(address_vec);
-        Self {
-            addresses,
-            ..self
-        }
+        Self { addresses, ..self }
     }
 }
-
 
 #[async_trait]
 impl<P, T, N> Actor for MarketStatePreloadedActor<P, T, N>
@@ -149,13 +122,8 @@ where
         let full_name = type_name::<Self>();
         full_name.split("::").last().unwrap_or(full_name)
     }
-    async fn start(&self) -> ActorResult
-    {
-        preload_market_state(
-            self.client.clone(),
-            self.addresses.clone(),
-            self.market_state.clone().unwrap(),
-        ).await?;
+    async fn start(&self) -> ActorResult {
+        preload_market_state(self.client.clone(), self.addresses.clone(), self.market_state.clone().unwrap()).await?;
         Ok(vec![])
     }
 }

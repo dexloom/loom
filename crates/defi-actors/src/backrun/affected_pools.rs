@@ -10,8 +10,7 @@ use loom_actors::SharedState;
 pub async fn get_affected_pools(
     market: SharedState<Market>,
     state_update: &GethStateUpdateVec,
-) -> Result<BTreeMap<PoolWrapper, Vec<(Address, Address)>>>
-{
+) -> Result<BTreeMap<PoolWrapper, Vec<(Address, Address)>>> {
     let market_guard = market.read().await;
 
     let mut affected_pools: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
@@ -30,5 +29,3 @@ pub async fn get_affected_pools(
 
     Ok(affected_pools)
 }
-
-

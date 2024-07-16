@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
-use alloy_primitives::{Address, B256, BlockHash, BlockNumber, U64};
-use alloy_rpc_types::{Block, BlockTransactions, Header, Log, Transaction};
+use alloy_primitives::{Address, BlockHash, BlockNumber, B256, U64};
 use alloy_rpc_types::state::{AccountOverride, StateOverride};
+use alloy_rpc_types::{Block, BlockTransactions, Header, Log, Transaction};
 
 use defi_types::GethStateUpdateVec;
 
@@ -28,16 +28,8 @@ impl LatestBlock {
     }
 
     pub fn new(block_number: BlockNumber, block_hash: BlockHash) -> Self {
-        Self {
-            block_number,
-            block_hash,
-            block_header: None,
-            block_with_txs: None,
-            logs: None,
-            diff: None,
-        }
+        Self { block_number, block_hash, block_header: None, block_with_txs: None, logs: None, diff: None }
     }
-
 
     pub fn node_state_override(&self) -> StateOverride {
         let mut cur_state_override = StateOverride::default();
@@ -49,7 +41,7 @@ impl LatestBlock {
                     account.balance = state.balance;
                     account.nonce = state.nonce.map(|n| U64::from(n));
 
-                    let diff: HashMap<B256, B256> = state.storage.iter().map(|(k, v)| (*k, (*v).into())).collect();
+                    let diff: HashMap<B256, B256> = state.storage.iter().map(|(k, v)| (*k, (*v))).collect();
                     account.state_diff = Some(diff);
                 }
             }
@@ -73,21 +65,21 @@ impl LatestBlock {
         None
     }
 
-    pub fn update(&mut self,
-                  block_number: BlockNumber,
-                  block_hash: BlockHash,
-                  block_header: Option<Header>,
-                  block_with_txes: Option<Block>,
-                  logs: Option<Vec<Log>>,
-                  diff: Option<GethStateUpdateVec>) -> bool
-    {
+    pub fn update(
+        &mut self,
+        block_number: BlockNumber,
+        block_hash: BlockHash,
+        block_header: Option<Header>,
+        block_with_txes: Option<Block>,
+        logs: Option<Vec<Log>>,
+        diff: Option<GethStateUpdateVec>,
+    ) -> bool {
         if block_number >= self.block_number {
             let is_new = block_number > self.block_number;
 
             if block_number > self.block_number || block_hash != self.block_hash {
                 *self = Self::new(block_number, block_hash);
             }
-
 
             if let Some(x) = block_header {
                 self.block_header = Some(x);

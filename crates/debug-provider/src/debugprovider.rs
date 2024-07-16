@@ -5,10 +5,7 @@ use alloy::{
     network::Ethereum,
     node_bindings::{Anvil, AnvilInstance},
     primitives::{BlockHash, BlockNumber, U64},
-    providers::{
-        ext::DebugApi,
-        Network, Provider, ProviderBuilder, RootProvider,
-    },
+    providers::{ext::DebugApi, Network, Provider, ProviderBuilder, RootProvider},
     rpc::{
         client::{RpcCall, WsConnect},
         types::{BlockNumberOrTag, TransactionRequest},
@@ -40,10 +37,10 @@ where
     _n: PhantomData<N>,
 }
 
-
 pub struct AnvilDebugProviderFactory {}
 
-pub type AnvilDebugProviderType = AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>;
+pub type AnvilDebugProviderType =
+AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>;
 
 impl AnvilDebugProviderFactory {
     pub async fn from_node_on_block(node_url: String, block: BlockNumber) -> Result<AnvilDebugProviderType> {
@@ -71,7 +68,6 @@ impl AnvilDebugProviderFactory {
             }
         }
 
-
         let ret = AnvilDebugProvider {
             _node: node_provider,
             _anvil: anvil_provider,
@@ -95,7 +91,6 @@ impl AnvilDebugProviderFactory {
             }
         }
 
-
         Ok(ret)
     }
 }
@@ -112,7 +107,6 @@ where
         Self { _node, _anvil, _anvil_instance: None, block_number, _ta: PhantomData, _tn: PhantomData, _n: PhantomData }
     }
 
-
     pub fn node(&self) -> &PN {
         &self._node
     }
@@ -122,12 +116,8 @@ where
 
     pub fn privkey(&self) -> Result<SecretKey> {
         match &self._anvil_instance {
-            Some(anvil) => {
-                Ok(anvil.clone().keys()[0].clone())
-            }
-            _ => {
-                Err(eyre!("NO_ANVIL_INSTANCE"))
-            }
+            Some(anvil) => Ok(anvil.clone().keys()[0].clone()),
+            _ => Err(eyre!("NO_ANVIL_INSTANCE")),
         }
     }
 }
@@ -154,7 +144,6 @@ impl<PN, PA, TN, TA, N> Provider<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N
 
  */
 
-
 impl<PN, PA, TA> Provider<TA, Ethereum> for AnvilDebugProvider<PN, PA, BoxTransport, TA, Ethereum>
 where
     TA: Transport + Clone,
@@ -166,20 +155,30 @@ where
         self._anvil.root()
     }
 
-
     fn get_block_number(&self) -> RpcCall<TA, (), U64, u64> {
         self._anvil.get_block_number().map_resp(|x| x.to())
     }
 }
 
 #[async_trait]
-pub trait DebugProviderExt<T = BoxTransport, N = Ethereum>
-{
-    async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace>;
-    async fn geth_debug_trace_block_by_number(&self, block: BlockNumberOrTag, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>>;
-    async fn geth_debug_trace_block_by_hash(&self, block: BlockHash, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>>;
+pub trait DebugProviderExt<T = BoxTransport, N = Ethereum> {
+    async fn geth_debug_trace_call(
+        &self,
+        tx: TransactionRequest,
+        block: BlockNumberOrTag,
+        trace_options: GethDebugTracingCallOptions,
+    ) -> TransportResult<GethTrace>;
+    async fn geth_debug_trace_block_by_number(
+        &self,
+        block: BlockNumberOrTag,
+        trace_options: GethDebugTracingOptions,
+    ) -> TransportResult<Vec<TraceResult>>;
+    async fn geth_debug_trace_block_by_hash(
+        &self,
+        block: BlockHash,
+        trace_options: GethDebugTracingOptions,
+    ) -> TransportResult<Vec<TraceResult>>;
 }
-
 
 #[async_trait]
 impl<T, N> DebugProviderExt<T, N> for RootProvider<BoxTransport>
@@ -187,13 +186,26 @@ where
     T: Transport + Clone,
     N: Network,
 {
-    async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
+    async fn geth_debug_trace_call(
+        &self,
+        tx: TransactionRequest,
+        block: BlockNumberOrTag,
+        trace_options: GethDebugTracingCallOptions,
+    ) -> TransportResult<GethTrace> {
         self.debug_trace_call(tx, block, trace_options).await
     }
-    async fn geth_debug_trace_block_by_number(&self, block: BlockNumberOrTag, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+    async fn geth_debug_trace_block_by_number(
+        &self,
+        block: BlockNumberOrTag,
+        trace_options: GethDebugTracingOptions,
+    ) -> TransportResult<Vec<TraceResult>> {
         self.debug_trace_block_by_number(block, trace_options).await
     }
-    async fn geth_debug_trace_block_by_hash(&self, block: BlockHash, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+    async fn geth_debug_trace_block_by_hash(
+        &self,
+        block: BlockHash,
+        trace_options: GethDebugTracingOptions,
+    ) -> TransportResult<Vec<TraceResult>> {
         self.debug_trace_block_by_hash(block, trace_options).await
     }
 }
@@ -204,13 +216,26 @@ where
     T: Transport + Clone,
     N: Network,
 {
-    async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
+    async fn geth_debug_trace_call(
+        &self,
+        tx: TransactionRequest,
+        block: BlockNumberOrTag,
+        trace_options: GethDebugTracingCallOptions,
+    ) -> TransportResult<GethTrace> {
         self.debug_trace_call(tx, block, trace_options).await
     }
-    async fn geth_debug_trace_block_by_number(&self, block: BlockNumberOrTag, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+    async fn geth_debug_trace_block_by_number(
+        &self,
+        block: BlockNumberOrTag,
+        trace_options: GethDebugTracingOptions,
+    ) -> TransportResult<Vec<TraceResult>> {
         self.debug_trace_block_by_number(block, trace_options).await
     }
-    async fn geth_debug_trace_block_by_hash(&self, block: BlockHash, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+    async fn geth_debug_trace_block_by_hash(
+        &self,
+        block: BlockHash,
+        trace_options: GethDebugTracingOptions,
+    ) -> TransportResult<Vec<TraceResult>> {
         self.debug_trace_block_by_hash(block, trace_options).await
     }
 }
@@ -224,26 +249,34 @@ where
     PN: Provider<TN, N> + Send + Sync + Clone + 'static,
     PA: Provider<TA, N> + Send + Sync + Clone + 'static,
 {
-    async fn geth_debug_trace_call(&self, tx: TransactionRequest, block: BlockNumberOrTag, trace_options: GethDebugTracingCallOptions) -> TransportResult<GethTrace> {
+    async fn geth_debug_trace_call(
+        &self,
+        tx: TransactionRequest,
+        block: BlockNumberOrTag,
+        trace_options: GethDebugTracingCallOptions,
+    ) -> TransportResult<GethTrace> {
         let block = match block {
-            BlockNumberOrTag::Number(_) => {
-                block
-            }
-            BlockNumberOrTag::Latest => {
-                self.block_number
-            }
-            _ => { block }
+            BlockNumberOrTag::Number(_) => block,
+            BlockNumberOrTag::Latest => self.block_number,
+            _ => block,
         };
         self._node.debug_trace_call(tx, block, trace_options).await
     }
-    async fn geth_debug_trace_block_by_number(&self, block: BlockNumberOrTag, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+    async fn geth_debug_trace_block_by_number(
+        &self,
+        block: BlockNumberOrTag,
+        trace_options: GethDebugTracingOptions,
+    ) -> TransportResult<Vec<TraceResult>> {
         self._node.debug_trace_block_by_number(block, trace_options).await
     }
-    async fn geth_debug_trace_block_by_hash(&self, block: BlockHash, trace_options: GethDebugTracingOptions) -> TransportResult<Vec<TraceResult>> {
+    async fn geth_debug_trace_block_by_hash(
+        &self,
+        block: BlockHash,
+        trace_options: GethDebugTracingOptions,
+    ) -> TransportResult<Vec<TraceResult>> {
         self._node.debug_trace_block_by_hash(block, trace_options).await
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -259,19 +292,14 @@ mod test {
     async fn test() -> Result<()> {
         std::env::set_var("RUST_LOG", "debug");
         std::env::set_var("RUST_BACKTRACE", "1");
-        let test_node_url = std::env::var("TEST_NODE_URL").unwrap_or("http://localhost:8545".to_string());
         let node_url = std::env::var("NODE_URL").unwrap_or("http://falcon.loop:8008/rpc".to_string());
 
-
         env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
-        let test_node_url = url::Url::parse(test_node_url.as_str())?;
         let node_url = url::Url::parse(node_url.as_str())?;
-
 
         let provider_anvil = ProviderBuilder::new().on_anvil_with_config(|x| x.chain_id(1).fork(node_url.clone()).fork_block_number(10000));
 
         let client_node = ClientBuilder::default().http(node_url).boxed();
-
 
         let provider_node = ProviderBuilder::new().on_client(client_node).boxed();
 
@@ -287,7 +315,10 @@ mod test {
         let cell0 = client.get_storage_at(contract, location).block_id(BlockNumberOrTag::Latest.into()).await?;
         println!("{} {}", block_number, cell0);
 
-        match client.geth_debug_trace_call(TransactionRequest::default(), BlockNumberOrTag::Latest, GethDebugTracingCallOptions::default()).await {
+        match client
+            .geth_debug_trace_call(TransactionRequest::default(), BlockNumberOrTag::Latest, GethDebugTracingCallOptions::default())
+            .await
+        {
             Ok(_) => {
                 println!("Ok")
             }
@@ -295,7 +326,6 @@ mod test {
                 println!("Error :{}", e)
             }
         }
-
 
         Ok(())
     }

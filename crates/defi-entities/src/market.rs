@@ -6,29 +6,25 @@ use eyre::Result;
 use lazy_static::lazy_static;
 use log::debug;
 
+use crate::build_swap_path_vec;
 use crate::{EmptyPool, Pool, PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
-use crate::build_swap_path_vec;
 
 #[derive(Default, Clone)]
-pub struct Market
-{
+pub struct Market {
     pools: HashMap<Address, PoolWrapper>,
     pools_disabled: HashMap<Address, bool>,
     tokens: HashMap<Address, Arc<Token>>,
     token_tokens: HashMap<Address, Vec<Address>>,
     token_pools: HashMap<Address, HashMap<Address, Vec<Address>>>,
     swap_paths: SwapPaths,
-
 }
 
 lazy_static! {
-    static ref WETH_ADDRESS : Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
+    static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
 }
 
-
-impl Market
-{
+impl Market {
     pub fn add_token<T: Into<Arc<Token>>>(&mut self, token: T) -> Result<()> {
         let arc_token: Arc<Token> = token.into();
         self.tokens.insert(arc_token.get_address(), arc_token);
@@ -46,7 +42,6 @@ impl Market
     pub fn is_weth(address: &Address) -> bool {
         *address == *WETH_ADDRESS
     }
-
 
     pub fn add_empty_pool(&mut self, address: &Address) -> Result<()> {
         let pool_contract = EmptyPool::new(*address);
@@ -131,7 +126,6 @@ impl Market
         self.pools_disabled.get(address).cloned().unwrap_or(true)
     }
 
-
     pub fn get_token_or_default(&self, address: &Address) -> Arc<Token> {
         self.tokens.get(address).map_or(Arc::new(Token::new(*address)), |t| t.clone())
     }
@@ -144,7 +138,6 @@ impl Market
         self.tokens.get_mut(address)
     }
      */
-
 
     pub fn get_token_token_pools(&self, token_from_address: &Address, token_to_address: &Address) -> Option<Vec<Address>> {
         if let Some(token_from_map) = self.token_pools.get(token_from_address) {
@@ -163,7 +156,6 @@ impl Market
         }
         None
     }
-
 
     pub fn get_token_tokens(&self, token_from_address: &Address) -> Option<Vec<Address>> {
         if let Some(token_vec) = self.token_tokens.get(token_from_address) {

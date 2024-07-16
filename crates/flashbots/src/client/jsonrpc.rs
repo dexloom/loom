@@ -22,11 +22,7 @@ pub struct JsonRpcError {
 
 impl fmt::Display for JsonRpcError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(
-            f,
-            "(code: {}, message: {}, data: {:?})",
-            self.code, self.message, self.data
-        )
+        write!(f, "(code: {}, message: {}, data: {:?})", self.code, self.message, self.data)
     }
 }
 
@@ -61,12 +57,7 @@ pub struct Subscription<R> {
 impl<'a, T> Request<'a, T> {
     /// Creates a new JSON RPC request
     pub fn new(id: u64, method: &'a str, params: T) -> Self {
-        Self {
-            id,
-            jsonrpc: "2.0",
-            method,
-            params,
-        }
+        Self { id, jsonrpc: "2.0", method, params }
     }
 }
 
@@ -103,8 +94,7 @@ mod tests {
 
     #[test]
     fn deser_response() {
-        let response: Response<u64> =
-            serde_json::from_str(r#"{"jsonrpc": "2.0", "result": 19, "id": 1}"#).unwrap();
+        let response: Response<u64> = serde_json::from_str(r#"{"jsonrpc": "2.0", "result": 19, "id": 1}"#).unwrap();
         assert_eq!(response.id, 1);
         assert_eq!(response.data.into_result().unwrap(), 19);
     }
@@ -112,15 +102,9 @@ mod tests {
     #[test]
     fn ser_request() {
         let request: Request<()> = Request::new(300, "method_name", ());
-        assert_eq!(
-            &serde_json::to_string(&request).unwrap(),
-            r#"{"id":300,"jsonrpc":"2.0","method":"method_name"}"#
-        );
+        assert_eq!(&serde_json::to_string(&request).unwrap(), r#"{"id":300,"jsonrpc":"2.0","method":"method_name"}"#);
 
         let request: Request<u32> = Request::new(300, "method_name", 1);
-        assert_eq!(
-            &serde_json::to_string(&request).unwrap(),
-            r#"{"id":300,"jsonrpc":"2.0","method":"method_name","params":1}"#
-        );
+        assert_eq!(&serde_json::to_string(&request).unwrap(), r#"{"id":300,"jsonrpc":"2.0","method":"method_name","params":1}"#);
     }
 }

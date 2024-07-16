@@ -21,10 +21,7 @@ pub struct MulticallerSwapEncoder {
 
 impl MulticallerSwapEncoder {
     pub fn new(multicaller_address: Address) -> Self {
-        Self {
-            multicaller_address,
-            swap_step_encoder: SwapStepEncoder::new(multicaller_address),
-        }
+        Self { multicaller_address, swap_step_encoder: SwapStepEncoder::new(multicaller_address) }
     }
 }
 
@@ -43,9 +40,7 @@ impl SwapEncoder for MulticallerSwapEncoder {
                 let (swap_step_0, swap_step_1) = swap_line.to_swap_steps(self.multicaller_address).ok_or_eyre("SWAP_TYPE_NOT_COVERED")?;
                 self.swap_step_encoder.encode(&swap_step_0, &swap_step_1)
             }
-            Swap::BackrunSwapSteps((swap_step_0, swap_step_1)) => {
-                self.swap_step_encoder.encode(swap_step_0, swap_step_1)
-            }
+            Swap::BackrunSwapSteps((swap_step_0, swap_step_1)) => self.swap_step_encoder.encode(swap_step_0, swap_step_1),
             Swap::Multiple(swap_vec) => {
                 if swap_vec.len() == 1 {
                     self.make_calls(&swap_vec[0])
@@ -64,4 +59,3 @@ impl SwapEncoder for MulticallerSwapEncoder {
         }
     }
 }
-

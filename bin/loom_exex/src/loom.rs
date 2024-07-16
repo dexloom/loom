@@ -11,8 +11,8 @@ use alloy::rpc::types::{Block, BlockTransactionsKind, Header};
 use alloy::transports::Transport;
 use eyre::OptionExt;
 use reth::primitives::BlockNumHash;
-use reth::revm::db::{BundleAccount, StorageWithOriginalValues};
 use reth::revm::db::states::StorageSlot;
+use reth::revm::db::{BundleAccount, StorageWithOriginalValues};
 use reth::transaction_pool::{BlobStore, Pool, TransactionOrdering, TransactionPool, TransactionValidator};
 use reth_execution_types::Chain;
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
@@ -33,10 +33,9 @@ use loom_utils::reth_types::append_all_matching_block_logs_sealed;
 pub async fn init<Node: FullNodeComponents>(
     ctx: ExExContext<Node>,
     bc: Blockchain,
-) -> eyre::Result<impl Future<Output=eyre::Result<()>>> {
+) -> eyre::Result<impl Future<Output = eyre::Result<()>>> {
     Ok(loom_exex(ctx, bc))
 }
-
 
 async fn process_chain(
     chain: Arc<Chain>,
@@ -59,7 +58,12 @@ async fn process_chain(
         let block_hash_num = BlockNumHash { number, hash };
 
         info!(block_number=?block_hash_num.number, block_hash=?block_hash_num.hash, "Processing block");
-        match reth_rpc_types_compat::block::from_block(sealed_block.clone().unseal(), sealed_block.difficulty, BlockTransactionsKind::Full, Some(sealed_block.hash())) {
+        match reth_rpc_types_compat::block::from_block(
+            sealed_block.clone().unseal(),
+            sealed_block.difficulty,
+            BlockTransactionsKind::Full,
+            Some(sealed_block.hash()),
+        ) {
             Ok(block) => {
                 if let Err(e) = block_with_tx_channel.send(block).await {
                     error!(error=?e.to_string(), "block_with_tx_channel.send")
@@ -76,10 +80,7 @@ async fn process_chain(
 
         append_all_matching_block_logs_sealed(&mut logs, block_hash_num.clone(), receipts, false, &sealed_block)?;
 
-        let log_update = BlockLogs {
-            block_hash: sealed_block.hash(),
-            logs,
-        };
+        let log_update = BlockLogs { block_hash: sealed_block.hash(), logs };
 
         if let Err(e) = logs_channel.send(log_update).await {
             error!(error=?e.to_string(), "logs_channel.send")
@@ -106,10 +107,7 @@ async fn process_chain(
                 }
             }
 
-            let block_state_update = BlockStateUpdate {
-                block_hash: block_hash_num.hash,
-                state_update: vec![state_update],
-            };
+            let block_state_update = BlockStateUpdate { block_hash: block_hash_num.hash, state_update: vec![state_update] };
 
             if let Err(e) = state_update_channel.send(block_state_update).await {
                 error!(error=?e.to_string(), "block_with_tx_channel.send")
@@ -117,13 +115,11 @@ async fn process_chain(
         }
     }
 
-
     Ok(())
 }
 
 async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc: Blockchain) -> eyre::Result<()> {
     info!("Loom ExEx is started");
-
 
     while let Some(exex_notification) = ctx.notifications.recv().await {
         match &exex_notification {
@@ -135,7 +131,9 @@ async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc: Blo
                     bc.new_block_with_tx_channel(),
                     bc.new_block_logs_channel(),
                     bc.new_block_state_update_channel(),
-                ).await {
+                )
+                .await
+                {
                     error!(error=?e, "process_chain");
                 }
             }
@@ -148,7 +146,9 @@ async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc: Blo
                     bc.new_block_with_tx_channel(),
                     bc.new_block_logs_channel(),
                     bc.new_block_state_update_channel(),
-                ).await {
+                )
+                .await
+                {
                     error!(error=?e, "process_chain");
                 }
             }
@@ -161,16 +161,14 @@ async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc: Blo
         }
     }
 
-
     info!("Loom ExEx is finished");
     Ok(())
 }
 
-
 pub async fn mempool_worker<V, T, S>(mempool: Pool<V, T, S>, bc: Blockchain) -> eyre::Result<()>
 where
     V: TransactionValidator,
-    T: TransactionOrdering<Transaction=<V as TransactionValidator>::Transaction>,
+    T: TransactionOrdering<Transaction = <V as TransactionValidator>::Transaction>,
     S: BlobStore,
 {
     info!("Mempool worker started");
@@ -201,7 +199,6 @@ pub async fn start_loom<P, T>(provider: P, bc: Blockchain, topology_config: Topo
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-
 {
     let chain_id = provider.get_chain_id().await?;
 
@@ -209,13 +206,9 @@ where
 
     let (_encoder_name, encoder) = topology_config.encoders.iter().next().ok_or_eyre("NO_ENCODER")?;
 
-
     let multicaller_address: Option<Address> = match encoder {
-        EncoderConfig::SwapStep(e) => {
-            e.address.parse().ok()
-        }
+        EncoderConfig::SwapStep(e) => e.address.parse().ok(),
     };
-
 
     let multicaller_address = multicaller_address.ok_or_eyre("MULTICALLER_ADDRESS_NOT_SET")?;
     let private_key_encrypted = hex::decode(env::var("DATA")?)?;
@@ -247,7 +240,6 @@ where
         .with_backrun_block().await? // load backrun searcher for incoming block
         .with_backrun_mempool().await? // load backrun searcher for mempool txes
     ;
-
 
     bc_actors.wait().await;
 

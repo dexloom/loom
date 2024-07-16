@@ -17,8 +17,7 @@ use loom_actors_macros::Producer;
 use crate::node_player::node_player_worker::node_player_worker;
 
 #[derive(Producer)]
-pub struct NodeBlockPlayerActor<P, T, N>
-{
+pub struct NodeBlockPlayerActor<P, T, N> {
     client: P,
     start_block: BlockNumber,
     end_block: BlockNumber,
@@ -74,17 +73,15 @@ where
     N: Send + Sync,
 {
     async fn start(&self) -> ActorResult {
-        let handler = tokio::task::spawn(
-            node_player_worker(
-                self.client.clone(),
-                self.start_block,
-                self.end_block,
-                self.block_header_channel.clone(),
-                self.block_with_tx_channel.clone(),
-                self.block_logs_channel.clone(),
-                self.block_state_update_channel.clone(),
-            )
-        );
+        let handler = tokio::task::spawn(node_player_worker(
+            self.client.clone(),
+            self.start_block,
+            self.end_block,
+            self.block_header_channel.clone(),
+            self.block_with_tx_channel.clone(),
+            self.block_logs_channel.clone(),
+            self.block_state_update_channel.clone(),
+        ));
         Ok(vec![handler])
     }
 
@@ -92,4 +89,3 @@ where
         type_name::<Self>().rsplit("::").next().unwrap_or(type_name::<Self>())
     }
 }
-

@@ -1,4 +1,4 @@
-use alloy_primitives::{B256, Bytes, hex};
+use alloy_primitives::{hex, Bytes, B256};
 use async_trait::async_trait;
 use log::{error, info};
 
@@ -20,11 +20,7 @@ impl InitializeSignersActor {
     pub fn new(key: Option<Vec<u8>>) -> InitializeSignersActor {
         let key = key.unwrap_or_else(|| B256::random().to_vec());
 
-        InitializeSignersActor {
-            key: Some(key),
-            signers: None,
-            monitor: None,
-        }
+        InitializeSignersActor { key: Some(key), signers: None, monitor: None }
     }
 
     pub fn new_from_encrypted_env() -> InitializeSignersActor {
@@ -34,40 +30,25 @@ impl InitializeSignersActor {
                 let key = keystore.encrypt_once(hex::decode(priv_key_enc).unwrap().as_slice()).unwrap();
                 Some(key)
             }
-            _ => None
+            _ => None,
         };
 
-        InitializeSignersActor {
-            key,
-            signers: None,
-            monitor: None,
-        }
+        InitializeSignersActor { key, signers: None, monitor: None }
     }
 
     pub fn new_from_encrypted_key(priv_key_enc: Vec<u8>) -> InitializeSignersActor {
         let keystore = KeyStore::new();
         let key = keystore.encrypt_once(priv_key_enc.as_slice()).unwrap();
 
-        InitializeSignersActor {
-            key: Some(key),
-            signers: None,
-            monitor: None,
-        }
+        InitializeSignersActor { key: Some(key), signers: None, monitor: None }
     }
 
-
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self {
-            monitor: Some(bc.nonce_and_balance()),
-            ..self
-        }
+        Self { monitor: Some(bc.nonce_and_balance()), ..self }
     }
 
     pub fn with_signers(self, signers: SharedState<TxSigners>) -> Self {
-        Self {
-            signers: Some(signers),
-            ..self
-        }
+        Self { signers: Some(signers), ..self }
     }
 }
 
@@ -78,7 +59,7 @@ impl Actor for InitializeSignersActor {
             Some(key) => {
                 let new_signer = self.signers.clone().unwrap().write().await.add_privkey(Bytes::from(key));
                 self.monitor.clone().unwrap().write().await.add_account(new_signer.address());
-                info!("New signer added {:?}", new_signer.address() );
+                info!("New signer added {:?}", new_signer.address());
             }
             _ => {
                 error!("No signer keys found");

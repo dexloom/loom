@@ -1,9 +1,6 @@
 use std::time::Duration;
 
-use alloy::{
-    providers::ProviderBuilder,
-    rpc::client::ClientBuilder,
-};
+use alloy::{providers::ProviderBuilder, rpc::client::ClientBuilder};
 use eyre::Result;
 use log::{error, info};
 use tokio::select;
@@ -18,7 +15,10 @@ async fn main() -> Result<()> {
     let start_block_number = 20179184;
     let end_block_number = start_block_number + 1000;
 
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug,alloy_rpc_client=off,debug_provider=info,alloy_transport_http=off,hyper_util=off"));
+    env_logger::init_from_env(
+        env_logger::Env::default()
+            .default_filter_or("debug,alloy_rpc_client=off,debug_provider=info,alloy_transport_http=off,hyper_util=off"),
+    );
 
     let transport = HttpCachedTransport::new(Url::parse("http://falcon.loop:8008/rpc")?, Some("./.cache")).await;
     transport.set_block_number(start_block_number);
@@ -31,7 +31,6 @@ async fn main() -> Result<()> {
 
     // new blockchain
     let bc = Blockchain::new(1);
-
 
     /*
     let mut actor_manager = ActorsManager::new();
@@ -71,19 +70,23 @@ async fn main() -> Result<()> {
     // instead fo code above
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
     bc_actors
-        .initialize_signers_with_key(None).await?
-        .with_market_state_preloader().await?
-        .with_signers().await?
-        .with_nonce_and_balance_monitor().await?
-        .with_block_history().await?
-        .with_gas_station().await?;
-
+        .initialize_signers_with_key(None)
+        .await?
+        .with_market_state_preloader()
+        .await?
+        .with_signers()
+        .await?
+        .with_nonce_and_balance_monitor()
+        .await?
+        .with_block_history()
+        .await?
+        .with_gas_station()
+        .await?;
 
     // Start node block player actor
     if let Err(e) = bc_actors.start(NodeBlockPlayerActor::new(provider.clone(), start_block_number, end_block_number).on_bc(&bc)).await {
         panic!("Cannot start block player : {}", e);
     }
-
 
     tokio::task::spawn(bc_actors.wait());
 

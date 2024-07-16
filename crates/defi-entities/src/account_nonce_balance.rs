@@ -40,7 +40,6 @@ impl AccountNonceAndBalances {
         self
     }
 
-
     pub fn get_eth_balance(&self) -> U256 {
         self.balance.get(&Address::ZERO).cloned().unwrap_or_default()
     }
@@ -53,7 +52,6 @@ impl AccountNonceAndBalances {
 pub struct AccountNonceAndBalanceState {
     accounts: HashMap<Address, AccountNonceAndBalances>,
 }
-
 
 impl AccountNonceAndBalanceState {
     pub fn new() -> Self {
@@ -75,7 +73,6 @@ impl AccountNonceAndBalanceState {
     pub fn get_accounts_vec(&self) -> Vec<Address> {
         self.accounts.keys().copied().collect()
     }
-
 
     pub fn is_monitored(&self, account: &Address) -> bool {
         self.accounts.contains_key(account)

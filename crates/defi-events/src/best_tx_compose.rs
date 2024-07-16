@@ -9,16 +9,11 @@ pub struct BestTxCompose {
     best_profit_gas_ratio_swap: Option<TxComposeData>,
     best_tips_swap: Option<TxComposeData>,
     best_tips_gas_ratio_swap: Option<TxComposeData>,
-
 }
-
 
 impl BestTxCompose {
     pub fn new_with_pct<T: Into<U256>>(validity_pct: T) -> Self {
-        BestTxCompose {
-            validity_pct: Some(validity_pct.into()),
-            ..Default::default()
-        }
+        BestTxCompose { validity_pct: Some(validity_pct.into()), ..Default::default() }
     }
 
     pub fn check(&mut self, request: &TxComposeData) -> bool {
@@ -60,18 +55,15 @@ impl BestTxCompose {
             }
         }
 
-
         if request.gas != 0 {
             match &self.best_tips_gas_ratio_swap {
                 Some(best_swap) => {
                     if best_swap.tips_gas_ratio() < request.tips_gas_ratio() {
                         self.best_tips_gas_ratio_swap = Some(request.clone());
                         is_ok = true;
-                    } else {
-                        if let Some(pct) = self.validity_pct {
-                            if (best_swap.tips_gas_ratio() * pct) / U256::from(10000) < request.tips_gas_ratio() {
-                                is_ok = true
-                            }
+                    } else if let Some(pct) = self.validity_pct {
+                        if (best_swap.tips_gas_ratio() * pct) / U256::from(10000) < request.tips_gas_ratio() {
+                            is_ok = true
                         }
                     }
                 }
@@ -86,11 +78,9 @@ impl BestTxCompose {
                     if best_swap.profit_eth_gas_ratio() < request.profit_eth_gas_ratio() {
                         self.best_profit_gas_ratio_swap = Some(request.clone());
                         is_ok = true;
-                    } else {
-                        if let Some(pct) = self.validity_pct {
-                            if (best_swap.profit_eth_gas_ratio() * pct) / U256::from(10000) < request.profit_eth_gas_ratio() {
-                                is_ok = true
-                            }
+                    } else if let Some(pct) = self.validity_pct {
+                        if (best_swap.profit_eth_gas_ratio() * pct) / U256::from(10000) < request.profit_eth_gas_ratio() {
+                            is_ok = true
                         }
                     }
                 }

@@ -19,26 +19,19 @@ pub struct SwapStep {
 
 impl Display for SwapStep {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let paths = self.swap_line_vec.iter().map(|path| {
-            format!("{path}")
-        }).collect::<Vec<String>>().join(" / ");
+        let paths = self.swap_line_vec.iter().map(|path| format!("{path}")).collect::<Vec<String>>().join(" / ");
         write!(f, "{}", paths)
     }
 }
 
 impl SwapStep {
     pub fn new(swap_to: Address) -> Self {
-        Self {
-            swap_line_vec: Vec::new(),
-            swap_to,
-            swap_from: None,
-        }
+        Self { swap_line_vec: Vec::new(), swap_to, swap_from: None }
     }
 
     pub fn get_mut_swap_line_by_index(&mut self, idx: usize) -> &mut SwapLine {
         &mut self.swap_line_vec[idx]
     }
-
 
     pub fn swap_line_vec(&self) -> &Vec<SwapLine> {
         &self.swap_line_vec
@@ -59,26 +52,31 @@ impl SwapStep {
     pub fn first_token(&self) -> Option<&Arc<Token>> {
         match self.first_swap_line() {
             Some(s) => s.get_first_token(),
-            None => None
+            None => None,
         }
     }
 
     pub fn last_token(&self) -> Option<&Arc<Token>> {
         match self.first_swap_line() {
             Some(s) => s.get_last_token(),
-            None => None
+            None => None,
         }
     }
 
-
     pub fn add(&mut self, swap_path: SwapLine) -> &mut Self {
-        if self.is_empty() {
-            self.swap_line_vec.push(swap_path);
-        } else if (self.first_token().unwrap() == swap_path.get_first_token().unwrap()) &&
-            (self.last_token().unwrap() == swap_path.get_last_token().unwrap()) {
+        if self.is_empty() ||
+            ((self.first_token().unwrap() == swap_path.get_first_token().unwrap())
+                && (self.last_token().unwrap() == swap_path.get_last_token().unwrap()))
+        {
             self.swap_line_vec.push(swap_path);
         } else {
-            error!("cannot add SwapPath {} != {} {} !=  {}", self.first_token().unwrap().get_address() , swap_path.get_first_token().unwrap().get_address(), self.last_token().unwrap().get_address() , swap_path.get_last_token().unwrap().get_address())
+            error!(
+                "cannot add SwapPath {} != {} {} !=  {}",
+                self.first_token().unwrap().get_address(),
+                swap_path.get_first_token().unwrap().get_address(),
+                self.last_token().unwrap().get_address(),
+                swap_path.get_last_token().unwrap().get_address()
+            )
         }
         self
     }
@@ -95,7 +93,6 @@ impl SwapStep {
         }
         current_preswap_requirement
     }
-
 
     pub fn can_flash_swap(&self) -> bool {
         for swap_line in self.swap_line_vec.iter() {
@@ -123,7 +120,6 @@ impl SwapStep {
         self.swap_line_vec.iter().flat_map(|sp| sp.pools().clone()).collect()
     }
 
-
     fn common_pools(swap_path_0: &SwapLine, swap_path_1: &SwapLine) -> usize {
         let mut ret = 0;
         for pool in swap_path_0.pools().iter() {
@@ -140,11 +136,11 @@ impl SwapStep {
         let mut split_index_start = 0;
         let mut split_index_end = 0;
 
-        if swap_path_0.get_first_token().unwrap() != swap_path_1.get_first_token().unwrap() ||
-            swap_path_0.get_last_token().unwrap() != swap_path_1.get_last_token().unwrap() {
+        if swap_path_0.get_first_token().unwrap() != swap_path_1.get_first_token().unwrap()
+            || swap_path_0.get_last_token().unwrap() != swap_path_1.get_last_token().unwrap()
+        {
             return Err(eyre!("CANNOT_MERGE_DIFFERENT_TOKENS"));
         }
-
 
         for i in 0..swap_path_0.pools().len() {
             if i >= swap_path_1.pools().len() {
@@ -156,14 +152,12 @@ impl SwapStep {
             let token_0 = &swap_path_0.tokens()[i + 1];
             let token_1 = &swap_path_1.tokens()[i + 1];
 
-
             if pool_0 == pool_1 && token_0 == token_1 {
                 split_index_start += 1;
             } else {
                 break;
             }
         }
-
 
         for i in 0..swap_path_0.pools().len() {
             if i >= swap_path_1.pools().len() {
@@ -186,18 +180,16 @@ impl SwapStep {
             return Err(eyre!("CANNOT_MERGE_BOTH_SIDES"));
         }
 
-
         let common_pools_count = Self::common_pools(&swap_path_0, &swap_path_1);
-        if (split_index_start > 0 && split_index_start != common_pools_count) ||
-            (split_index_end > 0 && split_index_end != common_pools_count) {
+        if (split_index_start > 0 && split_index_start != common_pools_count)
+            || (split_index_end > 0 && split_index_end != common_pools_count)
+        {
             return Err(eyre!("MORE_COMMON_POOLS"));
         }
-
 
         if split_index_start > 0 {
             let (mut split_0_0, mut split_0_1) = swap_path_0.split(split_index_start)?;
             let (split_1_0, mut split_1_1) = swap_path_1.split(split_index_start)?;
-
 
             let mut swap_step_0 = SwapStep::new(multicaller);
             let mut swap_step_1 = SwapStep::new(multicaller);
@@ -213,7 +205,6 @@ impl SwapStep {
                     split_0_0.amount_out = SwapAmountType::Set(a0.max(a1));
                 }
             }*/
-
 
             /*
             if let SwapAmountType::Set(a0) = swap_path_0.amount_in {
@@ -232,7 +223,6 @@ impl SwapStep {
                 }
             }
 
-
             swap_step_0.add(split_0_0);
 
             swap_step_1.add(split_0_1);
@@ -240,7 +230,6 @@ impl SwapStep {
 
             return Ok((swap_step_0, swap_step_1));
         }
-
 
         if split_index_end > 0 {
             let (mut split_0_0, mut split_0_1) = swap_path_0.split(swap_path_0.pools().len() - split_index_end)?;
@@ -264,7 +253,6 @@ impl SwapStep {
 
              */
 
-
             if let SwapAmountType::Set(a0) = swap_path_0.amount_in {
                 if let SwapAmountType::Set(a1) = swap_path_1.amount_in {
                     split_0_0.amount_in = SwapAmountType::Set((a0.max(a1) * a0 / (a0 + a1)) >> 1);
@@ -282,7 +270,6 @@ impl SwapStep {
 
              */
 
-
             swap_step_0.add(split_0_0);
             swap_step_0.add(split_1_0);
 
@@ -291,7 +278,6 @@ impl SwapStep {
             return Ok((swap_step_0, swap_step_1));
         }
 
-
         Err(eyre!("CANNOT_MERGE"))
     }
 
@@ -299,18 +285,16 @@ impl SwapStep {
         let mut ret: Option<Address> = None;
         for sp in self.swap_line_vec.iter() {
             match sp.get_first_token() {
-                Some(token) => {
-                    match ret {
-                        Some(a) => {
-                            if a != token.get_address() {
-                                return None;
-                            }
-                        }
-                        None => {
-                            ret = Some(token.get_address());
+                Some(token) => match ret {
+                    Some(a) => {
+                        if a != token.get_address() {
+                            return None;
                         }
                     }
-                }
+                    None => {
+                        ret = Some(token.get_address());
+                    }
+                },
                 _ => {
                     return None;
                 }
@@ -323,18 +307,16 @@ impl SwapStep {
         let mut ret: Option<&Arc<Token>> = None;
         for sp in self.swap_line_vec.iter() {
             match sp.get_first_token() {
-                Some(token) => {
-                    match &ret {
-                        Some(a) => {
-                            if a.get_address() != token.get_address() {
-                                return None;
-                            }
-                        }
-                        None => {
-                            ret = Some(token);
+                Some(token) => match &ret {
+                    Some(a) => {
+                        if a.get_address() != token.get_address() {
+                            return None;
                         }
                     }
-                }
+                    None => {
+                        ret = Some(token);
+                    }
+                },
                 _ => {
                     return None;
                 }
@@ -348,7 +330,7 @@ impl SwapStep {
         for swap_path in self.swap_line_vec.iter() {
             match swap_path.amount_in {
                 SwapAmountType::Set(amount) => in_amount += amount,
-                _ => return Err(eyre!("IN_AMOUNT_NOT_SET"))
+                _ => return Err(eyre!("IN_AMOUNT_NOT_SET")),
             }
         }
         Ok(in_amount)
@@ -359,12 +341,11 @@ impl SwapStep {
         for swap_path in self.swap_line_vec.iter() {
             match swap_path.amount_out {
                 SwapAmountType::Set(amount) => out_amount += amount,
-                _ => return Err(eyre!("IN_AMOUNT_NOT_SET"))
+                _ => return Err(eyre!("IN_AMOUNT_NOT_SET")),
             }
         }
         Ok(out_amount)
     }
-
 
     pub fn calculate_with_in_amount(&mut self, state: &LoomInMemoryDB, env: Env, in_ammount: Option<U256>) -> Result<(U256, u64)> {
         let mut out_amount = U256::ZERO;
@@ -373,16 +354,12 @@ impl SwapStep {
         for swap_path in self.swap_line_vec.iter_mut() {
             let cur_in_amount = match in_ammount {
                 Some(amount) => amount,
-                None => {
-                    match swap_path.amount_in {
-                        SwapAmountType::Set(amount) => {
-                            amount
-                        }
-                        _ => {
-                            return Err(eyre!("IN_AMOUNT_NOT_SET"));
-                        }
+                None => match swap_path.amount_in {
+                    SwapAmountType::Set(amount) => amount,
+                    _ => {
+                        return Err(eyre!("IN_AMOUNT_NOT_SET"));
                     }
-                }
+                },
             };
             swap_path.amount_in = SwapAmountType::Set(cur_in_amount);
 
@@ -407,20 +384,15 @@ impl SwapStep {
         for swap_path in self.swap_line_vec.iter_mut() {
             let cur_out_amount = match out_amount {
                 Some(amount) => amount,
-                None => {
-                    match swap_path.amount_out {
-                        SwapAmountType::Set(amount) => {
-                            amount
-                        }
-                        _ => {
-                            return Err(eyre!("IN_AMOUNT_NOT_SET"));
-                        }
+                None => match swap_path.amount_out {
+                    SwapAmountType::Set(amount) => amount,
+                    _ => {
+                        return Err(eyre!("IN_AMOUNT_NOT_SET"));
                     }
-                }
+                },
             };
 
             swap_path.amount_out = SwapAmountType::Set(cur_out_amount);
-
 
             match swap_path.calculate_with_out_amount(state, env.clone(), cur_out_amount) {
                 Ok((amount, gas)) => {
@@ -482,11 +454,17 @@ impl SwapStep {
                 let profit = Self::abs_profit(swap_step_0, swap_step_1);
                 t.calc_eth_value(profit).unwrap_or_default()
             }
-            _ => U256::ZERO
+            _ => U256::ZERO,
         }
     }
 
-    pub fn optimize_swap_steps(state: &LoomInMemoryDB, env: Env, swap_step_0: &SwapStep, swap_step_1: &SwapStep, middle_amount: Option<U256>) -> Result<(SwapStep, SwapStep)> {
+    pub fn optimize_swap_steps(
+        state: &LoomInMemoryDB,
+        env: Env,
+        swap_step_0: &SwapStep,
+        swap_step_1: &SwapStep,
+        middle_amount: Option<U256>,
+    ) -> Result<(SwapStep, SwapStep)> {
         if swap_step_0.can_calculate_in_amount() {
             SwapStep::optimize_with_middle_amount(state, env, swap_step_0, swap_step_1, middle_amount)
         } else {
@@ -494,21 +472,24 @@ impl SwapStep {
         }
     }
 
-    pub fn optimize_with_middle_amount(state: &LoomInMemoryDB, env: Env, swap_step_0: &SwapStep, swap_step_1: &SwapStep, middle_amount: Option<U256>) -> Result<(SwapStep, SwapStep)> {
+    pub fn optimize_with_middle_amount(
+        state: &LoomInMemoryDB,
+        env: Env,
+        swap_step_0: &SwapStep,
+        swap_step_1: &SwapStep,
+        middle_amount: Option<U256>,
+    ) -> Result<(SwapStep, SwapStep)> {
         let mut step_0 = swap_step_0.clone();
         let mut step_1 = swap_step_1.clone();
         let mut best_profit: Option<I256> = None;
 
-
         let (middle_amount, _) = match middle_amount {
             Some(amount) => step_0.calculate_with_in_amount(state, env.clone(), Some(amount))?,
-            _ => step_0.calculate_with_in_amount(state, env.clone(), None)?
+            _ => step_0.calculate_with_in_amount(state, env.clone(), None)?,
         };
-
 
         let step_0_out_amount = step_0.get_out_amount()?;
         let step_1_out_amount = step_1.get_out_amount()?;
-
 
         for swap_path_1 in step_1.swap_line_vec.iter_mut() {
             let in_amount = step_0_out_amount * swap_path_1.amount_out.unwrap() / step_1_out_amount;
@@ -526,7 +507,6 @@ impl SwapStep {
         //    return Ok((step_0, step_1))
         //}
 
-
         //let step_0_in_amount = step_0.get_in_amount().unwrap_or(U256::max_value());
         //let step_1_out_amount = step_1.get_out_amount().unwrap_or(U256::zero());
 
@@ -543,11 +523,7 @@ impl SwapStep {
         loop {
             counter += 1;
             if counter > 30 {
-                return if Self::profit(&step_0, &step_1).is_positive() {
-                    Ok((step_0, step_1))
-                } else {
-                    Err(eyre!("TOO_MANY_STEPS"))
-                };
+                return if Self::profit(&step_0, &step_1).is_positive() { Ok((step_0, step_1)) } else { Err(eyre!("TOO_MANY_STEPS")) };
             }
 
             let step0in = step_0.get_in_amount()?;
@@ -555,7 +531,6 @@ impl SwapStep {
             let step1in = step_1.get_in_amount()?;
             let step1out = step_1.get_out_amount()?;
             let profit = Self::profit(&step_0, &step_1);
-
 
             //debug!("middle_amount Steps :  {} in {} out {} in {} out {} profit {}", counter, step0in, step0out, step1in, step1out, profit);
 
@@ -571,7 +546,8 @@ impl SwapStep {
                     Some(new_out_amount) => {
                         if swap_path_0_calc.amount_out.unwrap() != new_out_amount {
                             let new_amount_out = amount_out + step;
-                            let (in_amount, gas) = swap_path_0_calc.calculate_with_out_amount(state, env.clone(), new_amount_out).unwrap_or((U256::MAX, 0));
+                            let (in_amount, gas) =
+                                swap_path_0_calc.calculate_with_out_amount(state, env.clone(), new_amount_out).unwrap_or((U256::MAX, 0));
                             swap_path_0_calc.amount_in = SwapAmountType::Set(in_amount);
                             swap_path_0_calc.amount_out = SwapAmountType::Set(new_amount_out);
                             swap_path_0_calc.gas_used = Some(gas)
@@ -595,7 +571,8 @@ impl SwapStep {
                 match new_amount_in {
                     Some(new_amount_in) => {
                         if swap_path_1_calc.amount_in.unwrap() != new_amount_in {
-                            let (out_amount, gas) = swap_path_1_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or((U256::ZERO, 0));
+                            let (out_amount, gas) =
+                                swap_path_1_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or((U256::ZERO, 0));
                             swap_path_1_calc.amount_out = SwapAmountType::Set(out_amount);
                             swap_path_1_calc.amount_in = SwapAmountType::Set(new_amount_in);
                             swap_path_1_calc.gas_used = Some(gas);
@@ -606,7 +583,6 @@ impl SwapStep {
                     }
                 }
             }
-
 
             let mut best_merged_step_0: Option<SwapStep> = None;
 
@@ -663,30 +639,31 @@ impl SwapStep {
         }
     }
 
-
-    pub fn optimize_with_in_amount(state: &LoomInMemoryDB, env: Env, swap_step_0: &SwapStep, swap_step_1: &SwapStep, in_amount: Option<U256>) -> Result<(SwapStep, SwapStep)> {
+    pub fn optimize_with_in_amount(
+        state: &LoomInMemoryDB,
+        env: Env,
+        swap_step_0: &SwapStep,
+        swap_step_1: &SwapStep,
+        in_amount: Option<U256>,
+    ) -> Result<(SwapStep, SwapStep)> {
         let mut step_0 = swap_step_0.clone();
         let mut step_1 = swap_step_1.clone();
         let mut best_profit: Option<I256> = None;
 
-
         match in_amount {
             Some(amount) => step_0.calculate_with_in_amount(state, env.clone(), Some(amount))?,
-            _ => step_0.calculate_with_in_amount(state, env.clone(), None)?
+            _ => step_0.calculate_with_in_amount(state, env.clone(), None)?,
         };
         let in_amount = step_0.get_in_amount()?;
 
-
         let step_0_out_amount = step_0.get_out_amount()?;
         let step_1_out_amount = step_1.get_out_amount()?;
-
 
         for swap_path_1 in step_1.swap_line_vec.iter_mut() {
             let in_amount = step_0_out_amount * swap_path_1.amount_out.unwrap() / step_1_out_amount;
             swap_path_1.amount_in = SwapAmountType::Set(in_amount);
         }
         let _ = step_1.calculate_with_in_amount(state, env.clone(), None)?;
-
 
         //debug!("AfterCalc SwapStep0 {:?}", step_0);
         //debug!("AfterCalc SwapStep1 {:?}", step_1);
@@ -700,7 +677,6 @@ impl SwapStep {
             return Ok((step_0, step_1))
         }
          */
-
 
         let step_0_in_amount = step_0.get_in_amount().unwrap_or(U256::MAX);
         let step_1_out_amount = step_1.get_out_amount().unwrap_or(U256::ZERO);
@@ -718,11 +694,7 @@ impl SwapStep {
         loop {
             counter += 1;
             if counter > 30 {
-                return if Self::profit(&step_0, &step_1).is_positive() {
-                    Ok((step_0, step_1))
-                } else {
-                    Err(eyre!("TOO_MANY_STEPS"))
-                };
+                return if Self::profit(&step_0, &step_1).is_positive() { Ok((step_0, step_1)) } else { Err(eyre!("TOO_MANY_STEPS")) };
             }
 
             let step0in = step_0.get_in_amount()?;
@@ -731,13 +703,15 @@ impl SwapStep {
             let step1out = step_1.get_out_amount()?;
             let profit = Self::profit(&step_0, &step_1);
 
-
             //debug!("in_amount Steps :  {} in {} out {} in {} out {} profit {}", counter, step0in, step0out, step1in, step1out, profit);
 
             for (i, swap_path_0_calc) in step_0_calc.swap_line_vec.iter_mut().enumerate() {
-                if step_0.swap_line_vec[i].amount_in.unwrap() > step && swap_path_0_calc.amount_in.unwrap() != step_0.swap_line_vec[i].amount_in.unwrap() - step {
+                if step_0.swap_line_vec[i].amount_in.unwrap() > step
+                    && swap_path_0_calc.amount_in.unwrap() != step_0.swap_line_vec[i].amount_in.unwrap() - step
+                {
                     let new_amount_in = step_0.swap_line_vec[i].amount_in.unwrap() + step;
-                    let (amount_out, gas) = swap_path_0_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or((U256::ZERO, 0));
+                    let (amount_out, gas) =
+                        swap_path_0_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or((U256::ZERO, 0));
                     swap_path_0_calc.amount_in = SwapAmountType::Set(new_amount_in);
                     swap_path_0_calc.amount_out = SwapAmountType::Set(amount_out);
                     swap_path_0_calc.gas_used = Some(gas);
@@ -769,15 +743,17 @@ impl SwapStep {
             let middle_amount_step = best_merged_step_0.clone().unwrap().get_out_amount()? - step_1.get_in_amount()?;
 
             for (i, swap_path_1_calc) in step_1_calc.swap_line_vec.iter_mut().enumerate() {
-                if step_1.swap_line_vec[i].amount_in.unwrap() > middle_amount_step && swap_path_1_calc.amount_in.unwrap() != step_1.swap_line_vec[i].amount_in.unwrap() - middle_amount_step {
+                if step_1.swap_line_vec[i].amount_in.unwrap() > middle_amount_step
+                    && swap_path_1_calc.amount_in.unwrap() != step_1.swap_line_vec[i].amount_in.unwrap() - middle_amount_step
+                {
                     let new_amount_in = step_1.swap_line_vec[i].amount_in.unwrap() + middle_amount_step;
-                    let (out_amount, gas) = swap_path_1_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or_default();
+                    let (out_amount, gas) =
+                        swap_path_1_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or_default();
                     swap_path_1_calc.amount_out = SwapAmountType::Set(out_amount);
                     swap_path_1_calc.amount_in = SwapAmountType::Set(new_amount_in);
                     swap_path_1_calc.gas_used = Some(gas);
                 }
             }
-
 
             let mut best_merged_step_1: Option<SwapStep> = None;
 
@@ -796,7 +772,6 @@ impl SwapStep {
             }
 
             //let new_in_amount = middle_amount - step;
-
 
             if best_merged_step_0.is_none() || best_merged_step_1.is_none() {
                 //debug!("optimize_swap_steps_in_amount {} {}", counter, Self::profit(&step_0, &step_1)  );
@@ -827,11 +802,11 @@ impl SwapStep {
                 };
             }
         }
-        return if Self::profit(&step_0, &step_1).is_positive() {
+
+        if Self::profit(&step_0, &step_1).is_positive() {
             Ok((step_0, step_1))
         } else {
             Err(eyre!("OPTIMIZATION_FAILED"))
-        };
+        }
     }
 }
-

@@ -10,10 +10,8 @@ pub struct SwapError {
     pub amount: U256,
 }
 
-
 impl From<SwapError> for Report {
     fn from(value: SwapError) -> Self {
         eyre!(value.msg)
     }
 }
-

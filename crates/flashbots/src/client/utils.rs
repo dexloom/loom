@@ -5,8 +5,8 @@ use serde::{de, Deserialize};
 use serde_json::Value;
 
 pub fn deserialize_u64<'de, D>(deserializer: D) -> Result<U64, D::Error>
-    where
-        D: de::Deserializer<'de>,
+where
+    D: de::Deserializer<'de>,
 {
     Ok(match Value::deserialize(deserializer)? {
         Value::String(s) => {
@@ -20,17 +20,14 @@ pub fn deserialize_u64<'de, D>(deserializer: D) -> Result<U64, D::Error>
                 U64::from_str_radix(s.as_str(), 10).map_err(de::Error::custom)?
             }
         }
-        Value::Number(num) => U64::from(
-            num.as_u64()
-                .ok_or_else(|| de::Error::custom("Invalid number"))?,
-        ),
+        Value::Number(num) => U64::from(num.as_u64().ok_or_else(|| de::Error::custom("Invalid number"))?),
         _ => return Err(de::Error::custom("wrong type")),
     })
 }
 
 pub fn deserialize_u256<'de, D>(deserializer: D) -> Result<U256, D::Error>
-    where
-        D: de::Deserializer<'de>,
+where
+    D: de::Deserializer<'de>,
 {
     Ok(match Value::deserialize(deserializer)? {
         Value::String(s) => {
@@ -44,17 +41,14 @@ pub fn deserialize_u256<'de, D>(deserializer: D) -> Result<U256, D::Error>
                 U256::from_str_radix(s.as_str(), 10).map_err(de::Error::custom)?
             }
         }
-        Value::Number(num) => U256::from(
-            num.as_u64()
-                .ok_or_else(|| de::Error::custom("Invalid number"))?,
-        ),
+        Value::Number(num) => U256::from(num.as_u64().ok_or_else(|| de::Error::custom("Invalid number"))?),
         _ => return Err(de::Error::custom("wrong type")),
     })
 }
 
 pub fn deserialize_optional_h160<'de, D>(deserializer: D) -> Result<Option<Address>, D::Error>
-    where
-        D: de::Deserializer<'de>,
+where
+    D: de::Deserializer<'de>,
 {
     Ok(match Value::deserialize(deserializer)? {
         Value::String(s) => {

@@ -15,22 +15,19 @@ pub enum FetchState<T: Clone> {
     Ready(T),
 }
 
-
 #[derive(Debug, Clone, Default)]
 pub struct DataFetcher<K, V>
-    where
-        K: Clone + Default + Eq + PartialEq + Hash + Send + Sync + 'static,
-        V: Clone + Default + Send + Sync + 'static,
+where
+    K: Clone + Default + Eq + PartialEq + Hash + Send + Sync + 'static,
+    V: Clone + Default + Send + Sync + 'static,
 {
     data: HashMap<K, FetchState<V>>,
-
 }
 
-
-impl<K, V, > DataFetcher<K, V>
-    where
-        K: Clone + Default + Eq + PartialEq + Hash + Send + Sync + 'static,
-        V: Clone + Default + Send + Sync + 'static,
+impl<K, V> DataFetcher<K, V>
+where
+    K: Clone + Default + Eq + PartialEq + Hash + Send + Sync + 'static,
+    V: Clone + Default + Send + Sync + 'static,
 {
     pub fn new() -> Self {
         Self {
@@ -39,11 +36,10 @@ impl<K, V, > DataFetcher<K, V>
         }
     }
 
-
     pub async fn fetch<F, Fut>(&mut self, key: K, fx: F) -> FetchState<V>
-        where
-            F: FnOnce(K) -> Fut + Send + 'static,
-            Fut: Future<Output=Result<V>> + Send + 'static,
+    where
+        F: FnOnce(K) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<V>> + Send + 'static,
     {
         if let Some(x) = self.data.get(&key) {
             return x.clone();
@@ -79,21 +75,17 @@ impl<K, V, > DataFetcher<K, V>
         FetchState::Fetching(lock)
     }
 
-
     pub async fn get<F, Fut>(&mut self, key: K, fx: F) -> Result<Option<V>>
-        where
-            F: FnOnce(K) -> Fut + Send + 'static,
-            Fut: Future<Output=Result<V>> + Send + 'static,
-
+    where
+        F: FnOnce(K) -> Fut + Send + 'static,
+        Fut: Future<Output = Result<V>> + Send + 'static,
     {
         match self.fetch(key.clone(), fx).await {
             Fetching(lock) => {
                 let ret = lock.read().await;
                 Ok(ret.clone())
             }
-            FetchState::Ready(v) => {
-                Ok(Some(v))
-            }
+            FetchState::Ready(v) => Ok(Some(v)),
         }
     }
 }

@@ -1,5 +1,5 @@
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use alloy_primitives::{hex, keccak256};
 use alloy_signer::Signer;
@@ -48,10 +48,7 @@ pub enum RelayError {
     SignerError(alloy_signer::Error),
     /// The response could not be deserialized.
     #[error("Deserialization error: {err}. Response: {text}")]
-    ResponseSerdeJson {
-        err: serde_json::Error,
-        text: String,
-    },
+    ResponseSerdeJson { err: serde_json::Error, text: String },
 }
 
 impl Relay {
@@ -60,53 +57,30 @@ impl Relay {
         //let client = Client::builder().trust_dns(true).build().unwrap();
         let client = Client::new();
 
-        Self {
-            id: Arc::new(AtomicU64::new(0)),
-            client,
-            url: url.into(),
-            signer,
-        }
+        Self { id: Arc::new(AtomicU64::new(0)), client, url: url.into(), signer }
     }
 
     /// Sends a request with the provided method to the relay, with the
     /// parameters serialized as JSON.
-    pub async fn request<T: Serialize + Send + Sync, R: DeserializeOwned>(
-        &self,
-        method: &str,
-        params: T,
-    ) -> Result<R, RelayError> {
+    pub async fn request<T: Serialize + Send + Sync, R: DeserializeOwned>(&self, method: &str, params: T) -> Result<R, RelayError> {
         let next_id = self.id.load(Ordering::SeqCst) + 1;
         self.id.store(next_id, Ordering::SeqCst);
 
         let payload = Request::new(next_id, method, params);
 
-        let body = serde_json::to_string(&payload)
-            .map_err(RelayError::RequestSerdeJson)?;
-
+        let body = serde_json::to_string(&payload).map_err(RelayError::RequestSerdeJson)?;
 
         let body_hash = keccak256(body.clone()).to_string();
         trace!("Body hash : {} {}", body_hash, body);
 
-
         let mut req = self.client.post(self.url.as_ref()).body(body.clone()).body(body);
-
 
         if let Some(signer) = &self.signer {
             trace!("Signer on wallet  : {}", signer.address());
-            let signature = signer
-                .sign_message(
-                    body_hash.as_bytes())
-                .await
-                .map_err(RelayError::SignerError)?;
+            let signature = signer.sign_message(body_hash.as_bytes()).await.map_err(RelayError::SignerError)?;
 
-
-            req = req.header(
-                "X-Flashbots-Signature",
-                format!("{}:0x{}", signer.address(), hex::encode(signature.as_bytes())),
-            );
-            req = req.header(
-                "Content-Type", "application/json",
-            );
+            req = req.header("X-Flashbots-Signature", format!("{}:0x{}", signer.address(), hex::encode(signature.as_bytes())));
+            req = req.header("Content-Type", "application/json");
         }
 
         let res = req.send().await?;
@@ -127,8 +101,7 @@ impl Relay {
             Ok(_) => {
                 let text = res.text().await?;
                 debug!("Flashbots repsonse: {}", text);
-                let res: Response<R> = serde_json::from_str(&text)
-                    .map_err(|err| RelayError::ResponseSerdeJson { err, text })?;
+                let res: Response<R> = serde_json::from_str(&text).map_err(|err| RelayError::ResponseSerdeJson { err, text })?;
 
                 Ok(res.data.into_result()?)
             }
@@ -136,12 +109,9 @@ impl Relay {
     }
 }
 
-
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub(crate) struct SendBundleResponse {
     //#[serde(default)]
     //pub(crate) bundle_hash: Option<BundleHash>,
 }
-
-

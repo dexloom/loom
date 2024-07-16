@@ -47,7 +47,7 @@ where
             balances: self.balances.clone(),
             tokens: self.tokens.clone(),
             underlying_tokens: self.underlying_tokens.clone(),
-            lp_token: self.lp_token.clone(),
+            lp_token: self.lp_token,
             abi_encoder: Arc::clone(&self.abi_encoder),
             is_meta: self.is_meta,
             is_native: self.is_native,
@@ -63,15 +63,11 @@ where
 {
     pub fn get_meta_coin_idx(&self, address: Address) -> Result<u32> {
         match self.get_coin_idx(address) {
-            Ok(i) => {
-                Ok(i)
-            }
-            Err(_) => {
-                match self.get_underlying_coin_idx(address) {
-                    Ok(i) => { Ok(self.tokens.len() as u32 + i - 1) }
-                    Err(e) => { Err(e) }
-                }
-            }
+            Ok(i) => Ok(i),
+            Err(_) => match self.get_underlying_coin_idx(address) {
+                Ok(i) => Ok(self.tokens.len() as u32 + i - 1),
+                Err(e) => Err(e),
+            },
         }
     }
     pub fn get_coin_idx(&self, address: Address) -> Result<u32> {
@@ -98,10 +94,8 @@ where
         self.pool_contract.get_dy(i, j, amount_in).await
     }
 
-
     pub async fn fetch_pool_data(client: P, pool_contract: CurveContract<P, T, N>) -> Result<Self> {
         let pool_contract = Arc::new(pool_contract);
-
 
         let mut tokens = CurveCommonContract::coins(client.clone(), pool_contract.get_address()).await?;
         let mut is_native = false;
@@ -115,33 +109,26 @@ where
         }
 
         let lp_token = match CurveCommonContract::<P, T, N>::lp_token(pool_contract.get_address()).await {
-            Ok(lp_token_address) => {
-                Some(lp_token_address)
-            }
-            Err(_) => None
+            Ok(lp_token_address) => Some(lp_token_address),
+            Err(_) => None,
         };
-
 
         let (underlying_tokens, is_meta) = match pool_contract.as_ref() {
-            CurveContract::I128_2ToMeta(_interface) => {
-                (CurveProtocol::<P, N, T>::get_underlying_tokens(tokens[1])?, true)
-            }
-            _ => {
-                (vec![], false)
-            }
+            CurveContract::I128_2ToMeta(_interface) => (CurveProtocol::<P, N, T>::get_underlying_tokens(tokens[1])?, true),
+            _ => (vec![], false),
         };
-
 
         let balances = CurveCommonContract::balances(client.clone(), pool_contract.get_address()).await?;
 
-        let abi_encoder = Arc::new(CurveAbiSwapEncoder::new(pool_contract.get_address(),
-                                                            tokens.clone(),
-                                                            if underlying_tokens.len() > 0 { Some(underlying_tokens.clone()) } else { None },
-                                                            lp_token,
-                                                            is_meta,
-                                                            is_native,
-                                                            pool_contract.clone()));
-
+        let abi_encoder = Arc::new(CurveAbiSwapEncoder::new(
+            pool_contract.get_address(),
+            tokens.clone(),
+            if underlying_tokens.len() > 0 { Some(underlying_tokens.clone()) } else { None },
+            lp_token,
+            is_meta,
+            is_native,
+            pool_contract.clone(),
+        ));
 
         Ok(CurvePool {
             address: pool_contract.get_address(),
@@ -156,7 +143,6 @@ where
         })
     }
 }
-
 
 #[async_trait]
 impl<P, T, N> Pool for CurvePool<P, T, N>
@@ -211,10 +197,16 @@ where
         ret
     }
 
-    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64)> {
+    fn calculate_out_amount(
+        &self,
+        state_db: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+        in_amount: U256,
+    ) -> Result<(U256, u64)> {
         let mut env = env;
         env.tx.gas_limit = 500_000;
-
 
         let call_data = if self.is_meta {
             let i: Result<u32> = self.get_coin_idx(*token_address_from);
@@ -226,35 +218,27 @@ where
                 let j: u32 = self.get_meta_coin_idx(*token_address_to)?;
                 self.pool_contract.get_dy_underlying_call_data(i, j, in_amount)?
             }
-        } else {
-            if let Some(lp_token) = self.lp_token {
-                if *token_address_from == lp_token {
-                    let i: u32 = self.get_coin_idx(*token_address_to)?;
-                    self.pool_contract.calc_withdraw_one_coin_call_data(i, in_amount)?
-                } else if *token_address_to == lp_token {
-                    let i: u32 = self.get_coin_idx(*token_address_from)?;
-                    self.pool_contract.calc_token_amount_call_data(i, in_amount)?
-                } else {
-                    let i: u32 = self.get_coin_idx(*token_address_from)?;
-                    let j: u32 = self.get_coin_idx(*token_address_to)?;
-                    self.pool_contract.get_dy_call_data(i, j, in_amount)?
-                }
+        } else if let Some(lp_token) = self.lp_token {
+            if *token_address_from == lp_token {
+                let i: u32 = self.get_coin_idx(*token_address_to)?;
+                self.pool_contract.calc_withdraw_one_coin_call_data(i, in_amount)?
+            } else if *token_address_to == lp_token {
+                let i: u32 = self.get_coin_idx(*token_address_from)?;
+                self.pool_contract.calc_token_amount_call_data(i, in_amount)?
             } else {
                 let i: u32 = self.get_coin_idx(*token_address_from)?;
                 let j: u32 = self.get_coin_idx(*token_address_to)?;
                 self.pool_contract.get_dy_call_data(i, j, in_amount)?
             }
+        } else {
+            let i: u32 = self.get_coin_idx(*token_address_from)?;
+            let j: u32 = self.get_coin_idx(*token_address_to)?;
+            self.pool_contract.get_dy_call_data(i, j, in_amount)?
         };
-
 
         let (value, gas_used) = evm_call(state_db, env, self.get_address(), call_data.to_vec())?;
 
-
-        let ret = if value.len() > 32 {
-            U256::from_be_slice(&value[0..32])
-        } else {
-            U256::from_be_slice(&value[0..])
-        };
+        let ret = if value.len() > 32 { U256::from_be_slice(&value[0..32]) } else { U256::from_be_slice(&value[0..]) };
 
         if ret.is_zero() {
             Err(eyre!("ZERO_OUT_AMOUNT"))
@@ -263,11 +247,17 @@ where
         }
     }
 
-    fn calculate_in_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64)> {
+    fn calculate_in_amount(
+        &self,
+        state_db: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+        out_amount: U256,
+    ) -> Result<(U256, u64)> {
         if self.pool_contract.can_calculate_in_amount() {
             let mut env = env;
             env.tx.gas_limit = 500_000;
-
 
             let i: u32 = self.get_coin_idx(*token_address_from)?;
             let j: u32 = self.get_coin_idx(*token_address_to)?;
@@ -275,12 +265,7 @@ where
 
             let (value, gas_used) = evm_call(state_db, env, self.get_address(), call_data.to_vec())?;
 
-
-            let ret = if value.len() > 32 {
-                U256::from_be_slice(&value[0..32])
-            } else {
-                U256::from_be_slice(&value[0..])
-            };
+            let ret = if value.len() > 32 { U256::from_be_slice(&value[0..32]) } else { U256::from_be_slice(&value[0..]) };
 
             if ret.is_zero() {
                 Err(eyre!("ZERO_IN_AMOUNT"))
@@ -312,23 +297,31 @@ where
                 CurveContract::I128_2ToMeta(_interface) => {
                     for j in 0..self.underlying_tokens.len() {
                         let value = self.balances[0] / U256::from(10);
-                        match self.pool_contract.get_dy_call_data((0 as u32).into(), ((j + self.tokens.len()) as u32).into(), value) {
+                        match self.pool_contract.get_dy_call_data(0_u32, (j + self.tokens.len()) as u32, value) {
                             Ok(data) => {
                                 state_reader.add_call(self.get_address(), data);
                             }
-                            Err(e) => { error!("{}", e); }
+                            Err(e) => {
+                                error!("{}", e);
+                            }
                         }
                     }
                 }
-                _ => { error!("CURVE_META_POOL_NOT_SUPPORTED") }
+                _ => {
+                    error!("CURVE_META_POOL_NOT_SUPPORTED")
+                }
             }
         } else {
             if let Some(_lp_token) = self.lp_token {
                 for i in 0..self.tokens.len() {
                     let value = self.balances[i] / U256::from(10);
-                    match self.pool_contract.get_add_liquidity_call_data((i as u32).into(), value, Address::ZERO) {
-                        Ok(data) => { state_reader.add_call(self.get_address(), data); }
-                        Err(e) => { error!("{}", e); }
+                    match self.pool_contract.get_add_liquidity_call_data(i as u32, value, Address::ZERO) {
+                        Ok(data) => {
+                            state_reader.add_call(self.get_address(), data);
+                        }
+                        Err(e) => {
+                            error!("{}", e);
+                        }
                     }
                 }
             }
@@ -340,9 +333,13 @@ where
                     }
                     if let Some(balance) = self.balances.get(i) {
                         let value = balance / U256::from(100);
-                        match self.pool_contract.get_dy_call_data((i as u32).into(), (j as u32).into(), value) {
-                            Ok(data) => { state_reader.add_call(self.get_address(), data); }
-                            Err(e) => { error!("{}", e); }
+                        match self.pool_contract.get_dy_call_data(i as u32, j as u32, value) {
+                            Ok(data) => {
+                                state_reader.add_call(self.get_address(), data);
+                            }
+                            Err(e) => {
+                                error!("{}", e);
+                            }
                         }
                     } else {
                         error!("Cannot get curve pool balance {} {}", self.address, i);
@@ -359,7 +356,6 @@ where
         Ok(state_reader)
     }
 }
-
 
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -384,27 +380,25 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(pool_address: Address, tokens: Vec<Address>, underlying_tokens: Option<Vec<Address>>, lp_token: Option<Address>, is_meta: bool, is_native: bool, curve_contract: Arc<CurveContract<P, T, N>>) -> Self {
-        Self {
-            pool_address,
-            tokens,
-            underlying_tokens,
-            lp_token,
-            is_meta,
-            is_native,
-            curve_contract,
-        }
+    pub fn new(
+        pool_address: Address,
+        tokens: Vec<Address>,
+        underlying_tokens: Option<Vec<Address>>,
+        lp_token: Option<Address>,
+        is_meta: bool,
+        is_native: bool,
+        curve_contract: Arc<CurveContract<P, T, N>>,
+    ) -> Self {
+        Self { pool_address, tokens, underlying_tokens, lp_token, is_meta, is_native, curve_contract }
     }
 
     pub fn get_meta_coin_idx(&self, address: Address) -> Result<u32> {
         match self.get_coin_idx(address) {
             Ok(idx) => Ok(idx),
-            _ => {
-                match self.get_underlying_coin_idx(address) {
-                    Ok(idx) => Ok(idx + self.tokens.len() as u32 - 1),
-                    Err(_) => Err(eyre!("TOKEN_NOT_FOUND"))
-                }
-            }
+            _ => match self.get_underlying_coin_idx(address) {
+                Ok(idx) => Ok(idx + self.tokens.len() as u32 - 1),
+                Err(_) => Err(eyre!("TOKEN_NOT_FOUND")),
+            },
         }
     }
 
@@ -427,7 +421,7 @@ where
                 }
                 Err(eyre!("UNDERLYING_COIN_NOT_FOUND"))
             }
-            _ => Err(eyre!("UNDERLYING_COIN_NOT_SET"))
+            _ => Err(eyre!("UNDERLYING_COIN_NOT_SET")),
         }
     }
 }
@@ -438,11 +432,25 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    fn encode_swap_out_amount_provided(&self, _token_from_address: Address, _token_to_address: Address, _amount: U256, _recipient: Address, _payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_out_amount_provided(
+        &self,
+        _token_from_address: Address,
+        _token_to_address: Address,
+        _amount: U256,
+        _recipient: Address,
+        _payload: Bytes,
+    ) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    fn encode_swap_in_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, _payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_in_amount_provided(
+        &self,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount: U256,
+        recipient: Address,
+        _payload: Bytes,
+    ) -> Result<Bytes> {
         if self.is_meta {
             let i: Result<u32> = self.get_coin_idx(token_from_address);
             let j: Result<u32> = self.get_coin_idx(token_to_address);
@@ -454,24 +462,22 @@ where
                 let j: u32 = self.get_meta_coin_idx(token_to_address)?;
                 self.curve_contract.get_exchange_underlying_call_data(i, j, amount, U256::ZERO, recipient)
             }
-        } else {
-            if let Some(lp_token) = self.lp_token {
-                if token_from_address == lp_token {
-                    let i: u32 = self.get_coin_idx(token_to_address)?;
-                    self.curve_contract.get_remove_liquidity_one_coin_call_data(i, amount, recipient)
-                } else if token_to_address == lp_token {
-                    let i: u32 = self.get_coin_idx(token_from_address)?;
-                    self.curve_contract.get_add_liquidity_call_data(i, amount, recipient)
-                } else {
-                    let i: u32 = self.get_coin_idx(token_from_address)?;
-                    let j: u32 = self.get_coin_idx(token_to_address)?;
-                    self.curve_contract.get_exchange_call_data(i, j, amount, U256::ZERO, recipient)
-                }
+        } else if let Some(lp_token) = self.lp_token {
+            if token_from_address == lp_token {
+                let i: u32 = self.get_coin_idx(token_to_address)?;
+                self.curve_contract.get_remove_liquidity_one_coin_call_data(i, amount, recipient)
+            } else if token_to_address == lp_token {
+                let i: u32 = self.get_coin_idx(token_from_address)?;
+                self.curve_contract.get_add_liquidity_call_data(i, amount, recipient)
             } else {
                 let i: u32 = self.get_coin_idx(token_from_address)?;
                 let j: u32 = self.get_coin_idx(token_to_address)?;
                 self.curve_contract.get_exchange_call_data(i, j, amount, U256::ZERO, recipient)
             }
+        } else {
+            let i: u32 = self.get_coin_idx(token_from_address)?;
+            let j: u32 = self.get_coin_idx(token_to_address)?;
+            self.curve_contract.get_exchange_call_data(i, j, amount, U256::ZERO, recipient)
         }
     }
     fn preswap_requirement(&self) -> PreswapRequirement {
@@ -503,24 +509,18 @@ where
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
     use alloy_primitives::U256;
     use alloy_provider::{Provider, ProviderBuilder};
-    use alloy_provider::network::Ethereum;
     use alloy_rpc_client::{ClientBuilder, WsConnect};
     use alloy_rpc_types::BlockNumberOrTag;
-    use alloy_transport::BoxTransport;
     use env_logger::Env as EnvLog;
     use log::info;
     use revm::db::EmptyDB;
-    use revm::InMemoryDB;
-    use revm::primitives::Env;
 
-    use debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use defi_entities::{MarketState, Pool};
     use defi_entities::required_state::RequiredStateReader;
     use loom_revm_db::fast_cache_db::FastCacheDB;
@@ -556,8 +556,6 @@ mod tests {
             market_state.add_state(&state_required);
             info!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.accounts_len(), market_state.storage_len());
 
-            let mut evm_env = Env::default();
-
             let block_header = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.unwrap().unwrap().header;
             info!("Block {} {}", block_header.number.unwrap(), block_header.timestamp);
 
@@ -571,9 +569,6 @@ mod tests {
             //evm_env.block.timestamp = (block_header.timestamp + U256::from(12)).into();
             evm_env.block.timestamp = U256::from(timestamp);
 
-            let mut pools_vec: Vec<CurvePool<AnvilDebugProviderType, BoxTransport, Ethereum>> = Vec::new();
-
-
             let tokens = pool.tokens.clone();
             let balances = pool.balances.clone();
             for i in 0..tokens.len() {
@@ -585,7 +580,9 @@ mod tests {
                     //let in_amount = U256::from(10).pow(U256::from(17));
                     let token_in = tokens[i];
                     let token_out = tokens[j];
-                    let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount).unwrap_or_default();
+                    let (out_amount, gas_used) = pool
+                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount)
+                        .unwrap_or_default();
                     info!("{:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), tokens[i], tokens[j], in_amount, out_amount, gas_used);
 
                     let out_amount_fetched = pool.fetch_out_amount(token_in, token_out, in_amount).await.unwrap();
@@ -597,10 +594,22 @@ mod tests {
                 for i in 0..tokens.len() {
                     let in_amount = balances[i] / U256::from(1000);
                     let token_in = tokens[i];
-                    let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &lp_token, in_amount).unwrap_or_default();
+                    let (out_amount, gas_used) = pool
+                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &lp_token, in_amount)
+                        .unwrap_or_default();
                     info!("LP {:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), token_in, lp_token, in_amount, out_amount, gas_used);
-                    let (out_amount2, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &lp_token, &token_in, out_amount).unwrap_or_default();
-                    info!("LP {:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), lp_token, token_in, out_amount, out_amount2, gas_used);
+                    let (out_amount2, gas_used) = pool
+                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &lp_token, &token_in, out_amount)
+                        .unwrap_or_default();
+                    info!(
+                        "LP {:?} {} -> {} : {} -> {} gas : {}",
+                        pool.get_address(),
+                        lp_token,
+                        token_in,
+                        out_amount,
+                        out_amount2,
+                        gas_used
+                    );
                 }
             }
 
@@ -610,10 +619,30 @@ mod tests {
                     let in_amount = balances[0] / U256::from(1000);
                     let token_in = tokens[0];
                     let token_out = underlying_tokens[j];
-                    let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount).unwrap_or_default();
-                    info!("Meta {:?} {} -> {} : {} -> {} gas: {}", pool.get_address(), token_in, token_out, in_amount, out_amount, gas_used);
-                    let (out_amount2, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_out, &token_in, out_amount).unwrap_or_default();
-                    info!("Meta {:?} {} -> {} : {} -> {} gas : {} ", pool.get_address(), token_out, token_in, out_amount, out_amount2, gas_used);
+                    let (out_amount, gas_used) = pool
+                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount)
+                        .unwrap_or_default();
+                    info!(
+                        "Meta {:?} {} -> {} : {} -> {} gas: {}",
+                        pool.get_address(),
+                        token_in,
+                        token_out,
+                        in_amount,
+                        out_amount,
+                        gas_used
+                    );
+                    let (out_amount2, gas_used) = pool
+                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_out, &token_in, out_amount)
+                        .unwrap_or_default();
+                    info!(
+                        "Meta {:?} {} -> {} : {} -> {} gas : {} ",
+                        pool.get_address(),
+                        token_out,
+                        token_in,
+                        out_amount,
+                        out_amount2,
+                        gas_used
+                    );
                 }
             }
         }

@@ -16,10 +16,7 @@ pub struct Mempool {
 
 impl Mempool {
     pub fn new() -> Mempool {
-        Mempool {
-            txs: HashMap::new(),
-            accounts: HashMap::new(),
-        }
+        Mempool { txs: HashMap::new(), accounts: HashMap::new() }
     }
 
     pub fn len(&self) -> usize {
@@ -29,7 +26,6 @@ impl Mempool {
     pub fn is_empty(&self) -> bool {
         self.txs.is_empty()
     }
-
 
     pub fn is_tx(&self, tx_hash: &TxHash) -> bool {
         self.txs.contains_key(tx_hash)
@@ -55,33 +51,47 @@ impl Mempool {
     }
 
     pub fn filter_by_gas_price(&self, gas_price: u128) -> Vec<&MempoolTx> {
-        self.txs.values().filter(|&item| item.mined.is_none() && item.tx.clone().map_or_else(|| false, |i| i.max_fee_per_gas.unwrap_or(i.gas_price.unwrap_or_default()) >= gas_price)).collect()
+        self.txs
+            .values()
+            .filter(|&item| {
+                item.mined.is_none()
+                    && item.tx.clone().map_or_else(|| false, |i| i.max_fee_per_gas.unwrap_or(i.gas_price.unwrap_or_default()) >= gas_price)
+            })
+            .collect()
     }
 
     pub fn filter_ok_by_gas_price(&self, gas_price: u128) -> Vec<&MempoolTx> {
-        self.txs.values().filter(|&item| item.mined.is_none() && !item.failed.unwrap_or(false) && item.tx.clone().map_or_else(|| false, |i| i.max_fee_per_gas.unwrap_or(i.gas_price.unwrap_or_default()) >= gas_price)).collect()
+        self.txs
+            .values()
+            .filter(|&item| {
+                item.mined.is_none()
+                    && !item.failed.unwrap_or(false)
+                    && item.tx.clone().map_or_else(|| false, |i| i.max_fee_per_gas.unwrap_or(i.gas_price.unwrap_or_default()) >= gas_price)
+            })
+            .collect()
     }
 
     pub fn is_mined(&self, tx_hash: &TxHash) -> bool {
         match self.txs.get(tx_hash) {
-            Some(tx) => {
-                tx.mined.is_some()
-            }
-            None => false
+            Some(tx) => tx.mined.is_some(),
+            None => false,
         }
     }
 
     pub fn is_failed(&self, tx_hash: &TxHash) -> bool {
         match self.txs.get(tx_hash) {
             Some(e) => e.failed.unwrap_or(false),
-            None => false
+            None => false,
         }
     }
 
-
     pub fn clean_txs(&mut self, max_block_number: BlockNumber, max_time: DateTime<Utc>) {
-        self.txs = self.txs.clone().into_iter().filter(|(_, v)|
-            v.mined.unwrap_or(max_block_number + 1) > max_block_number && v.time > max_time).collect();
+        self.txs = self
+            .txs
+            .clone()
+            .into_iter()
+            .filter(|(_, v)| v.mined.unwrap_or(max_block_number + 1) > max_block_number && v.time > max_time)
+            .collect();
     }
 
     pub fn set_mined(&mut self, tx_hash: TxHash, block_number: BlockNumber) -> &mut Self {
@@ -96,7 +106,6 @@ impl Mempool {
             value.failed = Some(true)
         }
     }
-
 
     pub fn set_nonce(&mut self, account: Address, nonce: u64) -> &mut Self {
         let entry = self.accounts.entry(account).or_default();

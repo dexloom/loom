@@ -3,22 +3,22 @@ use alloy_provider::{Network, Provider};
 use alloy_rpc_types::BlockNumberOrTag;
 use alloy_sol_types::SolInterface;
 use alloy_transport::Transport;
-use eyre::{ErrReport, eyre, Result};
+use eyre::{eyre, ErrReport, Result};
 use lazy_static::lazy_static;
 use log::debug;
-use revm::DatabaseRef;
 use revm::primitives::Env;
+use revm::DatabaseRef;
 
-use defi_abi::IERC20;
 use defi_abi::uniswap2::IUniswapV2Pair;
-use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use defi_abi::IERC20;
 use defi_entities::required_state::RequiredState;
+use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use loom_revm_db::LoomInMemoryDB;
 
 use crate::state_readers::UniswapV2StateReader;
 
 lazy_static! {
-    static ref U112_MASK : U256 = (U256::from(1) << 112) - U256::from(1);
+    static ref U112_MASK: U256 = (U256::from(1) << 112) - U256::from(1);
 }
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -51,22 +51,13 @@ impl UniswapV2Pool {
         }
     }
 
-
     pub fn set_fee(self, fee: U256) -> Self {
-        Self {
-            fee,
-            ..self
-        }
+        Self { fee, ..self }
     }
 
     pub fn get_zero_for_one(token_address_from: Address, token_address_to: Address) -> bool {
-        if token_address_from < token_address_to {
-            true
-        } else {
-            false
-        }
+        token_address_from < token_address_to
     }
-
 
     fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
         let uni2_factory: Address = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f".parse().unwrap();
@@ -76,7 +67,6 @@ impl UniswapV2Pool {
         let safeswap_factory: Address = "0x7F09d4bE6bbF4b0fF0C97ca5c486a166198aEAeE".parse().unwrap();
         let miniswap_factory: Address = "0x2294577031F113DF4782B881cF0b140e94209a6F".parse().unwrap();
         let shibaswap_factory: Address = "0x115934131916C8b277DD010Ee02de363c09d037c".parse().unwrap();
-
 
         if factory_address == uni2_factory {
             PoolProtocol::UniswapV2
@@ -108,12 +98,7 @@ impl UniswapV2Pool {
         let factory = UniswapV2StateReader::factory(db, env.clone(), address)?;
         let protocol = Self::get_protocol_by_factory(factory);
 
-        let fee = if protocol == PoolProtocol::DooarSwap {
-            U256::from(9900)
-        } else {
-            U256::from(9970)
-        };
-
+        let fee = if protocol == PoolProtocol::DooarSwap { U256::from(9900) } else { U256::from(9970) };
 
         let ret = UniswapV2Pool {
             address,
@@ -132,37 +117,34 @@ impl UniswapV2Pool {
         Ok(ret)
     }
 
-
-    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
+    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(
+        client: P,
+        address: Address,
+    ) -> Result<Self> {
         let uni2_pool = IUniswapV2Pair::IUniswapV2PairInstance::new(address, client.clone());
 
-        let token0: Address = uni2_pool.token0().call().await?._0.clone();
-        let token1: Address = uni2_pool.token1().call().await?._0.clone();
-        let factory: Address = uni2_pool.factory().call().await?._0.clone();
+        let token0: Address = uni2_pool.token0().call().await?._0;
+        let token1: Address = uni2_pool.token1().call().await?._0;
+        let factory: Address = uni2_pool.factory().call().await?._0;
         let reserves = uni2_pool.getReserves().call().await?.clone();
 
         //let mut h = [0u8;32] = U256::from(8).to_be_bytes();
-
 
         let storage_reserves_cell = client.get_storage_at(address, U256::from(8)).block_id(BlockNumberOrTag::Latest.into()).await.unwrap();
 
         let storage_reserves = Self::storage_to_reserves(storage_reserves_cell);
 
-        let reserves_cell: Option<U256> = if storage_reserves.0 == U256::from(reserves.reserve0) && storage_reserves.1 == U256::from(reserves.reserve1) {
-            Some(U256::from(8))
-        } else {
-            debug!("{storage_reserves:?} {reserves:?}");
-            None
-        };
+        let reserves_cell: Option<U256> =
+            if storage_reserves.0 == U256::from(reserves.reserve0) && storage_reserves.1 == U256::from(reserves.reserve1) {
+                Some(U256::from(8))
+            } else {
+                debug!("{storage_reserves:?} {reserves:?}");
+                None
+            };
 
         let protocol = UniswapV2Pool::get_protocol_by_factory(factory);
 
-        let fee = if protocol == PoolProtocol::DooarSwap {
-            U256::from(9900)
-        } else {
-            U256::from(9970)
-        };
-
+        let fee = if protocol == PoolProtocol::DooarSwap { U256::from(9900) } else { U256::from(9970) };
 
         let ret = UniswapV2Pool {
             address,
@@ -180,9 +162,7 @@ impl UniswapV2Pool {
     }
 }
 
-
-impl Pool for UniswapV2Pool
-{
+impl Pool for UniswapV2Pool {
     fn get_class(&self) -> PoolClass {
         PoolClass::UniswapV2
     }
@@ -192,7 +172,7 @@ impl Pool for UniswapV2Pool
     }
 
     fn get_address(&self) -> Address {
-        return self.address;
+        self.address
     }
 
     /*
@@ -214,23 +194,28 @@ impl Pool for UniswapV2Pool
         vec![(self.token0, self.token1), (self.token1, self.token0)]
     }
 
-    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(
+        &self,
+        state_db: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+        in_amount: U256,
+    ) -> Result<(U256, u64), ErrReport> {
         let (reserve_in, reserve_out) = match self.reserves_cell {
-            Some(cell) => {
-                match state_db.storage_ref(self.get_address(), cell) {
-                    Ok(c) => {
-                        let reserves = Self::storage_to_reserves(c);
-                        if token_address_from < token_address_to {
-                            (reserves.0, reserves.1)
-                        } else {
-                            (reserves.1, reserves.0)
-                        }
-                    }
-                    Err(_) => {
-                        return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
+            Some(cell) => match state_db.storage_ref(self.get_address(), cell) {
+                Ok(c) => {
+                    let reserves = Self::storage_to_reserves(c);
+                    if token_address_from < token_address_to {
+                        (reserves.0, reserves.1)
+                    } else {
+                        (reserves.1, reserves.0)
                     }
                 }
-            }
+                Err(_) => {
+                    return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
+                }
+            },
             None => {
                 let (reserve_0, reserve_1) = UniswapV2StateReader::get_reserves(state_db, env, self.get_address())?;
 
@@ -241,7 +226,6 @@ impl Pool for UniswapV2Pool
                 }
             }
         };
-
 
         let amount_in_with_fee = in_amount * self.fee;
         let numerator = amount_in_with_fee * reserve_out;
@@ -252,33 +236,36 @@ impl Pool for UniswapV2Pool
             let out_amount = numerator / denominator;
             if out_amount > reserve_out {
                 Err(eyre!("RESERVE_EXCEEDED"))
+            } else if out_amount.is_zero() {
+                Err(eyre!("OUT_AMOUNT_IS_ZERO"))
             } else {
-                if out_amount.is_zero() {
-                    Err(eyre!("OUT_AMOUNT_IS_ZERO"))
-                } else {
-                    Ok((out_amount - U256::from(1), 100000))
-                }
+                Ok((out_amount - U256::from(1), 100000))
             }
         }
     }
 
-    fn calculate_in_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_in_amount(
+        &self,
+        state_db: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+        out_amount: U256,
+    ) -> Result<(U256, u64), ErrReport> {
         let (reserve_in, reserve_out) = match self.reserves_cell {
-            Some(cell) => {
-                match state_db.storage_ref(self.get_address(), cell) {
-                    Ok(c) => {
-                        let reserves = Self::storage_to_reserves(c);
-                        if token_address_from < token_address_to {
-                            (reserves.0, reserves.1)
-                        } else {
-                            (reserves.1, reserves.0)
-                        }
-                    }
-                    Err(_) => {
-                        return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
+            Some(cell) => match state_db.storage_ref(self.get_address(), cell) {
+                Ok(c) => {
+                    let reserves = Self::storage_to_reserves(c);
+                    if token_address_from < token_address_to {
+                        (reserves.0, reserves.1)
+                    } else {
+                        (reserves.1, reserves.0)
                     }
                 }
-            }
+                Err(_) => {
+                    return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
+                }
+            },
             None => {
                 let (reserve_0, reserve_1) = UniswapV2StateReader::get_reserves(state_db, env, self.get_address())?;
 
@@ -290,11 +277,9 @@ impl Pool for UniswapV2Pool
             }
         };
 
-
         if out_amount > reserve_out {
             return Err(eyre!("RESERVE_OUT_EXCEEDED"));
         }
-
 
         let numerator = reserve_in * U256::from(10000) * (out_amount + U256::from(10));
         let denominator = (reserve_out - (out_amount + U256::from(10))) * self.fee;
@@ -324,18 +309,18 @@ impl Pool for UniswapV2Pool
 
         let reserves_call_data_vec = IUniswapV2Pair::IUniswapV2PairCalls::factory(IUniswapV2Pair::factoryCall {}).abi_encode();
 
-        state_required
-            .add_call(self.get_address(), reserves_call_data_vec)
-            .add_slot_range(self.get_address(), U256::from(0), 0x20);
+        state_required.add_call(self.get_address(), reserves_call_data_vec).add_slot_range(self.get_address(), U256::from(0), 0x20);
 
         for token_address in self.get_tokens() {
-            state_required.add_call(token_address, IERC20::IERC20Calls::balanceOf(IERC20::balanceOfCall { account: self.get_address() }).abi_encode());
+            state_required.add_call(
+                token_address,
+                IERC20::IERC20Calls::balanceOf(IERC20::balanceOfCall { account: self.get_address() }).abi_encode(),
+            );
         }
 
         Ok(state_required)
     }
 }
-
 
 #[derive(Clone, Copy)]
 struct UniswapV2AbiSwapEncoder {
@@ -344,28 +329,23 @@ struct UniswapV2AbiSwapEncoder {
 
 impl UniswapV2AbiSwapEncoder {
     pub fn new(pool_address: Address) -> Self {
-        Self {
-            pool_address
-        }
+        Self { pool_address }
     }
 }
 
 impl AbiSwapEncoder for UniswapV2AbiSwapEncoder {
-    fn encode_swap_out_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_out_amount_provided(
+        &self,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount: U256,
+        recipient: Address,
+        payload: Bytes,
+    ) -> Result<Bytes> {
         let swap_call = if token_from_address < token_to_address {
-            IUniswapV2Pair::swapCall {
-                amount0Out: U256::ZERO,
-                amount1Out: amount,
-                to: recipient,
-                data: payload,
-            }
+            IUniswapV2Pair::swapCall { amount0Out: U256::ZERO, amount1Out: amount, to: recipient, data: payload }
         } else {
-            IUniswapV2Pair::swapCall {
-                amount0Out: amount,
-                amount1Out: U256::ZERO,
-                to: recipient,
-                data: payload,
-            }
+            IUniswapV2Pair::swapCall { amount0Out: amount, amount1Out: U256::ZERO, to: recipient, data: payload }
         };
 
         Ok(Bytes::from(IUniswapV2Pair::IUniswapV2PairCalls::swap(swap_call).abi_encode()))
@@ -383,7 +363,6 @@ impl AbiSwapEncoder for UniswapV2AbiSwapEncoder {
         }
     }
 
-
     fn swap_out_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
         if token_from_address < token_to_address {
             Some(0x20)
@@ -393,15 +372,14 @@ impl AbiSwapEncoder for UniswapV2AbiSwapEncoder {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use env_logger::Env as EnvLog;
 
-    use defi_entities::MarketState;
     use defi_entities::required_state::RequiredStateReader;
+    use defi_entities::MarketState;
 
     use crate::protocols::UniswapV2Protocol;
 
@@ -409,7 +387,6 @@ mod tests {
 
     #[tokio::test]
     async fn test_pool() -> Result<()> {
-
         //std::env::set_var("RUST_LOG", "uniswapv3pool=trace,market_state=trace,debug");
         std::env::set_var("RUST_LOG", "debug");
         std::env::set_var("RUST_BACKTRACE", "1");
@@ -422,14 +399,11 @@ mod tests {
 
         let provider = ProviderBuilder::new().on_client(client).boxed();
 
-
         let mut market_state = MarketState::new(LoomInMemoryDB::default());
-
 
         let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
         let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
         let pool_address: Address = UniswapV2Protocol::get_pool_address_for_tokens(weth_address, usdc_address);
-
 
         let pool = UniswapV2Pool::fetch_pool_data(provider.clone(), pool_address).await?;
 
@@ -441,26 +415,51 @@ mod tests {
 
         let evm_env = Env::default();
 
-
-        let (out_amount, gas) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, U256::from(pool.liquidity0 / U256::from(100))).unwrap();
+        let (out_amount, _gas) = pool
+            .calculate_out_amount(
+                &market_state.state_db,
+                evm_env.clone(),
+                &pool.token0,
+                &pool.token1,
+                U256::from(pool.liquidity0 / U256::from(100)),
+            )
+            .unwrap();
         println!("out {} -> {}", U256::from(pool.liquidity0 / U256::from(100)), out_amount);
-        let (in_amount, gas) = pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, out_amount).unwrap();
+        let (in_amount, _gas) =
+            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, out_amount).unwrap();
         println!("in {} -> {}", out_amount, in_amount);
 
         let a = U256::from(161429016704477229850u128);
 
-        let (out_amount, gas) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, a).unwrap();
+        let (out_amount, _gas) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, a).unwrap();
         println!("out {} -> {}", a, out_amount);
-        let (in_amount, gas) = pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, out_amount).unwrap();
+        let (in_amount, _gas) =
+            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, out_amount).unwrap();
         println!("in {} -> {} {}", out_amount, in_amount, in_amount >= a);
 
         //market_state.fetch_state(pool.get_address(), provider.clone()).await?;
         //debug!("Update2");
         //market_state.fetch_state(pool.get_address(), provider.clone()).await?;
 
-        let (out_amount, gas) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, U256::from(pool.liquidity0 / U256::from(100))).unwrap();
+        let (out_amount, _gas) = pool
+            .calculate_out_amount(
+                &market_state.state_db,
+                evm_env.clone(),
+                &pool.token0,
+                &pool.token1,
+                U256::from(pool.liquidity0 / U256::from(100)),
+            )
+            .unwrap();
         println!("{}", out_amount);
-        let (out_amount, gas) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, U256::from(pool.liquidity1 / U256::from(100))).unwrap();
+        let (out_amount, _gas) = pool
+            .calculate_out_amount(
+                &market_state.state_db,
+                evm_env.clone(),
+                &pool.token1,
+                &pool.token0,
+                U256::from(pool.liquidity1 / U256::from(100)),
+            )
+            .unwrap();
         println!("{}", out_amount);
         Ok(())
     }

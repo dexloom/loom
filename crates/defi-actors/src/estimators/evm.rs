@@ -23,14 +23,15 @@ async fn estimator_task(
     encoder: SwapStepEncoder,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
-    info!("EVM estimation. Gas limit: {} price: {} cost: {} stuffing txs: {}",
+    info!(
+        "EVM estimation. Gas limit: {} price: {} cost: {} stuffing txs: {}",
         estimate_request.gas,
         NWETH::to_float_gwei(estimate_request.gas_fee),
         NWETH::to_float_wei(estimate_request.gas_cost()),
-        estimate_request.stuffing_txs_hashes.len());
+        estimate_request.stuffing_txs_hashes.len()
+    );
 
     let start_time = chrono::Local::now();
-
 
     let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
 
@@ -44,7 +45,6 @@ async fn estimator_task(
     let gas_price = estimate_request.priority_gas_fee + estimate_request.gas_fee;
     let gas_cost = GasStation::calc_gas_cost(100_000, gas_price);
 
-
     let (tips_vec, call_value) = tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
 
     let mut tips_opcodes = opcodes.clone();
@@ -53,9 +53,7 @@ async fn estimator_task(
         tips_opcodes = encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
     }
 
-
     let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
-
 
     let tx_request = TransactionRequest {
         transaction_type: Some(2),
@@ -65,12 +63,11 @@ async fn estimator_task(
         gas: Some(estimate_request.gas),
         value: Some(call_value),
         input: TransactionInput::new(calldata.clone()),
-        nonce: Some(estimate_request.nonce.into()),
+        nonce: Some(estimate_request.nonce),
         max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee),
         max_fee_per_gas: Some(estimate_request.gas_fee),
         ..TransactionRequest::default()
     };
-
 
     if let Some(db) = estimate_request.poststate {
         let evm_env = env_for_block(estimate_request.block, estimate_request.block_timestamp);
@@ -79,10 +76,9 @@ async fn estimator_task(
                 let swap = estimate_request.swap.clone();
 
                 if gas_used < 60_000 {
-                    error!("Incorrect transaction estimation {} Gas used : {}",swap, gas_used );
+                    error!("Incorrect transaction estimation {} Gas used : {}", swap, gas_used);
                     return Err(eyre!("TRANSACTION_ESTIMATED_INCORRECTLY"));
                 }
-
 
                 let gas_cost = GasStation::calc_gas_cost(gas_used as u128, gas_price);
 
@@ -91,18 +87,19 @@ async fn estimator_task(
                     return Err(eyre!("TOO_SMALL_PROFIT"));
                 }
 
-                let (tips_vec, call_value) = tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
+                let (tips_vec, call_value) =
+                    tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
 
                 let call_value = if call_value.is_zero() { None } else { Some(call_value) };
 
                 let mut tips_opcodes = opcodes.clone();
 
                 for tips in tips_vec.iter() {
-                    tips_opcodes = encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
+                    tips_opcodes =
+                        encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
                 }
 
                 let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
-
 
                 let tx_request = TransactionRequest {
                     transaction_type: Some(2),
@@ -119,12 +116,13 @@ async fn estimator_task(
                     ..TransactionRequest::default()
                 };
 
-                let encoded_txes: Result<Vec<TxEnvelope>, _> = estimate_request.stuffing_txs.iter().map(|item| TxEnvelope::try_from(item.clone())).collect();
+                let encoded_txes: Result<Vec<TxEnvelope>, _> =
+                    estimate_request.stuffing_txs.iter().map(|item| TxEnvelope::try_from(item.clone())).collect();
 
                 let stuffing_txs_rlp: Vec<Bytes> = encoded_txes?.into_iter().map(|x| Bytes::from(x.encoded_2718())).collect();
 
-
-                let mut tx_with_state: Vec<TxState> = stuffing_txs_rlp.into_iter().map(|item| TxState::ReadyForBroadcastStuffing(item)).collect();
+                let mut tx_with_state: Vec<TxState> =
+                    stuffing_txs_rlp.into_iter().map(TxState::ReadyForBroadcastStuffing).collect();
 
                 tx_with_state.push(TxState::SignatureRequired(tx_request));
 
@@ -135,32 +133,31 @@ async fn estimator_task(
                 let profit_eth_f64 = NWETH::to_float(profit_eth);
                 let profit_f64 = match estimate_request.swap.get_first_token() {
                     Some(token_in) => token_in.to_float(estimate_request.swap.abs_profit()),
-                    None => profit_eth_f64
+                    None => profit_eth_f64,
                 };
 
-
-                let sign_request = MessageTxCompose::sign(
-                    TxComposeData {
-                        tx_bundle: Some(tx_with_state),
-                        poststate: Some(db),
-                        tips: Some(total_tips + gas_cost),
-                        ..estimate_request
-                    }
-                );
+                let sign_request = MessageTxCompose::sign(TxComposeData {
+                    tx_bundle: Some(tx_with_state),
+                    poststate: Some(db),
+                    tips: Some(total_tips + gas_cost),
+                    ..estimate_request
+                });
 
                 let result = match compose_channel_tx.send(sign_request).await {
                     Err(e) => {
                         error!("{e}");
                         Err(eyre!("COMPOSE_CHANNEL_SEND_ERROR"))
                     }
-                    _ => { Ok(()) }
+                    _ => Ok(()),
                 };
 
                 let sim_duration = chrono::Local::now() - start_time;
 
-
                 //TODO add formated paths
-                info!(" +++ Simulation successful. Cost {} Profit {} ProfitEth {} Tips {} {}  Gas used {} Time {}",  gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, swap, gas_used, sim_duration );
+                info!(
+                    " +++ Simulation successful. Cost {} Profit {} ProfitEth {} Tips {} {}  Gas used {} Time {}",
+                    gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, swap, gas_used, sim_duration
+                );
 
                 result
             }
@@ -218,8 +215,7 @@ async fn estimator_worker(
 }
 
 #[derive(Consumer, Producer)]
-pub struct EvmEstimatorActor
-{
+pub struct EvmEstimatorActor {
     encoder: SwapStepEncoder,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
@@ -229,32 +225,22 @@ pub struct EvmEstimatorActor
 
 impl EvmEstimatorActor {
     pub fn new(encoder: SwapStepEncoder) -> Self {
-        Self {
-            encoder,
-            compose_channel_tx: None,
-            compose_channel_rx: None,
-        }
+        Self { encoder, compose_channel_tx: None, compose_channel_rx: None }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self {
-            compose_channel_tx: Some(bc.compose_channel()),
-            compose_channel_rx: Some(bc.compose_channel()),
-            ..self
-        }
+        Self { compose_channel_tx: Some(bc.compose_channel()), compose_channel_rx: Some(bc.compose_channel()), ..self }
     }
 }
 
 #[async_trait]
 impl Actor for EvmEstimatorActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            estimator_worker(
-                self.encoder.clone(),
-                self.compose_channel_rx.clone().unwrap().subscribe().await,
-                self.compose_channel_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(estimator_worker(
+            self.encoder.clone(),
+            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
     fn name(&self) -> &'static str {

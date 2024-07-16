@@ -1,15 +1,14 @@
-use std::{collections::HashMap, fmt::Display, sync::Arc};
 use std::fmt::Formatter;
+use std::{collections::HashMap, fmt::Display, sync::Arc};
 
+use alloy::primitives::{BlockHash, BlockNumber};
+use alloy::transports::BoxTransport;
 use alloy::{
     eips::BlockNumberOrTag,
     primitives::TxHash,
-    providers::{Provider, ProviderBuilder, RootProvider}
-    ,
+    providers::{Provider, ProviderBuilder, RootProvider},
     rpc::types::BlockTransactions,
 };
-use alloy::primitives::{BlockHash, BlockNumber};
-use alloy::transports::BoxTransport;
 use chrono::{DateTime, Duration, Local, TimeDelta};
 use clap::Parser;
 use eyre::{eyre, Result};
@@ -34,10 +33,7 @@ pub struct StatEntry {
 
 impl Display for StatEntry {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "first {:?} avg delay {:?} μs", self.first, self.avg_delay_ms
-        )
+        write!(f, "first {:?} avg delay {:?} μs", self.first, self.avg_delay_ms)
     }
 }
 
@@ -45,7 +41,6 @@ impl Display for StatEntry {
 pub struct TimeMap {
     time_map: HashMap<usize, DateTime<Local>>,
 }
-
 
 impl TimeMap {
     pub fn add_time(&mut self, id: usize, time: DateTime<Local>) {
@@ -60,11 +55,8 @@ impl TimeMap {
     }
 
     pub fn to_relative(&self, pings: &Vec<TimeDelta>) -> TimeMap {
-        let rel_time: HashMap<usize, DateTime<Local>> = self
-            .time_map
-            .iter()
-            .map(|(k, v)| (*k, *v - pings.get(*k).cloned().unwrap()))
-            .collect();
+        let rel_time: HashMap<usize, DateTime<Local>> =
+            self.time_map.iter().map(|(k, v)| (*k, *v - pings.get(*k).cloned().unwrap())).collect();
         TimeMap { time_map: rel_time }
     }
 
@@ -76,7 +68,6 @@ impl TimeMap {
         self.time_map.get(&id).map(|x| *x - self.get_first_time())
     }
 }
-
 
 fn analyze_time_maps(time_map_vec: Vec<&TimeMap>, ping: Option<&Vec<TimeDelta>>) -> StatEntry {
     let nodes_count = time_map_vec.first();
@@ -90,10 +81,8 @@ fn analyze_time_maps(time_map_vec: Vec<&TimeMap>, ping: Option<&Vec<TimeDelta>>)
         return Default::default();
     }
 
-
     let mut delays: Vec<Duration> = vec![Duration::default(); nodes_count];
     let mut received_first: Vec<usize> = vec![0; nodes_count];
-
 
     for time_map in time_map_vec.iter() {
         for node_id in 0..nodes_count {
@@ -132,11 +121,7 @@ fn analyze_time_maps(time_map_vec: Vec<&TimeMap>, ping: Option<&Vec<TimeDelta>>)
         })
         .collect();
 
-    StatEntry {
-        first: received_first,
-        total_delay: delays,
-        avg_delay_ms: delays_avg,
-    }
+    StatEntry { first: received_first, total_delay: delays, avg_delay_ms: delays_avg }
 }
 
 #[derive(Clone, Debug, Default)]
@@ -152,38 +137,14 @@ pub struct StatCollector {
 
 impl Display for crate::StatCollector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(
-            f,
-            "headers abs {}", analyze_time_maps(self.block_headers.values().collect(), None)
-        )?;
-        writeln!(
-            f,
-            "headers rel {}", analyze_time_maps(self.block_headers.values().collect(), Some(&self.ping))
-        )?;
-        writeln!(
-            f,
-            "blocks abs {}", analyze_time_maps(self.block_with_tx.values().collect(), None)
-        )?;
-        writeln!(
-            f,
-            "blocks rel {}", analyze_time_maps(self.block_with_tx.values().collect(), Some(&self.ping))
-        )?;
-        writeln!(
-            f,
-            "logs abs {}", analyze_time_maps(self.block_logs.values().collect(), None)
-        )?;
-        writeln!(
-            f,
-            "logs rel {}", analyze_time_maps(self.block_logs.values().collect(), Some(&self.ping))
-        )?;
-        writeln!(
-            f,
-            "state abs {}", analyze_time_maps(self.block_state.values().collect(), None)
-        )?;
-        writeln!(
-            f,
-            "state rel {}", analyze_time_maps(self.block_state.values().collect(), Some(&self.ping))
-        )?;
+        writeln!(f, "headers abs {}", analyze_time_maps(self.block_headers.values().collect(), None))?;
+        writeln!(f, "headers rel {}", analyze_time_maps(self.block_headers.values().collect(), Some(&self.ping)))?;
+        writeln!(f, "blocks abs {}", analyze_time_maps(self.block_with_tx.values().collect(), None))?;
+        writeln!(f, "blocks rel {}", analyze_time_maps(self.block_with_tx.values().collect(), Some(&self.ping)))?;
+        writeln!(f, "logs abs {}", analyze_time_maps(self.block_logs.values().collect(), None))?;
+        writeln!(f, "logs rel {}", analyze_time_maps(self.block_logs.values().collect(), Some(&self.ping)))?;
+        writeln!(f, "state abs {}", analyze_time_maps(self.block_state.values().collect(), None))?;
+        writeln!(f, "state rel {}", analyze_time_maps(self.block_state.values().collect(), Some(&self.ping)))?;
         writeln!(f, "-----")
     }
 }
@@ -200,7 +161,6 @@ pub struct TxStatCollector {
 
     pub(crate) txs_received_outdated: Vec<usize>,
 }
-
 
 impl Display for TxStatCollector {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -229,8 +189,7 @@ impl Display for TxStatCollector {
                 if total_txs_rel - self.txs_received_first_relative[i] == 0 {
                     0
                 } else {
-                    x.num_microseconds().unwrap_or_default()
-                        / ((total_txs_rel - self.txs_received_first_relative[i]) as i64)
+                    x.num_microseconds().unwrap_or_default() / ((total_txs_rel - self.txs_received_first_relative[i]) as i64)
                 }
             })
             .collect();
@@ -239,16 +198,8 @@ impl Display for TxStatCollector {
             "txs total in blocks: {} received by nodes: {} per node {:?}  outdated {:?}",
             self.total_txs, self.total_received_tx, self.txs_received, self.txs_received_outdated,
         )?;
-        writeln!(
-            f,
-            "txs abs first {:?} delays avg {:?} μs",
-            self.txs_received_first, tx_delays_avg
-        )?;
-        writeln!(
-            f,
-            "txs rel first {:?} delays avg {:?} μs",
-            self.txs_received_first_relative, tx_delays_relative_avg
-        )?;
+        writeln!(f, "txs abs first {:?} delays avg {:?} μs", self.txs_received_first, tx_delays_avg)?;
+        writeln!(f, "txs rel first {:?} delays avg {:?} μs", self.txs_received_first_relative, tx_delays_relative_avg)?;
 
         Ok(())
     }
@@ -282,16 +233,10 @@ async fn collect_stat_task(
 
     let mut bc_actors = BlockchainActors::new(provider, bc.clone());
     if grps {
-        bc_actors
-            .with_exex_events().await?
-        ;
+        bc_actors.with_exex_events().await?;
     } else {
-        bc_actors
-            .with_block_events().await?
-            .with_local_mempool_events().await?
-        ;
+        bc_actors.with_block_events().await?.with_local_mempool_events().await?;
     }
-
 
     let mut blocks_counter: usize = 0;
 
@@ -442,23 +387,13 @@ async fn main() -> Result<()> {
         let start_time = Local::now();
         for _i in 0u64..10 {
             let block_number = provider.get_block_number().await?;
-            let _ = provider
-                .get_block_by_number(BlockNumberOrTag::Number(block_number), false)
-                .await?;
+            let _ = provider.get_block_by_number(BlockNumberOrTag::Number(block_number), false).await?;
         }
         let ping_time = (Local::now() - start_time) / (10 * 2);
         println!("Ping time {idx} : {ping_time}");
         stat.write().await.ping.push(ping_time);
 
-        let join_handler = tokio::spawn(collect_stat_task(
-            idx,
-            provider,
-            is_grpc,
-            stat.clone(),
-            3,
-            10,
-            ping_time,
-        ));
+        let join_handler = tokio::spawn(collect_stat_task(idx, provider, is_grpc, stat.clone(), 3, 10, ping_time));
         tasks.push(join_handler);
     }
 
@@ -471,18 +406,13 @@ async fn main() -> Result<()> {
 
     println!("{}", stat);
 
-
     for (block_number, _) in stat.block_headers.iter() {
         println!("Getting block {block_number}");
-        let block = first_provider
-            .get_block_by_number(BlockNumberOrTag::Number(*block_number), false)
-            .await?
-            .unwrap();
+        let block = first_provider.get_block_by_number(BlockNumberOrTag::Number(*block_number), false).await?.unwrap();
 
         calc.total_txs += block.transactions.len();
 
         let block_time_map = stat.block_headers.get(block_number).unwrap();
-
 
         if let BlockTransactions::Hashes(tx_hash_vec) = block.transactions {
             for tx_hash in tx_hash_vec {
@@ -496,8 +426,7 @@ async fn main() -> Result<()> {
 
                             // check if tx received after block
                             if tx_local_time > block_time_node
-                                || tx_time.get_time_delta(node_id).unwrap_or_default()
-                                > TimeDelta::seconds(2)
+                                || tx_time.get_time_delta(node_id).unwrap_or_default() > TimeDelta::seconds(2)
                             {
                                 calc.txs_received_outdated[node_id] += 1;
                             } else {
@@ -509,9 +438,7 @@ async fn main() -> Result<()> {
                                     }
                                 }
                                 //calc relative delay
-                                if let Some(t) =
-                                    tx_time.to_relative(&stat.ping).get_time_delta(node_id)
-                                {
+                                if let Some(t) = tx_time.to_relative(&stat.ping).get_time_delta(node_id) {
                                     calc.txs_delays_relative[node_id] += t;
                                     if t.is_zero() {
                                         calc.txs_received_first_relative[node_id] += 1;

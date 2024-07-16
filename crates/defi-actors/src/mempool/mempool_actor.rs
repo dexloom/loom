@@ -21,8 +21,7 @@ pub async fn new_mempool_worker(
     mut mempool_update_rx: Receiver<MessageMempoolDataUpdate>,
     mut market_events_rx: Receiver<MarketEvents>,
     broadcaster: Broadcaster<MempoolEvents>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     let mut current_gas_price: Option<u128> = None;
     let mut last_cleaning_block: Option<BlockNumber> = None;
 
@@ -36,38 +35,28 @@ pub async fn new_mempool_worker(
                         let tx_hash = mempool_update_msg.tx_hash;
                         let mempool_entry = mempool_guard.txs.entry(tx_hash).or_insert( MempoolTx{ tx_hash,  source : mempool_update_msg.source(), ..MempoolTx::default()});
                         if let Some(logs) = &mempool_update_msg.mempool_tx.logs {
-                            match mempool_entry.logs {
-                                None => {
-                                    mempool_entry.logs = Some(logs.clone());
-                                    run_async!(broadcaster.send(MempoolEvents::MempoolLogUpdate {tx_hash } ));
-                                },
-                                _=>{}
+                            if mempool_entry.logs.is_none() {
+                                mempool_entry.logs = Some(logs.clone());
+                                run_async!(broadcaster.send(MempoolEvents::MempoolLogUpdate {tx_hash } ));
                             }
                         }
                         if let Some(state_update) = &mempool_update_msg.mempool_tx.state_update {
-                            match &mempool_entry.state_update {
-                                None => {
-                                    mempool_entry.state_update = Some(state_update.clone());
-                                    run_async!(broadcaster.send(MempoolEvents::MempoolStateUpdate{ tx_hash }));
-                                },
-                                _=>{}
+                            if mempool_entry.state_update.is_none() {
+                                mempool_entry.state_update = Some(state_update.clone());
+                                run_async!(broadcaster.send(MempoolEvents::MempoolStateUpdate{ tx_hash }));
                             }
                         }
                         if let Some(tx) = &mempool_update_msg.mempool_tx.tx {
-                            match mempool_entry.tx {
-                                None => {
-                                    mempool_entry.tx = Some(tx.clone());
-                                    if let Some(cur_gas_price) = current_gas_price {
-                                        if let Some(tx_gas_price) = if tx.max_fee_per_gas.is_some() {tx.max_fee_per_gas} else{ tx.gas_price } {
-                                            let tx_gas_price  = tx_gas_price;
-                                            if tx.gas > 30000 && tx_gas_price >= cur_gas_price && mempool_guard.is_valid_tx(tx) {
-                                                run_async!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate {tx_hash }));
-                                            }
+                            if mempool_entry.tx.is_none() {
+                                mempool_entry.tx = Some(tx.clone());
+                                if let Some(cur_gas_price) = current_gas_price {
+                                    if let Some(tx_gas_price) = if tx.max_fee_per_gas.is_some() {tx.max_fee_per_gas} else{ tx.gas_price } {
+                                        if tx.gas > 30000 && tx_gas_price >= cur_gas_price && mempool_guard.is_valid_tx(tx) {
+                                            run_async!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate {tx_hash }));
                                         }
                                     }
-                                    run_async!(broadcaster.send(MempoolEvents::MempoolTxUpdate {tx_hash }));
-                                },
-                                _=>{}
+                                }
+                                run_async!(broadcaster.send(MempoolEvents::MempoolTxUpdate {tx_hash }));
                             }
                         }
                         drop(mempool_guard);
@@ -163,8 +152,7 @@ pub async fn new_mempool_worker(
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct MempoolActor
-{
+pub struct MempoolActor {
     chain_parameters: ChainParameters,
     #[accessor]
     mempool: Option<SharedState<Mempool>>,
@@ -178,8 +166,7 @@ pub struct MempoolActor
     mempool_events_tx: Option<Broadcaster<MempoolEvents>>,
 }
 
-impl MempoolActor
-{
+impl MempoolActor {
     pub fn new(chain_parameters: ChainParameters) -> MempoolActor {
         MempoolActor {
             chain_parameters,
@@ -204,19 +191,16 @@ impl MempoolActor
 }
 
 #[async_trait]
-impl Actor for MempoolActor
-{
+impl Actor for MempoolActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            new_mempool_worker(
-                self.chain_parameters.clone(),
-                self.mempool.clone().unwrap(),
-                self.block_history.clone().unwrap(),
-                self.mempool_update_rx.clone().unwrap().subscribe().await,
-                self.market_events_rx.clone().unwrap().subscribe().await,
-                self.mempool_events_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(new_mempool_worker(
+            self.chain_parameters.clone(),
+            self.mempool.clone().unwrap(),
+            self.block_history.clone().unwrap(),
+            self.mempool_update_rx.clone().unwrap().subscribe().await,
+            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.mempool_events_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
 

@@ -6,11 +6,11 @@ pub use node::*;
 pub use state_update_event::*;
 pub use tx_compose::*;
 
-mod tx_compose;
-mod message;
-mod health_event;
-mod node;
-mod defi_events;
 mod best_tx_compose;
+mod defi_events;
+mod health_event;
+mod message;
+mod node;
+mod tx_compose;
 
 mod state_update_event;

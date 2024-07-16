@@ -8,10 +8,8 @@ use tokio::select;
 async fn main() -> eyre::Result<()> {
     let _ = RethTracer::new().init()?;
 
-    let mut client = RemoteExExClient::connect("http://[::1]:10000")
-        .await?
-        .max_encoding_message_size(usize::MAX)
-        .max_decoding_message_size(usize::MAX);
+    let mut client =
+        RemoteExExClient::connect("http://[::1]:10000").await?.max_encoding_message_size(usize::MAX).max_decoding_message_size(usize::MAX);
 
     let mut stream_exex = client.subscribe_ex_ex(SubscribeRequest {}).await?.into_inner();
     let mut stream_tx = client.subscribe_mempool_tx(SubscribeRequest {}).await?.into_inner();
@@ -57,6 +55,4 @@ async fn main() -> eyre::Result<()> {
             },
         }
     }
-
-    Ok(())
 }

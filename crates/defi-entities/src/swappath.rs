@@ -14,13 +14,9 @@ pub struct SwapPath {
     pub pools: Vec<PoolWrapper>,
 }
 
-
 impl SwapPath {
     pub fn new<T: Into<Arc<Token>>, P: Into<PoolWrapper>>(tokens: Vec<T>, pools: Vec<P>) -> Self {
-        SwapPath {
-            tokens: tokens.into_iter().map(|i| i.into()).collect(),
-            pools: pools.into_iter().map(|i| i.into()).collect(),
-        }
+        SwapPath { tokens: tokens.into_iter().map(|i| i.into()).collect(), pools: pools.into_iter().map(|i| i.into()).collect() }
     }
 
     pub fn is_emply(&self) -> bool {
@@ -35,12 +31,8 @@ impl SwapPath {
         self.pools.len()
     }
 
-
     pub fn new_swap(token_from: Arc<Token>, token_to: Arc<Token>, pool: PoolWrapper) -> Self {
-        SwapPath {
-            tokens: vec![token_from, token_to],
-            pools: vec![pool],
-        }
+        SwapPath { tokens: vec![token_from, token_to], pools: vec![pool] }
     }
 
     pub fn push_swap_hope(&mut self, token_from: Arc<Token>, token_to: Arc<Token>, pool: PoolWrapper) -> Result<&mut Self> {
@@ -69,7 +61,6 @@ impl SwapPath {
             self.pools.insert(0, pool);
         }
 
-
         Ok(self)
     }
 
@@ -83,14 +74,12 @@ impl SwapPath {
     }
 }
 
-
 impl Hash for SwapPath {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.tokens.hash(state);
         self.pools.hash(state);
     }
 }
-
 
 #[derive(Clone, Debug, Default)]
 pub struct SwapPaths {
@@ -100,10 +89,7 @@ pub struct SwapPaths {
 
 impl SwapPaths {
     pub fn new() -> SwapPaths {
-        SwapPaths {
-            paths: HashSet::new(),
-            pool_paths: HashMap::new(),
-        }
+        SwapPaths { paths: HashSet::new(), pool_paths: HashMap::new() }
     }
     pub fn from(paths: Vec<SwapPath>) -> Self {
         let mut ret = Self::default();
@@ -142,7 +128,6 @@ impl SwapPaths {
         }
     }
 
-
     pub fn get_pool_paths_hashset(&self, pool_address: &Address) -> Option<&Arc<HashSet<Arc<SwapPath>>>> {
         self.pool_paths.get(pool_address)
     }
@@ -163,9 +148,14 @@ mod test {
     fn test_add_path() {
         let basic_token = Token::new(Address::repeat_byte(0x11));
 
-        let paths_vec: Vec<SwapPath> = (0..10).map(|i| SwapPath::new(
-            vec![basic_token.clone(), Token::new(Address::repeat_byte(i)), basic_token.clone()],
-            vec![PoolWrapper::empty(Address::repeat_byte(i + 1)), PoolWrapper::empty(Address::repeat_byte(i + 2))])).collect();
+        let paths_vec: Vec<SwapPath> = (0..10)
+            .map(|i| {
+                SwapPath::new(
+                    vec![basic_token.clone(), Token::new(Address::repeat_byte(i)), basic_token.clone()],
+                    vec![PoolWrapper::empty(Address::repeat_byte(i + 1)), PoolWrapper::empty(Address::repeat_byte(i + 2))],
+                )
+            })
+            .collect();
         let paths = SwapPaths::from(paths_vec);
 
         println!("{paths:?}")
@@ -177,14 +167,19 @@ mod test {
 
         const PATHS_COUNT: usize = 10;
 
-        let pool_address_vec: Vec<(PoolWrapper, PoolWrapper)> = (0..PATHS_COUNT).map(|i|
-        (PoolWrapper::empty(Address::repeat_byte(i as u8)), PoolWrapper::empty(Address::repeat_byte((i + 1) as u8)))
-        ).collect();
+        let pool_address_vec: Vec<(PoolWrapper, PoolWrapper)> = (0..PATHS_COUNT)
+            .map(|i| (PoolWrapper::empty(Address::repeat_byte(i as u8)), PoolWrapper::empty(Address::repeat_byte((i + 1) as u8))))
+            .collect();
 
-
-        let paths_vec: Vec<SwapPath> = pool_address_vec.iter().map(|p| SwapPath::new(
-            vec![basic_token.clone(), Token::new(Address::repeat_byte(1)), basic_token.clone()],
-            vec![p.0.clone(), p.1.clone()])).collect();
+        let paths_vec: Vec<SwapPath> = pool_address_vec
+            .iter()
+            .map(|p| {
+                SwapPath::new(
+                    vec![basic_token.clone(), Token::new(Address::repeat_byte(1)), basic_token.clone()],
+                    vec![p.0.clone(), p.1.clone()],
+                )
+            })
+            .collect();
 
         let mut paths = SwapPaths::from(paths_vec.clone());
         for path in paths_vec.clone() {
@@ -198,14 +193,12 @@ mod test {
         for i in 0..PATHS_COUNT {
             let pool_address = pool_address_vec[i].0.get_address();
             let paths_shared_clone = paths_shared.clone();
-            tasks.push(
-                tokio::task::spawn(async move {
-                    let pool = PoolWrapper::empty(pool_address);
-                    let path_guard = paths_shared_clone.read().await;
-                    let pool_paths = path_guard.get_pool_paths_hashset(&pool.get_address());
-                    println!("{i} {pool_address}: {pool_paths:?}");
-                })
-            );
+            tasks.push(tokio::task::spawn(async move {
+                let pool = PoolWrapper::empty(pool_address);
+                let path_guard = paths_shared_clone.read().await;
+                let pool_paths = path_guard.get_pool_paths_hashset(&pool.get_address());
+                println!("{i} {pool_address}: {pool_paths:?}");
+            }));
         }
 
         for t in tasks {

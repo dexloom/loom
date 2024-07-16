@@ -17,9 +17,7 @@ where
 impl<T: Clone + Send + Sync + 'static> Broadcaster<T> {
     pub fn new(capacity: usize) -> Self {
         let (sender, _) = broadcast::channel(capacity);
-        Self {
-            sender: Arc::new(RwLock::new(sender)),
-        }
+        Self { sender: Arc::new(RwLock::new(sender)) }
     }
 
     pub async fn send(&self, value: T) -> Result<usize, SendError<T>> {
@@ -30,18 +28,13 @@ impl<T: Clone + Send + Sync + 'static> Broadcaster<T> {
     pub fn try_send(&self, value: T) -> Result<usize> {
         //let sender = self.sender.write().await;
         match self.sender.try_write() {
-            Ok(guard) => {
-                match guard.send(value) {
-                    Ok(size) => { Ok(size) }
-                    Err(_) => { Err(eyre!("ERROR_SEND")) }
-                }
-            }
-            Err(_) => {
-                Err(eyre!("ERROR_SEND"))
-            }
+            Ok(guard) => match guard.send(value) {
+                Ok(size) => Ok(size),
+                Err(_) => Err(eyre!("ERROR_SEND")),
+            },
+            Err(_) => Err(eyre!("ERROR_SEND")),
         }
     }
-
 
     pub async fn subscribe(&self) -> Receiver<T> {
         let sender = self.sender.write().await;

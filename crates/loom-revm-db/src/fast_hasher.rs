@@ -8,7 +8,6 @@ pub struct HashedAddress(Address);
 #[derive(Clone, Eq, PartialEq)]
 pub struct HashedAddressCell(pub Address, pub U256);
 
-
 impl From<Address> for HashedAddress {
     fn from(value: Address) -> Self {
         HashedAddress(value)
@@ -60,7 +59,6 @@ impl Hash for HashedAddressCell {
     }
 }
 
-
 #[derive(Default)]
 pub struct SimpleHasher {
     state: u64,
@@ -68,12 +66,10 @@ pub struct SimpleHasher {
 
 impl SimpleHasher {
     #[inline]
-    pub fn new() -> Self
-    {
+    pub fn new() -> Self {
         Self::default()
     }
 }
-
 
 impl Hasher for SimpleHasher {
     #[inline]
@@ -126,7 +122,6 @@ impl Hasher for SimpleHasher {
         }
     }
 
-
     #[inline]
     fn write_u64(&mut self, i: u64) {
         self.state = i;
@@ -144,7 +139,6 @@ impl BuildHasher for SimpleBuildHasher {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use std::hash::Hash;
@@ -156,7 +150,6 @@ mod test {
     #[test]
     fn test_hasher() {
         let addr = Address::random();
-
 
         let mut hasher = SimpleHasher::new();
         addr.hash(&mut hasher);

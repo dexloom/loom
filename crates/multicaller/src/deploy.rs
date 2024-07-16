@@ -28,25 +28,14 @@ pub struct MulticallerDeployer {
 
 impl MulticallerDeployer {
     pub fn with_address(self, address: Address) -> Self {
-        Self {
-            address: Some(address),
-            ..self
-        }
+        Self { address: Some(address), ..self }
     }
     pub fn new() -> Self {
-        Self {
-            code: Bytes::from(NO_OWNER_CODE.clone()),
-            address: None,
-        }
+        Self { code: Bytes::from(NO_OWNER_CODE.clone()), address: None }
     }
 
     pub fn account_info(&self) -> AccountState {
-        AccountState {
-            balance: None,
-            code: Some(self.code.clone()),
-            nonce: None,
-            storage: Default::default(),
-        }
+        AccountState { balance: None, code: Some(self.code.clone()), nonce: None, storage: Default::default() }
     }
 
     pub async fn deploy<P, T>(self, client: P, priv_key: SecretKey) -> Result<Self>
@@ -54,15 +43,19 @@ impl MulticallerDeployer {
         T: Transport + Clone,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     {
-        let block = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.map_err(|e| {
-            error!("{e}");
-            eyre!("CANNOT_GET_BLOCK")
-        })?.ok_or_eyre("NO_BLOCK")?;
+        let block = client
+            .get_block_by_number(BlockNumberOrTag::Latest, false)
+            .await
+            .map_err(|e| {
+                error!("{e}");
+                eyre!("CANNOT_GET_BLOCK")
+            })?
+            .ok_or_eyre("NO_BLOCK")?;
 
         let header = block.header;
 
-
-        let next_base_fee = BaseFeeParams::ethereum().next_block_base_fee(header.gas_used, header.gas_limit, header.base_fee_per_gas.unwrap_or_default());
+        let next_base_fee =
+            BaseFeeParams::ethereum().next_block_base_fee(header.gas_used, header.gas_limit, header.base_fee_per_gas.unwrap_or_default());
 
         let signer = PrivateKeySigner::from_bytes(&B256::from_slice(priv_key.to_bytes().as_slice()))?;
 
@@ -78,10 +71,11 @@ impl MulticallerDeployer {
         })?;
 
         println!("{} {}", signer_address, balance);
-        let nonce = client.get_transaction_count(signer_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.map_err(|e| {
-            error!("{e}");
-            eyre!("CANNOT_GET_NONCE")
-        })?;
+        let nonce =
+            client.get_transaction_count(signer_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.map_err(|e| {
+                error!("{e}");
+                eyre!("CANNOT_GET_NONCE")
+            })?;
 
         let mut tx_request = TransactionRequest::default()
             .gas_limit(3_000_000)
@@ -92,7 +86,6 @@ impl MulticallerDeployer {
             //.to(Address::ZERO)
             .nonce(nonce);
         tx_request.to = Some(TxKind::Create);
-
 
         let tx = tx_request.build(&wallet).await.map_err(|e| {
             error!("{e}");
@@ -109,15 +102,9 @@ impl MulticallerDeployer {
         let final_block = block_number + 10;
         while block_number < final_block {
             let receipt = client.get_transaction_receipt(*pending_tx.tx_hash()).await?;
-            match receipt {
-                Some(receipt) => {
-                    let address = receipt.contract_address.ok_or_eyre("NOT_DEPLOYED")?;
-                    return Ok(Self {
-                        address: Some(address),
-                        ..self
-                    });
-                }
-                _ => {}
+            if let Some(receipt) = receipt {
+                let address = receipt.contract_address.ok_or_eyre("NOT_DEPLOYED")?;
+                return Ok(Self { address: Some(address), ..self });
             }
             tokio::time::sleep(Duration::from_secs(12)).await;
             block_number = client.get_block_number().await?;
@@ -127,10 +114,8 @@ impl MulticallerDeployer {
         //let receipt = pending_tx.with_timeout(Some(Duration::new(10, 0))).get_receipt().await.map_err(|_| eyre!("CANNOT_GET_RECEIPT"))?;
         //let receipt = pending_tx.with_timeout(Some(Duration::new(100, 0))).watch().await.map_err(|_| eyre!("CANNOT_GET_RECEIPT"))?;
 
-
         //let address = Address::repeat_byte(3);
     }
-
 
     pub async fn set_code<P, T>(self, client: P, address: Address) -> Result<Self>
     where
@@ -139,17 +124,13 @@ impl MulticallerDeployer {
     {
         AnvilProviderExt::set_code(&client, address, self.code.clone()).await.map_err(|_| eyre!("CANNOT_SET_CODE"))?;
 
-        Ok(Self {
-            address: Some(address),
-            ..self
-        })
+        Ok(Self { address: Some(address), ..self })
     }
 
     pub fn address(&self) -> Option<Address> {
         self.address
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -160,9 +141,9 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    async fn test_deploy() -> Result<()>
-    {
-        let anvil_provider = Arc::new(AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19109956).await?);
+    async fn test_deploy() -> Result<()> {
+        let anvil_provider =
+            Arc::new(AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19109956).await?);
 
         let block = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
         println!("Block number : {}", block.unwrap().header.number.unwrap_or_default());

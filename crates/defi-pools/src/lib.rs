@@ -6,14 +6,14 @@ pub use pancakev3pool::PancakeV3Pool;
 pub use uniswapv2pool::UniswapV2Pool;
 pub use uniswapv3pool::UniswapV3Pool;
 
-mod uniswapv2pool;
-mod uniswapv3pool;
+pub mod db_reader;
 mod maverickpool;
 pub mod state_readers;
-pub mod db_reader;
+mod uniswapv2pool;
+mod uniswapv3pool;
 
-pub mod protocols;
 mod curvepool;
+pub mod protocols;
 
 mod pancakev3pool;
 mod virtual_impl;

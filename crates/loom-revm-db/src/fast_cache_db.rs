@@ -1,19 +1,17 @@
-use std::collections::{BTreeMap, HashMap};
 use std::collections::hash_map::Entry;
+use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 use std::vec::Vec;
 
+use alloy::primitives::BlockNumber;
 use alloy::{
     consensus::constants::KECCAK_EMPTY,
-    primitives::{
-        Address, B256, Log,
-        U256},
+    primitives::{Address, Log, B256, U256},
     rpc::types::trace::geth::AccountState as GethAccountState,
 };
-use alloy::primitives::BlockNumber;
-use revm::{Database, DatabaseCommit, DatabaseRef};
 use revm::db::{AccountState, EmptyDB};
 use revm::primitives::{Account, AccountInfo, Bytecode};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 
 use crate::fast_hasher::SimpleBuildHasher;
 
@@ -23,10 +21,7 @@ pub type FastInMemoryDB = FastCacheDB<Arc<FastCacheDB<EmptyDB>>>;
 
 impl FastInMemoryDB {
     pub fn with_db(self, db: Arc<FastCacheDB<EmptyDB>>) -> Self {
-        Self {
-            db,
-            ..self
-        }
+        Self { db, ..self }
     }
 
     pub fn merge(&self) -> FastCacheDB<EmptyDB> {
@@ -180,13 +175,7 @@ impl<ExtDB> FastCacheDB<ExtDB> {
         let mut contracts = HashMap::with_hasher(SimpleBuildHasher::default());
         contracts.insert(KECCAK_EMPTY, Bytecode::default());
         contracts.insert(B256::ZERO, Bytecode::default());
-        Self {
-            accounts: HashMap::new(),
-            contracts,
-            logs: Vec::default(),
-            block_hashes: HashMap::new(),
-            db,
-        }
+        Self { accounts: HashMap::new(), contracts, logs: Vec::default(), block_hashes: HashMap::new(), db }
     }
 
     /// Inserts the account's code into the cache.
@@ -200,9 +189,7 @@ impl<ExtDB> FastCacheDB<ExtDB> {
                 if account.code_hash == KECCAK_EMPTY {
                     account.code_hash = code.hash_slow();
                 }
-                self.contracts
-                    .entry(account.code_hash)
-                    .or_insert_with(|| code.clone());
+                self.contracts.entry(account.code_hash).or_insert_with(|| code.clone());
             }
         }
         if account.code_hash == B256::ZERO {
@@ -227,33 +214,21 @@ impl<ExtDB: DatabaseRef> FastCacheDB<ExtDB> {
             Entry::Occupied(entry) => Ok(entry.into_mut()),
             Entry::Vacant(entry) => Ok(entry.insert(
                 db.basic_ref(address)?
-                    .map(|info| FastDbAccount {
-                        info,
-                        ..Default::default()
-                    })
+                    .map(|info| FastDbAccount { info, ..Default::default() })
                     .unwrap_or_else(FastDbAccount::new_not_existing),
             )),
         }
     }
 
     /// insert account storage without overriding account info
-    pub fn insert_account_storage(
-        &mut self,
-        address: Address,
-        slot: U256,
-        value: U256,
-    ) -> Result<(), ExtDB::Error> {
+    pub fn insert_account_storage(&mut self, address: Address, slot: U256, value: U256) -> Result<(), ExtDB::Error> {
         let account = self.load_account(address)?;
         account.storage.insert(slot, value);
         Ok(())
     }
 
     /// replace account storage without overriding account info
-    pub fn replace_account_storage(
-        &mut self,
-        address: Address,
-        storage: HashMap<U256, U256>,
-    ) -> Result<(), ExtDB::Error> {
+    pub fn replace_account_storage(&mut self, address: Address, storage: HashMap<U256, U256>) -> Result<(), ExtDB::Error> {
         let account = self.load_account(address)?;
         account.account_state = AccountState::StorageCleared;
         account.storage = storage.into_iter().collect();
@@ -289,12 +264,7 @@ impl<ExtDB> DatabaseCommit for FastCacheDB<ExtDB> {
             } else {
                 AccountState::Touched
             };
-            db_account.storage.extend(
-                account
-                    .storage
-                    .into_iter()
-                    .map(|(key, value)| (key, value.present_value())),
-            );
+            db_account.storage.extend(account.storage.into_iter().map(|(key, value)| (key, value.present_value())));
         }
     }
 }
@@ -308,10 +278,7 @@ impl<ExtDB: DatabaseRef> Database for FastCacheDB<ExtDB> {
             Entry::Vacant(entry) => entry.insert(
                 self.db
                     .basic_ref(address)?
-                    .map(|info| FastDbAccount {
-                        info,
-                        ..Default::default()
-                    })
+                    .map(|info| FastDbAccount { info, ..Default::default() })
                     .unwrap_or_else(FastDbAccount::new_not_existing),
             ),
         };
@@ -338,10 +305,7 @@ impl<ExtDB: DatabaseRef> Database for FastCacheDB<ExtDB> {
                 match acc_entry.storage.entry(index) {
                     Entry::Occupied(entry) => Ok(*entry.get()),
                     Entry::Vacant(entry) => {
-                        if matches!(
-                            acc_entry.account_state,
-                            AccountState::StorageCleared | AccountState::NotExisting
-                        ) {
+                        if matches!(acc_entry.account_state, AccountState::StorageCleared | AccountState::NotExisting) {
                             Ok(U256::ZERO)
                         } else {
                             let slot = self.db.storage_ref(address, index)?;
@@ -402,10 +366,7 @@ impl<ExtDB: DatabaseRef> DatabaseRef for FastCacheDB<ExtDB> {
             Some(acc_entry) => match acc_entry.storage.get(&index) {
                 Some(entry) => Ok(*entry),
                 None => {
-                    if matches!(
-                        acc_entry.account_state,
-                        AccountState::StorageCleared | AccountState::NotExisting
-                    ) {
+                    if matches!(acc_entry.account_state, AccountState::StorageCleared | AccountState::NotExisting) {
                         Ok(U256::ZERO)
                     } else {
                         self.db.storage_ref(address, index)
@@ -436,10 +397,7 @@ pub struct FastDbAccount {
 
 impl FastDbAccount {
     pub fn new_not_existing() -> Self {
-        Self {
-            account_state: AccountState::NotExisting,
-            ..Default::default()
-        }
+        Self { account_state: AccountState::NotExisting, ..Default::default() }
     }
 
     pub fn info(&self) -> Option<AccountInfo> {
@@ -459,23 +417,18 @@ impl From<Option<AccountInfo>> for FastDbAccount {
 
 impl From<AccountInfo> for FastDbAccount {
     fn from(info: AccountInfo) -> Self {
-        Self {
-            info,
-            account_state: AccountState::None,
-            ..Default::default()
-        }
+        Self { info, account_state: AccountState::None, ..Default::default() }
     }
 }
-
 
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeMap;
     use std::sync::Arc;
 
-    use alloy::primitives::{B256, Bytes};
+    use alloy::primitives::{Bytes, B256};
+    use revm::primitives::{db::Database, AccountInfo, Address, Bytecode, I256, KECCAK_EMPTY, U256};
     use revm::DatabaseRef;
-    use revm::primitives::{AccountInfo, Address, Bytecode, db::Database, I256, KECCAK_EMPTY, U256};
 
     use super::{EmptyDB, FastCacheDB, FastInMemoryDB, GethAccountState};
 
@@ -484,19 +437,11 @@ mod tests {
         let account = Address::with_last_byte(42);
         let nonce = 42;
         let mut init_state = FastCacheDB::new(EmptyDB::default());
-        init_state.insert_account_info(
-            account,
-            AccountInfo {
-                nonce,
-                ..Default::default()
-            },
-        );
+        init_state.insert_account_info(account, AccountInfo { nonce, ..Default::default() });
 
         let (key, value) = (U256::from(123), U256::from(456));
         let mut new_state = FastCacheDB::new(init_state);
-        new_state
-            .insert_account_storage(account, key, value)
-            .unwrap();
+        new_state.insert_account_storage(account, key, value).unwrap();
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce);
         assert_eq!(new_state.storage(account, key), Ok(value));
@@ -507,19 +452,11 @@ mod tests {
         let account = Address::with_last_byte(42);
         let nonce = 42;
         let mut init_state = FastCacheDB::new(EmptyDB::default());
-        init_state.insert_account_info(
-            account,
-            AccountInfo {
-                nonce,
-                ..Default::default()
-            },
-        );
+        init_state.insert_account_info(account, AccountInfo { nonce, ..Default::default() });
 
         let (key, value) = (U256::from(123), U256::from(456));
         let mut new_state = FastCacheDB::new(init_state);
-        new_state
-            .insert_account_storage(account, key, value)
-            .unwrap();
+        new_state.insert_account_storage(account, key, value).unwrap();
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce);
         assert_eq!(new_state.storage(account, key), Ok(value));
@@ -530,25 +467,15 @@ mod tests {
         let account = Address::with_last_byte(42);
         let nonce = 42;
         let mut init_state = FastCacheDB::new(EmptyDB::default());
-        init_state.insert_account_info(
-            account,
-            AccountInfo {
-                nonce,
-                ..Default::default()
-            },
-        );
+        init_state.insert_account_info(account, AccountInfo { nonce, ..Default::default() });
 
         let (key0, value0) = (U256::from(123), U256::from(456));
         let (key1, value1) = (U256::from(789), U256::from(999));
-        init_state
-            .insert_account_storage(account, key0, value0)
-            .unwrap();
+        init_state.insert_account_storage(account, key0, value0).unwrap();
 
         let mut new_state = FastInMemoryDB::new(Arc::new(init_state));
         assert_eq!(new_state.accounts.len(), 0);
-        new_state
-            .replace_account_storage(account, [(key1, value1)].into())
-            .unwrap();
+        new_state.replace_account_storage(account, [(key1, value1)].into()).unwrap();
 
         let mut new_state = new_state.merge();
 
@@ -564,24 +491,12 @@ mod tests {
         let nonce = 42;
         let code = Bytecode::new_raw(Bytes::from(vec![1, 2, 3]));
         let mut init_state = FastCacheDB::new(EmptyDB::default());
-        init_state.insert_account_info(
-            account,
-            AccountInfo {
-                nonce,
-                code: Some(code.clone()),
-                ..Default::default()
-            },
-        );
-
+        init_state.insert_account_info(account, AccountInfo { nonce, code: Some(code.clone()), ..Default::default() });
 
         let (key0, value0) = (U256::from(123), U256::from(456));
         let (key1, value1) = (U256::from(789), U256::from(999));
-        init_state
-            .insert_account_storage(account, key0, value0)
-            .unwrap();
-        init_state
-            .insert_account_storage(account, key1, value1)
-            .unwrap();
+        init_state.insert_account_storage(account, key0, value0).unwrap();
+        init_state.insert_account_storage(account, key1, value1).unwrap();
 
         let mut new_state = FastInMemoryDB::new(Arc::new(init_state));
         assert_eq!(new_state.accounts.len(), 0);
@@ -612,36 +527,22 @@ mod tests {
         assert_eq!(new_state.accounts.len(), 1);
     }
 
-
     #[test]
     fn test_merge() {
         let account = Address::with_last_byte(42);
         let nonce = 42;
         let code = Bytecode::new_raw(Bytes::from(vec![1, 2, 3]));
         let mut init_state = FastCacheDB::new(EmptyDB::default());
-        init_state.insert_account_info(
-            account,
-            AccountInfo {
-                nonce,
-                code: Some(code.clone()),
-                ..Default::default()
-            },
-        );
-
+        init_state.insert_account_info(account, AccountInfo { nonce, code: Some(code.clone()), ..Default::default() });
 
         let (key0, value0) = (U256::from(123), U256::from(456));
         let (key1, value1) = (U256::from(789), U256::from(999));
         let (key2, value2) = (U256::from(999), U256::from(111));
-        init_state
-            .insert_account_storage(account, key0, value0)
-            .unwrap();
-        init_state
-            .insert_account_storage(account, key1, value1)
-            .unwrap();
+        init_state.insert_account_storage(account, key0, value0).unwrap();
+        init_state.insert_account_storage(account, key1, value1).unwrap();
 
         let mut new_state = FastInMemoryDB::new(Arc::new(init_state));
         assert_eq!(new_state.accounts.len(), 0);
-
 
         new_state.insert_account_info(
             account,
@@ -653,8 +554,8 @@ mod tests {
             },
         );
 
-        new_state.insert_account_storage(account, key0, U256::from(333));
-        new_state.insert_account_storage(account, key2, value2);
+        new_state.insert_account_storage(account, key0, U256::from(333)).unwrap();
+        new_state.insert_account_storage(account, key2, value2).unwrap();
 
         let mut new_state = new_state.merge();
 
@@ -673,29 +574,16 @@ mod tests {
         let nonce = 42;
         let code = Bytecode::new_raw(Bytes::from(vec![1, 2, 3]));
         let mut init_state = FastCacheDB::new(EmptyDB::default());
-        init_state.insert_account_info(
-            account,
-            AccountInfo {
-                nonce,
-                code: Some(code.clone()),
-                ..Default::default()
-            },
-        );
-
+        init_state.insert_account_info(account, AccountInfo { nonce, code: Some(code.clone()), ..Default::default() });
 
         let (key0, value0) = (U256::from(123), U256::from(456));
         let (key1, value1) = (U256::from(789), U256::from(999));
         let (key2, value2) = (U256::from(999), U256::from(111));
-        init_state
-            .insert_account_storage(account, key0, value0)
-            .unwrap();
-        init_state
-            .insert_account_storage(account, key1, value1)
-            .unwrap();
+        init_state.insert_account_storage(account, key0, value0).unwrap();
+        init_state.insert_account_storage(account, key1, value1).unwrap();
 
         let mut new_state = FastInMemoryDB::new(Arc::new(init_state));
         assert_eq!(new_state.accounts.len(), 0);
-
 
         new_state.insert_account_info(
             account,
@@ -717,8 +605,8 @@ mod tests {
             },
         );
 
-        new_state.insert_account_storage(account, key0, U256::from(333));
-        new_state.insert_account_storage(account, key2, value2);
+        new_state.insert_account_storage(account, key0, U256::from(333)).unwrap();
+        new_state.insert_account_storage(account, key2, value2).unwrap();
 
         let mut new_state = new_state.update_cells();
 
@@ -741,21 +629,12 @@ mod tests {
         let account = Address::with_last_byte(69);
         let nonce = 420;
         let mut init_state = FastCacheDB::new(EmptyDB::default());
-        init_state.insert_account_info(
-            account,
-            AccountInfo {
-                nonce,
-                ..Default::default()
-            },
-        );
+        init_state.insert_account_info(account, AccountInfo { nonce, ..Default::default() });
 
         let serialized = serde_json::to_string(&init_state).unwrap();
         let deserialized: FastCacheDB<EmptyDB> = serde_json::from_str(&serialized).unwrap();
 
         assert!(deserialized.accounts.contains_key(&account));
-        assert_eq!(
-            deserialized.accounts.get(&account).unwrap().info.nonce,
-            nonce
-        );
+        assert_eq!(deserialized.accounts.get(&account).unwrap().info.nonce, nonce);
     }
 }

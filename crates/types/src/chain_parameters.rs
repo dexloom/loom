@@ -8,10 +8,7 @@ pub struct ChainParameters {
 
 impl ChainParameters {
     pub fn ethereum() -> ChainParameters {
-        ChainParameters {
-            chain_id: 1,
-            base_fee_params: BaseFeeParams::ethereum(),
-        }
+        ChainParameters { chain_id: 1, base_fee_params: BaseFeeParams::ethereum() }
     }
 
     pub fn calc_next_block_base_fee(&self, gas_used: u128, gas_limit: u128, base_fee: u128) -> u128 {

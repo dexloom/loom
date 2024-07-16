@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 
 use alloy::{
     network::Ethereum,
@@ -11,12 +11,8 @@ use alloy::{
     providers::{EthCall, Provider, RootProvider},
     rpc::{
         client::RpcCall,
-        json_rpc::{
-            Id, Request, RpcReturn,
-        },
-        types::{
-            Block, BlockNumberOrTag, FilterChanges, TransactionRequest,
-        },
+        json_rpc::{Id, Request, RpcReturn},
+        types::{Block, BlockNumberOrTag, FilterChanges, TransactionRequest},
     },
     transports::{Transport, TransportResult},
 };
@@ -36,8 +32,8 @@ impl<P, T> ArchiveHistoryProvider<P, T>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
-{}
-
+{
+}
 
 impl<P, T> ArchiveHistoryProvider<P, T>
 where
@@ -72,7 +68,6 @@ where
     }
 }
 
-
 #[async_trait::async_trait]
 impl<P, T> Provider<T, Ethereum> for ArchiveHistoryProvider<P, T>
 where
@@ -83,8 +78,11 @@ where
         self.provider.root()
     }
 
-
-    fn get_block_by_number<'life0, 'async_trait>(&'life0 self, number: BlockNumberOrTag, hydrate: bool) -> Pin<Box<dyn Future<Output=TransportResult<Option<Block>>> + Send + 'async_trait>>
+    fn get_block_by_number<'life0, 'async_trait>(
+        &'life0 self,
+        number: BlockNumberOrTag,
+        hydrate: bool,
+    ) -> Pin<Box<dyn Future<Output = TransportResult<Option<Block>>> + Send + 'async_trait>>
     where
         'life0: 'async_trait,
         Self: 'async_trait,
@@ -94,14 +92,11 @@ where
 
     fn get_block_number(&self) -> RpcCall<T, (), U64, BlockNumber> {
         let rpc_call: RpcCall<T, (), U64, BlockNumber, fn(U64) -> BlockNumber> =
-            RpcCall::new(Request::new("get_block_number",
-                                      Id::None, ()), self.provider.client().transport().clone()).map_resp(|x| x.to());
+            RpcCall::new(Request::new("get_block_number", Id::None, ()), self.provider.client().transport().clone()).map_resp(|x| x.to());
         rpc_call
     }
 
-
-    async fn get_filter_changes<R: RpcReturn>(&self, id: U256) -> TransportResult<Vec<R>>
-    {
+    async fn get_filter_changes<R: RpcReturn>(&self, id: U256) -> TransportResult<Vec<R>> {
         println!("get_filter_changes");
         //let pin_v = Box::pin(vec![U256::ZERO]);
 
@@ -120,8 +115,7 @@ where
         self.provider.get_filter_changes(id).await
     }
 
-    async fn get_filter_changes_dyn(&self, id: U256) -> TransportResult<FilterChanges>
-    {
+    async fn get_filter_changes_dyn(&self, id: U256) -> TransportResult<FilterChanges> {
         println!("get_filter_changes_dyn");
 
         //let pin_v = Box::pin(vec![U256::ZERO]);
@@ -147,7 +141,6 @@ where
         call
     }
 
-
     async fn new_block_filter(&self) -> TransportResult<U256> {
         let result = self.provider.new_block_filter().await;
         let cur_block = self.block_number();
@@ -160,4 +153,3 @@ where
 
 #[cfg(test)]
 mod test {}
-

@@ -15,22 +15,15 @@ use defi_types::GethStateUpdate;
 use loom_revm_db::LoomInMemoryDB;
 
 #[derive(Clone)]
-pub struct MarketState
-{
+pub struct MarketState {
     pub state_db: LoomInMemoryDB,
     force_insert_accounts: HashMap<Address, bool>,
     pub read_only_cells: HashMap<Address, HashSet<U256>>,
 }
 
-
-impl MarketState
-{
+impl MarketState {
     pub fn new(db: LoomInMemoryDB) -> MarketState {
-        MarketState {
-            state_db: db,
-            force_insert_accounts: HashMap::new(),
-            read_only_cells: HashMap::new(),
-        }
+        MarketState { state_db: db, force_insert_accounts: HashMap::new(), read_only_cells: HashMap::new() }
     }
 
     pub fn accounts_len(&self) -> usize {
@@ -45,7 +38,6 @@ impl MarketState
         ret
     }
 
-
     pub fn is_force_insert(&self, address: &Address) -> bool {
         self.force_insert_accounts.contains_key(address)
     }
@@ -58,7 +50,6 @@ impl MarketState
         self.state_db.accounts.contains_key(address)
     }
 
-
     pub fn is_slot(&self, address: &Address, slot: &U256) -> bool {
         if let Some(account) = self.state_db.accounts.get(address) {
             account.storage.contains_key(slot)
@@ -67,33 +58,31 @@ impl MarketState
         }
     }
 
-
     pub fn apply_account_info_btree(&mut self, address: &Address, account_updated_state: &AccountState, insert: bool, only_new: bool) {
         let account = self.state_db.load_account(*address);
 
         if let Ok(account) = account {
             if insert
                 || ((account.account_state == DbAccountState::NotExisting || account.account_state == DbAccountState::None) && only_new)
-                || (!only_new && (account.account_state == DbAccountState::Touched || account.account_state == DbAccountState::StorageCleared))
+                || (!only_new
+                && (account.account_state == DbAccountState::Touched || account.account_state == DbAccountState::StorageCleared))
             {
                 let code: Option<Bytecode> = match &account_updated_state.code {
                     Some(c) => {
                         if c.len() < 2 {
                             account.info.code.clone()
                         } else {
-                            Some(
-                                Bytecode::new_raw(
-                                    c.clone()
-                                )
-                            )
+                            Some(Bytecode::new_raw(c.clone()))
                         }
                     }
-                    None => {
-                        account.info.code.clone()
-                    }
+                    None => account.info.code.clone(),
                 };
 
-                trace!("apply_account_info {address}.  code len: {} storage len: {}", code.clone().map_or(0, |x| x.len()), account.storage.len()  );
+                trace!(
+                    "apply_account_info {address}.  code len: {} storage len: {}",
+                    code.clone().map_or(0, |x| x.len()),
+                    account.storage.len()
+                );
 
                 let account_info = AccountInfo {
                     balance: account_updated_state.balance.unwrap_or_default(),
@@ -102,17 +91,20 @@ impl MarketState
                     code,
                 };
 
-
                 self.state_db.insert_account_info(*address, account_info);
             } else {
-                trace!("apply_account_info exists {address}. storage len: {}", account.storage.len(),   );
+                trace!("apply_account_info exists {address}. storage len: {}", account.storage.len(),);
             }
             let account = self.state_db.load_account(*address).unwrap();
             account.account_state = DbAccountState::Touched;
-            trace!("after apply_account_info account: {address} state: {:?} storage len: {} code len : {}", account.account_state, account.storage.len(), account.info.code.clone().map_or(0, |c| c.len())  );
+            trace!(
+                "after apply_account_info account: {address} state: {:?} storage len: {} code len : {}",
+                account.account_state,
+                account.storage.len(),
+                account.info.code.clone().map_or(0, |c| c.len())
+            );
         }
     }
-
 
     pub fn apply_account_storage(&mut self, address: &Address, acc_state: &AccountState, insert: bool, only_new: bool) {
         if insert {
@@ -124,13 +116,8 @@ impl MarketState
             let account = self.state_db.load_account(*address).cloned().unwrap();
             for (slot, value) in acc_state.storage.iter() {
                 let is_slot = account.storage.contains_key::<U256>(&(*slot).into());
-                if is_slot && !only_new {
-                    let _ = self.state_db.insert_account_storage(*address, (*slot).into(), (*value).into());
-                    trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
-                } else if !is_slot && only_new {
-                    let _ = self.state_db.insert_account_storage(*address, (*slot).into(), (*value).into());
-                    trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
-                }
+                let _ = self.state_db.insert_account_storage(*address, (*slot).into(), (*value).into());
+                trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
             }
         }
     }
@@ -138,14 +125,17 @@ impl MarketState
     pub fn apply_state_update(&mut self, update_vec: &Vec<BTreeMap<Address, AccountState>>, insert: bool, only_new: bool) -> &mut Self {
         for update_record in update_vec {
             for (address, acc_state) in update_record {
-                trace!("updating {address} insert: {insert} only_new: {only_new} storage len {} code: {}", acc_state.storage.len(), acc_state.code.is_some()  );
+                trace!(
+                    "updating {address} insert: {insert} only_new: {only_new} storage len {} code: {}",
+                    acc_state.storage.len(),
+                    acc_state.code.is_some()
+                );
                 self.apply_account_info_btree(address, acc_state, insert, only_new);
                 self.apply_account_storage(address, acc_state, insert, only_new);
             }
         }
         self
     }
-
 
     pub fn merge_db(&mut self, other: &InMemoryDB) {
         for (address, account) in other.accounts.iter() {
@@ -164,7 +154,6 @@ impl MarketState
         }
     }
 
-
     pub fn update_account_storage(&mut self, account: Address, slot: U256, value: U256) -> &mut Self {
         if self.is_slot(&account, &slot) {
             let _ = self.state_db.insert_account_storage(account, slot, value);
@@ -181,7 +170,6 @@ impl MarketState
 
             let nonce = account_state.nonce.unwrap_or_default();
 
-
             trace!("Address {:#20x} Code : {}", address, hex_code.is_some());
 
             let account_info = AccountInfo {
@@ -193,8 +181,7 @@ impl MarketState
 
             self.state_db.insert_account_info(*address, account_info);
             for (slot, value) in account_state.storage.iter() {
-                self.state_db
-                    .insert_account_storage(*address, (*slot).into(), (*value).into()).unwrap();
+                self.state_db.insert_account_storage(*address, (*slot).into(), (*value).into()).unwrap();
                 trace!("Contract {} Storage {} = {}", address, slot, value);
             }
         }
@@ -202,9 +189,7 @@ impl MarketState
         //debug!("Added state : {}", state.len());
     }
 
-
     pub async fn fetch_state<P: Provider + 'static>(&mut self, account: Address, client: P) {
-
         //let acc : Address = account.0.into();
 
         if let Ok(account_info) = self.state_db.load_account(account) {
@@ -235,7 +220,6 @@ impl MarketState
         Ok(())
     }
 
-
     pub fn disable_cell(&mut self, address: Address, cell: U256) {
         self.read_only_cells.entry(address).or_default().insert(cell);
     }
@@ -246,13 +230,10 @@ impl MarketState
         }
     }
 
-
     pub fn is_read_only_cell(&self, address: &Address, cell: &U256) -> bool {
         match self.read_only_cells.get(address) {
-            Some(hashset) => {
-                hashset.contains(cell)
-            }
-            _ => false
+            Some(hashset) => hashset.contains(cell),
+            _ => false,
         }
     }
 }

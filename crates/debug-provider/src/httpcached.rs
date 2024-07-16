@@ -1,19 +1,14 @@
 use std::collections::HashMap;
 use std::ops::RangeInclusive;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use alloy::{
-    primitives::{B128, B256, BlockHash, BlockNumber, U128},
+    primitives::{BlockHash, BlockNumber, B128, B256, U128},
     rpc::{
-        json_rpc::{
-            Id, Request, RequestPacket, Response, ResponsePacket, ResponsePayload, SerializedRequest,
-        },
-        types::{
-            Block,
-            BlockNumberOrTag, trace::geth::GethDebugTracingOptions, TransactionRequest,
-        },
+        json_rpc::{Id, Request, RequestPacket, Response, ResponsePacket, ResponsePayload, SerializedRequest},
+        types::{trace::geth::GethDebugTracingOptions, Block, BlockNumberOrTag, TransactionRequest},
     },
     transports::{
         http::{Http, ReqwestTransport},
@@ -39,15 +34,12 @@ pub struct HttpCachedTransport {
     cache_folder: Option<CacheFolder>,
 }
 
-
 impl HttpCachedTransport {
     pub async fn new(url: Url, cache_path: Option<&str>) -> Self {
         let client = ReqwestTransport::new(url);
         let cache_folder = match cache_path {
-            Some(path) => {
-                Some(CacheFolder::new(path).await)
-            }
-            None => None
+            Some(path) => Some(CacheFolder::new(path).await),
+            None => None,
         };
         Self {
             client,
@@ -57,7 +49,6 @@ impl HttpCachedTransport {
             cache_folder,
         }
     }
-
 
     pub fn set_block_number(&self, block_number: u64) -> u64 {
         self.block_number.swap(block_number, Ordering::Relaxed)
@@ -73,33 +64,22 @@ impl HttpCachedTransport {
                     Ok(BlockNumberOrTag::Number(x))
                 }
             }
-            BlockNumberOrTag::Earliest => {
-                Ok(BlockNumberOrTag::Earliest)
-            }
-            _ => Ok(BlockNumberOrTag::Number(current_block))
+            BlockNumberOrTag::Earliest => Ok(BlockNumberOrTag::Earliest),
+            _ => Ok(BlockNumberOrTag::Number(current_block)),
         }
     }
 
     pub async fn read_cached(&self, method: String, params_hash: B256) -> Result<String> {
         match &self.cache_folder {
-            Some(cf) => {
-                cf.read(method, params_hash).await
-            }
-            None => {
-                Err(eyre!("NO_CACHE"))
-            }
+            Some(cf) => cf.read(method, params_hash).await,
+            None => Err(eyre!("NO_CACHE")),
         }
     }
 
-
     pub async fn write_cached(&self, method: String, params_hash: B256, data: String) -> Result<()> {
         match &self.cache_folder {
-            Some(cf) => {
-                cf.write(method, params_hash, data).await
-            }
-            None => {
-                Err(eyre!("NO_CACHE"))
-            }
+            Some(cf) => cf.write(method, params_hash, data).await,
+            None => Err(eyre!("NO_CACHE")),
         }
     }
 
@@ -111,7 +91,9 @@ impl HttpCachedTransport {
         let next_block_number = self.read_block_number() + 1;
 
         let new_req = Request::<(BlockNumberOrTag, bool)>::new(
-            "eth_getBlockByNumber", Id::None, (BlockNumberOrTag::Number(next_block_number), false),
+            "eth_getBlockByNumber",
+            Id::None,
+            (BlockNumberOrTag::Number(next_block_number), false),
         );
 
         let new_req: SerializedRequest = new_req.try_into().map_err(TransportError::SerError)?;
@@ -119,12 +101,12 @@ impl HttpCachedTransport {
         if let Ok(new_block_packet) = self.cached_or_execute(new_req).await {
             trace!("fetch_next_block : {:?}", new_block_packet);
             if let ResponsePacket::Single(new_block_response) = new_block_packet {
-                let response: Block = serde_json::from_str(new_block_response.payload.as_success().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
+                let response: Block = serde_json::from_str(new_block_response.payload.as_success().unwrap().get())
+                    .map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
                 self.block_hashes.write().await.insert(next_block_number, response.header.hash.unwrap_or_default());
                 self.set_block_number(next_block_number);
             }
         }
-
 
         Ok(next_block_number)
     }
@@ -155,7 +137,8 @@ impl HttpCachedTransport {
     }
 
     pub async fn get_filter_changes(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
-        let raw_value: Vec<U128> = serde_json::from_str(req.params().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
+        let raw_value: Vec<U128> = serde_json::from_str(req.params().unwrap().get())
+            .map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
         trace!("get_filter_changes req : {:?}", raw_value);
         let mut block_filters_guard = self.block_filters.write().await;
         let block_hashes_guard = self.block_hashes.read().await;
@@ -166,7 +149,9 @@ impl HttpCachedTransport {
             if let Some(filter_block) = block_filters_guard.get(&filter_id).cloned() {
                 if filter_block < current_block {
                     block_filters_guard.insert(filter_id, current_block);
-                    let missed_block_range = RangeInclusive::new(filter_block + 1, current_block).map(|block_number| block_hashes_guard.get(&block_number).cloned().unwrap_or_default()).collect();
+                    let missed_block_range = RangeInclusive::new(filter_block + 1, current_block)
+                        .map(|block_number| block_hashes_guard.get(&block_number).cloned().unwrap_or_default())
+                        .collect();
                     missed_blocks = missed_block_range;
                     break;
                 }
@@ -181,7 +166,6 @@ impl HttpCachedTransport {
         let body = Response { id: Id::None, payload: ResponsePayload::Success(new_resp) };
         Ok(ResponsePacket::Single(body))
     }
-
 
     pub async fn cached_or_execute(&self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         let req_hash = req.params_hash();
@@ -213,11 +197,14 @@ impl HttpCachedTransport {
     }
 
     pub async fn eth_call(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
-        let request: (TransactionRequest, BlockNumberOrTag) = serde_json::from_str(req.params().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
+        let request: (TransactionRequest, BlockNumberOrTag) = serde_json::from_str(req.params().unwrap().get())
+            .map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
         debug!("call req : {:?}", request);
 
         let new_req = Request::<(TransactionRequest, BlockNumberOrTag)>::new(
-            "eth_call", req.id().clone(), (request.0, self.convert_block_number(request.1).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?),
+            "eth_call",
+            req.id().clone(),
+            (request.0, self.convert_block_number(request.1).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?),
         );
         let new_req: SerializedRequest = new_req.try_into().unwrap();
 
@@ -226,13 +213,15 @@ impl HttpCachedTransport {
         resp
     }
 
-
     pub async fn eth_get_block_by_number(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
-        let request: (BlockNumberOrTag, bool) = serde_json::from_str(req.params().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
+        let request: (BlockNumberOrTag, bool) = serde_json::from_str(req.params().unwrap().get())
+            .map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
         debug!("get_block_by_number : {:?}", request);
 
         let new_req = Request::<(BlockNumberOrTag, bool)>::new(
-            "eth_getBlockByNumber", req.id().clone(), (self.convert_block_number(request.0).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?, request.1),
+            "eth_getBlockByNumber",
+            req.id().clone(),
+            (self.convert_block_number(request.0).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?, request.1),
         );
 
         let new_req: SerializedRequest = new_req.try_into().unwrap();
@@ -246,11 +235,14 @@ impl HttpCachedTransport {
     }
 
     pub async fn debug_trace_block_by_number(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
-        let request: (BlockNumberOrTag, GethDebugTracingOptions) = serde_json::from_str(req.params().unwrap().get()).map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
+        let request: (BlockNumberOrTag, GethDebugTracingOptions) = serde_json::from_str(req.params().unwrap().get())
+            .map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
         debug!("debug_trace_block_by_number : {:?}", request);
 
         let new_req = Request::<(BlockNumberOrTag, GethDebugTracingOptions)>::new(
-            "debug_traceBlockByNumber", req.id().clone(), (self.convert_block_number(request.0).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?, request.1),
+            "debug_traceBlockByNumber",
+            req.id().clone(),
+            (self.convert_block_number(request.0).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?, request.1),
         );
 
         let new_req: SerializedRequest = new_req.try_into().unwrap();
@@ -263,13 +255,11 @@ impl HttpCachedTransport {
         self.cached_or_execute(req.clone()).await
     }
 
-
     pub async fn eth_get_logs(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         debug!("eth_get_logs req  : {:?}", req);
         self.cached_or_execute(req.clone()).await
     }
 }
-
 
 impl Service<RequestPacket> for HttpCachedTransport {
     type Response = ResponsePacket;
@@ -283,63 +273,49 @@ impl Service<RequestPacket> for HttpCachedTransport {
     fn call(&mut self, req: RequestPacket) -> Self::Future {
         match req {
             RequestPacket::Single(single_req) => {
-                trace!("Singlereq id : {} method : {} meta : {:?} params :{:?}", single_req.id(), single_req.method(), single_req.meta(), single_req.params());
+                trace!(
+                    "Singlereq id : {} method : {} meta : {:?} params :{:?}",
+                    single_req.id(),
+                    single_req.method(),
+                    single_req.meta(),
+                    single_req.params()
+                );
 
                 let mut self_clone = self.clone();
                 match single_req.method() {
-                    "eth_blockNumber" | "get_block_number" => {
-                        Box::pin(self_clone.get_block_number())
-                    }
-                    "eth_newBlockFilter" => {
-                        Box::pin(self_clone.new_block_filter())
-                    }
-                    "eth_getFilterChanges" => {
-                        Box::pin(self_clone.get_filter_changes(single_req))
-                    }
-                    "eth_call" => {
-                        Box::pin(self_clone.eth_call(single_req))
-                    }
-                    "eth_getLogs" => {
-                        Box::pin(self_clone.eth_get_logs(single_req))
-                    }
-                    "eth_getBlockByNumber" => {
-                        Box::pin(self_clone.eth_get_block_by_number(single_req))
-                    }
-                    "eth_getBlockByHash" => {
-                        Box::pin(self_clone.eth_get_block_by_hash(single_req))
-                    }
-                    "debug_traceBlockByHash" => {
-                        Box::pin(self_clone.debug_trace_block_by_hash(single_req))
-                    }
-                    "debug_traceBlockByNumber" => {
-                        Box::pin(self_clone.debug_trace_block_by_number(single_req))
-                    }
-                    _ => {
-                        Box::pin(async move {
-                            match self_clone.client.call(RequestPacket::Single(single_req)).await {
-                                Ok(response) => {
-                                    match &response {
-                                        ResponsePacket::Single(single_resp) => {
-                                            trace!("responsepacket response : {:?} ", single_resp);
-                                            trace!("responsepacket payload id : {} len {}", single_resp.id, single_resp.payload.as_success().unwrap().get().len());
-                                        }
-                                        ResponsePacket::Batch(batch_resp) => {
-                                            error!("Batch response received {}", batch_resp.len())
-                                        }
+                    "eth_blockNumber" | "get_block_number" => Box::pin(self_clone.get_block_number()),
+                    "eth_newBlockFilter" => Box::pin(self_clone.new_block_filter()),
+                    "eth_getFilterChanges" => Box::pin(self_clone.get_filter_changes(single_req)),
+                    "eth_call" => Box::pin(self_clone.eth_call(single_req)),
+                    "eth_getLogs" => Box::pin(self_clone.eth_get_logs(single_req)),
+                    "eth_getBlockByNumber" => Box::pin(self_clone.eth_get_block_by_number(single_req)),
+                    "eth_getBlockByHash" => Box::pin(self_clone.eth_get_block_by_hash(single_req)),
+                    "debug_traceBlockByHash" => Box::pin(self_clone.debug_trace_block_by_hash(single_req)),
+                    "debug_traceBlockByNumber" => Box::pin(self_clone.debug_trace_block_by_number(single_req)),
+                    _ => Box::pin(async move {
+                        match self_clone.client.call(RequestPacket::Single(single_req)).await {
+                            Ok(response) => {
+                                match &response {
+                                    ResponsePacket::Single(single_resp) => {
+                                        trace!("responsepacket response : {:?} ", single_resp);
+                                        trace!(
+                                            "responsepacket payload id : {} len {}",
+                                            single_resp.id,
+                                            single_resp.payload.as_success().unwrap().get().len()
+                                        );
                                     }
-                                    Ok(response)
+                                    ResponsePacket::Batch(batch_resp) => {
+                                        error!("Batch response received {}", batch_resp.len())
+                                    }
                                 }
-                                Err(e) => {
-                                    Err(e)
-                                }
+                                Ok(response)
                             }
-                        })
-                    }
+                            Err(e) => Err(e),
+                        }
+                    }),
                 }
             }
-            _ => {
-                self.client.call(req)
-            }
+            _ => self.client.call(req),
         }
     }
 }
@@ -353,8 +329,8 @@ mod test {
         rpc::{
             client::{ClientBuilder, RpcClient},
             types::{
-                BlockNumberOrTag, BlockTransactionsKind, Filter,
                 trace::geth::{GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions, PreStateConfig},
+                BlockNumberOrTag, BlockTransactionsKind, Filter,
             },
         },
     };
@@ -378,7 +354,6 @@ mod test {
         let block_number = provider.get_block_number().await?;
         println!("Hello, block {block_number}");
 
-
         /*let block = provider.get_block_by_number(BlockNumberOrTag::Number(block_number), false).await?.unwrap();
         let trace_opts = GethDebugTracingOptions::default().with_tracer(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::PreStateTracer));
 
@@ -390,7 +365,6 @@ mod test {
         Ok(())
     }
 
-
     #[tokio::test]
     async fn test_get_block_number() -> Result<()> {
         env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug,alloy_rpc_client=off,"));
@@ -399,7 +373,6 @@ mod test {
 
         let client = ClientBuilder::default().transport(transport.clone(), true).with_poll_interval(Duration::from_millis(50)).boxed();
         let provider = ProviderBuilder::new().on_client(client);
-
 
         //let provider = ArchiveHistoryProvider::new(provider, 20179184, 20179284);
 
@@ -443,7 +416,8 @@ mod test {
             let filter: Filter = Filter::new().to_block(current_block_number).from_block(current_block_number);
             let logs = provider.get_logs(&filter).await?;
             let block_by_number = provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?.unwrap();
-            let block_by_hash = provider.get_block_by_hash(block_by_number.header.hash.unwrap(), BlockTransactionsKind::Full).await?.unwrap();
+            let block_by_hash =
+                provider.get_block_by_hash(block_by_number.header.hash.unwrap(), BlockTransactionsKind::Full).await?.unwrap();
             assert_eq!(block_by_hash.header, block_by_number.header);
 
             let trace_block_by_hash = provider.debug_trace_block_by_hash(block_by_number.header.hash.unwrap(), trace_opts.clone()).await?;

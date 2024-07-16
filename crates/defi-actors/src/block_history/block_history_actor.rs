@@ -26,8 +26,7 @@ pub async fn new_block_history_worker(
     mut log_update_rx: Receiver<BlockLogs>,
     mut state_update_rx: Receiver<BlockStateUpdate>,
     sender: Broadcaster<MarketEvents>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     loop {
         tokio::select! {
             msg = block_header_update_rx.recv() => {
@@ -218,8 +217,7 @@ pub async fn new_block_history_worker(
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct BlockHistoryActor
-{
+pub struct BlockHistoryActor {
     chain_parameters: ChainParameters,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
@@ -239,13 +237,9 @@ pub struct BlockHistoryActor
     market_events_tx: Option<Broadcaster<MarketEvents>>,
 }
 
-impl BlockHistoryActor
-{
+impl BlockHistoryActor {
     pub fn new() -> Self {
-        Self {
-            chain_parameters: ChainParameters::ethereum(),
-            ..Self::default()
-        }
+        Self { chain_parameters: ChainParameters::ethereum(), ..Self::default() }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -259,13 +253,11 @@ impl BlockHistoryActor
             log_update_rx: Some(bc.new_block_logs_channel()),
             state_update_rx: Some(bc.new_block_state_update_channel()),
             market_events_tx: Some(bc.market_events_channel()),
-            ..self
         }
     }
 }
 
-impl Default for BlockHistoryActor
-{
+impl Default for BlockHistoryActor {
     fn default() -> Self {
         BlockHistoryActor {
             chain_parameters: ChainParameters::ethereum(),
@@ -282,22 +274,19 @@ impl Default for BlockHistoryActor
 }
 
 #[async_trait]
-impl Actor for BlockHistoryActor
-{
+impl Actor for BlockHistoryActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            new_block_history_worker(
-                self.chain_parameters.clone(),
-                self.latest_block.clone().unwrap(),
-                self.market_state.clone().unwrap(),
-                self.block_history.clone().unwrap(),
-                self.block_header_update_rx.clone().unwrap().subscribe().await,
-                self.block_update_rx.clone().unwrap().subscribe().await,
-                self.log_update_rx.clone().unwrap().subscribe().await,
-                self.state_update_rx.clone().unwrap().subscribe().await,
-                self.market_events_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(new_block_history_worker(
+            self.chain_parameters.clone(),
+            self.latest_block.clone().unwrap(),
+            self.market_state.clone().unwrap(),
+            self.block_history.clone().unwrap(),
+            self.block_header_update_rx.clone().unwrap().subscribe().await,
+            self.block_update_rx.clone().unwrap().subscribe().await,
+            self.log_update_rx.clone().unwrap().subscribe().await,
+            self.state_update_rx.clone().unwrap().subscribe().await,
+            self.market_events_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
 

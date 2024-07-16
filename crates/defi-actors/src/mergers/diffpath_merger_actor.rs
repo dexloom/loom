@@ -16,10 +16,10 @@ use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerRes
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 lazy_static! {
-    static ref COINBASE : Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
+    static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
-fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a Vec<TxComposeData>) -> Vec<&'a TxComposeData> {
+fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a [TxComposeData]) -> Vec<&'a TxComposeData> {
     let mut ret: Vec<&TxComposeData> = Vec::new();
     let mut pools = request.swap.get_pool_address_vec();
     for p in swap_paths.iter() {
@@ -31,7 +31,6 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a Vec<TxComposeData
     ret
 }
 
-
 async fn diff_path_merger_worker(
     //encoder: SwapStepEncoder,
     //signers: SharedState<TxSigners>,
@@ -42,8 +41,7 @@ async fn diff_path_merger_worker(
     mut market_events_rx: Receiver<MarketEvents>,
     mut compose_channel_rx: Receiver<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     let mut swap_paths: Vec<TxComposeData> = Vec::new();
 
     //let mut affecting_tx: HashMap<TxHash, bool> = HashMap::new();
@@ -53,32 +51,28 @@ async fn diff_path_merger_worker(
     //let mut cur_block_time: Option<u64> = None;
     //let mut cur_state_override: StateOverride = StateOverride::default();
 
-
     loop {
         tokio::select! {
             msg = market_events_rx.recv() => {
                 if let Ok(msg) = msg {
                     let market_event_msg : MarketEvents = msg;
-                    match market_event_msg {
-                        MarketEvents::BlockHeaderUpdate{block_number, block_hash, timestamp, base_fee, next_base_fee} =>{
-                            debug!("Block header update {} {} ts {} base_fee {} next {} ", block_number, block_hash, timestamp, base_fee, next_base_fee);
-                            //cur_block_number = Some( block_number + 1);
-                            //cur_block_time = Some(timestamp + 12 );
-                            //cur_next_base_fee = next_base_fee;
-                            //cur_base_fee = base_fee;
-                            swap_paths = Vec::new();
+                    if let MarketEvents::BlockHeaderUpdate{block_number, block_hash, timestamp, base_fee, next_base_fee} =  market_event_msg {
+                        debug!("Block header update {} {} ts {} base_fee {} next {} ", block_number, block_hash, timestamp, base_fee, next_base_fee);
+                        //cur_block_number = Some( block_number + 1);
+                        //cur_block_time = Some(timestamp + 12 );
+                        //cur_next_base_fee = next_base_fee;
+                        //cur_base_fee = base_fee;
+                        swap_paths = Vec::new();
 
-                            // for _counter in 0..5  {
-                            //     if let Ok(msg) = market_events_rx.recv().await {
-                            //         if matches!(msg, MarketEvents::BlockStateUpdate{ block_hash } ) {
-                            //             cur_state_override = latest_block.read().await.node_state_override();
-                            //             debug!("Block state update received {} {}", block_number, block_hash);
-                            //             break;
-                            //         }
-                            //     }
-                            // }
-                        }
-                        _=>{}
+                        // for _counter in 0..5  {
+                        //     if let Ok(msg) = market_events_rx.recv().await {
+                        //         if matches!(msg, MarketEvents::BlockStateUpdate{ block_hash } ) {
+                        //             cur_state_override = latest_block.read().await.node_state_override();
+                        //             debug!("Block state update received {} {}", block_number, block_hash);
+                        //             break;
+                        //         }
+                        //     }
+                        // }
                     }
                 }
             }
@@ -92,7 +86,7 @@ async fn diff_path_merger_worker(
                             if matches!( sign_request.swap, Swap::BackrunSwapLine(_)) || matches!( sign_request.swap, Swap::BackrunSwapSteps(_)) {
                                 let mut merge_list = get_merge_list(sign_request, &swap_paths);
 
-                                if merge_list.len() > 0 {
+                                if !merge_list.is_empty() {
 
                                     let mut state = MarketState::new(sign_request.poststate.clone().unwrap().as_ref().clone());
 
@@ -128,9 +122,8 @@ async fn diff_path_merger_worker(
                                     );
                                     info!("+++ Calculation finished. Merge list : {} profit : {}",merge_list.len(), NWETH::to_float(encode_request.swap.abs_profit_eth())  );
 
-                                    match compose_channel_tx.send(encode_request).await {
-                                        Err(e)=>{error!("{}",e)}
-                                        _=>{}
+                                    if let Err(e) = compose_channel_tx.send(encode_request).await {
+                                       error!("{}",e)
                                     }
                                 }
 
@@ -148,12 +141,11 @@ async fn diff_path_merger_worker(
 
 
         }
-    };
+    }
 }
 
 #[derive(Consumer, Producer, Accessor)]
-pub struct DiffPathMergerActor
-{
+pub struct DiffPathMergerActor {
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     #[consumer]
@@ -162,8 +154,7 @@ pub struct DiffPathMergerActor
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
 }
 
-impl DiffPathMergerActor
-{
+impl DiffPathMergerActor {
     pub fn new() -> Self {
         Self {
             //encoder: SwapStepEncoder::new(multicaller),
@@ -184,16 +175,13 @@ impl DiffPathMergerActor
 }
 
 #[async_trait]
-impl Actor for DiffPathMergerActor
-{
+impl Actor for DiffPathMergerActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            diff_path_merger_worker(
-                self.market_events.clone().unwrap().subscribe().await,
-                self.compose_channel_rx.clone().unwrap().subscribe().await,
-                self.compose_channel_tx.clone().unwrap(),
-            )
-        );
+        let task = tokio::task::spawn(diff_path_merger_worker(
+            self.market_events.clone().unwrap().subscribe().await,
+            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_tx.clone().unwrap(),
+        ));
         Ok(vec![task])
     }
 

@@ -34,7 +34,6 @@ pub enum TransportType {
     Ipc,
 }
 
-
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct ClientConfigParams {
     pub url: String,
@@ -45,7 +44,6 @@ pub struct ClientConfigParams {
     #[serde(skip)]
     pub provider: Option<RootProvider<BoxTransport>>,
 }
-
 
 impl ClientConfigParams {
     pub fn client(&self) -> Option<&RootProvider<BoxTransport>> {
@@ -64,22 +62,14 @@ impl ClientConfig {
     pub fn url(&self) -> String {
         match &self {
             Self::String(s) => s.clone(),
-            ClientConfig::Params(p) => p.url.clone()
+            ClientConfig::Params(p) => p.url.clone(),
         }
     }
 
-
     pub fn config_params(&self) -> ClientConfigParams {
         match self {
-            ClientConfig::String(s) => {
-                ClientConfigParams {
-                    url: s.clone(),
-                    ..ClientConfigParams::default()
-                }
-            }
-            ClientConfig::Params(p) => {
-                p.clone()
-            }
+            ClientConfig::String(s) => ClientConfigParams { url: s.clone(), ..ClientConfigParams::default() },
+            ClientConfig::Params(p) => p.clone(),
         }
     }
 }
@@ -94,7 +84,7 @@ pub struct EnvSingerConfig {
 #[serde(tag = "type")]
 pub enum SignersConfig {
     #[serde(rename = "env")]
-    Env(EnvSingerConfig)
+    Env(EnvSingerConfig),
 }
 
 #[derive(Debug, Deserialize)]
@@ -115,7 +105,7 @@ pub struct SwapStepEncoderConfig {
 #[serde(tag = "type")]
 pub enum EncoderConfig {
     #[serde(rename = "swapstep")]
-    SwapStep(SwapStepEncoderConfig)
+    SwapStep(SwapStepEncoderConfig),
 }
 
 #[derive(Debug, Deserialize)]
@@ -139,14 +129,12 @@ pub struct FlashbotsBroadcasaterConfig {
     pub smart: Option<bool>,
 }
 
-
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum BroadcasterConfig {
     #[serde(rename = "flashbots")]
-    Flashbots(FlashbotsBroadcasaterConfig)
+    Flashbots(FlashbotsBroadcasaterConfig),
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct EvmEstimatorConfig {
@@ -172,7 +160,6 @@ pub enum EstimatorConfig {
     Geth(GethEstimatorConfig),
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct PoolsConfig {
     #[serde(rename = "bc")]
@@ -182,7 +169,6 @@ pub struct PoolsConfig {
     pub new: bool,
     pub protocol: bool,
 }
-
 
 #[derive(Debug, Deserialize)]
 pub struct ActorConfig {
@@ -196,7 +182,6 @@ pub struct ActorConfig {
     pub estimator: Option<HashMap<String, EstimatorConfig>>,
 }
 
-
 #[derive(Debug, Deserialize)]
 pub struct TopologyConfig {
     pub clients: HashMap<String, ClientConfig>,
@@ -205,9 +190,7 @@ pub struct TopologyConfig {
     pub signers: HashMap<String, SignersConfig>,
     pub encoders: HashMap<String, EncoderConfig>,
     pub preloaders: Option<HashMap<String, PreloaderConfig>>,
-
 }
-
 
 impl TopologyConfig {
     pub fn load_from_file(file_name: String) -> Result<TopologyConfig> {
@@ -216,7 +199,6 @@ impl TopologyConfig {
         Ok(config)
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -228,7 +210,9 @@ mod test {
             Ok(c) => {
                 println!("{:?}", c);
             }
-            Err(e) => { println!("Error:{e}") }
+            Err(e) => {
+                println!("Error:{e}")
+            }
         }
     }
 }

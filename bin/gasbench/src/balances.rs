@@ -20,9 +20,7 @@ where
 {
     let balance_storage_cell = calc_hashmap_cell(U256::from(3u32), U256::from_be_slice(target_address.as_slice()));
 
-    let value = client
-        .get_storage_at(token_address, balance_storage_cell)
-        .await?;
+    let value = client.get_storage_at(token_address, balance_storage_cell).await?;
 
     if value.is_zero() {
         Err(eyre!("BAD_BALANCE_CELL"))
@@ -50,15 +48,12 @@ where
         _ => {}
     }
 
-
     let new_storage = client.get_storage_at(token_address, balance_cell).await?;
-
 
     if weth_balance != new_storage {
         error!("{weth_balance} != {new_storage}");
         return Err(eyre!("STORAGE_NOT_SET"));
     }
-
 
     let weth_instance = IERC20Instance::new(token_address, client.clone());
 

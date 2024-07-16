@@ -9,12 +9,15 @@ use alloy_transport::Transport;
 use eyre::{eyre, Report, Result};
 use log::{debug, error, trace};
 
-use defi_abi::curve::{ICurveI128_2, ICurveI128_2_To, ICurveI128_2_To_Meta, ICurveI128_3, ICurveI128_4, ICurveU256_2, ICurveU256_2_Eth_To, ICurveU256_2_To, ICurveU256_3_Eth, ICurveU256_3_Eth_To, ICurveU256_3_Eth_To2};
+use defi_abi::curve::{
+    ICurveI128_2, ICurveI128_2_To, ICurveI128_2_To_Meta, ICurveI128_3, ICurveI128_4, ICurveU256_2, ICurveU256_2_Eth_To, ICurveU256_2_To,
+    ICurveU256_3_Eth, ICurveU256_3_Eth_To, ICurveU256_3_Eth_To2,
+};
 use defi_abi::curve::ICurveAddressProvider::ICurveAddressProviderInstance;
 use defi_abi::curve::ICurveCommon::ICurveCommonInstance;
 use defi_abi::curve::ICurveCommonI128::ICurveCommonI128Instance;
 use defi_abi::curve::ICurveFactory::ICurveFactoryInstance;
-use defi_abi::curve::ICurveI128_2::{ICurveI128_2Calls, ICurveI128_2Instance};
+use defi_abi::curve::ICurveI128_2::ICurveI128_2Instance;
 use defi_abi::curve::ICurveI128_2_To::{ICurveI128_2_ToCalls, ICurveI128_2_ToInstance};
 use defi_abi::curve::ICurveI128_2_To_Meta::ICurveI128_2_To_MetaInstance;
 use defi_abi::curve::ICurveI128_3::{ICurveI128_3Calls, ICurveI128_3Instance};
@@ -51,7 +54,6 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
-
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let contract_type = match self {
@@ -88,7 +90,6 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
-
 {
     pub async fn lp_token(address: Address) -> Result<Address> {
         if address == "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".parse::<Address>().unwrap() {
@@ -101,7 +102,11 @@ where
         let common_contract = ICurveCommonI128Instance::new(address, client);
         match common_contract.coins(coin_id.into()).call_raw().await {
             Ok(addr) => {
-                if addr.len() >= 32 { Ok(Address::from_slice(&addr[12..32])) } else { Err(eyre!("CANNOT_GET_COIN_ADDRESS")) }
+                if addr.len() >= 32 {
+                    Ok(Address::from_slice(&addr[12..32]))
+                } else {
+                    Err(eyre!("CANNOT_GET_COIN_ADDRESS"))
+                }
             }
             Err(e) => {
                 trace!("coin call error {}", e);
@@ -170,15 +175,14 @@ where
                 Err(_) => break,
             }
         }
-        if ret.len() == 0 {
+        if ret.is_empty() {
             trace!("coin fetch coins");
             Err(eyre!("CANNOT_GET_COIN_ADDRESS"))
         } else {
-            trace!("coins @{} {:?}", address, ret );
+            trace!("coins @{} {:?}", address, ret);
             Ok(ret)
         }
     }
-
 
     pub async fn balances(client: P, address: Address) -> Result<Vec<U256>> {
         let mut ret: Vec<U256> = Vec::new();
@@ -207,7 +211,7 @@ where
                         }
                     }
                 }
-                if ret.len() == 0 {
+                if ret.is_empty() {
                     trace!("coin call error {}", e);
                     Err(eyre!("CANNOT_GET_COIN_BALANCE"))
                 } else {
@@ -226,199 +230,110 @@ where
 {
     pub fn get_address(&self) -> Address {
         match self {
-            CurveContract::I128_2(interface) => {
-                *interface.address()
-            }
+            CurveContract::I128_2(interface) => *interface.address(),
 
-            CurveContract::I128_2ToMeta(interface) => {
-                *interface.address()
-            }
+            CurveContract::I128_2ToMeta(interface) => *interface.address(),
 
-            CurveContract::I128_2To(interface) => {
-                *interface.address()
-            }
-            CurveContract::I128_3(interface) => {
-                *interface.address()
-            }
-            CurveContract::I128_4(interface) => {
-                *interface.address()
-            }
-            CurveContract::U256_2(interface) => {
-                *interface.address()
-            }
-            CurveContract::U256_2To(interface) => {
-                *interface.address()
-            }
-            CurveContract::U256_2EthTo(interface) => {
-                *interface.address()
-            }
-            CurveContract::U256_3Eth(interface) => {
-                *interface.address()
-            }
-            CurveContract::U256_3EthTo(interface) => {
-                *interface.address()
-            }
-            CurveContract::U256_3EthTo2(interface) => {
-                *interface.address()
-            }
+            CurveContract::I128_2To(interface) => *interface.address(),
+            CurveContract::I128_3(interface) => *interface.address(),
+            CurveContract::I128_4(interface) => *interface.address(),
+            CurveContract::U256_2(interface) => *interface.address(),
+            CurveContract::U256_2To(interface) => *interface.address(),
+            CurveContract::U256_2EthTo(interface) => *interface.address(),
+            CurveContract::U256_3Eth(interface) => *interface.address(),
+            CurveContract::U256_3EthTo(interface) => *interface.address(),
+            CurveContract::U256_3EthTo2(interface) => *interface.address(),
         }
     }
 
-
     pub fn can_exchange_to(&self) -> bool {
-        match self {
-            CurveContract::I128_3(_) | CurveContract::U256_3Eth(_) => {
-                false
-            }
-            _ => true
-        }
+        !(matches!(self, CurveContract::I128_3(_)) | matches!(self, CurveContract::U256_3Eth(_)))
     }
 
     pub fn can_calculate_in_amount(&self) -> bool {
-        match self {
-            CurveContract::I128_2To(_) | CurveContract::U256_2EthTo(_) | CurveContract::U256_3EthTo(_) | CurveContract::I128_2ToMeta(_) => {
-                true
-            }
-            _ => false
-        }
+        matches!(self, CurveContract::I128_2To(_) | CurveContract::U256_2EthTo(_) | CurveContract::U256_3EthTo(_) | CurveContract::I128_2ToMeta(_))
     }
-
 
     pub async fn get_dy(&self, i: u32, j: u32, amount: U256) -> Result<U256> {
         match self {
-            CurveContract::I128_2(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::I128_2ToMeta(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::I128_2To(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::I128_3(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::I128_4(interface) => {
-                match interface.get_dy(i.into(), j.into(), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::U256_2(interface) => {
-                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::U256_2To(interface) => {
-                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::U256_2EthTo(interface) => {
-                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::U256_3EthTo(interface) => {
-                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::U256_3EthTo2(interface) => {
-                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
-            CurveContract::U256_3Eth(interface) => {
-                match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
-                    Ok(x) => Ok(x._0),
-                    _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR"))
-                }
-            }
+            CurveContract::I128_2(interface) => match interface.get_dy(i.into(), j.into(), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::I128_2ToMeta(interface) => match interface.get_dy(i.into(), j.into(), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::I128_2To(interface) => match interface.get_dy(i.into(), j.into(), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::I128_3(interface) => match interface.get_dy(i.into(), j.into(), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::I128_4(interface) => match interface.get_dy(i.into(), j.into(), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::U256_2(interface) => match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::U256_2To(interface) => match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::U256_2EthTo(interface) => match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::U256_3EthTo(interface) => match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::U256_3EthTo2(interface) => match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
+            CurveContract::U256_3Eth(interface) => match interface.get_dy(U256::from(i), U256::from(j), amount).call().await {
+                Ok(x) => Ok(x._0),
+                _ => Err(eyre!("CURVE_GET_DY_CALL_ERROR")),
+            },
         }
     }
 
     pub fn get_dx_call_data(&self, i: u32, j: u32, amount: U256) -> Result<Bytes> {
         let ret: Result<Bytes, Report> = match self {
-            CurveContract::I128_2To(interface) => {
-                Ok(interface.get_dx(i.into(), j.into(), amount).calldata().clone())
-            }
-            CurveContract::U256_3EthTo(interface) => {
-                Ok(interface.get_dx(U256::from(i), U256::from(j), amount).calldata().clone())
-            }
-            CurveContract::U256_3EthTo2(interface) => {
-                Ok(interface.get_dx(U256::from(i), U256::from(j), amount).calldata().clone())
-            }
-            _ => Err(eyre!("CURVE_CANNOT_CALC_DX"))
+            CurveContract::I128_2To(interface) => Ok(interface.get_dx(i.into(), j.into(), amount).calldata().clone()),
+            CurveContract::U256_3EthTo(interface) => Ok(interface.get_dx(U256::from(i), U256::from(j), amount).calldata().clone()),
+            CurveContract::U256_3EthTo2(interface) => Ok(interface.get_dx(U256::from(i), U256::from(j), amount).calldata().clone()),
+            _ => Err(eyre!("CURVE_CANNOT_CALC_DX")),
         };
         ret
     }
 
-
     pub fn get_dy_underlying_call_data(&self, i: u32, j: u32, amount: U256) -> Result<Bytes> {
         match self {
-            CurveContract::I128_2ToMeta(interface) => {
-                Ok(interface.get_dy_underlying(i.into(), j.into(), amount).calldata().clone())
-            }
-            _ => {
-                Err(eyre!("GET_DY_UNDERLYING_NOT_SUPPORTED"))
-            }
+            CurveContract::I128_2ToMeta(interface) => Ok(interface.get_dy_underlying(i.into(), j.into(), amount).calldata().clone()),
+            _ => Err(eyre!("GET_DY_UNDERLYING_NOT_SUPPORTED")),
         }
     }
 
     pub fn get_dy_call_data(&self, i: u32, j: u32, amount: U256) -> Result<Bytes> {
         match self {
-            CurveContract::I128_2(interface) => {
-                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
-            }
-            CurveContract::I128_2ToMeta(interface) => {
-                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
-            }
+            CurveContract::I128_2(interface) => Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone()),
+            CurveContract::I128_2ToMeta(interface) => Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone()),
 
-            CurveContract::I128_2To(interface) => {
-                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
-            }
-            CurveContract::I128_3(interface) => {
-                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
-            }
-            CurveContract::I128_4(interface) => {
-                Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone())
-            }
-            CurveContract::U256_2(interface) => {
-                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
-            }
-            CurveContract::U256_2To(interface) => {
-                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
-            }
-            CurveContract::U256_2EthTo(interface) => {
-                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
-            }
-            CurveContract::U256_3Eth(interface) => {
-                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
-            }
-            CurveContract::U256_3EthTo(interface) => {
-                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
-            }
-            CurveContract::U256_3EthTo2(interface) => {
-                Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone())
-            }
+            CurveContract::I128_2To(interface) => Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone()),
+            CurveContract::I128_3(interface) => Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone()),
+            CurveContract::I128_4(interface) => Ok(interface.get_dy(i.into(), j.into(), amount).calldata().clone()),
+            CurveContract::U256_2(interface) => Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone()),
+            CurveContract::U256_2To(interface) => Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone()),
+            CurveContract::U256_2EthTo(interface) => Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone()),
+            CurveContract::U256_3Eth(interface) => Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone()),
+            CurveContract::U256_3EthTo(interface) => Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone()),
+            CurveContract::U256_3EthTo2(interface) => Ok(interface.get_dy(U256::from(i), U256::from(j), amount).calldata().clone()),
         }
     }
 
@@ -439,20 +354,14 @@ where
                 amounts[i as usize] = amount;
                 Ok(interface.calc_token_amount(amounts, true).calldata().clone())
             }
-            _ => {
-                Err(eyre!("CURVE_TOKEN_AMOUNT_CALL_DATA_NOT_SUPPORTED"))
-            }
+            _ => Err(eyre!("CURVE_TOKEN_AMOUNT_CALL_DATA_NOT_SUPPORTED")),
         }
     }
 
     pub fn calc_withdraw_one_coin_call_data(&self, i: u32, amount: U256) -> Result<Bytes> {
         match self {
-            CurveContract::I128_3(interface) => {
-                Ok(interface.calc_withdraw_one_coin(amount, i.into()).calldata().clone())
-            }
-            _ => {
-                Err(eyre!("CURVE_WITHDRAW_ONE_COIN_NOT_SUPPORTED"))
-            }
+            CurveContract::I128_3(interface) => Ok(interface.calc_withdraw_one_coin(amount, i.into()).calldata().clone()),
+            _ => Err(eyre!("CURVE_WITHDRAW_ONE_COIN_NOT_SUPPORTED")),
         }
     }
 
@@ -461,33 +370,18 @@ where
             CurveContract::I128_2ToMeta(interface) => {
                 Ok(interface.exchange_underlying(i.into(), j.into(), amount, min_dy, to).calldata().clone())
             }
-            _ => {
-                Err(eyre!("GET_EXCHANGE_UNDERLYING_CALL_DATA_NOT_SUPPORTED"))
-            }
+            _ => Err(eyre!("GET_EXCHANGE_UNDERLYING_CALL_DATA_NOT_SUPPORTED")),
         }
     }
 
-
     pub fn get_exchange_call_data(&self, i: u32, j: u32, amount: U256, min_dy: U256, to: Address) -> Result<Bytes> {
         match self {
-            CurveContract::I128_2(interface) => {
-                Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone())
-            }
-            CurveContract::I128_2ToMeta(interface) => {
-                Ok(interface.exchange(i.into(), j.into(), amount, min_dy, to).calldata().clone())
-            }
-            CurveContract::I128_2To(interface) => {
-                Ok(interface.exchange(i.into(), j.into(), amount, min_dy, to).calldata().clone())
-            }
-            CurveContract::I128_3(interface) => {
-                Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone())
-            }
-            CurveContract::I128_4(interface) => {
-                Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone())
-            }
-            CurveContract::U256_2(interface) => {
-                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy).calldata().clone())
-            }
+            CurveContract::I128_2(interface) => Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone()),
+            CurveContract::I128_2ToMeta(interface) => Ok(interface.exchange(i.into(), j.into(), amount, min_dy, to).calldata().clone()),
+            CurveContract::I128_2To(interface) => Ok(interface.exchange(i.into(), j.into(), amount, min_dy, to).calldata().clone()),
+            CurveContract::I128_3(interface) => Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone()),
+            CurveContract::I128_4(interface) => Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone()),
+            CurveContract::U256_2(interface) => Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy).calldata().clone()),
             CurveContract::U256_2To(interface) => {
                 Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, to).calldata().clone())
             }
@@ -513,20 +407,17 @@ where
                 amounts[i as usize] = amount;
                 Ok(interface.add_liquidity(amounts, U256::ZERO).calldata().clone())
             }
-            _ => { Err(eyre!("ADD_LIQUIDITY_NOT_SUPPORTED")) }
+            _ => Err(eyre!("ADD_LIQUIDITY_NOT_SUPPORTED")),
         }
     }
 
     pub fn get_remove_liquidity_one_coin_call_data(&self, i: u32, amount: U256, _to: Address) -> Result<Bytes> {
         match self {
-            CurveContract::I128_3(interface) => {
-                Ok(interface.remove_liquidity_one_coin(amount, i as i128, U256::ZERO).calldata().clone())
-            }
-            _ => { Err(eyre!("REMOVE_LIQUIDITY_ONE_COIN_NOT_SUPPORTED")) }
+            CurveContract::I128_3(interface) => Ok(interface.remove_liquidity_one_coin(amount, i as i128, U256::ZERO).calldata().clone()),
+            _ => Err(eyre!("REMOVE_LIQUIDITY_ONE_COIN_NOT_SUPPORTED")),
         }
     }
 }
-
 
 pub struct CurveProtocol<P, N, T>
 where
@@ -539,7 +430,6 @@ where
     t: PhantomData<T>,
 }
 
-
 impl<P, N, T> CurveProtocol<P, N, T>
 where
     N: Network,
@@ -548,25 +438,20 @@ where
 {
     pub fn get_underlying_tokens(meta_token_address: Address) -> Result<Vec<Address>> {
         if meta_token_address == "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse::<Address>().unwrap() {
-            Ok(
-                vec![
-                    "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap(),
-                    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap(),
-                    "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap(),
-                ]
-            )
+            Ok(vec![
+                "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap(),
+                "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap(),
+                "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap(),
+            ])
         } else if meta_token_address == "0x3175Df0976dFA876431C2E9eE6Bc45b65d3473CC".parse::<Address>().unwrap() {
-            Ok(
-                vec![
-                    "0x853d955aCEf822Db058eb8505911ED77F175b99e".parse().unwrap(),
-                    "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap(),
-                ]
-            )
+            Ok(vec![
+                "0x853d955aCEf822Db058eb8505911ED77F175b99e".parse().unwrap(),
+                "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap(),
+            ])
         } else {
             Err(eyre!("META_POOL_NOT_FOUND"))
         }
     }
-
 
     pub fn new_i128_2(client: P, address: Address) -> CurveContract<P, T, N> {
         let contract = ICurveI128_2Instance::new(address, client);
@@ -618,7 +503,6 @@ where
         CurveContract::U256_3Eth(contract)
     }
 
-
     /*
     I128_3
     0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7 // DAI-USDT-USDC
@@ -648,7 +532,6 @@ where
                 //println!("{} found", fn_name);
             }
         }
-
 
         true
     }
@@ -687,7 +570,6 @@ where
         }
     }
 
-
     pub async fn get_contract_from_code(client: P, address: Address) -> Result<CurveContract<P, T, N>> {
         //let sig = ICurveU256_3_EthCalls::Balances(  <ICurveU256_3_Eth<M>>::BalancesCall );
         //let sig = ICurveU256_3_EthCalls::Balances(  BalancesCall{} );
@@ -711,49 +593,44 @@ where
             return Err(eyre!("CANNOT_FIND_UNDERLYING"));
         }
 
-        if Self::match_abi(&code, ICurveI128_2::ICurveI128_2Calls::selectors().into_iter().map(|x| x).collect()) {
-            return Ok(Self::new_i128_2(client, address));
-        }
-        
-        if Self::match_abi(&code, ICurveI128_2_To_Meta::ICurveI128_2_To_MetaCalls::selectors().into_iter().map(|x| x).collect()) {
+        if Self::match_abi(&code, ICurveI128_2_To_Meta::ICurveI128_2_To_MetaCalls::selectors().collect()) {
             return Ok(Self::new_i128_2_to_meta(client, address));
         }
 
-        if Self::match_abi(&code, ICurveI128_2_ToCalls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveI128_2_ToCalls::selectors().collect()) {
             return Ok(Self::new_i128_2_to(client, address));
         }
-        if Self::match_abi(&code, ICurveI128_2Calls::selectors().into_iter().collect()) {
+
+        if Self::match_abi(&code, ICurveI128_2::ICurveI128_2Calls::selectors().collect()) {
             return Ok(Self::new_i128_2(client, address));
         }
-        if Self::match_abi(&code, ICurveI128_3Calls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveI128_3Calls::selectors().collect()) {
             return Ok(Self::new_i128_3(client, address));
         }
-        if Self::match_abi(&code, ICurveI128_4Calls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveI128_4Calls::selectors().collect()) {
             return Ok(Self::new_i128_4(client, address));
         }
-        if Self::match_abi(&code, ICurveU256_2_ToCalls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveU256_2_ToCalls::selectors().collect()) {
             return Ok(Self::new_u256_2_to(client, address));
         }
-        if Self::match_abi(&code, ICurveU256_2Calls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveU256_2Calls::selectors().collect()) {
             return Ok(Self::new_u256_2(client, address));
         }
-        if Self::match_abi(&code, ICurveU256_2_Eth_ToCalls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveU256_2_Eth_ToCalls::selectors().collect()) {
             return Ok(Self::new_u256_2_eth_to(client, address));
         }
-        if Self::match_abi(&code, ICurveU256_3_EthCalls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveU256_3_EthCalls::selectors().collect()) {
             return Ok(Self::new_u256_3_eth(client, address));
         }
-        if Self::match_abi(&code, ICurveU256_3_Eth_ToCalls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveU256_3_Eth_ToCalls::selectors().collect()) {
             return Ok(Self::new_u256_3_eth_to(client, address));
         }
-        if Self::match_abi(&code, ICurveU256_3_Eth_To2Calls::selectors().into_iter().collect()) {
+        if Self::match_abi(&code, ICurveU256_3_Eth_To2Calls::selectors().collect()) {
             return Ok(Self::new_u256_3_eth_to2(client, address));
         }
 
-
         Err(eyre!("ABI_NOT_FOUND"))
     }
-
 
     pub fn get_contracts_vec(client: P) -> Vec<CurveContract<P, T, N>> {
         vec![

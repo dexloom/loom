@@ -9,14 +9,13 @@ use defi_abi::multicaller::IMultiCaller;
 use defi_types::{CallType, MulticallerCall, MulticallerCalls};
 
 lazy_static! {
-    static ref VALUE_CALL_SELECTOR : U256 = U256::from(0x7FFA);
-    static ref CALCULATION_CALL_SELECTOR : U256 = U256::from(0x7FFB);
-    static ref ZERO_VALUE_CALL_SELECTOR : U256 = U256::from(0x7FFC);
-    static ref INTERNAL_CALL_SELECTOR : U256 = U256::from(0x7FFD);
-    static ref STATIC_CALL_SELECTOR : U256 = U256::from(0x7FFE);
-    static ref DELEGATE_CALL_SELECTOR : U256 = U256::from(0x7FFF);
+    static ref VALUE_CALL_SELECTOR: U256 = U256::from(0x7FFA);
+    static ref CALCULATION_CALL_SELECTOR: U256 = U256::from(0x7FFB);
+    static ref ZERO_VALUE_CALL_SELECTOR: U256 = U256::from(0x7FFC);
+    static ref INTERNAL_CALL_SELECTOR: U256 = U256::from(0x7FFD);
+    static ref STATIC_CALL_SELECTOR: U256 = U256::from(0x7FFE);
+    static ref DELEGATE_CALL_SELECTOR: U256 = U256::from(0x7FFF);
 }
-
 
 pub struct OpcodesEncoderV2;
 
@@ -24,7 +23,6 @@ pub trait OpcodesEncoder {
     fn pack_do_calls(opcodes: &MulticallerCalls) -> Result<Bytes>;
     fn pack_do_calls_data(opcode: &MulticallerCalls) -> Result<Bytes>;
 }
-
 
 impl OpcodesEncoderV2 {
     fn pack_opcode(opcode: &MulticallerCall) -> Result<Vec<u8>> {
@@ -39,16 +37,12 @@ impl OpcodesEncoderV2 {
                     *VALUE_CALL_SELECTOR
                 }
             }
-            CallType::DelegateCall => {
-                *DELEGATE_CALL_SELECTOR
-            }
+            CallType::DelegateCall => *DELEGATE_CALL_SELECTOR,
             CallType::InternalCall => {
                 //selector_bytes_len = 0xC;
                 *INTERNAL_CALL_SELECTOR
             }
-            CallType::StaticCall => {
-                *STATIC_CALL_SELECTOR
-            }
+            CallType::StaticCall => *STATIC_CALL_SELECTOR,
             CallType::CalculationCall => {
                 //selector_bytes_len = 0xC;
                 *CALCULATION_CALL_SELECTOR
@@ -57,7 +51,6 @@ impl OpcodesEncoderV2 {
                 return Err(ErrReport::msg("WRONG_OPCODE"));
             }
         };
-
 
         if selector_call == *VALUE_CALL_SELECTOR && !opcode.value.unwrap_or_default().is_zero() {
             selector = opcode.value.unwrap_or_default().shl(0x10);
@@ -73,7 +66,6 @@ impl OpcodesEncoderV2 {
         let selector_bytes = selector.to_be_bytes::<32>();
         ret.append(&mut selector_bytes[20..32].to_vec());
 
-
         match opcode.call_type {
             CallType::CalculationCall | CallType::InternalCall => {}
             _ => {
@@ -84,10 +76,9 @@ impl OpcodesEncoderV2 {
 
         ret.append(&mut opcode.call_data.to_vec());
 
-        return Ok(ret);
+        Ok(ret)
     }
 }
-
 
 impl OpcodesEncoder for OpcodesEncoderV2 {
     fn pack_do_calls(opcodes: &MulticallerCalls) -> Result<Bytes> {
@@ -108,24 +99,15 @@ impl OpcodesEncoder for OpcodesEncoderV2 {
 
 #[cfg(test)]
 mod test {
-    use alloy_primitives::Address;
-
     use super::*;
 
     #[test]
     fn test() {
-        let opcodes_encoder = OpcodesEncoderV2 {};
-
-
-        let to: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
         let buf = Bytes::from(vec![0x33, 0x33, 0x44, 0x55]);
 
         let mut opcode = MulticallerCall::new_internal_call(&buf);
         //let mut opcode = Opcode::new_internal_call(to, &Some(buf));
-        opcode
-            .set_call_stack(true, 0, 24, 0x20)
-            .set_return_stack(true, 1, 44, 0x20);
-
+        opcode.set_call_stack(true, 0, 24, 0x20).set_return_stack(true, 1, 44, 0x20);
 
         let mut opcodes = MulticallerCalls::new();
         opcodes.add(opcode);

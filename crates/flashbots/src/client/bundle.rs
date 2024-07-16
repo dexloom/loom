@@ -2,11 +2,11 @@ use std::fmt::{Display, Formatter};
 
 use alloy_consensus::TxEnvelope;
 use alloy_network::eip2718::Encodable2718;
-use alloy_primitives::{Address, Bytes, keccak256, TxHash, U256, U64};
+use alloy_primitives::{keccak256, Address, Bytes, TxHash, U256, U64};
 use alloy_rpc_types::{AccessList, Log, Transaction};
 use eyre::{eyre, Result};
-use serde::{Deserialize, Serialize, Serializer};
 use serde::ser::Error as SerdeError;
+use serde::{Deserialize, Serialize, Serializer};
 
 use crate::client::utils::{deserialize_optional_h160, deserialize_u256, deserialize_u64};
 
@@ -22,7 +22,6 @@ pub enum BundleTransaction {
     Raw(Bytes),
 }
 
-
 impl From<TxEnvelope> for BundleTransaction {
     fn from(tx: TxEnvelope) -> Self {
         let rlp = tx.encoded_2718();
@@ -36,7 +35,6 @@ impl From<Bytes> for BundleTransaction {
         Self::Raw(tx)
     }
 }
-
 
 /// A bundle that can be submitted to a Flashbots relay.
 ///
@@ -91,8 +89,8 @@ pub struct BundleRequest {
 }
 
 pub fn serialize_txs<S>(txs: &[BundleTransaction], s: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
+where
+    S: Serializer,
 {
     let raw_txs: Result<Vec<Bytes>> = txs
         .iter()
@@ -100,12 +98,8 @@ pub fn serialize_txs<S>(txs: &[BundleTransaction], s: S) -> Result<S::Ok, S::Err
             BundleTransaction::Signed(inner) => {
                 let tx = inner.as_ref().clone();
                 match TryInto::<TxEnvelope>::try_into(tx) {
-                    Ok(x) => {
-                        Ok(Bytes::from(x.encoded_2718()))
-                    }
-                    Err(_) => {
-                        Err(eyre!("CONVERSION_ERROR"))
-                    }
+                    Ok(x) => Ok(Bytes::from(x.encoded_2718())),
+                    Err(_) => Err(eyre!("CONVERSION_ERROR")),
                 }
             }
             BundleTransaction::Raw(inner) => Ok(inner.clone()),
@@ -227,7 +221,6 @@ impl BundleRequest {
         self
     }
 
-
     /// Get the UNIX timestamp used for bundle simulation (if any).
     ///
     /// See [`eth_callBundle`][fb_call_bundle] in the Flashbots documentation
@@ -340,18 +333,19 @@ pub struct SimulatedTransaction {
     pub access_list: Option<AccessList>,
     #[serde(rename = "logs")]
     pub logs: Option<Vec<Log>>,
-
 }
 
 impl Display for SimulatedTransaction {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:#20x}->{:20x} {} Gas : {}  CB : {} {}",
-               self.from,
-               self.to.unwrap_or_default(),
-               self.hash,
-               self.gas_used,
-               self.coinbase_tip,
-               self.coinbase_diff,
+        write!(
+            f,
+            "{:#20x}->{:20x} {} Gas : {}  CB : {} {}",
+            self.from,
+            self.to.unwrap_or_default(),
+            self.hash,
+            self.gas_used,
+            self.coinbase_tip,
+            self.coinbase_diff,
         )
     }
 }
@@ -417,7 +411,6 @@ impl SimulatedBundle {
         self.transactions.iter().find(|&item| item.hash == tx_hash)
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -513,39 +506,23 @@ mod tests {
     "totalGasUsed": 42000
   }"#,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(
             simulated_bundle.hash,
-            TxHash::from_str("0x73b1e258c7a42fd0230b2fd05529c5d4b6fcb66c227783f8bece8aeacdd1db2e")
-                .expect("could not deserialize hash")
+            TxHash::from_str("0x73b1e258c7a42fd0230b2fd05529c5d4b6fcb66c227783f8bece8aeacdd1db2e").expect("could not deserialize hash")
         );
-        assert_eq!(
-            simulated_bundle.coinbase_diff,
-            U256::from(20000000000126000u64)
-        );
-        assert_eq!(
-            simulated_bundle.coinbase_tip,
-            U256::from(20000000000000000u64)
-        );
+        assert_eq!(simulated_bundle.coinbase_diff, U256::from(20000000000126000u64));
+        assert_eq!(simulated_bundle.coinbase_tip, U256::from(20000000000000000u64));
         assert_eq!(simulated_bundle.gas_price, U256::from(476190476193u64));
         assert_eq!(simulated_bundle.gas_used, U256::from(42000));
         assert_eq!(simulated_bundle.gas_fees, U256::from(126000));
         assert_eq!(simulated_bundle.simulation_block, U64::from(5221585));
         assert_eq!(simulated_bundle.transactions.len(), 3);
-        assert_eq!(
-            simulated_bundle.transactions[0].value,
-            Some(Bytes::from(vec![]))
-        );
-        assert_eq!(
-            simulated_bundle.transactions[0].error,
-            Some("execution reverted".into())
-        );
+        assert_eq!(simulated_bundle.transactions[0].value, Some(Bytes::from(vec![])));
+        assert_eq!(simulated_bundle.transactions[0].error, Some("execution reverted".into()));
         assert_eq!(simulated_bundle.transactions[1].error, None);
-        assert_eq!(
-            simulated_bundle.transactions[1].value,
-            Some(Bytes::from(vec![0x1]))
-        );
+        assert_eq!(simulated_bundle.transactions[1].value, Some(Bytes::from(vec![0x1])));
         assert_eq!(simulated_bundle.transactions[2].to, None);
     }
 
@@ -564,7 +541,7 @@ mod tests {
         "error": "execution reverted"
       }"#,
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(tx.error, Some("execution reverted".into()));
 
         let tx: SimulatedTransaction = serde_json::from_str(
@@ -581,7 +558,7 @@ mod tests {
         "revert": "transfer failed"
       }"#,
         )
-            .unwrap();
+        .unwrap();
 
         assert_eq!(tx.error, Some("execution reverted".into()));
         assert_eq!(tx.revert, Some("transfer failed".into()));

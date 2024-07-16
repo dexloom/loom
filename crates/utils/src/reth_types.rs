@@ -57,7 +57,6 @@ impl Convert<ABlock> for RBlock {
 //     }
 // }
 
-
 /// Appends all matching logs of a block's receipts.
 /// If the log matches, look up the corresponding transaction hash.
 pub fn append_all_matching_block_logs(
@@ -101,7 +100,6 @@ pub fn append_all_matching_block_logs(
     }
     Ok(())
 }
-
 
 /// Appends all matching logs of a block's receipts.
 /// If the log matches, look up the corresponding transaction hash.

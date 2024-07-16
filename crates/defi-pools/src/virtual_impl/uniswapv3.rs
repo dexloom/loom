@@ -48,12 +48,9 @@ pub const U256_0XFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF: U256 =
 // commonly used U256s
 pub const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
 
-
 // Uniswap V3 specific
 
-
 // Others
-
 
 pub struct CurrentState {
     amount_specified_remaining: I256,
@@ -87,12 +84,7 @@ pub struct Tick {
 }
 
 impl UniswapV3PoolVirtual {
-    pub fn simulate_swap_in_amount(
-        db: &LoomInMemoryDB,
-        pool: &UniswapV3Pool,
-        token_in: Address,
-        amount_in: U256,
-    ) -> eyre::Result<U256> {
+    pub fn simulate_swap_in_amount(db: &LoomInMemoryDB, pool: &UniswapV3Pool, token_in: Address, amount_in: U256) -> eyre::Result<U256> {
         if amount_in.is_zero() {
             return Ok(U256::ZERO);
         }
@@ -100,11 +92,7 @@ impl UniswapV3PoolVirtual {
         let zero_for_one = token_in == pool.get_tokens()[0];
 
         // Set sqrt_price_limit_x_96 to the max or min sqrt price in the pool depending on zero_for_one
-        let sqrt_price_limit_x_96 = if zero_for_one {
-            MIN_SQRT_RATIO + U256_1
-        } else {
-            MAX_SQRT_RATIO - U256_1
-        };
+        let sqrt_price_limit_x_96 = if zero_for_one { MIN_SQRT_RATIO + U256_1 } else { MAX_SQRT_RATIO - U256_1 };
 
         let pool_address = pool.get_address();
 
@@ -113,19 +101,16 @@ impl UniswapV3PoolVirtual {
         let tick_spacing = pool.tick_spacing();
         let fee = pool.fee;
 
-
         // Initialize a mutable state state struct to hold the dynamic simulated state of the pool
         let mut current_state = CurrentState {
-            sqrt_price_x_96: slot0.sqrtPriceX96, //Active price on the pool
-            amount_calculated: I256::ZERO,    //Amount of token_out that has been calculated
+            sqrt_price_x_96: slot0.sqrtPriceX96,                   //Active price on the pool
+            amount_calculated: I256::ZERO,                         //Amount of token_out that has been calculated
             amount_specified_remaining: I256::from_raw(amount_in), //Amount of token_in that has not been swapped
-            tick: slot0.tick,                                       //Current i24 tick of the pool
-            liquidity: liquidity as u128, //Current available liquidity in the tick range
+            tick: slot0.tick,                                      //Current i24 tick of the pool
+            liquidity,                                             //Current available liquidity in the tick range
         };
 
-        while current_state.amount_specified_remaining != I256::ZERO
-            && current_state.sqrt_price_x_96 != sqrt_price_limit_x_96
-        {
+        while current_state.amount_specified_remaining != I256::ZERO && current_state.sqrt_price_x_96 != sqrt_price_limit_x_96 {
             // Initialize a new step struct to hold the dynamic state of the pool at each step
             let mut step = StepComputations {
                 // Set the sqrt_price_start_x_96 to the current sqrt_price_x_96
@@ -137,25 +122,23 @@ impl UniswapV3PoolVirtual {
             let (word_pos, _bit_pos) = position(current_state.tick / (tick_spacing as i32));
 
             for i in word_pos - 1..=word_pos + 1 {
-                tick_bitmap.insert(i as i16, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
+                tick_bitmap.insert(i, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
             }
 
             // Get the next tick from the current tick
-            (step.tick_next, step.initialized) =
-                uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(
-                    &tick_bitmap,
-                    current_state.tick,
-                    tick_spacing as i32,
-                    zero_for_one,
-                )?;
+            (step.tick_next, step.initialized) = uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(
+                &tick_bitmap,
+                current_state.tick,
+                tick_spacing as i32,
+                zero_for_one,
+            )?;
 
             // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
             // Note: this could be removed as we are clamping in the batch contract
             step.tick_next = step.tick_next.clamp(MIN_TICK, MAX_TICK);
 
             // Get the next sqrt price from the input amount
-            step.sqrt_price_next_x96 =
-                uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
+            step.sqrt_price_next_x96 = uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
 
             // Target spot price
             let swap_target_sqrt_ratio = if zero_for_one {
@@ -171,25 +154,19 @@ impl UniswapV3PoolVirtual {
             };
 
             // Compute swap step and update the current state
-            (
-                current_state.sqrt_price_x_96,
-                step.amount_in,
-                step.amount_out,
-                step.fee_amount,
-            ) = uniswap_v3_math::swap_math::compute_swap_step(
-                current_state.sqrt_price_x_96,
-                swap_target_sqrt_ratio,
-                current_state.liquidity,
-                current_state.amount_specified_remaining,
-                fee,
-            )?;
+            (current_state.sqrt_price_x_96, step.amount_in, step.amount_out, step.fee_amount) =
+                uniswap_v3_math::swap_math::compute_swap_step(
+                    current_state.sqrt_price_x_96,
+                    swap_target_sqrt_ratio,
+                    current_state.liquidity,
+                    current_state.amount_specified_remaining,
+                    fee,
+                )?;
 
             // Decrement the amount remaining to be swapped and amount received from the step
             current_state.amount_specified_remaining = current_state
                 .amount_specified_remaining
-                .overflowing_sub(I256::from_raw(
-                    step.amount_in.overflowing_add(step.fee_amount).0,
-                ))
+                .overflowing_sub(I256::from_raw(step.amount_in.overflowing_add(step.fee_amount).0))
                 .0;
 
             current_state.amount_calculated -= I256::from_raw(step.amount_out);
@@ -197,11 +174,8 @@ impl UniswapV3PoolVirtual {
             // If the price moved all the way to the next price, recompute the liquidity change for the next iteration
             if current_state.sqrt_price_x_96 == step.sqrt_price_next_x96 {
                 if step.initialized {
-                    let mut liquidity_net: i128 = if let Ok(liqnet) = UniswapV3DBReader::ticks_liquidity_net(db, pool_address, step.tick_next) {
-                        liqnet
-                    } else {
-                        0
-                    };
+                    let mut liquidity_net: i128 =
+                        if let Ok(liqnet) = UniswapV3DBReader::ticks_liquidity_net(db, pool_address, step.tick_next) { liqnet } else { 0 };
 
                     // we are on a tick boundary, and the next tick is initialized, so we must charge a protocol fee
                     if zero_for_one {
@@ -219,17 +193,11 @@ impl UniswapV3PoolVirtual {
                     };
                 }
                 // Increment the current tick
-                current_state.tick = if zero_for_one {
-                    step.tick_next.wrapping_sub(1)
-                } else {
-                    step.tick_next
-                }
+                current_state.tick = if zero_for_one { step.tick_next.wrapping_sub(1) } else { step.tick_next }
                 // If the current_state sqrt price is not equal to the step sqrt price, then we are not on the same tick.
                 // Update the current_state.tick to the tick at the current_state.sqrt_price_x_96
             } else if current_state.sqrt_price_x_96 != step.sqrt_price_start_x_96 {
-                current_state.tick = uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(
-                    current_state.sqrt_price_x_96,
-                )?;
+                current_state.tick = uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(current_state.sqrt_price_x_96)?;
             }
         }
 
@@ -242,12 +210,7 @@ impl UniswapV3PoolVirtual {
         }
     }
 
-    pub fn simulate_swap_out_amount(
-        db: &LoomInMemoryDB,
-        pool: &UniswapV3Pool,
-        token_in: Address,
-        amount_out: U256,
-    ) -> eyre::Result<U256> {
+    pub fn simulate_swap_out_amount(db: &LoomInMemoryDB, pool: &UniswapV3Pool, token_in: Address, amount_out: U256) -> eyre::Result<U256> {
         if amount_out.is_zero() {
             return Ok(U256::ZERO);
         }
@@ -255,11 +218,7 @@ impl UniswapV3PoolVirtual {
         let zero_for_one = token_in == pool.get_tokens()[0];
 
         // Set sqrt_price_limit_x_96 to the max or min sqrt price in the pool depending on zero_for_one
-        let sqrt_price_limit_x_96 = if zero_for_one {
-            MIN_SQRT_RATIO + U256_1
-        } else {
-            MAX_SQRT_RATIO - U256_1
-        };
+        let sqrt_price_limit_x_96 = if zero_for_one { MIN_SQRT_RATIO + U256_1 } else { MAX_SQRT_RATIO - U256_1 };
 
         let pool_address = pool.get_address();
 
@@ -268,19 +227,16 @@ impl UniswapV3PoolVirtual {
         let tick_spacing = pool.tick_spacing();
         let fee = pool.fee;
 
-
         // Initialize a mutable state state struct to hold the dynamic simulated state of the pool
         let mut current_state = CurrentState {
-            sqrt_price_x_96: slot0.sqrtPriceX96, //Active price on the pool
-            amount_calculated: I256::ZERO,    //Amount of token_out that has been calculated
+            sqrt_price_x_96: slot0.sqrtPriceX96,                     //Active price on the pool
+            amount_calculated: I256::ZERO,                           //Amount of token_out that has been calculated
             amount_specified_remaining: -I256::from_raw(amount_out), //Amount of token_in that has not been swapped
-            tick: slot0.tick,                                       //Current i24 tick of the pool
-            liquidity, //Current available liquidity in the tick range
+            tick: slot0.tick,                                        //Current i24 tick of the pool
+            liquidity,                                               //Current available liquidity in the tick range
         };
 
-        while current_state.amount_specified_remaining != I256::ZERO
-            && current_state.sqrt_price_x_96 != sqrt_price_limit_x_96
-        {
+        while current_state.amount_specified_remaining != I256::ZERO && current_state.sqrt_price_x_96 != sqrt_price_limit_x_96 {
             // Initialize a new step struct to hold the dynamic state of the pool at each step
             let mut step = StepComputations {
                 // Set the sqrt_price_start_x_96 to the current sqrt_price_x_96
@@ -292,26 +248,23 @@ impl UniswapV3PoolVirtual {
             let (word_pos, _bit_pos) = position(current_state.tick / (tick_spacing as i32));
 
             for i in word_pos - 2..=word_pos + 2 {
-                tick_bitmap.insert(i as i16, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
+                tick_bitmap.insert(i, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
             }
 
-
             // Get the next tick from the current tick
-            (step.tick_next, step.initialized) =
-                uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(
-                    &tick_bitmap,
-                    current_state.tick,
-                    tick_spacing as i32,
-                    zero_for_one,
-                )?;
+            (step.tick_next, step.initialized) = uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(
+                &tick_bitmap,
+                current_state.tick,
+                tick_spacing as i32,
+                zero_for_one,
+            )?;
 
             // ensure that we do not overshoot the min/max tick, as the tick bitmap is not aware of these bounds
             // Note: this could be removed as we are clamping in the batch contract
             step.tick_next = step.tick_next.clamp(MIN_TICK, MAX_TICK);
 
             // Get the next sqrt price from the input amount
-            step.sqrt_price_next_x96 =
-                uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
+            step.sqrt_price_next_x96 = uniswap_v3_math::tick_math::get_sqrt_ratio_at_tick(step.tick_next)?;
 
             // Target spot price
             let swap_target_sqrt_ratio = if zero_for_one {
@@ -327,38 +280,27 @@ impl UniswapV3PoolVirtual {
             };
 
             // Compute swap step and update the current state
-            (
-                current_state.sqrt_price_x_96,
-                step.amount_in,
-                step.amount_out,
-                step.fee_amount,
-            ) = uniswap_v3_math::swap_math::compute_swap_step(
-                current_state.sqrt_price_x_96,
-                swap_target_sqrt_ratio,
-                current_state.liquidity,
-                current_state.amount_specified_remaining,
-                fee,
-            )?;
+            (current_state.sqrt_price_x_96, step.amount_in, step.amount_out, step.fee_amount) =
+                uniswap_v3_math::swap_math::compute_swap_step(
+                    current_state.sqrt_price_x_96,
+                    swap_target_sqrt_ratio,
+                    current_state.liquidity,
+                    current_state.amount_specified_remaining,
+                    fee,
+                )?;
 
             // Decrement the amount remaining to be swapped and amount received from the step
-            current_state.amount_specified_remaining = current_state
-                .amount_specified_remaining
-                .overflowing_add(I256::from_raw(
-                    step.amount_out,
-                )).0;
+            current_state.amount_specified_remaining =
+                current_state.amount_specified_remaining.overflowing_add(I256::from_raw(step.amount_out)).0;
 
-            current_state.amount_calculated = current_state.amount_calculated.overflowing_add(I256::from_raw(
-                step.amount_in.overflowing_add(step.fee_amount).0
-            )).0;
+            current_state.amount_calculated =
+                current_state.amount_calculated.overflowing_add(I256::from_raw(step.amount_in.overflowing_add(step.fee_amount).0)).0;
 
             // If the price moved all the way to the next price, recompute the liquidity change for the next iteration
             if current_state.sqrt_price_x_96 == step.sqrt_price_next_x96 {
                 if step.initialized {
-                    let mut liquidity_net: i128 = if let Ok(liqnet) = UniswapV3DBReader::ticks_liquidity_net(db, pool_address, step.tick_next) {
-                        liqnet
-                    } else {
-                        0
-                    };
+                    let mut liquidity_net: i128 =
+                        if let Ok(liqnet) = UniswapV3DBReader::ticks_liquidity_net(db, pool_address, step.tick_next) { liqnet } else { 0 };
 
                     // we are on a tick boundary, and the next tick is initialized, so we must charge a protocol fee
                     if zero_for_one {
@@ -376,17 +318,11 @@ impl UniswapV3PoolVirtual {
                     };
                 }
                 // Increment the current tick
-                current_state.tick = if zero_for_one {
-                    step.tick_next.wrapping_sub(1)
-                } else {
-                    step.tick_next
-                }
+                current_state.tick = if zero_for_one { step.tick_next.wrapping_sub(1) } else { step.tick_next }
                 // If the current_state sqrt price is not equal to the step sqrt price, then we are not on the same tick.
                 // Update the current_state.tick to the tick at the current_state.sqrt_price_x_96
             } else if current_state.sqrt_price_x_96 != step.sqrt_price_start_x_96 {
-                current_state.tick = uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(
-                    current_state.sqrt_price_x_96,
-                )?;
+                current_state.tick = uniswap_v3_math::tick_math::get_tick_at_sqrt_ratio(current_state.sqrt_price_x_96)?;
             }
         }
 
@@ -402,7 +338,6 @@ impl UniswapV3PoolVirtual {
     }
 }
 
-
 #[cfg(test)]
 mod test {
     use alloy_primitives::U256;
@@ -417,7 +352,6 @@ mod test {
         //in 1230267133767
         //out 8058946258316862629
         //fee 615441288
-
 
         //in 6093676387140105854, 4
         // out 304910158831

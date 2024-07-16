@@ -10,10 +10,10 @@ use lazy_static::lazy_static;
 use log::{error, info};
 
 use debug_provider::DebugProviderExt;
-use defi_entities::{Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
 use defi_entities::required_state::RequiredStateReader;
+use defi_entities::{Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
+use defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory, CurveProtocol};
 use defi_pools::{CurvePool, MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
-use defi_pools::protocols::{CurveProtocol, fetch_uni2_factory, fetch_uni3_factory};
 use loom_actors::SharedState;
 
 lazy_static! {
@@ -22,14 +22,12 @@ lazy_static! {
     static ref SUSHISWAP_FACTORY: Address = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac".parse().unwrap();
     static ref DOOARSWAP_FACTORY: Address = "0x1e895bFe59E3A5103e8B7dA3897d1F2391476f3c".parse().unwrap();
     static ref SAFESWAP_FACTORY: Address = "0x7F09d4bE6bbF4b0fF0C97ca5c486a166198aEAeE".parse().unwrap();
-    static ref UNISWAPV3_FACTORY :Address = "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
-    static ref PANCAKEV3_FACTORY: Address =  "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865".parse().unwrap();
-    static ref MINISWAP_FACTORY: Address =  "0x2294577031F113DF4782B881cF0b140e94209a6F".parse().unwrap();
-    static ref SHIBASWAP_FACTORY: Address =  "0x115934131916C8b277DD010Ee02de363c09d037c".parse().unwrap();
-    static ref MAVERICK_FACTORY: Address =  "0xEb6625D65a0553c9dBc64449e56abFe519bd9c9B".parse().unwrap();
+    static ref UNISWAPV3_FACTORY: Address = "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
+    static ref PANCAKEV3_FACTORY: Address = "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865".parse().unwrap();
+    static ref MINISWAP_FACTORY: Address = "0x2294577031F113DF4782B881cF0b140e94209a6F".parse().unwrap();
+    static ref SHIBASWAP_FACTORY: Address = "0x115934131916C8b277DD010Ee02de363c09d037c".parse().unwrap();
+    static ref MAVERICK_FACTORY: Address = "0xEb6625D65a0553c9dBc64449e56abFe519bd9c9B".parse().unwrap();
 }
-
-
 
 pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
     if factory_address == *UNISWAPV2_FACTORY {
@@ -56,7 +54,6 @@ pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
         PoolProtocol::Unknown
     }
 }
-
 
 pub async fn fetch_and_add_pool_by_address<P, T, N>(
     client: P,
@@ -87,7 +84,9 @@ where
             };
 
             match fetch_result {
-                Err(e) => { error!("fetch_and_add_pool uni2 error {:#20x} : {}", pool_address, e) }
+                Err(e) => {
+                    error!("fetch_and_add_pool uni2 error {:#20x} : {}", pool_address, e)
+                }
                 _ => {}
             }
         }
@@ -102,44 +101,42 @@ where
                         PoolProtocol::Maverick => {
                             PoolWrapper::new(Arc::new(MaverickPool::fetch_pool_data(client.clone(), pool_address).await?))
                         }
-                        _ => {
-                            PoolWrapper::new(Arc::new(UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?))
-                        }
+                        _ => PoolWrapper::new(Arc::new(UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?)),
                     };
 
                     match fetch_state_and_add_pool(client, market, market_state, pool_wrapped).await {
-                        Err(e) => { error!("fetch_and_add_pool uni3 error {:#20x} : {}", pool_address, e) }
+                        Err(e) => {
+                            error!("fetch_and_add_pool uni3 error {:#20x} : {}", pool_address, e)
+                        }
                         _ => {}
                     }
                 }
                 Err(e) => {
-                    error!("Error fetching factory address at {:#20x}: {}",pool_address, e);
+                    error!("Error fetching factory address at {:#20x}: {}", pool_address, e);
                     return Err(eyre!("CANNOT_GET_FACTORY_ADDRESS"));
                 }
             }
         }
-        PoolClass::Curve => {
-            match CurveProtocol::get_contract_from_code(client.clone(), pool_address).await {
-                Ok(curve_contract) => {
-                    let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
-                    let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
+        PoolClass::Curve => match CurveProtocol::get_contract_from_code(client.clone(), pool_address).await {
+            Ok(curve_contract) => {
+                let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
+                let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
 
-                    match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
-                        Err(e) => {
-                            error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
-                        }
-                        Ok(_) => {
-                            info!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
-                        }
+                match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
+                    Err(e) => {
+                        error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
+                    }
+                    Ok(_) => {
+                        info!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
                     }
                 }
-                Err(e) => {
-                    error!("Error getting curve contract from code {} : {} ", pool_address, e)
-                }
             }
-        }
+            Err(e) => {
+                error!("Error getting curve contract from code {} : {} ", pool_address, e)
+            }
+        },
         _ => {
-            error!("Error pool not supported at {:#20x}",pool_address);
+            error!("Error pool not supported at {:#20x}", pool_address);
             return Err(eyre!("POOL_CLASS_NOT_SUPPORTED"));
         }
     }
@@ -190,17 +187,16 @@ where
                     }
                 }
                 Err(e) => {
-                    error!("{}",e);
+                    error!("{}", e);
                     return Err(e);
                 }
             }
         }
         Err(e) => {
-            error!("{}",e);
+            error!("{}", e);
             return Err(e);
         }
     }
 
     Ok(())
 }
-

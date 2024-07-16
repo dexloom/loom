@@ -2,7 +2,7 @@
 
 extern crate core;
 
-pub use account_nonce_balance::{AccountNonceAndBalances, AccountNonceAndBalanceState};
+pub use account_nonce_balance::{AccountNonceAndBalanceState, AccountNonceAndBalances};
 pub use block_history::{BlockHistory, BlockHistoryEntry};
 pub use datafetcher::{DataFetcher, FetchState};
 pub use gas_station::GasStation;
@@ -17,22 +17,22 @@ pub use swapline::{SwapAmountType, SwapLine};
 pub use swappath::{SwapPath, SwapPaths};
 pub use swappath_builder::build_swap_path_vec;
 pub use swapstep::SwapStep;
-pub use token::{NWETH, Token, TokenWrapper};
+pub use token::{Token, TokenWrapper, NWETH};
 
-mod swapline;
-mod market_state;
-mod market;
 mod block_history;
 mod latest_block;
-mod token;
+mod market;
+mod market_state;
 mod pool;
+mod swapline;
 mod swappath;
+mod token;
 
-mod swappath_builder;
-mod swapstep;
-pub mod required_state;
 pub mod account_nonce_balance;
 mod gas_station;
+pub mod required_state;
+mod swappath_builder;
+mod swapstep;
 
 mod signers;
 
@@ -42,5 +42,3 @@ pub mod private;
 
 mod datafetcher;
 mod swap;
-
-

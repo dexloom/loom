@@ -11,13 +11,12 @@ use revm::primitives::Env;
 use defi_types::SwapError;
 use loom_revm_db::LoomInMemoryDB;
 
-use crate::{PoolWrapper, SwapStep, Token};
 use crate::swappath::SwapPath;
+use crate::{PoolWrapper, SwapStep, Token};
 
 lazy_static! {
-   static ref WETH_ADDRESS : Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
+    static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
 }
-
 
 #[derive(Clone, Copy, Debug, Default)]
 pub enum SwapAmountType {
@@ -28,7 +27,6 @@ pub enum SwapAmountType {
     RelativeStack(u32),
     Balance(Address),
 }
-
 
 impl SwapAmountType {
     pub fn unwrap(&self) -> U256 {
@@ -64,7 +62,6 @@ impl fmt::Display for SwapLine {
         let token_in = self.tokens().first();
         let token_out = self.tokens().last();
 
-
         let profit: String = if token_in == token_out {
             match token_in {
                 Some(t) => {
@@ -78,34 +75,44 @@ impl fmt::Display for SwapLine {
             "".to_string()
         };
 
-
         let tokens = self.tokens().iter().map(|token| token.get_symbol()).collect::<Vec<String>>().join(", ");
-        let pools = self.pools().iter().map(|pool| format!("{}@{:#20x}", pool.get_protocol(), pool.get_address())).collect::<Vec<String>>().join(", ");
+        let pools = self
+            .pools()
+            .iter()
+            .map(|pool| format!("{}@{:#20x}", pool.get_protocol(), pool.get_address()))
+            .collect::<Vec<String>>()
+            .join(", ");
         let amount_in = match self.amount_in {
-            SwapAmountType::Set(x) => {
-                match token_in {
-                    Some(t) => {
-                        format!("{:?}", t.to_float(x))
-                    }
-                    _ => { format!("{}", x) }
+            SwapAmountType::Set(x) => match token_in {
+                Some(t) => {
+                    format!("{:?}", t.to_float(x))
                 }
+                _ => {
+                    format!("{}", x)
+                }
+            },
+            _ => {
+                format!("{:?}", self.amount_in)
             }
-            _ => { format!("{:?}", self.amount_in) }
         };
         let amount_out = match self.amount_out {
-            SwapAmountType::Set(x) => {
-                match token_out {
-                    Some(t) => {
-                        format!("{:?}", t.to_float(x))
-                    }
-                    _ => { format!("{}", x) }
+            SwapAmountType::Set(x) => match token_out {
+                Some(t) => {
+                    format!("{:?}", t.to_float(x))
                 }
+                _ => {
+                    format!("{}", x)
+                }
+            },
+            _ => {
+                format!("{:?}", self.amount_out)
             }
-            _ => { format!("{:?}", self.amount_out) }
         };
-        let amounts = self.amounts.as_ref().map(|amounts| {
-            amounts.iter().map(|amount| amount.to_string()).collect::<Vec<String>>().join(", ")
-        }).unwrap_or_else(|| "None".to_string());
+        let amounts = self
+            .amounts
+            .as_ref()
+            .map(|amounts| amounts.iter().map(|amount| amount.to_string()).collect::<Vec<String>>().join(", "))
+            .unwrap_or_else(|| "None".to_string());
 
         write!(
             f,
@@ -148,13 +155,9 @@ impl PartialEq for SwapLine {
 
 impl From<SwapPath> for SwapLine {
     fn from(value: SwapPath) -> Self {
-        Self {
-            path: value,
-            ..Default::default()
-        }
+        Self { path: value, ..Default::default() }
     }
 }
-
 
 impl SwapLine {
     pub fn to_error(&self, msg: String) -> SwapError {
@@ -183,7 +186,6 @@ impl SwapLine {
         &self.path.pools
     }
 
-
     pub fn get_first_token(&self) -> Option<&Arc<Token>> {
         self.tokens().first()
     }
@@ -199,7 +201,6 @@ impl SwapLine {
         self.pools().last()
     }
 
-
     pub fn to_swap_steps(&self, multicaller: Address) -> Option<(SwapStep, SwapStep)> {
         let mut sp0: Option<SwapLine> = None;
         let mut sp1: Option<SwapLine> = None;
@@ -211,7 +212,7 @@ impl SwapLine {
                 sp1 = Some(inside_path);
                 break;
             }
-        };
+        }
 
         if sp0.is_none() || sp1.is_none() {
             let (flash_path, inside_path) = self.split(1).unwrap();
@@ -269,7 +270,6 @@ impl SwapLine {
         Ok((first, second))
     }
 
-
     pub fn can_flash_swap(&self) -> bool {
         for pool in self.pools().iter() {
             if !pool.can_flash_swap() {
@@ -299,7 +299,6 @@ impl SwapLine {
         Ok((first, second))
     }
 
-
     pub fn abs_profit(&self) -> U256 {
         if let Some(token_in) = self.tokens().first() {
             if let Some(token_out) = self.tokens().last() {
@@ -322,7 +321,6 @@ impl SwapLine {
         self.get_first_token().unwrap().calc_eth_value(profit).unwrap_or(U256::ZERO)
     }
 
-
     pub fn profit(&self) -> Result<I256> {
         if self.tokens().len() < 3 {
             return Err(eyre!("NOT_ARB_PATH"));
@@ -343,7 +341,6 @@ impl SwapLine {
         }
         Err(eyre!("CANNOT_CALCULATE"))
     }
-
 
     pub fn calculate_with_in_amount(&self, state: &LoomInMemoryDB, env: Env, in_amount: U256) -> Result<(U256, u64), SwapError> {
         let mut out_amount = in_amount;
@@ -387,7 +384,6 @@ impl SwapLine {
         let mut tokens_reverse = self.tokens().clone();
         tokens_reverse.reverse();
 
-
         for (i, pool) in pool_reverse.iter().enumerate() {
             let token_from = &tokens_reverse[i + 1];
             let token_to = &tokens_reverse[i];
@@ -419,11 +415,9 @@ impl SwapLine {
         Ok((in_amount, gas_used))
     }
 
-
     fn calc_profit(in_amount: U256, out_amount: U256) -> I256 {
         I256::from_raw(out_amount) - I256::from_raw(in_amount)
     }
-
 
     pub fn optimize_with_in_amount(&mut self, state: &LoomInMemoryDB, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
         let mut current_in_amount = in_amount;
@@ -436,7 +430,6 @@ impl SwapLine {
         let mut counter = 0;
         let denominator = U256::from(1000);
 
-
         loop {
             counter += 1;
             //let next_amount  = current_in_amount + (current_in_amount * current_step / 10000);
@@ -448,7 +441,6 @@ impl SwapLine {
 
             let current_out_amount_result = self.calculate_with_in_amount(state, env.clone(), next_amount);
 
-
             if counter == 1 && current_out_amount_result.is_err() {
                 return Err(current_out_amount_result.err().unwrap());
             }
@@ -456,9 +448,7 @@ impl SwapLine {
 
             //let mut next_profit = I256::zero();
 
-
             let current_profit = Self::calc_profit(next_amount, current_out_amount);
-
 
             if bestprofit.is_none() {
                 bestprofit = Some(current_profit);
@@ -469,7 +459,9 @@ impl SwapLine {
                 if current_out_amount.is_zero() || current_profit.is_negative() {
                     return Ok(self);
                 }
-            } else if bestprofit.unwrap() > current_profit || current_out_amount.is_zero() /*|| next_profit < current_profit*/ {
+            } else if bestprofit.unwrap() > current_profit || current_out_amount.is_zero()
+            /*|| next_profit < current_profit*/
+            {
                 if first_step_change && inc_direction && current_step < denominator {
                     inc_direction = false;
                     //TODO : Check why not used
@@ -504,7 +496,6 @@ impl SwapLine {
                 first_step_change = false;
             }
 
-
             prev_in_amount = current_in_amount;
             if inc_direction {
                 next_amount = current_in_amount + (current_in_amount * current_step / denominator);
@@ -514,8 +505,6 @@ impl SwapLine {
             //trace!("opt step : {} direction {} first_step {} step : {} current_in_amount : {} next_amount: {} profit : {} {}", counter, inc_direction, first_step_change,  current_step, current_in_amount , next_amount, current_profit, bestprofit.unwrap());
         }
 
-
         Ok(self)
     }
 }
-

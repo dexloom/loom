@@ -23,10 +23,9 @@ use loom_utils::evm::evm_call;
 use crate::state_readers::UniswapV3StateReader;
 
 lazy_static! {
-    pub static ref QUOTER_ADDRESS : Address = "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997".parse().unwrap();
-    pub static ref TICK_LENS_ADDRESS : Address = "0x9a489505a00cE272eAa5e07Dba6491314CaE3796".parse().unwrap();
+    pub static ref QUOTER_ADDRESS: Address = "0xB048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997".parse().unwrap();
+    pub static ref TICK_LENS_ADDRESS: Address = "0x9a489505a00cE272eAa5e07Dba6491314CaE3796".parse().unwrap();
 }
-
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
@@ -38,9 +37,7 @@ pub struct Slot0 {
     pub observation_index: u16,
     pub observation_cardinality: u16,
     pub observation_cardinality_next: u16,
-
 }
-
 
 impl From<slot0Return> for Slot0 {
     fn from(value: slot0Return) -> Self {
@@ -70,13 +67,12 @@ pub struct PancakeV3Pool {
     factory: Address,
     protocol: PoolProtocol,
     encoder: PancakeV3AbiSwapEncoder,
-
 }
 
 impl PancakeV3Pool {
     pub fn new(address: Address) -> Self {
         PancakeV3Pool {
-            address: address,
+            address,
             token0: Address::ZERO,
             token1: Address::ZERO,
             liquidity0: U256::ZERO,
@@ -89,14 +85,13 @@ impl PancakeV3Pool {
         }
     }
 
-
     pub fn get_price_step(fee: u32) -> u32 {
         match fee {
             10000 => 200,
             2500 => 50,
             500 => 10,
             100 => 1,
-            _ => 0
+            _ => 0,
         }
     }
 
@@ -119,13 +114,8 @@ impl PancakeV3Pool {
     }
 
     pub fn get_zero_for_one(token_address_from: &Address, token_address_to: &Address) -> bool {
-        if *token_address_from < *token_address_to {
-            true
-        } else {
-            false
-        }
+        *token_address_from < *token_address_to
     }
-
 
     fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
         let pancake3_factory: Address = "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865".parse().unwrap();
@@ -135,8 +125,7 @@ impl PancakeV3Pool {
             PoolProtocol::UniswapV3Like
         }
     }
-    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self>
-    {
+    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self> {
         let token0: Address = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1: Address = UniswapV3StateReader::token1(db, env.clone(), address)?;
         let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
@@ -159,7 +148,10 @@ impl PancakeV3Pool {
         Ok(ret)
     }
 
-    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
+    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(
+        client: P,
+        address: Address,
+    ) -> Result<Self> {
         let uni3_pool = IPancakeV3Pool::IPancakeV3PoolInstance::new(address, client.clone());
 
         let token0: Address = uni3_pool.token0().call().await?._0;
@@ -167,7 +159,6 @@ impl PancakeV3Pool {
         let fee: u32 = uni3_pool.fee().call().await?._0;
         let slot0 = uni3_pool.slot0().call().await?;
         let factory: Address = uni3_pool.factory().call().await?._0;
-
 
         let token0_erc20 = IERC20::IERC20Instance::new(token0, client.clone());
         let token1_erc20 = IERC20::IERC20Instance::new(token1, client.clone());
@@ -194,9 +185,7 @@ impl PancakeV3Pool {
     }
 }
 
-
-impl Pool for PancakeV3Pool
-{
+impl Pool for PancakeV3Pool {
     fn get_class(&self) -> PoolClass {
         PoolClass::UniswapV3
     }
@@ -217,23 +206,29 @@ impl Pool for PancakeV3Pool
         vec![(self.token0, self.token1), (self.token1, self.token0)]
     }
 
-    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(
+        &self,
+        state_db: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+        in_amount: U256,
+    ) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
         env.tx.gas_limit = 1_000_000;
 
-        let call_data = IPancakeQuoterV2Calls::quoteExactInputSingle(
-            IPancakeQuoterV2::quoteExactInputSingleCall {
-                params: IPancakeQuoterV2::QuoteExactInputSingleParams {
-                    tokenIn: *token_address_from,
-                    tokenOut: *token_address_to,
-                    amountIn: in_amount,
-                    fee: self.fee,
-                    sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(token_address_from, token_address_to),
-                }
-            }).abi_encode();
+        let call_data = IPancakeQuoterV2Calls::quoteExactInputSingle(IPancakeQuoterV2::quoteExactInputSingleCall {
+            params: IPancakeQuoterV2::QuoteExactInputSingleParams {
+                tokenIn: *token_address_from,
+                tokenOut: *token_address_to,
+                amountIn: in_amount,
+                fee: self.fee,
+                sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(token_address_from, token_address_to),
+            },
+        })
+            .abi_encode();
 
         let (value, gas_used) = evm_call(state_db, env, *QUOTER_ADDRESS, call_data)?;
-
 
         let ret = IPancakeQuoterV2::quoteExactInputSingleCall::abi_decode_returns(&value, false)?;
 
@@ -244,7 +239,14 @@ impl Pool for PancakeV3Pool
         }
     }
 
-    fn calculate_in_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_in_amount(
+        &self,
+        state_db: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+        out_amount: U256,
+    ) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
         env.tx.gas_limit = 1_000_000;
 
@@ -255,8 +257,9 @@ impl Pool for PancakeV3Pool
                 amount: out_amount,
                 fee: self.fee,
                 sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(token_address_from, token_address_to),
-            }
-        }).abi_encode();
+            },
+        })
+            .abi_encode();
 
         let (value, gas_used) = evm_call(state_db, env, *QUOTER_ADDRESS, call_data)?;
 
@@ -289,31 +292,27 @@ impl Pool for PancakeV3Pool
         }
         let tick_bitmap_index = PancakeV3Pool::get_tick_bitmap_index(tick, PancakeV3Pool::get_price_step(self.fee));
 
+        let quoter_swap_0_1_call = IPancakeQuoterV2Calls::quoteExactInputSingle(IPancakeQuoterV2::quoteExactInputSingleCall {
+            params: IPancakeQuoterV2::QuoteExactInputSingleParams {
+                tokenIn: self.token0,
+                tokenOut: self.token1,
+                amountIn: self.liquidity0 / U256::from(100),
+                fee: self.fee,
+                sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(&self.token0, &self.token1),
+            },
+        })
+            .abi_encode();
 
-        let quoter_swap_0_1_call = IPancakeQuoterV2Calls::quoteExactInputSingle(
-            IPancakeQuoterV2::quoteExactInputSingleCall {
-                params: IPancakeQuoterV2::QuoteExactInputSingleParams {
-                    tokenIn: self.token0,
-                    tokenOut: self.token1,
-                    amountIn: self.liquidity0 / U256::from(100),
-                    fee: self.fee,
-                    sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(&self.token0, &self.token1),
-                },
-            }
-        ).abi_encode();
-
-
-        let quoter_swap_1_0_call = IPancakeQuoterV2Calls::quoteExactInputSingle(
-            IPancakeQuoterV2::quoteExactInputSingleCall {
-                params: IPancakeQuoterV2::QuoteExactInputSingleParams {
-                    tokenIn: self.token1,
-                    tokenOut: self.token0,
-                    amountIn: (self.liquidity1 / U256::from(100)),
-                    fee: self.fee,
-                    sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(&self.token1, &self.token0),
-                },
-            }).abi_encode();
-
+        let quoter_swap_1_0_call = IPancakeQuoterV2Calls::quoteExactInputSingle(IPancakeQuoterV2::quoteExactInputSingleCall {
+            params: IPancakeQuoterV2::QuoteExactInputSingleParams {
+                tokenIn: self.token1,
+                tokenOut: self.token0,
+                amountIn: (self.liquidity1 / U256::from(100)),
+                fee: self.fee,
+                sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(&self.token1, &self.token0),
+            },
+        })
+            .abi_encode();
 
         let pool_address = self.get_address();
 
@@ -321,15 +320,78 @@ impl Pool for PancakeV3Pool
         state_required
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 4 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 3 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 2 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 1 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index + 1 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index + 2 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index + 3 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index + 4 }).abi_encode())
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index - 4,
+                })
+                    .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index - 3,
+                })
+                    .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index - 2,
+                })
+                    .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index - 1,
+                })
+                    .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index,
+                })
+                    .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index + 1,
+                })
+                    .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index + 2,
+                })
+                    .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index + 3,
+                })
+                    .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index + 4,
+                })
+                    .abi_encode(),
+            )
             .add_call(*QUOTER_ADDRESS, quoter_swap_0_1_call)
             .add_call(*QUOTER_ADDRESS, quoter_swap_1_0_call)
             .add_slot_range(self.get_address(), U256::from(0), 0x20)
@@ -350,14 +412,19 @@ struct PancakeV3AbiSwapEncoder {
 
 impl PancakeV3AbiSwapEncoder {
     pub fn new(pool_address: Address) -> Self {
-        Self {
-            pool_address
-        }
+        Self { pool_address }
     }
 }
 
 impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
-    fn encode_swap_out_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_out_amount_provided(
+        &self,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount: U256,
+        recipient: Address,
+        payload: Bytes,
+    ) -> Result<Bytes> {
         let zero_for_one = PancakeV3Pool::get_zero_for_one(&token_from_address, &token_to_address);
         let sqrt_price_limit_x96 = PancakeV3Pool::get_price_limit(&token_from_address, &token_to_address);
         let swap_call = IUniswapV3Pool::swapCall {
@@ -371,7 +438,14 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
         Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
     }
 
-    fn encode_swap_in_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_in_amount_provided(
+        &self,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount: U256,
+        recipient: Address,
+        payload: Bytes,
+    ) -> Result<Bytes> {
         let zero_for_one = PancakeV3Pool::get_zero_for_one(&token_from_address, &token_to_address);
         let sqrt_price_limit_x96 = PancakeV3Pool::get_price_limit(&token_from_address, &token_to_address);
         let swap_call = IUniswapV3Pool::swapCall {
@@ -389,7 +463,6 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
         PreswapRequirement::Callback
     }
 
-
     fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }
@@ -397,7 +470,6 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }
-
 
     fn swap_in_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
         if token_from_address < token_to_address {
@@ -412,11 +484,10 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use env_logger::Env as EnvLog;
-    use revm::db::EmptyDB;
+    use log::debug;
 
     use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::MarketState;
@@ -432,7 +503,6 @@ mod tests {
 
         let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19931897).await.unwrap();
 
-
         //let weth_address : Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
         //let usdc_address : Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
         //let pool_address : Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
@@ -442,24 +512,38 @@ mod tests {
         //let pool_address : Address = "0x7ca3EdB2c8fb3e657E282e67F4008d658aA161D2".parse().unwrap();
         let pool_address: Address = "0x9b5699d18dff51fc65fb8ad6f70d93287c36349f".parse().unwrap();
 
-
-        let mut pool = PancakeV3Pool::fetch_pool_data(client.clone(), pool_address).await.unwrap();
+        let pool = PancakeV3Pool::fetch_pool_data(client.clone(), pool_address).await.unwrap();
 
         let state_required = pool.get_state_required().unwrap();
         debug!("{:?}", state_required);
 
         let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await.unwrap();
 
-        let mut market_state = MarketState::new(InMemoryDB::new(EmptyDB::default()));
+        let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
         market_state.add_state(&state_update);
 
         let evm_env = Env::default();
 
-        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, U256::from(pool.liquidity0 / U256::from(100))).unwrap();
+        let (out_amount, _gas_used) = pool
+            .calculate_out_amount(
+                &market_state.state_db,
+                evm_env.clone(),
+                &pool.token0,
+                &pool.token1,
+                U256::from(pool.liquidity0 / U256::from(100)),
+            )
+            .unwrap();
         println!("{}", out_amount);
-        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, U256::from(pool.liquidity1 / U256::from(100))).unwrap();
+        let (out_amount, _gas_used) = pool
+            .calculate_out_amount(
+                &market_state.state_db,
+                evm_env.clone(),
+                &pool.token1,
+                &pool.token0,
+                U256::from(pool.liquidity1 / U256::from(100)),
+            )
+            .unwrap();
         println!("{}", out_amount);
     }
 }
-

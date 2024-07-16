@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use alloy_primitives::{Address, B256, Bytes, U256};
+use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_sol_types::SolCall;
 use lazy_static::lazy_static;
@@ -18,7 +18,6 @@ lazy_static! {
 }
 
 pub struct UniswapV3Protocol {}
-
 
 impl UniswapV3Protocol {
     pub fn get_pool_address_for_tokens(token0: Address, token1: Address, fee: u32) -> Address {
@@ -39,12 +38,8 @@ impl UniswapV3Protocol {
     pub fn get_quoter_v3_state() -> GethStateUpdate {
         let mut state: GethStateUpdate = BTreeMap::new();
 
-        let acc_state = AccountState {
-            balance: Some(U256::ZERO),
-            code: Some(CUSTOM_QUOTER_CODE.clone()),
-            nonce: None,
-            storage: BTreeMap::new(),
-        };
+        let acc_state =
+            AccountState { balance: Some(U256::ZERO), code: Some(CUSTOM_QUOTER_CODE.clone()), nonce: None, storage: BTreeMap::new() };
 
         state.insert(Self::get_custom_quoter_address(), acc_state);
 
@@ -69,4 +64,3 @@ impl Protocol for UniswapV3Protocol {
         vec![pair_address0, pair_address1, pair_address2, pair_address3]
     }
 }
-

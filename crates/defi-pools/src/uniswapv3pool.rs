@@ -5,34 +5,31 @@ use alloy_primitives::{Address, Bytes, I256, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
-use eyre::{ErrReport, eyre, OptionExt, Result};
+use eyre::{eyre, ErrReport, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::debug;
+use log::{debug, error};
 use revm::primitives::Env;
 
-use defi_abi::IERC20;
 use defi_abi::uniswap3::IUniswapV3Pool;
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use defi_abi::uniswap_periphery::ITickLens;
-use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use defi_abi::IERC20;
 use defi_entities::required_state::RequiredState;
+use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use loom_revm_db::LoomInMemoryDB;
 
-#[cfg(test)]
+#[cfg(any(test, debug_assertions))]
 use crate::protocols::UniswapV3Protocol;
-use crate::state_readers::{UniswapV3QuoterEncoder, UniswapV3StateReader};
-#[cfg(test)]
+#[cfg(any(test, debug_assertions))]
 use crate::state_readers::UniswapCustomQuoterStateReader;
+use crate::state_readers::{UniswapV3QuoterEncoder, UniswapV3StateReader};
 use crate::virtual_impl::UniswapV3PoolVirtual;
 
 lazy_static! {
-
-    pub static ref QUOTER_ADDRESS : Address = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6".parse().unwrap();
-    pub static ref TICK_LENS_ADDRESS : Address = "0xbfd8137f7d1516D3ea5cA83523914859ec47F573".parse().unwrap();
-
-    pub static ref UNI3_FACTORY_ADDRESS : Address =  "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
-    pub static ref SUSHI3_FACTORY_ADDRESS : Address =  "0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F".parse().unwrap();
-
+    pub static ref QUOTER_ADDRESS: Address = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6".parse().unwrap();
+    pub static ref TICK_LENS_ADDRESS: Address = "0xbfd8137f7d1516D3ea5cA83523914859ec47F573".parse().unwrap();
+    pub static ref UNI3_FACTORY_ADDRESS: Address = "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
+    pub static ref SUSHI3_FACTORY_ADDRESS: Address = "0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F".parse().unwrap();
 }
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
@@ -44,9 +41,7 @@ pub struct Slot0 {
     pub observation_index: u16,
     pub observation_cardinality: u16,
     pub observation_cardinality_next: u16,
-
 }
-
 
 impl From<slot0Return> for Slot0 {
     fn from(value: slot0Return) -> Self {
@@ -76,13 +71,12 @@ pub struct UniswapV3Pool {
     factory: Address,
     protocol: PoolProtocol,
     encoder: UniswapV3AbiSwapEncoder,
-
 }
 
 impl UniswapV3Pool {
     pub fn new(address: Address) -> Self {
         UniswapV3Pool {
-            address: address,
+            address,
             token0: Address::ZERO,
             token1: Address::ZERO,
             liquidity: 0,
@@ -100,14 +94,13 @@ impl UniswapV3Pool {
         Self::get_price_step(self.fee)
     }
 
-
     pub fn get_price_step(fee: u32) -> u32 {
         match fee {
             10000 => 200,
             3000 => 60,
             500 => 10,
             100 => 1,
-            _ => 0
+            _ => 0,
         }
     }
 
@@ -130,13 +123,8 @@ impl UniswapV3Pool {
     }
 
     pub fn get_zero_for_one(token_address_from: &Address, token_address_to: &Address) -> bool {
-        if *token_address_from < *token_address_to {
-            true
-        } else {
-            false
-        }
+        *token_address_from < *token_address_to
     }
-
 
     fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
         if factory_address == *UNI3_FACTORY_ADDRESS {
@@ -148,16 +136,13 @@ impl UniswapV3Pool {
         }
     }
 
-
-    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self>
-    {
+    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self> {
         let token0 = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1 = UniswapV3StateReader::token1(db, env.clone(), address)?;
         let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
         let liquidity = UniswapV3StateReader::liquidity(db, env.clone(), address)?;
         let factory = UniswapV3StateReader::factory(db, env.clone(), address).unwrap_or_default();
         let protocol = UniswapV3Pool::get_protocol_by_factory(factory);
-
 
         let ret = UniswapV3Pool {
             address,
@@ -177,7 +162,10 @@ impl UniswapV3Pool {
         Ok(ret)
     }
 
-    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
+    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(
+        client: P,
+        address: Address,
+    ) -> Result<Self> {
         let uni3_pool = IUniswapV3Pool::IUniswapV3PoolInstance::new(address, client.clone());
 
         let token0: Address = uni3_pool.token0().call().await?._0;
@@ -186,7 +174,6 @@ impl UniswapV3Pool {
         let liquidity: u128 = uni3_pool.liquidity().call().await?._0;
         let slot0 = uni3_pool.slot0().call().await?;
         let factory: Address = uni3_pool.factory().call().await?._0;
-
 
         let token0_erc20 = IERC20::IERC20Instance::new(token0, client.clone());
         let token1_erc20 = IERC20::IERC20Instance::new(token1, client.clone());
@@ -214,9 +201,7 @@ impl UniswapV3Pool {
     }
 }
 
-
-impl Pool for UniswapV3Pool
-{
+impl Pool for UniswapV3Pool {
     fn get_address(&self) -> Address {
         self.address
     }
@@ -241,27 +226,33 @@ impl Pool for UniswapV3Pool
         vec![(self.token0, self.token1), (self.token1, self.token0)]
     }
 
-    fn calculate_out_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, _token_address_to: &Address, in_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_out_amount(
+        &self,
+        state_db: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        _token_address_to: &Address,
+        in_amount: U256,
+    ) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
         env.tx.gas_limit = 1_000_000;
 
-
         let gas_used = 150000;
 
-        let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(
-            state_db, self, *token_address_from, in_amount,
-        )?;
+        let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(state_db, self, *token_address_from, in_amount)?;
 
-        #[cfg(any(test, debug_assertions))] {
-            let (ret_evm, _gas_used) = UniswapCustomQuoterStateReader::quote_exact_input(state_db,
-                                                                                         env,
-                                                                                         UniswapV3Protocol::get_custom_quoter_address(),
-                                                                                         self.get_address(),
-                                                                                         *token_address_from,
-                                                                                         *_token_address_to,
-                                                                                         self.fee,
-                                                                                         in_amount)?;
-
+        #[cfg(any(test, debug_assertions))]
+        {
+            let (ret_evm, _gas_used) = UniswapCustomQuoterStateReader::quote_exact_input(
+                state_db,
+                env,
+                UniswapV3Protocol::get_custom_quoter_address(),
+                self.get_address(),
+                *token_address_from,
+                *_token_address_to,
+                self.fee,
+                in_amount,
+            )?;
 
             if ret != ret_evm {
                 error!("calculate_out_amount RETURN_RESULT_IS_INCORRECT : {ret} need {ret_evm}");
@@ -269,36 +260,40 @@ impl Pool for UniswapV3Pool
             }
         }
 
-
         if ret.is_zero() {
-            return Err(eyre!("RETURN_RESULT_IS_ZERO"));
+            Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
             Ok((ret - U256::from(1), gas_used))
         }
     }
 
-
-    fn calculate_in_amount(&self, state_db: &LoomInMemoryDB, env: Env, token_address_from: &Address, token_address_to: &Address, out_amount: U256) -> Result<(U256, u64), ErrReport> {
+    fn calculate_in_amount(
+        &self,
+        state_db: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+        out_amount: U256,
+    ) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
         env.tx.gas_limit = 1_000_000;
 
         let gas_used = 150000;
 
-        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(
-            state_db, self, *token_address_from, out_amount + U256::from(0),
-        )?;
+        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(state_db, self, *token_address_from, out_amount + U256::from(0))?;
 
-
-        #[cfg(any(test, debug_assertions))] {
-            let (ret_evm, _gas_used) = UniswapCustomQuoterStateReader::quote_exact_output(state_db,
-                                                                                          env,
-                                                                                          UniswapV3Protocol::get_custom_quoter_address(),
-                                                                                          self.get_address(),
-                                                                                          *token_address_from,
-                                                                                          *token_address_to,
-                                                                                          self.fee,
-                                                                                          out_amount + U256::from(0))?;
-
+        #[cfg(any(test, debug_assertions))]
+        {
+            let (ret_evm, _gas_used) = UniswapCustomQuoterStateReader::quote_exact_output(
+                state_db,
+                env,
+                UniswapV3Protocol::get_custom_quoter_address(),
+                self.get_address(),
+                *token_address_from,
+                *token_address_to,
+                self.fee,
+                out_amount + U256::from(0),
+            )?;
 
             if ret != ret_evm {
                 error!("calculate_in_amount RETURN_RESULT_IS_INCORRECT : {ret} need {ret_evm}");
@@ -306,9 +301,8 @@ impl Pool for UniswapV3Pool
             }
         }
 
-
         if ret.is_zero() {
-            return Err(eyre!("RETURN_RESULT_IS_ZERO"));
+            Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
             Ok((ret + U256::from(1), gas_used))
         }
@@ -329,28 +323,85 @@ impl Pool for UniswapV3Pool
 
         //debug!("Fetching state {:?} tick {} tick bitmap index {}", self.address, tick, tick_bitmap_index);
 
-        let balance_call_data = IERC20::IERC20Calls::balanceOf(
-            IERC20::balanceOfCall {
-                account: self.get_address()
-            }).abi_encode();
-
+        let balance_call_data = IERC20::IERC20Calls::balanceOf(IERC20::balanceOfCall { account: self.get_address() }).abi_encode();
 
         let pool_address = self.get_address();
 
         state_required
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 4 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 3 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 2 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index - 1 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index + 1 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index + 2 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index + 3 }).abi_encode())
-            .add_call(*TICK_LENS_ADDRESS, ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall { pool: pool_address, tickBitmapIndex: tick_bitmap_index + 4 }).abi_encode())
-
-
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index - 4,
+                })
+                .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index - 3,
+                })
+                .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index - 2,
+                })
+                .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index - 1,
+                })
+                .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index,
+                })
+                .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index + 1,
+                })
+                .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index + 2,
+                })
+                .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index + 3,
+                })
+                .abi_encode(),
+            )
+            .add_call(
+                *TICK_LENS_ADDRESS,
+                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                    pool: pool_address,
+                    tickBitmapIndex: tick_bitmap_index + 4,
+                })
+                .abi_encode(),
+            )
             .add_call(self.token0, balance_call_data.clone())
             .add_call(self.token1, balance_call_data)
             .add_slot_range(self.get_address(), U256::from(0), 0x20)
@@ -360,21 +411,19 @@ impl Pool for UniswapV3Pool
             state_required.add_call(token_address, IERC20::balanceOfCall { account: pool_address }.abi_encode());
         }
 
-
         if self.protocol == PoolProtocol::UniswapV3 {
             let amount = self.liquidity0 / U256::from(100);
             let price_limit = UniswapV3Pool::get_price_limit(&self.token0, &self.token1);
-            let quoter_swap_0_1_call = UniswapV3QuoterEncoder::quote_exact_input_encode(self.token0, self.token1, self.fee, price_limit, amount);
-
+            let quoter_swap_0_1_call =
+                UniswapV3QuoterEncoder::quote_exact_input_encode(self.token0, self.token1, self.fee, price_limit, amount);
 
             let price_limit = UniswapV3Pool::get_price_limit(&self.token1, &self.token0);
             let amount = self.liquidity1 / U256::from(100);
 
-            let quoter_swap_1_0_call = UniswapV3QuoterEncoder::quote_exact_input_encode(self.token1, self.token0, self.fee, price_limit, amount);
+            let quoter_swap_1_0_call =
+                UniswapV3QuoterEncoder::quote_exact_input_encode(self.token1, self.token0, self.fee, price_limit, amount);
 
-            state_required
-                .add_call(*QUOTER_ADDRESS, quoter_swap_0_1_call)
-                .add_call(*QUOTER_ADDRESS, quoter_swap_1_0_call);
+            state_required.add_call(*QUOTER_ADDRESS, quoter_swap_0_1_call).add_call(*QUOTER_ADDRESS, quoter_swap_1_0_call);
         }
 
         Ok(state_required)
@@ -389,14 +438,19 @@ struct UniswapV3AbiSwapEncoder {
 
 impl UniswapV3AbiSwapEncoder {
     pub fn new(pool_address: Address) -> Self {
-        Self {
-            pool_address
-        }
+        Self { pool_address }
     }
 }
 
 impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
-    fn encode_swap_out_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_out_amount_provided(
+        &self,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount: U256,
+        recipient: Address,
+        payload: Bytes,
+    ) -> Result<Bytes> {
         let zero_for_one = UniswapV3Pool::get_zero_for_one(&token_from_address, &token_to_address);
         let sqrt_price_limit_x96 = UniswapV3Pool::get_price_limit(&token_from_address, &token_to_address);
         let swap_call = IUniswapV3Pool::swapCall {
@@ -410,7 +464,14 @@ impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
         Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
     }
 
-    fn encode_swap_in_amount_provided(&self, token_from_address: Address, token_to_address: Address, amount: U256, recipient: Address, payload: Bytes) -> Result<Bytes> {
+    fn encode_swap_in_amount_provided(
+        &self,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount: U256,
+        recipient: Address,
+        payload: Bytes,
+    ) -> Result<Bytes> {
         let zero_for_one = UniswapV3Pool::get_zero_for_one(&token_from_address, &token_to_address);
         let sqrt_price_limit_x96 = UniswapV3Pool::get_price_limit(&token_from_address, &token_to_address);
         let swap_call = IUniswapV3Pool::swapCall {
@@ -449,17 +510,15 @@ impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use alloy_primitives::U256;
     use env_logger::Env as EnvLog;
-    use revm::InMemoryDB;
     use revm::primitives::Env;
 
     use debug_provider::AnvilDebugProviderFactory;
-    use defi_entities::{MarketState, Pool};
     use defi_entities::required_state::RequiredStateReader;
+    use defi_entities::{MarketState, Pool};
 
     use crate::UniswapV3Pool;
 
@@ -473,14 +532,14 @@ mod tests {
         //let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19931897).await?;
         let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20045799).await?;
 
-        let mut market_state = MarketState::new(InMemoryDB::default());
+        let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
         market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
         //let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
         let pool_address: Address = "0x48DA0965ab2d2cbf1C17C09cFB5Cbe67Ad5B1406".parse().unwrap();
 
-        let mut pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
+        let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
 
         let state_required = pool.get_state_required()?;
 
@@ -490,26 +549,44 @@ mod tests {
 
         let evm_env = Env::default();
 
-
         let in_amount = U256::from(pool.liquidity0 / U256::from(10));
-        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, in_amount).unwrap();
+        let (out_amount, gas_used) =
+            pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, in_amount).unwrap();
         println!("out {} -> {} {}", in_amount, out_amount, gas_used);
-        let (in_amount2, gas_used) = pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, out_amount).unwrap();
+        let (in_amount2, gas_used) =
+            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, out_amount).unwrap();
         println!("in {} -> {} {} {} ", out_amount, in_amount2, in_amount2 >= in_amount, gas_used);
 
         let in_amount = U256::from(pool.liquidity1 / U256::from(10));
-        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, in_amount).unwrap();
+        let (out_amount, gas_used) =
+            pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, in_amount).unwrap();
         println!("out {} -> {} {}", in_amount, out_amount, gas_used);
-        let (in_amount2, gas_used) = pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, out_amount).unwrap();
+        let (in_amount2, gas_used) =
+            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, out_amount).unwrap();
         println!("in {} -> {} {} {}", out_amount, in_amount2, in_amount2 >= in_amount, gas_used);
 
-
         //market_state.fetch_state(pool.get_address(), client.clone()).await;
         //market_state.fetch_state(pool.get_address(), client.clone()).await;
 
-        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, U256::from(pool.liquidity0 / U256::from(10))).unwrap();
+        let (out_amount, gas_used) = pool
+            .calculate_out_amount(
+                &market_state.state_db,
+                evm_env.clone(),
+                &pool.token0,
+                &pool.token1,
+                U256::from(pool.liquidity0 / U256::from(10)),
+            )
+            .unwrap();
         println!("{} {}", out_amount, gas_used);
-        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, U256::from(pool.liquidity1 / U256::from(10))).unwrap();
+        let (out_amount, gas_used) = pool
+            .calculate_out_amount(
+                &market_state.state_db,
+                evm_env.clone(),
+                &pool.token1,
+                &pool.token0,
+                U256::from(pool.liquidity1 / U256::from(10)),
+            )
+            .unwrap();
         println!("{} {}", out_amount, gas_used);
         Ok(())
     }

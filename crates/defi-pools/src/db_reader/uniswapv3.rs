@@ -1,7 +1,7 @@
 use std::ops::{BitAnd, Shl, Shr};
 
-use alloy_primitives::{Address, B256, I256, Signed, Uint};
 use alloy_primitives::U256;
+use alloy_primitives::{Address, Signed, Uint, B256, I256};
 use eyre::Result;
 use lazy_static::lazy_static;
 use log::trace;
@@ -12,15 +12,13 @@ use loom_utils::remv_db_direct_access::{try_read_cell, try_read_hashmap_cell};
 
 pub struct UniswapV3DBReader {}
 
-
-
 lazy_static! {
-    static ref BITS160MASK : U256 = U256::from(1).shl(160) - U256::from(1);
-    static ref BITS128MASK : U256 = U256::from(1).shl(128) - U256::from(1);
-    static ref BITS24MASK : U256 = U256::from(1).shl(24) - U256::from(1);
-    static ref BITS16MASK : U256 = U256::from(1).shl(16) - U256::from(1);
-    static ref BITS8MASK : U256 = U256::from(1).shl(8) - U256::from(1);
-    static ref BITS1MASK : U256 = U256::from(1);
+    static ref BITS160MASK: U256 = U256::from(1).shl(160) - U256::from(1);
+    static ref BITS128MASK: U256 = U256::from(1).shl(128) - U256::from(1);
+    static ref BITS24MASK: U256 = U256::from(1).shl(24) - U256::from(1);
+    static ref BITS16MASK: U256 = U256::from(1).shl(16) - U256::from(1);
+    static ref BITS8MASK: U256 = U256::from(1).shl(8) - U256::from(1);
+    static ref BITS1MASK: U256 = U256::from(1);
 }
 impl UniswapV3DBReader {
     pub fn fee_growth_global0_x128(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
@@ -75,24 +73,21 @@ impl UniswapV3DBReader {
         Ok(cell)
     }
 
-
     pub fn slot0(db: &LoomInMemoryDB, address: Address) -> Result<slot0Return> {
         let cell = try_read_cell(db, &address, &U256::from(0))?;
         let tick: Uint<24, 1> = ((Shr::<U256>::shr(cell, U256::from(160))) & *BITS24MASK).to();
         let tick: Signed<24, 1> = Signed::<24, 1>::from_raw(tick);
         let tick: i32 = tick.as_i32();
 
-        Ok(
-            slot0Return {
-                sqrtPriceX96: cell.bitand(*BITS160MASK),
-                tick: tick,
-                observationIndex: ((Shr::<U256>::shr(cell, U256::from(160 + 24))) & *BITS16MASK).to(),
-                observationCardinality: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16))) & *BITS16MASK).to(),
-                observationCardinalityNext: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16))) & *BITS16MASK).to(),
-                feeProtocol: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16 + 16))) & *BITS8MASK).to(),
-                unlocked: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16 + 16 + 8))) & *BITS1MASK).to(),
-            }
-        )
+        Ok(slot0Return {
+            sqrtPriceX96: cell.bitand(*BITS160MASK),
+            tick,
+            observationIndex: ((Shr::<U256>::shr(cell, U256::from(160 + 24))) & *BITS16MASK).to(),
+            observationCardinality: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16))) & *BITS16MASK).to(),
+            observationCardinalityNext: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16))) & *BITS16MASK).to(),
+            feeProtocol: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16 + 16))) & *BITS8MASK).to(),
+            unlocked: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16 + 16 + 8))) & *BITS1MASK).to(),
+        })
     }
 }
 
@@ -100,12 +95,12 @@ impl UniswapV3DBReader {
 mod test {
     use alloy_primitives::Address;
     use eyre::Result;
-    use revm::InMemoryDB;
     use revm::primitives::Env;
 
     use debug_provider::AnvilDebugProviderFactory;
-    use defi_entities::{MarketState, Pool};
     use defi_entities::required_state::RequiredStateReader;
+    use defi_entities::{MarketState, Pool};
+    use loom_revm_db::LoomInMemoryDB;
 
     use crate::db_reader::UniswapV3DBReader;
     use crate::protocols::UniswapV3Protocol;
@@ -115,8 +110,9 @@ mod test {
     #[tokio::test]
     async fn test_reader() -> Result<()> {
         std::env::set_var("RUST_BACKTRACE", "1");
-        env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug,defi_entities::required_state=trace,defi_types::state_update=trace"));
-
+        env_logger::init_from_env(
+            env_logger::Env::default().default_filter_or("debug,defi_entities::required_state=trace,defi_types::state_update=trace"),
+        );
 
         //let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20038285).await?;
 
@@ -129,13 +125,13 @@ mod test {
 
         let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20038285).await?;
 
-        let mut market_state = MarketState::new(InMemoryDB::default());
+        let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
         market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
         let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
 
-        let mut pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
+        let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
 
         let state_required = pool.get_state_required()?;
 
@@ -149,22 +145,18 @@ mod test {
         let token0_evm = UniswapV3StateReader::token0(&market_state.state_db, evm_env.clone(), pool_address)?;
         let token1_evm = UniswapV3StateReader::token1(&market_state.state_db, evm_env.clone(), pool_address)?;
 
-
         //let factory_db = UniswapV3DBReader::factory(&market_state.state_db, pool_address)?;
         //let token0_db = UniswapV3DBReader::token0(&market_state.state_db, pool_address)?;
         //let token1_db = UniswapV3DBReader::token1(&market_state.state_db, pool_address)?;
         println!("{factory_evm:?} {token0_evm:?} {token1_evm:?}");
         //println!("{factory_db:?} {token0_db:?} {token1_db:?}");
 
-
         let slot0_evm = UniswapV3StateReader::slot0(&market_state.state_db, evm_env.clone(), pool_address)?;
-
 
         let slot0_db = UniswapV3DBReader::slot0(&market_state.state_db, pool_address)?;
 
         println!("evm : {slot0_evm:?}");
         println!("db  : {slot0_db:?}");
-
 
         Ok(())
     }

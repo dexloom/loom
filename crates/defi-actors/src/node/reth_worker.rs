@@ -3,7 +3,7 @@ use std::path::Path;
 
 use alloy_eips::BlockNumHash;
 use alloy_network::Network;
-use alloy_primitives::{Address, B256, BlockHash};
+use alloy_primitives::{Address, BlockHash, B256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header, Log};
 use alloy_rpc_types_trace::geth::AccountState;
@@ -13,14 +13,9 @@ use futures::StreamExt;
 use log::{debug, error, info, trace};
 use reth_chainspec::ChainSpecBuilder;
 use reth_db::open_db_read_only;
-use reth_primitives::{
-    BlockHashOrNumber, BlockWithSenders,
-};
-use reth_provider::{
-    AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider,
-    StateProvider, StorageReader, TransactionVariant,
-};
+use reth_primitives::{BlockHashOrNumber, BlockWithSenders};
 use reth_provider::providers::StaticFileProvider;
+use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider, StateProvider, StorageReader, TransactionVariant};
 
 use defi_events::{BlockLogs, BlockStateUpdate};
 use loom_actors::{ActorResult, Broadcaster, WorkerResult};
@@ -50,12 +45,7 @@ where
     let db = open_db_read_only(db_path, Default::default())?;
     let spec = ChainSpecBuilder::mainnet().build();
 
-
-    let factory = ProviderFactory::new(
-        db,
-        spec.into(),
-        StaticFileProvider::read_only(db_path.join("static_files"))?,
-    );
+    let factory = ProviderFactory::new(db, spec.into(), StaticFileProvider::read_only(db_path.join("static_files"))?);
 
     loop {
         tokio::select! {
@@ -195,7 +185,7 @@ where
                                             None
                                         };
 
-                                        
+
                                         (address, AccountState{
                                             balance: Some(account.balance),
                                             code: account_code.map(|c|c.bytes()),

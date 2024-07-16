@@ -16,11 +16,9 @@ use loom_actors_macros::{Accessor, Consumer};
 pub async fn pool_health_monitor_worker(
     market: SharedState<Market>,
     mut pool_health_monitor_rx: Receiver<MessageHealthEvent>,
-) -> WorkerResult
-{
+) -> WorkerResult {
     let mut pool_errors_map: HashMap<Address, u32> = HashMap::new();
     //let mut watch_txs : HashMap<H256, u64>;
-
 
     loop {
         tokio::select! {
@@ -66,44 +64,31 @@ pub async fn pool_health_monitor_worker(
     }
 }
 
-
 #[derive(Accessor, Consumer)]
-pub struct PoolHealthMonitorActor
-{
+pub struct PoolHealthMonitorActor {
     #[accessor]
     market: Option<SharedState<Market>>,
     #[consumer]
     pool_health_update_rx: Option<Broadcaster<MessageHealthEvent>>,
 }
 
-impl PoolHealthMonitorActor
-{
+impl PoolHealthMonitorActor {
     pub fn new() -> Self {
-        PoolHealthMonitorActor {
-            market: None,
-            pool_health_update_rx: None,
-        }
+        PoolHealthMonitorActor { market: None, pool_health_update_rx: None }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self {
-            market: Some(bc.market()),
-            pool_health_update_rx: Some(bc.pool_health_monitor_channel()),
-        }
+        Self { market: Some(bc.market()), pool_health_update_rx: Some(bc.pool_health_monitor_channel()) }
     }
 }
 
-
 #[async_trait]
-impl Actor for PoolHealthMonitorActor
-{
+impl Actor for PoolHealthMonitorActor {
     async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(
-            pool_health_monitor_worker(
-                self.market.clone().unwrap(),
-                self.pool_health_update_rx.clone().unwrap().subscribe().await,
-            )
-        );
+        let task = tokio::task::spawn(pool_health_monitor_worker(
+            self.market.clone().unwrap(),
+            self.pool_health_update_rx.clone().unwrap().subscribe().await,
+        ));
         Ok(vec![task])
     }
 

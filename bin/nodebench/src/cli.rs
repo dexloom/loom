@@ -4,4 +4,3 @@ use clap::Parser;
 pub struct Cli {
     pub endpoint: Vec<String>,
 }
-
