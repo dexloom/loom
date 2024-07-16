@@ -11,18 +11,30 @@ Helps to understand and compare node performance
 Stat result for [Reth/Geth], started on Reth instance
 
 ```
-headers abs first [0, 10] avg delay [361909, 0] μs
-headers rel first [0, 10] avg delay [370423, 0] μs
-blocks abs first [0, 10] avg delay [328226, 0] μs
-blocks rel first [0, 10] avg delay [336740, 0] μs
-logs abs first [0, 10] avg delay [335986, 0] μs
-logs rel first [0, 10] avg delay [344501, 0] μs
-state abs first [2, 8] avg delay [259292, 110104] μs
-state rel first [2, 8] avg delay [267806, 101589] μs
+headers abs first [0, 11] avg delay [258388, 0] μs
+headers rel first [0, 11] avg delay [266549, 0] μs
+blocks abs first [0, 10] avg delay [212087, 0] μs
+blocks rel first [0, 10] avg delay [220249, 0] μs
+logs abs first [0, 10] avg delay [208387, 0] μs
+logs rel first [0, 10] avg delay [216548, 0] μs
+state abs first [4, 6] avg delay [135129, 59128] μs
+state rel first [4, 6] avg delay [143290, 50966] μs
 
-txs total in blocks: 1580 received by nodes: 1130 per node [1123, 1096]  outdated [13, 0]
-txs abs first [593, 537] delays avg ms [28010, 16774]
-txs rel first [306, 824] delays avg ms [18254, 32507]
+txs total in blocks: 1757 received by nodes: 1123 per node [1117, 1101]  outdated [11, 0]
+txs abs first [1038, 85] delays avg [35150, 20861] μs
+txs rel first [797, 326] delays avg [9165, 27169] μs
+```
+
+## Reth WS vs ExEx
+
+```
+headers abs first [11, 0] avg delay [0, 3856] μs
+blocks abs first [5, 6] avg delay [1349, 1195] μs
+logs abs first [8, 3] avg delay [2275, 827] μs
+state abs first [0, 10] avg delay [55310, 0] μs
+
+txs total in blocks: 1846 received by nodes: 1136 per node [1125, 1136]  outdated [21, 0]
+txs abs first [766, 370] delays avg [4782, 166] μs
 ```
 
 blocks abs first - counter of blocks received by node before other nodes
@@ -40,20 +52,6 @@ delays avg - averate delay when transaction doesn't come first in milliseconds
 txs rel first - txes receved from the node before others corrected by ping time
 delays avg - averate delay when transaction doesn't come first in milliseconds corrected by ping time.
 
-## Reth WS vs ExEx
 
-```
-headers abs first [10, 0] avg delay [0, 3706] μs
-headers rel first [10, 0] avg delay [0, 3703] μs
-blocks abs first [7, 3] avg delay [681, 1967] μs
-blocks rel first [7, 3] avg delay [683, 1965] μs
-logs abs first [6, 4] avg delay [678, 1896] μs
-logs rel first [6, 4] avg delay [681, 1893] μs
-state abs first [0, 10] avg delay [56646, 0] μs
-state rel first [0, 10] avg delay [56649, 0] μs
 
-txs total in blocks: 1832 received by nodes: 1362 per node [1291, 1362]  outdated [43, 0]
-txs abs first [933, 429] delays avg ms [1439, 259]
-txs rel first [927, 435] delays avg ms [1419, 261]
-```
 
