@@ -12,7 +12,7 @@ release:
 # Target to run all tests
 .PHONY: test
 test:
-	cargo test
+	cargo test --all
 
 # Target to run all benchmarks
 .PHONY: clean

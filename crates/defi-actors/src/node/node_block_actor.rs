@@ -163,15 +163,15 @@ mod test {
     use tokio::select;
 
     use defi_events::{BlockLogs, BlockStateUpdate};
+    use eyre::Result;
     use loom_actors::{Actor, Broadcaster, Producer};
 
     use crate::NodeBlockActor;
 
     #[tokio::test]
-    async fn revm_worker_test() {
-        std::env::set_var("RUST_BACKTRACE", "1");
-        std::env::set_var("RUST_LOG", "debug");
-        env_logger::builder().format_timestamp_millis().init();
+    #[ignore]
+    async fn revm_worker_test() -> Result<()> {
+        let _ = env_logger::builder().format_timestamp_millis().try_init();
 
         info!("Creating channels");
         let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
@@ -179,13 +179,13 @@ mod test {
         let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
         let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
 
-        let node_url = std::env::var("TEST_NODE_URL").unwrap_or("ws://localhost:8546".to_string());
+        let node_url = std::env::var("DEVNET_WS")?;
+
         let ws_connect = WsConnect::new(node_url);
         let client = ClientBuilder::default().ws(ws_connect).await.unwrap();
-
         let client = ProviderBuilder::new().on_client(client).boxed();
 
-        let db_path = std::env::var("TEST_NODE_DB").unwrap_or("./db".to_string());
+        let db_path = std::env::var("TEST_NODE_DB")?;
 
         let mut node_block_actor = NodeBlockActor::new(client.clone()).with_reth_db(Some(db_path));
         match node_block_actor
@@ -233,5 +233,6 @@ mod test {
             //tokio::time::sleep(Duration::new(3, 0)).await;
             println!("{i}")
         }
+        Ok(())
     }
 }

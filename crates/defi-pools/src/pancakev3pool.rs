@@ -488,6 +488,7 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
 mod tests {
     use env_logger::Env as EnvLog;
     use log::debug;
+    use std::env;
 
     use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::required_state::RequiredStateReader;
@@ -497,11 +498,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_pool() {
-        std::env::set_var("RUST_LOG", "debug");
-        std::env::set_var("RUST_BACKTRACE", "1");
-        env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
+        let _ = env_logger::try_init_from_env(EnvLog::default().default_filter_or("info"));
+        let node_url = env::var("MAINNET_WS").unwrap();
 
-        let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19931897).await.unwrap();
+        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 19931897).await.unwrap();
 
         //let weth_address : Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
         //let usdc_address : Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
@@ -525,7 +525,7 @@ mod tests {
 
         let evm_env = Env::default();
 
-        let (out_amount, _gas_used) = pool
+        let (out_amount, gas_used) = pool
             .calculate_out_amount(
                 &market_state.state_db,
                 evm_env.clone(),
@@ -534,8 +534,11 @@ mod tests {
                 U256::from(pool.liquidity0 / U256::from(100)),
             )
             .unwrap();
-        println!("{}", out_amount);
-        let (out_amount, _gas_used) = pool
+        debug!("{} {} ", out_amount, gas_used);
+        assert_ne!(out_amount, U256::ZERO);
+        assert!(gas_used > 100_000, "gas used check failed");
+
+        let (out_amount, gas_used) = pool
             .calculate_out_amount(
                 &market_state.state_db,
                 evm_env.clone(),
@@ -544,6 +547,8 @@ mod tests {
                 U256::from(pool.liquidity1 / U256::from(100)),
             )
             .unwrap();
-        println!("{}", out_amount);
+        debug!("{} {} ", out_amount, gas_used);
+        assert_ne!(out_amount, U256::ZERO);
+        assert!(gas_used > 100_000, "gas used check failed");
     }
 }

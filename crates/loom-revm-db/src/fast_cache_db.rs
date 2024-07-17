@@ -480,7 +480,7 @@ mod tests {
         let mut new_state = new_state.merge();
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce);
-        assert_eq!(new_state.storage(account, key0), Ok(U256::ZERO));
+        assert_eq!(new_state.storage(account, key0), Ok(value0));
         assert_eq!(new_state.storage(account, key1), Ok(value1));
         assert_eq!(new_state.accounts.len(), 1);
     }

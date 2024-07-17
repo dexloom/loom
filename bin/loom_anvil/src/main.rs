@@ -1,3 +1,4 @@
+use std::env;
 use std::fmt::{Display, Formatter};
 use std::time::Duration;
 
@@ -98,8 +99,9 @@ async fn main() -> Result<()> {
 
     let test_config = TestConfig::from_file(args.config).await?;
 
-    let client =
-        AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), test_config.settings.block).await?;
+    let node_url = env::var("MAINNET_WS")?;
+
+    let client = AnvilDebugProviderFactory::from_node_on_block(node_url, test_config.settings.block).await?;
 
     let priv_key = client.privkey()?;
 

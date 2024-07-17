@@ -1,3 +1,4 @@
+use std::env;
 use std::time::Duration;
 
 use alloy::{providers::ProviderBuilder, rpc::client::ClientBuilder};
@@ -20,7 +21,9 @@ async fn main() -> Result<()> {
             .default_filter_or("debug,alloy_rpc_client=off,debug_provider=info,alloy_transport_http=off,hyper_util=off"),
     );
 
-    let transport = HttpCachedTransport::new(Url::parse("http://falcon.loop:8008/rpc")?, Some("./.cache")).await;
+    let node_url = env::var("MAINNET_WS")?;
+
+    let transport = HttpCachedTransport::new(Url::parse(node_url.as_str())?, Some("./.cache")).await;
     transport.set_block_number(start_block_number);
 
     let client = ClientBuilder::default().transport(transport.clone(), true).with_poll_interval(Duration::from_millis(50));

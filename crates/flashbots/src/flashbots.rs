@@ -208,13 +208,16 @@ where
 mod test {
     use alloy_primitives::Bytes;
     use alloy_provider::ProviderBuilder;
+    use std::env;
 
     use super::*;
 
     #[tokio::test]
     async fn test_send_bundle() -> Result<()> {
-        env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug"));
-        let provider = ProviderBuilder::new().on_http("http://falcon.loop:8008/rpc".try_into()?).boxed();
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("info,flashbots=off"));
+        let node_url = Url::try_from(env::var("MAINNET_HTTP")?.as_str())?;
+
+        let provider = ProviderBuilder::new().on_http(node_url).boxed();
         let block = provider.get_block_number().await?;
 
         let flashbots = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
@@ -224,11 +227,13 @@ mod test {
         let bundle_request = BundleRequest::new().set_block(U64::from(block)).push_transaction(tx);
 
         match flashbots.send_bundle(&bundle_request).await {
-            Ok(_) => {
-                println!("Ok")
+            Ok(resp) => {
+                debug!("{:?}", resp);
+                panic!("SHOULD_FAIL");
             }
             Err(e) => {
-                println!("{e}")
+                debug!("{}", e);
+                assert_eq!(e.to_string(), "FLASHBOTS_RELAY_ERROR".to_string());
             }
         }
 

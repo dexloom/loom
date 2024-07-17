@@ -95,7 +95,9 @@ impl UniswapV3DBReader {
 mod test {
     use alloy_primitives::Address;
     use eyre::Result;
+    use log::debug;
     use revm::primitives::Env;
+    use std::env;
 
     use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::required_state::RequiredStateReader;
@@ -109,21 +111,13 @@ mod test {
 
     #[tokio::test]
     async fn test_reader() -> Result<()> {
-        std::env::set_var("RUST_BACKTRACE", "1");
-        env_logger::init_from_env(
-            env_logger::Env::default().default_filter_or("debug,defi_entities::required_state=trace,defi_types::state_update=trace"),
-        );
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or(
+            "info,defi_entities::required_state=off,defi_types::state_update=off,alloy_rpc_client::call=off,tungstenite=off",
+        ));
 
-        //let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20038285).await?;
+        let node_url = env::var("MAINNET_WS")?;
 
-        /*let full_node_url = std::env::var("FULL_NODE_URL").unwrap_or("ws://helsi.loop:8008/looper".to_string());
-        let full_node_url = url::Url::parse(full_node_url.as_str())?;
-        let ws_connect = WsConnect::new(full_node_url);
-        let client = ClientBuilder::default().ws(ws_connect).await.unwrap();
-        let client = ProviderBuilder::new().on_client(client).boxed();
-         */
-
-        let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20038285).await?;
+        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 20038285).await?;
 
         let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
@@ -145,18 +139,16 @@ mod test {
         let token0_evm = UniswapV3StateReader::token0(&market_state.state_db, evm_env.clone(), pool_address)?;
         let token1_evm = UniswapV3StateReader::token1(&market_state.state_db, evm_env.clone(), pool_address)?;
 
-        //let factory_db = UniswapV3DBReader::factory(&market_state.state_db, pool_address)?;
-        //let token0_db = UniswapV3DBReader::token0(&market_state.state_db, pool_address)?;
-        //let token1_db = UniswapV3DBReader::token1(&market_state.state_db, pool_address)?;
-        println!("{factory_evm:?} {token0_evm:?} {token1_evm:?}");
-        //println!("{factory_db:?} {token0_db:?} {token1_db:?}");
+        debug!("{factory_evm:?} {token0_evm:?} {token1_evm:?}");
 
         let slot0_evm = UniswapV3StateReader::slot0(&market_state.state_db, evm_env.clone(), pool_address)?;
 
         let slot0_db = UniswapV3DBReader::slot0(&market_state.state_db, pool_address)?;
 
-        println!("evm : {slot0_evm:?}");
-        println!("db  : {slot0_db:?}");
+        debug!("evm : {slot0_evm:?}");
+        debug!("db  : {slot0_db:?}");
+
+        assert_eq!(slot0_evm, slot0_db);
 
         Ok(())
     }

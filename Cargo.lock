@@ -4636,6 +4636,7 @@ dependencies = [
  "defi-abi",
  "defi-entities",
  "defi-types",
+ "env_logger",
  "eyre",
  "k256",
  "lazy_static",

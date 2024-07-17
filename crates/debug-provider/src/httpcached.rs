@@ -322,6 +322,7 @@ impl Service<RequestPacket> for HttpCachedTransport {
 
 #[cfg(test)]
 mod test {
+    use std::env;
     use std::time::Duration;
 
     use alloy::{
@@ -336,6 +337,7 @@ mod test {
     };
     use eyre::Result;
     use futures::StreamExt;
+    use log::debug;
     use tokio::select;
     use url::Url;
 
@@ -343,41 +345,40 @@ mod test {
 
     #[tokio::test]
     async fn test_create_service() -> Result<()> {
-        let transport = HttpCachedTransport::new("http://falcon.loop:8008/rpc".parse()?, Some("./.cache")).await;
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("info"));
+
+        let node_url = Url::parse(env::var("MAINNET_HTTP")?.as_str())?;
+
+        let transport = HttpCachedTransport::new(node_url, Some("./.cache")).await;
 
         let client = RpcClient::new(transport.clone(), true);
         let provider = ProviderBuilder::new().on_client(client);
 
         let block_number = provider.get_block_number().await?;
-        println!("Hello, block {block_number}");
+        debug!("Hello, block {block_number}");
+        assert_eq!(block_number, 0);
         transport.set_block_number(2000001);
         let block_number = provider.get_block_number().await?;
-        println!("Hello, block {block_number}");
-
-        /*let block = provider.get_block_by_number(BlockNumberOrTag::Number(block_number), false).await?.unwrap();
-        let trace_opts = GethDebugTracingOptions::default().with_tracer(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::PreStateTracer));
-
-        let _ = provider.debug_trace_block_by_number(BlockNumberOrTag::Number(block_number), trace_opts.clone()).await?;
-        let _ = provider.debug_trace_block_by_hash(block.header.hash.unwrap(), trace_opts.clone()).await?;
-
-         */
+        debug!("Hello, block {block_number}");
+        assert_eq!(block_number, 2000001);
 
         Ok(())
     }
 
     #[tokio::test]
     async fn test_get_block_number() -> Result<()> {
-        env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug,alloy_rpc_client=off,"));
-        let transport = HttpCachedTransport::new(Url::parse("http://falcon.loop:8008/rpc")?, Some("./.cache")).await;
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("info,alloy_rpc_client=off,"));
+
+        let node_url = Url::parse(env::var("MAINNET_HTTP")?.as_str())?;
+
+        let transport = HttpCachedTransport::new(node_url, Some("./.cache")).await;
         transport.set_block_number(20179184);
 
         let client = ClientBuilder::default().transport(transport.clone(), true).with_poll_interval(Duration::from_millis(50)).boxed();
         let provider = ProviderBuilder::new().on_client(client);
 
-        //let provider = ArchiveHistoryProvider::new(provider, 20179184, 20179284);
-
         let block_number = provider.get_block_number().await?;
-        println!("block {block_number}");
+        debug!("block {block_number}");
 
         let mut blocks_watcher = provider.watch_blocks().await?.into_stream();
 
@@ -389,10 +390,10 @@ mod test {
                     block = blocks_watcher.next() => {
                         if let Some(block_vec) = block {
                             for block_hash in block_vec {
-                                println!("Block : {:?}", block_hash);
+                                debug!("Block : {:?}", block_hash);
                             }
                         }else{
-                            println!("else block : {:?}", block);
+                            debug!("else block : {:?}", block);
                             break;
                         }
                     }
@@ -405,16 +406,12 @@ mod test {
             .with_prestate_config(PreStateConfig { diff_mode: Some(true) });
 
         for i in 0..10 {
-            println!("Set next block: {}", i);
+            debug!("Set next block: {}", i);
             tokio::time::sleep(Duration::from_millis(10)).await;
-            //provider.next_block();
-            //let current_block_number = transport.fetch_next_block().await?;
 
             let total_supply = weth.totalSupply().call().await.unwrap();
-            println!("Total supply : {}", total_supply._0);
+            debug!("Total supply : {}", total_supply._0);
 
-            //let filter: Filter = Filter::new().to_block(current_block_number).from_block(current_block_number);
-            //let logs = provider.get_logs(&filter).await?;
             let block_by_number = provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?.unwrap();
             let block_by_hash =
                 provider.get_block_by_hash(block_by_number.header.hash.unwrap(), BlockTransactionsKind::Full).await?.unwrap();

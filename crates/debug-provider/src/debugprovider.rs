@@ -280,24 +280,24 @@ where
 
 #[cfg(test)]
 mod test {
+    use super::*;
     use alloy::primitives::{Address, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use env_logger::Env as EnvLog;
     use eyre::Result;
-
-    use super::*;
+    use log::{debug, error};
 
     #[tokio::test]
-    async fn test() -> Result<()> {
-        std::env::set_var("RUST_LOG", "debug");
-        std::env::set_var("RUST_BACKTRACE", "1");
-        let node_url = std::env::var("NODE_URL").unwrap_or("http://falcon.loop:8008/rpc".to_string());
+    async fn test_debug_trace_call() -> Result<()> {
+        let _ = env_logger::try_init_from_env(
+            EnvLog::default().default_filter_or("info,hyper_util=off,alloy_transport_http=off,alloy_rpc_client=off,reqwest=off"),
+        );
 
-        env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
-        let node_url = url::Url::parse(node_url.as_str())?;
+        let node_url = url::Url::parse(std::env::var("MAINNET_HTTP")?.as_str())?;
 
-        let provider_anvil = ProviderBuilder::new().on_anvil_with_config(|x| x.chain_id(1).fork(node_url.clone()).fork_block_number(10000));
+        let provider_anvil =
+            ProviderBuilder::new().on_anvil_with_config(|x| x.chain_id(1).fork(node_url.clone()).fork_block_number(20322777));
 
         let client_node = ClientBuilder::default().http(node_url).boxed();
 
@@ -313,17 +313,18 @@ mod test {
         let location: U256 = U256::from(0);
 
         let cell0 = client.get_storage_at(contract, location).block_id(BlockNumberOrTag::Latest.into()).await?;
-        println!("{} {}", block_number, cell0);
+        debug!("{} {}", block_number, cell0);
 
         match client
             .geth_debug_trace_call(TransactionRequest::default(), BlockNumberOrTag::Latest, GethDebugTracingCallOptions::default())
             .await
         {
-            Ok(_) => {
-                println!("Ok")
+            Ok(trace) => {
+                debug!("Ok {:?}", trace);
             }
             Err(e) => {
-                println!("Error :{}", e)
+                error!("Error :{}", e);
+                panic!("DEBUG_TRACE_CALL_FAILED");
             }
         }
 

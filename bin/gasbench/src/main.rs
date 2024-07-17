@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap};
+use std::env;
 use std::sync::Arc;
 
 use alloy::primitives::{Address, BlockNumber, U256};
@@ -43,15 +44,14 @@ struct SwapPathDTO {
 async fn main() -> Result<()> {
     let cli: Cli = Cli::try_parse()?;
 
-    env_logger::init_from_env(env_logger::Env::default().default_filter_or("debug,alloy_rpc_client=off"));
+    env_logger::init_from_env(env_logger::Env::default().default_filter_or("info"));
     let block_number = 20089277u64;
 
     println!("Hello, block {block_number}!");
-    let client =
-        AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), BlockNumber::from(block_number)).await?;
-    //let client = ProviderBuilder::new().on_ws(WsConnect::new("ws://localhost:8545")).await?.boxed();
 
-    //preset_balances(client.clone()).await?;
+    let node_url = env::var("MAINNET_WS").unwrap();
+
+    let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(block_number)).await?;
 
     let block_header = client.get_block_by_number(BlockNumberOrTag::Number(block_number), false).await?.unwrap().header;
 

@@ -347,14 +347,6 @@ mod test {
     fn test_mul_rounding_up() {
         let amount = U256::from_limbs([1230267133767, 0, 0, 0]);
         let ret = mul_div_rounding_up(amount, U256::from(500), U256::from(1e6)).unwrap();
-        assert_eq!(ret, U256::from(1230882575057u128));
-
-        //in 1230267133767
-        //out 8058946258316862629
-        //fee 615441288
-
-        //in 6093676387140105854, 4
-        // out 304910158831
-        // fee 39960306494236275
+        assert_eq!(ret, U256::from(615133567u128));
     }
 }

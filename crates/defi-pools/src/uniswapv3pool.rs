@@ -515,8 +515,8 @@ impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
 #[cfg(test)]
 mod tests {
     use alloy_primitives::U256;
-    use env_logger::Env as EnvLog;
     use revm::primitives::Env;
+    use std::env;
 
     use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::required_state::RequiredStateReader;
@@ -528,11 +528,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_pool() -> Result<()> {
-        std::env::set_var("RUST_BACKTRACE", "1");
-        env_logger::init_from_env(EnvLog::default().default_filter_or("debug,defi_pools=trace"));
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("info,defi_pools=off"));
 
-        //let client = AnvilControl::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19931897).await?;
-        let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 20045799).await?;
+        let node_url = env::var("MAINNET_WS")?;
+
+        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 20045799).await?;
 
         let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
@@ -554,21 +554,28 @@ mod tests {
         let in_amount = U256::from(pool.liquidity0 / U256::from(10));
         let (out_amount, gas_used) =
             pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, in_amount).unwrap();
-        println!("out {} -> {} {}", in_amount, out_amount, gas_used);
+        debug!("out {} -> {} {}", in_amount, out_amount, gas_used);
+        assert_ne!(out_amount, U256::ZERO);
+        assert!(gas_used > 100000);
+
         let (in_amount2, gas_used) =
             pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, out_amount).unwrap();
-        println!("in {} -> {} {} {} ", out_amount, in_amount2, in_amount2 >= in_amount, gas_used);
+        debug!("in {} -> {} {} {} ", out_amount, in_amount2, in_amount2 >= in_amount, gas_used);
+        assert_ne!(in_amount2, U256::ZERO);
+        assert!(gas_used > 100000);
 
         let in_amount = U256::from(pool.liquidity1 / U256::from(10));
         let (out_amount, gas_used) =
             pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, in_amount).unwrap();
-        println!("out {} -> {} {}", in_amount, out_amount, gas_used);
+        debug!("out {} -> {} {}", in_amount, out_amount, gas_used);
+        assert_ne!(out_amount, U256::ZERO);
+        assert!(gas_used > 100000);
+
         let (in_amount2, gas_used) =
             pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, out_amount).unwrap();
-        println!("in {} -> {} {} {}", out_amount, in_amount2, in_amount2 >= in_amount, gas_used);
-
-        //market_state.fetch_state(pool.get_address(), client.clone()).await;
-        //market_state.fetch_state(pool.get_address(), client.clone()).await;
+        debug!("in {} -> {} {} {}", out_amount, in_amount2, in_amount2 >= in_amount, gas_used);
+        assert_ne!(in_amount2, U256::ZERO);
+        assert!(gas_used > 100000);
 
         let (out_amount, gas_used) = pool
             .calculate_out_amount(
@@ -579,7 +586,10 @@ mod tests {
                 U256::from(pool.liquidity0 / U256::from(10)),
             )
             .unwrap();
-        println!("{} {}", out_amount, gas_used);
+
+        debug!("{} {}", out_amount, gas_used);
+        assert_ne!(out_amount, U256::ZERO);
+        assert!(gas_used > 100000);
         let (out_amount, gas_used) = pool
             .calculate_out_amount(
                 &market_state.state_db,
@@ -589,7 +599,9 @@ mod tests {
                 U256::from(pool.liquidity1 / U256::from(10)),
             )
             .unwrap();
-        println!("{} {}", out_amount, gas_used);
+        debug!("{} {}", out_amount, gas_used);
+        assert_ne!(out_amount, U256::ZERO);
+        assert!(gas_used > 100000);
         Ok(())
     }
 }

@@ -103,9 +103,7 @@ impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport> {
 
 #[cfg(test)]
 mod test {
-    use std::ops::Deref;
-    use std::sync::Arc;
-
+    use alloy::node_bindings::Anvil;
     use alloy::primitives::{B256, U256};
     use alloy::rpc::types::BlockNumberOrTag;
     use alloy::transports::http::Http;
@@ -115,43 +113,44 @@ mod test {
     use env_logger::Env as EnvLog;
     use eyre::Result;
     use reqwest::Client;
+    use std::ops::Deref;
+    use std::sync::Arc;
 
     use super::*;
 
     #[tokio::test]
     async fn test_storage() -> Result<()> {
-        std::env::set_var("RUST_LOG", "debug");
-        std::env::set_var("RUST_BACKTRACE", "1");
+        let _ = env_logger::try_init_from_env(EnvLog::default().default_filter_or("info"));
 
-        let test_node_url = std::env::var("TEST_NODE_URL").unwrap_or("http://localhost:8545".to_string());
-        let test_node_url = url::Url::parse(test_node_url.as_str())?;
-        let client_anvil = ClientBuilder::default().http(test_node_url).boxed();
+        let anvil = Anvil::new().try_spawn()?;
+
+        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url()).boxed();
 
         let provider = ProviderBuilder::new().on_client(client_anvil);
 
         let address: Address = Address::repeat_byte(0x12);
 
         if let Err(e) = provider.set_storage(address, B256::from(U256::from(1)), B256::from(U256::from(2))).await {
-            panic!("{e}");
+            panic!("{}", e);
         }
 
         let value = provider.get_storage_at(address, U256::from(1)).await?;
         if value != U256::from(2) {
-            panic!("Incorrect value {value}");
+            panic!("Incorrect value {}", value);
         }
 
         Ok(())
     }
 
     #[tokio::test]
-    async fn test() -> Result<()> {
-        std::env::set_var("RUST_LOG", "debug");
-        std::env::set_var("RUST_BACKTRACE", "1");
-        let test_node_url = std::env::var("TEST_NODE_URL").unwrap_or("http://localhost:8545".to_string());
-        let node_url = std::env::var("NODE_URL").unwrap_or("http://falcon.loop:8008/rpc".to_string());
+    async fn test_anvil_commands() -> Result<()> {
+        let _ = env_logger::try_init_from_env(EnvLog::default().default_filter_or("info"));
+        let anvil = Anvil::new().try_spawn()?;
 
-        env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
-        let test_node_url = url::Url::parse(test_node_url.as_str())?;
+        let node_url = std::env::var("MAINNET_HTTP").unwrap().to_string();
+
+        let test_node_url = anvil.endpoint_url();
+
         let node_url = url::Url::parse(node_url.as_str())?;
 
         let client_anvil = ClientBuilder::default().http(test_node_url).boxed();
@@ -169,7 +168,6 @@ mod test {
         client.set_automine(false).await?;
         let _ = client.mine().await;
         client.set_automine(true).await?;
-        //let reset_result = client.reset().await?;
 
         Ok(())
     }

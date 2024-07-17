@@ -12,7 +12,7 @@ use alloy_transport::Transport;
 use eyre::{eyre, OptionExt, Result};
 use k256::SecretKey;
 use lazy_static::lazy_static;
-use log::{debug, error};
+use log::{debug, error, info};
 
 use debug_provider::AnvilProviderExt;
 
@@ -71,7 +71,7 @@ impl MulticallerDeployer {
             eyre!("CANNOT_GET_BALANCE")
         })?;
 
-        println!("{} {}", signer_address, balance);
+        info!("{} {}", signer_address, balance);
         let nonce =
             client.get_transaction_count(signer_address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.map_err(|e| {
                 error!("{e}");
@@ -135,6 +135,7 @@ impl MulticallerDeployer {
 
 #[cfg(test)]
 mod test {
+    use std::env;
     use std::sync::Arc;
 
     use debug_provider::AnvilDebugProviderFactory;
@@ -143,11 +144,14 @@ mod test {
 
     #[tokio::test]
     async fn test_deploy() -> Result<()> {
-        let anvil_provider =
-            Arc::new(AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), 19109956).await?);
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("info,loom_multicaller=off"));
+
+        let node_url = env::var("MAINNET_WS")?;
+
+        let anvil_provider = Arc::new(AnvilDebugProviderFactory::from_node_on_block(node_url, 19109956).await?);
 
         let block = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
-        println!("Block number : {}", block.unwrap().header.number.unwrap_or_default());
+        debug!("Block number : {}", block.unwrap().header.number.unwrap_or_default());
 
         let priv_key = anvil_provider.privkey()?;
 
@@ -155,7 +159,7 @@ mod test {
 
         let multicaller = multicaller.deploy(anvil_provider.clone(), priv_key).await?;
 
-        println!("{}", multicaller.address.unwrap_or_default());
+        assert_ne!(multicaller.address.unwrap_or_default(), Address::ZERO);
 
         Ok(())
     }

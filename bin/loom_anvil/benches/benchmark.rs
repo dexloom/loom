@@ -7,6 +7,7 @@ use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use revm::primitives::Env;
 use std::collections::HashMap;
+use std::env;
 use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::RwLock;
@@ -45,11 +46,11 @@ async fn performance_test() {
 }
 
 async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
-    //let provider = Provider::<Ws>::connect_with_reconnects("ws://honey3.loop:8008/looper", 10).await.unwrap();
-
     let block_number: BlockNumber = 19948348;
 
-    let client = AnvilDebugProviderFactory::from_node_on_block("ws://falcon.loop:8008/looper".to_string(), block_number).await?;
+    let node_url = env::var("MAINNET_WS")?;
+
+    let client = AnvilDebugProviderFactory::from_node_on_block(node_url, block_number).await?;
 
     let mut market_state = MarketState::new(Default::default());
 

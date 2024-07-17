@@ -32,6 +32,8 @@ loom-utils.workspace = true
 defi-types.workspace = true
 debug-provider.workspace = true
 
+env_logger.workspace = true
+
 
 [dev-dependencies]
 tokio.workspace = true

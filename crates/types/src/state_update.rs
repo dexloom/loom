@@ -178,42 +178,29 @@ pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provid
 mod test {
     use std::collections::HashMap;
 
+    use super::*;
     use alloy_primitives::{B256, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::{ClientBuilder, WsConnect};
     use alloy_rpc_types::state::{AccountOverride, StateOverride};
     use env_logger::Env as EnvLog;
-
-    use super::*;
+    use log::{debug, error};
 
     #[tokio::test]
     async fn test_debug_block() -> Result<()> {
-        std::env::set_var("RUST_LOG", "trace,tokio_tungstenite=off,tungstenite=off");
-        std::env::set_var("RUST_BACKTRACE", "1");
-        //let node_url = std::env::var("TEST_NODE_URL").unwrap_or("http://falcon.loop:8008/rpc".to_string());
-        let node_url = std::env::var("TEST_NODE_URL").unwrap_or("ws://tokyo.loop:8008/looper".to_string());
+        let node_url = std::env::var("MAINNET_WS")?;
 
-        env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
+        let _ = env_logger::try_init_from_env(EnvLog::default().default_filter_or("info,tokio_tungstenite=off,tungstenite=off"));
         let node_url = url::Url::parse(node_url.as_str())?;
 
-        //let client = ClientBuilder::default().http(node_url).boxed();
         let ws_connect = WsConnect::new(node_url);
         let client = ClientBuilder::default().ws(ws_connect).await?;
 
         let client = ProviderBuilder::new().on_client(client).boxed();
 
-        // TODO : find out if they are necessary
-        // let tracer_opts = GethDebugTracingOptions { config: GethDefaultTracingOptions::default(), ..GethDebugTracingOptions::default() }
-        //     .with_tracer(BuiltInTracer(PreStateTracer))
-        //     .with_prestate_config(PreStateConfig { diff_mode: Some(true) });
-
         let blocknumber = client.get_block_number().await?;
         let _block = client.get_block_by_number(blocknumber.into(), false).await?.unwrap();
-        //let blockhash = block.header.hash.unwrap();
 
-        //let ret = client.debug_trace_block_by_number(blocknumber.into(), tracer_opts).await?;
-        //let blockhash: BlockHash = "0xd16074b40a4cb1e0b24fea1ffb5dcadb7363d38f93a9efa9eb43fc161a7e16f6".parse()?;
-        //let ret = client.debug_trace_block_by_hash(blockhash, tracer_opts).await?;
         let _ret = debug_trace_block(client, BlockId::Number(blocknumber.into()), true).await?;
 
         Ok(())
@@ -232,10 +219,11 @@ mod test {
 
         match serde_json::to_string_pretty(&state_override) {
             Ok(data) => {
-                println!("{}", data)
+                debug!("{}", data);
             }
             Err(e) => {
-                println!("{}", e)
+                error!("{}", e);
+                panic!("DESERIALIZATION_ERROR");
             }
         }
     }

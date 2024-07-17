@@ -131,6 +131,27 @@ cargo run --bin keys encrypt --key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbe
 DATA=<ENCRYPTED_PRIVATE_KEY> cargo run --bin loom
 ```
 
+## Makefile
+
+Makefile is shipped with following important commands:
+
+- build - builds all binaries
+- fmt - formats loom with rustfmt
+- pre-release - check code with rustfmt and clippy
+- clippy - check code with clippy
+
+## Testing
+
+Testing Loom requires two environment variables pointing at archive node:
+MAINNET_WS - websocket url of archive node
+MAINNET_HTTP - http url of archive node
+
+To run tests:
+
+```shell
+make test
+```
+
 # GREETINGS
 
 - [Paradigm](https://github.com/paradigmxyz) - Paradigm. All those inspiring products : RETH / REVM / Alloy / Ethers

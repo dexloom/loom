@@ -512,62 +512,56 @@ where
 
 #[cfg(test)]
 mod tests {
+    use eyre::Result;
     use std::sync::Arc;
 
     use alloy_primitives::U256;
-    use alloy_provider::{Provider, ProviderBuilder};
-    use alloy_rpc_client::{ClientBuilder, WsConnect};
+    use alloy_provider::Provider;
     use alloy_rpc_types::BlockNumberOrTag;
-    use env_logger::Env as EnvLog;
-    use log::info;
-    use revm::db::EmptyDB;
-
+    use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::{MarketState, Pool};
+    use env_logger::Env as EnvLog;
+    use log::debug;
     use loom_revm_db::fast_cache_db::FastCacheDB;
     use loom_revm_db::LoomInMemoryDB;
+    use revm::db::EmptyDB;
 
     use crate::protocols::CurveProtocol;
     use crate::CurvePool;
 
     #[tokio::test]
-    async fn test_pool() {
-        std::env::set_var("RUST_LOG", "debug");
-        std::env::set_var("RUST_BACKTRACE", "1");
-        env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
+    async fn test_pool() -> Result<()> {
+        let _ = env_logger::try_init_from_env(EnvLog::default().default_filter_or("info,alloy_rpc_client=off"));
 
-        let node_url = std::env::var("TEST_NODE_URL").unwrap_or("ws://falcon.loop:8008/looper".to_string());
-        let ws_connect = WsConnect::new(node_url);
-        let client = ClientBuilder::default().ws(ws_connect).await.unwrap();
+        let node_url = std::env::var("MAINNET_WS")?;
 
-        let client = ProviderBuilder::new().on_client(client).boxed();
+        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 20045799).await?;
 
         let mut market_state = MarketState::new(LoomInMemoryDB::new(Arc::new(FastCacheDB::new(EmptyDB::default()))));
 
         let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
 
         for curve_contract in curve_contracts.into_iter() {
-            info!("Loading Pool : {} {:?}", curve_contract.get_address(), curve_contract);
+            debug!("Loading Pool : {} {:?}", curve_contract.get_address(), curve_contract);
             let pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await.unwrap();
             let state_required = pool.get_state_required().unwrap();
 
             let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await.unwrap();
-            info!("Pool state fetched {} {}", pool.address, state_required.len());
+            debug!("Pool state fetched {} {}", pool.address, state_required.len());
 
             market_state.add_state(&state_required);
-            info!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.accounts_len(), market_state.storage_len());
+            debug!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.accounts_len(), market_state.storage_len());
 
             let block_header = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.unwrap().unwrap().header;
-            info!("Block {} {}", block_header.number.unwrap(), block_header.timestamp);
+            debug!("Block {} {}", block_header.number.unwrap(), block_header.timestamp);
 
             let mut evm_env = revm::primitives::Env::default();
 
-            //evm_env.block.number = U256::from(block_header.number.unwrap().as_u64() + 1).into();
             evm_env.block.number = U256::from(block_header.number.unwrap_or_default());
 
             let timestamp = block_header.timestamp;
 
-            //evm_env.block.timestamp = (block_header.timestamp + U256::from(12)).into();
             evm_env.block.timestamp = U256::from(timestamp);
 
             let tokens = pool.tokens.clone();
@@ -578,16 +572,24 @@ mod tests {
                         continue;
                     }
                     let in_amount = balances[i] / U256::from(100);
-                    //let in_amount = U256::from(10).pow(U256::from(17));
                     let token_in = tokens[i];
                     let token_out = tokens[j];
                     let (out_amount, gas_used) = pool
                         .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount)
                         .unwrap_or_default();
-                    info!("{:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), tokens[i], tokens[j], in_amount, out_amount, gas_used);
+                    debug!(
+                        "Calculated : {:?} {} -> {} : {} -> {} gas : {}",
+                        pool.get_address(),
+                        tokens[i],
+                        tokens[j],
+                        in_amount,
+                        out_amount,
+                        gas_used
+                    );
 
                     let out_amount_fetched = pool.fetch_out_amount(token_in, token_out, in_amount).await.unwrap();
-                    info!("Fetched {:?} {} -> {} : {} -> {}", pool.get_address(), tokens[i], tokens[j], in_amount, out_amount_fetched);
+                    debug!("Fetched {:?} {} -> {} : {} -> {}", pool.get_address(), tokens[i], tokens[j], in_amount, out_amount_fetched);
+                    assert_eq!(out_amount, out_amount_fetched - U256::from(1));
                 }
             }
 
@@ -598,11 +600,13 @@ mod tests {
                     let (out_amount, gas_used) = pool
                         .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &lp_token, in_amount)
                         .unwrap_or_default();
-                    info!("LP {:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), token_in, lp_token, in_amount, out_amount, gas_used);
+                    debug!("LP {:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), token_in, lp_token, in_amount, out_amount, gas_used);
+                    assert!(gas_used > 50000);
+
                     let (out_amount2, gas_used) = pool
                         .calculate_out_amount(&market_state.state_db, evm_env.clone(), &lp_token, &token_in, out_amount)
                         .unwrap_or_default();
-                    info!(
+                    debug!(
                         "LP {:?} {} -> {} : {} -> {} gas : {}",
                         pool.get_address(),
                         lp_token,
@@ -611,6 +615,9 @@ mod tests {
                         out_amount2,
                         gas_used
                     );
+                    assert!(gas_used > 50000);
+                    assert_ne!(out_amount, U256::ZERO);
+                    assert_ne!(out_amount2, U256::ZERO);
                 }
             }
 
@@ -623,7 +630,7 @@ mod tests {
                     let (out_amount, gas_used) = pool
                         .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount)
                         .unwrap_or_default();
-                    info!(
+                    debug!(
                         "Meta {:?} {} -> {} : {} -> {} gas: {}",
                         pool.get_address(),
                         token_in,
@@ -635,7 +642,7 @@ mod tests {
                     let (out_amount2, gas_used) = pool
                         .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_out, &token_in, out_amount)
                         .unwrap_or_default();
-                    info!(
+                    debug!(
                         "Meta {:?} {} -> {} : {} -> {} gas : {} ",
                         pool.get_address(),
                         token_out,
@@ -644,8 +651,11 @@ mod tests {
                         out_amount2,
                         gas_used
                     );
+                    assert_ne!(out_amount, U256::ZERO);
+                    assert_ne!(out_amount2, U256::ZERO);
                 }
             }
         }
+        Ok(())
     }
 }

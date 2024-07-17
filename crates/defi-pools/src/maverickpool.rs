@@ -421,58 +421,24 @@ impl AbiSwapEncoder for MaverickAbiSwapEncoder {
 
 #[cfg(test)]
 mod tests {
-    use alloy_provider::{ProviderBuilder, RootProvider};
-    use alloy_rpc_client::{ClientBuilder, WsConnect};
     use alloy_rpc_types::BlockNumberOrTag;
-    use alloy_transport::BoxTransport;
-    use env_logger::Env as EnvLog;
-    use log::debug;
-
+    use debug_provider::AnvilDebugProviderFactory;
     use defi_abi::maverick::IMaverickQuoter::IMaverickQuoterInstance;
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::MarketState;
+    use log::debug;
     use loom_utils::evm::env_for_block;
+    use std::env;
 
     use super::*;
 
-    // fn setup_anvil() -> Result<AnvilDebugProviderType> {
-    //     std::env::set_var("RUST_LOG", "debug,defi_entities::market_state=trace");
-    //     std::env::set_var("RUST_BACKTRACE", "1");
-    //     env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
-    //
-    //     let anvil_node_url = std::env::var("TEST_NODE_URL").unwrap_or("http://localhost:8545".to_string());
-    //     let anvil_node_url = url::Url::parse(anvil_node_url.as_str())?;
-    //     let anvil_client = ClientBuilder::default().http(anvil_node_url).boxed();
-    //
-    //     let full_node_url = std::env::var("FULL_NODE_URL").unwrap_or("http://falcon.loop:8008/rpc".to_string());
-    //     let full_node_url = url::Url::parse(full_node_url.as_str())?;
-    //     let full_node_client = ClientBuilder::default().http(full_node_url).boxed();
-    //
-    //     let anvil_provider = ProviderBuilder::new().on_client(anvil_client).boxed();
-    //     let node_provider = ProviderBuilder::new().on_client(full_node_client).boxed();
-    //
-    //     let client = AnvilDebugProvider::new(node_provider, anvil_provider, BlockNumberOrTag::Latest);
-    //     Ok(client)
-    // }
-
-    async fn setup_ws_node() -> Result<RootProvider<BoxTransport>> {
-        std::env::set_var("RUST_LOG", "debug");
-        std::env::set_var("RUST_BACKTRACE", "1");
-        env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
-
-        let full_node_url = std::env::var("FULL_NODE_URL").unwrap_or("ws://falcon.loop:8008/looper".to_string());
-        //let full_node_url = std::env::var("FULL_NODE_URL").unwrap_or("ws://helsi.loop:8008/looper".to_string());
-        let full_node_url = url::Url::parse(full_node_url.as_str())?;
-        let ws_connect = WsConnect::new(full_node_url);
-        let full_node_client = ClientBuilder::default().ws(ws_connect).await.unwrap();
-        let node_provider = ProviderBuilder::new().on_client(full_node_client).boxed();
-
-        Ok(node_provider)
-    }
-
     #[tokio::test]
     async fn test_pool() -> Result<()> {
-        let client = setup_ws_node().await?;
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("info,defi_pools=off"));
+
+        let node_url = env::var("MAINNET_WS")?;
+
+        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 20045799).await?;
 
         let pool_address: Address = "0x352B186090068Eb35d532428676cE510E17AB581".parse().unwrap();
 
@@ -496,7 +462,8 @@ mod tests {
         let quoter = IMaverickQuoterInstance::new(*QUOTER_ADDRESS, client.clone());
 
         let resp = quoter.calculateSwap(pool_address, amount.to(), false, false, U256::ZERO).call().await?;
-        println!("Router call : {:?}", resp.returnAmount);
+        debug!("Router call : {:?}", resp.returnAmount);
+        assert_ne!(resp.returnAmount, U256::ZERO);
 
         let (out_amount, gas_used) = pool
             .calculate_out_amount(
@@ -507,7 +474,10 @@ mod tests {
                 U256::from(pool.liquidity1 / U256::from(1000)),
             )
             .unwrap();
-        println!("{} {} {}", pool.get_protocol(), out_amount, gas_used);
+        debug!("{} {} {}", pool.get_protocol(), out_amount, gas_used);
+        assert_ne!(out_amount, U256::ZERO);
+        assert!(gas_used > 100000);
+
         let (out_amount, gas_used) = pool
             .calculate_out_amount(
                 &market_state.state_db,
@@ -517,7 +487,10 @@ mod tests {
                 U256::from(pool.liquidity0 / U256::from(1000)),
             )
             .unwrap();
-        println!("{} {} {}", pool.get_protocol(), out_amount, gas_used);
+        debug!("{} {} {}", pool.get_protocol(), out_amount, gas_used);
+        assert_ne!(out_amount, U256::ZERO);
+        assert!(gas_used > 100000);
+
         Ok(())
     }
 }

@@ -93,6 +93,8 @@ coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
 multicaller = "0x3dd35b4da6534230ff53048f7477f17f7f4e7a70"
 skip_default = false
 
+[modules]
+
 [pools]
 a = { address = "0x2dd35b4da6534230ff53048f7477f17f7f4e7a70", class = "uniswap2" }
 
