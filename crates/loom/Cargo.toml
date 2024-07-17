@@ -1,0 +1,28 @@
+[package]
+name = "loom"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+
+[dependencies]
+loom-actors.workspace = true
+loom-actors-macros.workspace = true
+debug-provider.workspace = true
+defi-abi.workspace = true
+defi-actors.workspace = true
+defi-blockchain.workspace = true
+defi-entities.workspace = true
+defi-events.workspace = true
+defi-pools.workspace = true
+flashbots.workspace = true
+loom-revm-db.workspace = true
+loom-multicaller.workspace = true
+loom-topology.workspace = true
+defi-types.workspace = true
+loom-utils.workspace = true
+
+

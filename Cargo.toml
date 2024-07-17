@@ -2,11 +2,11 @@
 
 [workspace]
 members = [
-    "bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex",
+    "bin/loom_backrun", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex",
     "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools",
     "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "crates/defi-blockchain",
-    "crates/loom-revm-db", "bin/exex_grpc_loom"]
-default-members = ["bin/loom", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex"]
+    "crates/loom-revm-db", "bin/exex_grpc_loom", "crates/loom"]
+default-members = ["bin/loom_backrun", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex"]
 resolver = "2"
 
 [workspace.package]
@@ -19,6 +19,7 @@ repository = ""
 exclude = [".github/"]
 
 [workspace.dependencies]
+loom = { path = "crates/loom" }
 loom-actors = { path = "crates/actors" }
 loom-actors-macros = { path = "crates/actors-macros" }
 loom-utils = { path = "crates/utils" }

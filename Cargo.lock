@@ -4577,25 +4577,23 @@ checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "loom"
-version = "0.3.0"
+version = "0.1.0"
 dependencies = [
- "alloy-primitives",
- "alloy-provider",
  "debug-provider",
+ "defi-abi",
  "defi-actors",
+ "defi-blockchain",
  "defi-entities",
  "defi-events",
  "defi-pools",
- "env_logger",
- "eyre",
+ "defi-types",
  "flashbots",
- "futures",
- "log",
  "loom-actors",
  "loom-actors-macros",
  "loom-multicaller",
+ "loom-revm-db",
  "loom-topology",
- "tokio",
+ "loom-utils",
 ]
 
 [[package]]
@@ -4744,6 +4742,29 @@ dependencies = [
  "serde",
  "tokio",
  "toml",
+]
+
+[[package]]
+name = "loom_backrun"
+version = "0.3.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-provider",
+ "debug-provider",
+ "defi-actors",
+ "defi-entities",
+ "defi-events",
+ "defi-pools",
+ "env_logger",
+ "eyre",
+ "flashbots",
+ "futures",
+ "log",
+ "loom-actors",
+ "loom-actors-macros",
+ "loom-multicaller",
+ "loom-topology",
+ "tokio",
 ]
 
 [[package]]

@@ -20,7 +20,7 @@
 
 ## Bins
 
-- [loom](./bin/loom) - backrun bot
+- [loom](./bin/loom_backrun) - backrun bot
 - [loom_exex](./bin/loom_exex) - backrun bot as ExEx module
 - [loom_anvil](./bin/loom_anvil) - anvil testing framework
 - [replayer](./bin/replayer) - blocks replayer
