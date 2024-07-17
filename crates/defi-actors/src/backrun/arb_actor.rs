@@ -114,7 +114,7 @@ where
                 .await
             {
                 Err(e) => {
-                    panic!("{e}")
+                    panic!("{}", e)
                 }
                 Ok(r) => {
                     tasks.extend(r);
@@ -134,7 +134,7 @@ where
                 .await
             {
                 Err(e) => {
-                    panic!("{e}")
+                    panic!("{}", e)
                 }
                 Ok(r) => {
                     tasks.extend(r);

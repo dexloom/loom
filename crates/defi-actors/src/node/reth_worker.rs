@@ -148,16 +148,16 @@ where
                                     let changed_storage = db_provider.changed_storages_with_range(block_number..=block_number)?;
 
                                     let storage_update : BTreeMap<Address, BTreeMap<B256, B256> >= changed_storage.into_iter().map(|(acc, cells)| {
-                                        let cells : BTreeMap<B256, B256> = cells.into_iter().filter_map(|cell|
-                                            match state_provider.storage(acc, cell){
+                                        let new_cells : BTreeMap<B256, B256> = cells.iter().filter_map(|cell|
+                                            match state_provider.storage(acc, *cell){
                                                 Ok(Some(x))=>{
-                                                    Some( (cell, B256::from(x)  ))
+                                                    Some( (*cell, B256::from(x)  ))
                                                 }
                                                 _=>None
                                             }
                                         ).collect();
 
-                                        (acc, cells)
+                                        (acc, new_cells)
                                     }).collect();
 
                                     // TODO : Check this code

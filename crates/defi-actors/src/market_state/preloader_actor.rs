@@ -111,12 +111,12 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    fn name(&self) -> &'static str {
-        let full_name = type_name::<Self>();
-        full_name.split("::").last().unwrap_or(full_name)
-    }
     async fn start(&self) -> ActorResult {
         preload_market_state(self.client.clone(), self.addresses.clone(), self.market_state.clone().unwrap()).await?;
         Ok(vec![])
+    }
+    fn name(&self) -> &'static str {
+        let full_name = type_name::<Self>();
+        full_name.split("::").last().unwrap_or(full_name)
     }
 }

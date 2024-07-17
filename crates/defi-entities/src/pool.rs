@@ -115,7 +115,7 @@ impl Pool for EmptyPool {
         _token_address_from: &Address,
         _token_address_to: &Address,
         _in_amount: U256,
-    ) -> eyre::Result<(U256, u64), ErrReport> {
+    ) -> Result<(U256, u64), ErrReport> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
@@ -126,7 +126,7 @@ impl Pool for EmptyPool {
         _token_address_from: &Address,
         _token_address_to: &Address,
         _out_amount: U256,
-    ) -> eyre::Result<(U256, u64), ErrReport> {
+    ) -> Result<(U256, u64), ErrReport> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 

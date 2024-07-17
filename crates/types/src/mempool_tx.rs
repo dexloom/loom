@@ -31,7 +31,7 @@ impl Default for MempoolTx {
         MempoolTx {
             source: "unknown".to_string(),
             tx_hash: TxHash::repeat_byte(0),
-            time: chrono::Utc::now(),
+            time: Utc::now(),
             tx: None,
             state_update: None,
             logs: None,

@@ -327,7 +327,7 @@ impl UniswapV3PoolVirtual {
         }
 
         if current_state.amount_specified_remaining.is_zero() {
-            let amount_in = (current_state.amount_calculated).into_raw();
+            let amount_in = current_state.amount_calculated.into_raw();
 
             log::trace!("Amount In : {amount_in}");
 

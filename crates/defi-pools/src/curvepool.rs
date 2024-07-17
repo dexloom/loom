@@ -432,17 +432,6 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    fn encode_swap_out_amount_provided(
-        &self,
-        _token_from_address: Address,
-        _token_to_address: Address,
-        _amount: U256,
-        _recipient: Address,
-        _payload: Bytes,
-    ) -> Result<Bytes> {
-        Err(eyre!("NOT_IMPLEMENTED"))
-    }
-
     fn encode_swap_in_amount_provided(
         &self,
         token_from_address: Address,
@@ -481,17 +470,31 @@ where
             self.curve_contract.get_exchange_call_data(i, j, amount, U256::ZERO, recipient)
         }
     }
+
+    fn encode_swap_out_amount_provided(
+        &self,
+        _token_from_address: Address,
+        _token_to_address: Address,
+        _amount: U256,
+        _recipient: Address,
+        _payload: Bytes,
+    ) -> Result<Bytes> {
+        Err(eyre!("NOT_IMPLEMENTED"))
+    }
     fn preswap_requirement(&self) -> PreswapRequirement {
         PreswapRequirement::Allowance
     }
 
+    fn is_native(&self) -> bool {
+        self.is_native
+    }
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }
+
     fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }
-
     fn swap_out_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }
@@ -501,12 +504,9 @@ where
     fn swap_out_amount_return_script(&self, _token_from_address: Address, _token_to_address: Address) -> Option<Bytes> {
         None
     }
+
     fn swap_in_amount_return_script(&self, _token_from_address: Address, _token_to_address: Address) -> Option<Bytes> {
         None
-    }
-
-    fn is_native(&self) -> bool {
-        self.is_native
     }
 }
 

@@ -6,7 +6,7 @@ use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, trace};
 use revm::interpreter::Host;
-use revm::primitives::{BlockEnv, Env, ExecutionResult, Output, SpecId, TransactTo, TxEnv, SHANGHAI};
+use revm::primitives::{BlockEnv, Env, ExecutionResult, Output, TransactTo, TxEnv, SHANGHAI};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
@@ -25,9 +25,9 @@ where
     env.tx.data = Bytes::from(call_data_vec);
     env.tx.value = U256::from(0);
 
-    let mut evm = Evm::builder().with_spec_id(SpecId::SHANGHAI).with_ref_db(state_db).with_env(Box::new(env)).build();
+    let mut evm = Evm::builder().with_spec_id(SHANGHAI).with_ref_db(state_db).with_env(Box::new(env)).build();
 
-    let ref_tx = evm.transact()?;
+    let ref_tx = evm.transact().unwrap();
     let result = ref_tx.result;
 
     let gas_used = result.gas_used();

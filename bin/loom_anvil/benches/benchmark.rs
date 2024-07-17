@@ -87,7 +87,7 @@ async fn sync_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
 }
 
 async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc<ThreadPool>) {
-    let start_time = chrono::Local::now();
+    let start_time = Local::now();
     let evm_env = Env::default();
     let step = U256::from(U256::from(10).pow(U256::from(16)));
     let in_amount = U256::from(U256::from(10).pow(U256::from(18)));
@@ -130,7 +130,7 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
         counter += 1;
     }
 
-    let time_spent = chrono::Local::now() - start_time;
+    let time_spent = Local::now() - start_time;
     let calc_per_sec = time_spent / (counter as i32);
     println!("Iterations : {counter} Took: {time_spent} Per sec: {calc_per_sec}");
     assert_eq!(counter, ITER_COUNT, "NOT_ALL_RESULTS");
@@ -310,9 +310,9 @@ async fn main() {
     let cache_db = fetch_result.0.state_db;
     let pool = fetch_result.1;
 
-    let start_time = chrono::Local::now();
+    let start_time = Local::now();
     rayon_parallel_run(&cache_db, pool).await;
-    println!("Execution time : {}", chrono::Local::now() - start_time);
+    println!("Execution time : {}", Local::now() - start_time);
 }
 
 #[cfg(test)]

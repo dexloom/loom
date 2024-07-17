@@ -45,12 +45,12 @@ where
         self.anvil().client().request("evm_revert", (U64::from(snap_id),))
     }
 
-    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output = TransportResult<()>> + Send {
-        self.anvil().client().request("evm_setAutomine", (to_mine,))
-    }
-
     fn mine(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send {
         self.anvil().client().request("evm_mine", ()).map_resp(convert_u64)
+    }
+
+    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output = TransportResult<()>> + Send {
+        self.anvil().client().request("evm_setAutomine", (to_mine,))
     }
 
     fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output = TransportResult<()>> + Send {
@@ -77,12 +77,12 @@ impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport> {
         self.client().request("evm_revert", (U64::from(snap_id),))
     }
 
-    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output = TransportResult<()>> + Send {
-        self.client().request("evm_setAutomine", (to_mine,))
-    }
-
     fn mine(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send {
         self.client().request("evm_mine", ()).map_resp(convert_u64)
+    }
+
+    fn set_automine(&self, to_mine: bool) -> impl std::future::Future<Output = TransportResult<()>> + Send {
+        self.client().request("evm_setAutomine", (to_mine,))
     }
 
     fn set_code(&self, address: Address, code: Bytes) -> impl std::future::Future<Output = TransportResult<()>> + Send {

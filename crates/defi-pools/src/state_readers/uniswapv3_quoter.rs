@@ -63,7 +63,7 @@ impl UniswapV3QuoterStateReader {
         token_to: Address,
         fee: u32,
         amount: U256,
-    ) -> eyre::Result<(U256, u64)> {
+    ) -> Result<(U256, u64)> {
         let call_data_vec = UniswapV3QuoterEncoder::quote_exact_input_encode(token_from, token_to, fee, U256::ZERO, amount);
 
         let (value, gas_used) = evm_call(db, env, quoter_address, call_data_vec)?;
@@ -80,7 +80,7 @@ impl UniswapV3QuoterStateReader {
         token_to: Address,
         fee: u32,
         amount: U256,
-    ) -> eyre::Result<(U256, u64)> {
+    ) -> Result<(U256, u64)> {
         let call_data_vec = UniswapV3QuoterEncoder::quote_exact_output_encode(token_from, token_to, fee, U256::ZERO, amount);
 
         let (value, gas_used) = evm_call(db, env, quoter_address, call_data_vec)?;

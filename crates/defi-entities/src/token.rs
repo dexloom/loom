@@ -166,7 +166,7 @@ impl Token {
             if div.is_err() || rem.is_err() {
                 0f64
             } else {
-                div.unwrap_or_default() as f64 + ((rem.unwrap_or_default() as f64) / ((10u64.pow(decimals as u32)) as f64))
+                div.unwrap_or_default() as f64 + ((rem.unwrap_or_default() as f64) / (10u64.pow(decimals as u32) as f64))
             }
         }
     }

@@ -78,6 +78,18 @@ where
         self.provider.root()
     }
 
+    fn get_block_number(&self) -> RpcCall<T, (), U64, BlockNumber> {
+        let rpc_call: RpcCall<T, (), U64, BlockNumber, fn(U64) -> BlockNumber> =
+            RpcCall::new(Request::new("get_block_number", Id::None, ()), self.provider.client().transport().clone()).map_resp(|x| x.to());
+        rpc_call
+    }
+
+    fn call<'req>(&self, tx: &'req TransactionRequest) -> EthCall<'req, 'static, T, Ethereum, Bytes> {
+        let call = EthCall::new(self.weak_client(), tx);
+        println!("call {}", self.block_number() - 2);
+        call
+    }
+
     fn get_block_by_number<'life0, 'async_trait>(
         &'life0 self,
         number: BlockNumberOrTag,
@@ -88,12 +100,6 @@ where
         Self: 'async_trait,
     {
         self.provider.get_block_by_number(number, hydrate)
-    }
-
-    fn get_block_number(&self) -> RpcCall<T, (), U64, BlockNumber> {
-        let rpc_call: RpcCall<T, (), U64, BlockNumber, fn(U64) -> BlockNumber> =
-            RpcCall::new(Request::new("get_block_number", Id::None, ()), self.provider.client().transport().clone()).map_resp(|x| x.to());
-        rpc_call
     }
 
     async fn get_filter_changes<R: RpcReturn>(&self, id: U256) -> TransportResult<Vec<R>> {
@@ -133,12 +139,6 @@ where
         //     self.provider.get_filter_changes(id).await
         // }
         self.provider.get_filter_changes_dyn(id).await
-    }
-
-    fn call<'req>(&self, tx: &'req TransactionRequest) -> EthCall<'req, 'static, T, Ethereum, Bytes> {
-        let call = EthCall::new(self.weak_client(), tx);
-        println!("call {}", self.block_number() - 2);
-        call
     }
 
     async fn new_block_filter(&self) -> TransportResult<U256> {

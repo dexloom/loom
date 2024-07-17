@@ -157,7 +157,7 @@ where
         access_list_request: Option<Vec<TxHash>>,
     ) -> Result<SimulatedBundle>
     where
-        BundleTransaction: std::convert::From<TX>,
+        BundleTransaction: From<TX>,
     {
         let mut bundle = BundleRequest::new()
             .set_block(U64::from(block_number + 1))
@@ -173,7 +173,7 @@ where
 
     pub async fn broadcast_txes<TX>(&self, txs: Vec<TX>, block: u64) -> Result<()>
     where
-        BundleTransaction: std::convert::From<TX>,
+        BundleTransaction: From<TX>,
     {
         let mut bundle = BundleRequest::new().set_block(U64::from(block));
 

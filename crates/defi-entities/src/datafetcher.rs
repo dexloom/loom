@@ -72,7 +72,7 @@ where
         if let Err(e) = rx.await {
             error!("{}", e)
         };
-        FetchState::Fetching(lock)
+        Fetching(lock)
     }
 
     pub async fn get<F, Fut>(&mut self, key: K, fx: F) -> Result<Option<V>>

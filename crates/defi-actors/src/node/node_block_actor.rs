@@ -122,9 +122,6 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    fn name(&self) -> &'static str {
-        self.name()
-    }
     async fn start(&self) -> ActorResult {
         match &self.reth_db_path {
             //RETH DB
@@ -151,6 +148,9 @@ where
                 .await
             }
         }
+    }
+    fn name(&self) -> &'static str {
+        self.name()
     }
 }
 

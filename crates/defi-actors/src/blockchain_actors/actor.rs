@@ -147,10 +147,7 @@ where
 
     /// Starts receiving blocks and mempool events through ExEx GRPC
     pub async fn with_exex_events(&mut self) -> Result<&mut Self> {
-        if !self.has_mempool {
-            self.has_mempool = true;
-            self.actor_manager.start(MempoolActor::new(self.bc.chain_parameters()).on_bc(&self.bc)).await?;
-        }
+        self.mempool().await?;
         self.actor_manager.start(NodeExExGrpcActor::new("http://[::1]:10000".to_string()).on_bc(&self.bc)).await?;
         Ok(self)
     }

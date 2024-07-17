@@ -72,7 +72,7 @@ async fn estimator_worker(
                                 return Err(eyre!("TOO_SMALL_PROFIT"));
                             }
 
-                            let enveloped_txs : Result<Vec<TxEnvelope>,_>= estimate_request.stuffing_txs.clone().into_iter().map(|item| item.try_into()).collect();
+                            let enveloped_txs : Result<Vec<TxEnvelope>,_>= estimate_request.stuffing_txs.iter().map(|item| item.clone().try_into()).collect();
                             let stuffing_txs_rlp : Vec<Bytes> = enveloped_txs?.into_iter().map(|x| Bytes::from(x.encoded_2718()) ).collect();
 
                             let mut tx_with_state: Vec<TxState> = stuffing_txs_rlp.into_iter().map(TxState::ReadyForBroadcastStuffing).collect();

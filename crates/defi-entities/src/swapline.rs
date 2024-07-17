@@ -327,16 +327,16 @@ impl SwapLine {
         }
         if let Some(token_in) = self.tokens().first() {
             if let Some(token_out) = self.tokens().last() {
-                if token_in == token_out {
+                return if token_in == token_out {
                     if let SwapAmountType::Set(amount_in) = self.amount_in {
                         if let SwapAmountType::Set(amount_out) = self.amount_out {
                             return Ok(I256::from_raw(amount_out) - I256::from_raw(amount_in));
                         }
                     }
-                    return Err(eyre!("AMOUNTS_NOT_SET"));
+                    Err(eyre!("AMOUNTS_NOT_SET"))
                 } else {
-                    return Err(eyre!("TOKENS_DONT_MATCH"));
-                }
+                    Err(eyre!("TOKENS_DONT_MATCH"))
+                };
             }
         }
         Err(eyre!("CANNOT_CALCULATE"))

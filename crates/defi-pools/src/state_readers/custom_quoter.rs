@@ -74,7 +74,7 @@ impl UniswapCustomQuoterStateReader {
         token_to: Address,
         fee: u32,
         amount: U256,
-    ) -> eyre::Result<(U256, u64)> {
+    ) -> Result<(U256, u64)> {
         let call_data_vec = UniswapCustomQuoterEncoder::quote_exact_input_encode(pool, token_from, token_to, fee, amount);
 
         let (value, gas_used) = evm_call(db, env, quoter_address, call_data_vec)?;
@@ -92,7 +92,7 @@ impl UniswapCustomQuoterStateReader {
         token_to: Address,
         fee: u32,
         amount: U256,
-    ) -> eyre::Result<(U256, u64)> {
+    ) -> Result<(U256, u64)> {
         let call_data_vec = UniswapCustomQuoterEncoder::quote_exact_output_encode(pool, token_from, token_to, fee, amount);
 
         let (value, gas_used) = evm_call(db, env, quoter_address, call_data_vec)?;

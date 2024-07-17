@@ -354,29 +354,6 @@ impl MaverickAbiSwapEncoder {
 }
 
 impl AbiSwapEncoder for MaverickAbiSwapEncoder {
-    fn encode_swap_out_amount_provided(
-        &self,
-        token_from_address: Address,
-        token_to_address: Address,
-        amount: U256,
-        recipient: Address,
-        payload: Bytes,
-    ) -> Result<Bytes> {
-        let token_a_in = MaverickPool::get_zero_for_one(&token_from_address, &token_to_address);
-        let sqrt_price_limit_x96 = MaverickPool::get_price_limit(&token_from_address, &token_to_address);
-
-        let swap_call = IMaverickPool::swapCall {
-            recipient,
-            amount,
-            tokenAIn: token_a_in,
-            exactOutput: true,
-            sqrtPriceLimit: sqrt_price_limit_x96,
-            data: payload,
-        };
-
-        Ok(Bytes::from(IMaverickPoolCalls::swap(swap_call).abi_encode()))
-    }
-
     fn encode_swap_in_amount_provided(
         &self,
         token_from_address: Address,
@@ -401,21 +378,44 @@ impl AbiSwapEncoder for MaverickAbiSwapEncoder {
         Ok(Bytes::from(IMaverickPoolCalls::swap(swap_call).abi_encode()))
     }
 
+    fn encode_swap_out_amount_provided(
+        &self,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount: U256,
+        recipient: Address,
+        payload: Bytes,
+    ) -> Result<Bytes> {
+        let token_a_in = MaverickPool::get_zero_for_one(&token_from_address, &token_to_address);
+        let sqrt_price_limit_x96 = MaverickPool::get_price_limit(&token_from_address, &token_to_address);
+
+        let swap_call = IMaverickPool::swapCall {
+            recipient,
+            amount,
+            tokenAIn: token_a_in,
+            exactOutput: true,
+            sqrtPriceLimit: sqrt_price_limit_x96,
+            data: payload,
+        };
+
+        Ok(Bytes::from(IMaverickPoolCalls::swap(swap_call).abi_encode()))
+    }
+
     fn preswap_requirement(&self) -> PreswapRequirement {
         PreswapRequirement::Callback
     }
 
-    fn swap_in_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
-        Some(0x20)
-    }
-    fn swap_out_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
-        Some(0x20)
-    }
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x24)
     }
     fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x24)
+    }
+    fn swap_out_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
+        Some(0x20)
+    }
+    fn swap_in_amount_return_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
+        Some(0x20)
     }
 }
 

@@ -33,7 +33,7 @@ where
 pub async fn set_balance<P, T, N>(client: P, target_address: Address, token_address: Address) -> eyre::Result<()>
 where
     T: Transport + Clone,
-    N: alloy_network::Network,
+    N: Network,
     P: Provider<T, N> + AnvilProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     let weth_balance = NWETH::from_float(1.0);

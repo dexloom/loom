@@ -41,7 +41,7 @@ impl LatestBlock {
                     account.balance = state.balance;
                     account.nonce = state.nonce.map(|n| U64::from(n));
 
-                    let diff: HashMap<B256, B256> = state.storage.iter().map(|(k, v)| (*k, (*v))).collect();
+                    let diff: HashMap<B256, B256> = state.storage.iter().map(|(k, v)| (*k, *v)).collect();
                     account.state_diff = Some(diff);
                 }
             }

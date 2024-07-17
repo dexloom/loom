@@ -135,8 +135,8 @@ pub struct StatCollector {
     txs: HashMap<TxHash, TimeMap>,
 }
 
-impl Display for crate::StatCollector {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl Display for StatCollector {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "headers abs {}", analyze_time_maps(self.block_headers.values().collect(), None))?;
         writeln!(f, "headers rel {}", analyze_time_maps(self.block_headers.values().collect(), Some(&self.ping)))?;
         writeln!(f, "blocks abs {}", analyze_time_maps(self.block_with_tx.values().collect(), None))?;
@@ -163,7 +163,7 @@ pub struct TxStatCollector {
 }
 
 impl Display for TxStatCollector {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let total_txs: usize = self.txs_received_first.iter().sum();
 
         let tx_delays_avg: Vec<i64> = self

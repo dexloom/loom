@@ -204,10 +204,6 @@ impl UniswapV3Pool {
 }
 
 impl Pool for UniswapV3Pool {
-    fn get_address(&self) -> Address {
-        self.address
-    }
-
     fn get_class(&self) -> PoolClass {
         PoolClass::UniswapV3
     }
@@ -216,8 +212,8 @@ impl Pool for UniswapV3Pool {
         self.protocol
     }
 
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
-        &self.encoder
+    fn get_address(&self) -> Address {
+        self.address
     }
 
     fn get_tokens(&self) -> Vec<Address> {
@@ -312,6 +308,10 @@ impl Pool for UniswapV3Pool {
 
     fn can_flash_swap(&self) -> bool {
         true
+    }
+
+    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
+        &self.encoder
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -445,27 +445,6 @@ impl UniswapV3AbiSwapEncoder {
 }
 
 impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
-    fn encode_swap_out_amount_provided(
-        &self,
-        token_from_address: Address,
-        token_to_address: Address,
-        amount: U256,
-        recipient: Address,
-        payload: Bytes,
-    ) -> Result<Bytes> {
-        let zero_for_one = UniswapV3Pool::get_zero_for_one(&token_from_address, &token_to_address);
-        let sqrt_price_limit_x96 = UniswapV3Pool::get_price_limit(&token_from_address, &token_to_address);
-        let swap_call = IUniswapV3Pool::swapCall {
-            recipient,
-            zeroForOne: zero_for_one,
-            amountSpecified: I256::ZERO.sub(I256::from_raw(amount)),
-            sqrtPriceLimitX96: sqrt_price_limit_x96,
-            data: payload,
-        };
-
-        Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
-    }
-
     fn encode_swap_in_amount_provided(
         &self,
         token_from_address: Address,
@@ -487,16 +466,37 @@ impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
         Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
     }
 
-    fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
-        Some(0x44)
+    fn encode_swap_out_amount_provided(
+        &self,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount: U256,
+        recipient: Address,
+        payload: Bytes,
+    ) -> Result<Bytes> {
+        let zero_for_one = UniswapV3Pool::get_zero_for_one(&token_from_address, &token_to_address);
+        let sqrt_price_limit_x96 = UniswapV3Pool::get_price_limit(&token_from_address, &token_to_address);
+        let swap_call = IUniswapV3Pool::swapCall {
+            recipient,
+            zeroForOne: zero_for_one,
+            amountSpecified: I256::ZERO.sub(I256::from_raw(amount)),
+            sqrtPriceLimitX96: sqrt_price_limit_x96,
+            data: payload,
+        };
+
+        Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
+    }
+
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Callback
     }
 
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }
 
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Callback
+    fn swap_out_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
+        Some(0x44)
     }
 
     fn swap_in_amount_return_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {
