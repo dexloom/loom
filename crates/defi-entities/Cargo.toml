@@ -8,6 +8,9 @@ homepage.workspace = true
 repository.workspace = true
 exclude.workspace = true
 
+#[build-dependencies]
+#rand.workspace = true
+
 [dependencies]
 alloy-transport.workspace = true
 alloy-provider.workspace = true
@@ -41,3 +44,7 @@ loom-utils.workspace = true
 debug-provider.workspace = true
 
 serde.workspace = true
+
+[build-dependencies]
+rand.workspace = true
+hex.workspace = true

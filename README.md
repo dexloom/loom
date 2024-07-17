@@ -105,15 +105,17 @@ mainnet = { type = "evm", bc = "mainnet", encoder = "mainnet" }
 #mainnet = { client = "local", bc = "mainnet", type = "geth", encoder = "mainnet" }
 ```
 
-### Setting private key
+### Updating private key encryption password
 
-please creata defi-entities/private.rs with following context
+Private key encryption password is individual secret key that is generated automatically but can be replaced
+
+It is located in ./crates/defi-entities/private.rs and looks like
 
 ```rust
 pub const KEY_ENCRYPTION_PWD: [u8; 16] = [35, 48, 129, 101, 133, 220, 104, 197, 183, 159, 203, 89, 168, 201, 91, 130];
 ```
 
-To change key encryption password run
+To change key encryption password run and replace content of KEY_ENCRYPTION_PWD
 
 ```sh
 cargo run --bin keys generate-password  
