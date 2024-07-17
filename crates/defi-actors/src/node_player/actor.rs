@@ -14,7 +14,7 @@ use defi_events::{BlockLogs, BlockStateUpdate};
 use loom_actors::{Actor, ActorResult, Broadcaster, Producer};
 use loom_actors_macros::Producer;
 
-use crate::node_player::node_player_worker::node_player_worker;
+use crate::node_player::worker::node_player_worker;
 
 #[derive(Producer)]
 pub struct NodeBlockPlayerActor<P, T, N> {
@@ -48,8 +48,8 @@ where
             block_with_tx_channel: None,
             block_logs_channel: None,
             block_state_update_channel: None,
-            _t: PhantomData::default(),
-            _n: PhantomData::default(),
+            _t: PhantomData,
+            _n: PhantomData,
         }
     }
 

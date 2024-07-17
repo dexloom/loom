@@ -28,7 +28,7 @@ where
 {
     let mut market_state_guard = market_state.write().await;
 
-    let _ = market_state_guard.add_state(&UniswapV3Protocol::get_quoter_v3_state());
+    market_state_guard.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
     let mut state: GethStateUpdate = BTreeMap::new();
 
@@ -70,14 +70,7 @@ where
     }
 
     pub fn new(client: P) -> Self {
-        Self {
-            name: "MarketStatePreloadedActor",
-            client,
-            addresses: Vec::new(),
-            market_state: None,
-            _t: PhantomData::default(),
-            _n: PhantomData::default(),
-        }
+        Self { name: "MarketStatePreloadedActor", client, addresses: Vec::new(), market_state: None, _t: PhantomData, _n: PhantomData }
     }
 
     pub fn with_name(self, name: &'static str) -> Self {

@@ -76,14 +76,7 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
-        NewPoolLoaderActor {
-            client,
-            market: None,
-            market_state: None,
-            log_update_rx: None,
-            _t: PhantomData::default(),
-            _n: PhantomData::default(),
-        }
+        NewPoolLoaderActor { client, market: None, market_state: None, log_update_rx: None, _t: PhantomData, _n: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {

@@ -70,19 +70,15 @@ async fn request_listener_worker(
                 match compose_request_msg {
                     Ok(compose_request) =>{
 
-                        match compose_request.inner {
-                            TxCompose::Sign( sign_request)=>{
-                                //let rlp_bundle : Vec<Option<Bytes>> = Vec::new();
-                                tokio::task::spawn(
-                                    sign_task(
-                                        sign_request,
-                                        compose_channel_tx.clone(),
-                                    )
-                                );
-                            },
-                            _=>{}
+                        if let TxCompose::Sign( sign_request)= compose_request.inner {
+                            //let rlp_bundle : Vec<Option<Bytes>> = Vec::new();
+                            tokio::task::spawn(
+                                sign_task(
+                                    sign_request,
+                                    compose_channel_tx.clone(),
+                                )
+                            );
                         }
-
                     }
                     Err(e)=>{error!("{}",e)}
                 }
@@ -91,7 +87,7 @@ async fn request_listener_worker(
     }
 }
 
-#[derive(Accessor, Consumer, Producer)]
+#[derive(Accessor, Consumer, Producer, Default)]
 pub struct TxSignersActor {
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
@@ -101,11 +97,11 @@ pub struct TxSignersActor {
 
 impl TxSignersActor {
     pub fn new() -> TxSignersActor {
-        TxSignersActor { compose_channel_rx: None, compose_channel_tx: None }
+        TxSignersActor::default()
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self { compose_channel_rx: Some(bc.compose_channel()), compose_channel_tx: Some(bc.compose_channel()), ..self }
+        Self { compose_channel_rx: Some(bc.compose_channel()), compose_channel_tx: Some(bc.compose_channel()) }
     }
 }
 

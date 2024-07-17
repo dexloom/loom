@@ -121,8 +121,7 @@ async fn estimator_task(
 
                 let stuffing_txs_rlp: Vec<Bytes> = encoded_txes?.into_iter().map(|x| Bytes::from(x.encoded_2718())).collect();
 
-                let mut tx_with_state: Vec<TxState> =
-                    stuffing_txs_rlp.into_iter().map(TxState::ReadyForBroadcastStuffing).collect();
+                let mut tx_with_state: Vec<TxState> = stuffing_txs_rlp.into_iter().map(TxState::ReadyForBroadcastStuffing).collect();
 
                 tx_with_state.push(TxState::SignatureRequired(tx_request));
 
@@ -183,28 +182,14 @@ async fn estimator_worker(
                 let compose_request_msg : Result<MessageTxCompose, RecvError> = msg;
                 match compose_request_msg {
                     Ok(compose_request) =>{
-                        match compose_request.inner {
-                            TxCompose::Estimate(estimate_request) => {
-                                tokio::task::spawn(
-                                    estimator_task(
-                                        estimate_request,
-                                        encoder.clone(),
-                                        compose_channel_tx.clone(),
-                                    )
-                                );
-
-                                /*
-                                _ = estimator_task(
-                                        estimate_request,
-                                        encoder.clone(),
-                                        compose_channel_tx.clone(),
-                                    ).await;
-
-                                 */
-                            }
-                            _=>{
-
-                            }
+                        if let TxCompose::Estimate(estimate_request) = compose_request.inner {
+                            tokio::task::spawn(
+                                estimator_task(
+                                    estimate_request,
+                                    encoder.clone(),
+                                    compose_channel_tx.clone(),
+                                )
+                            );
                         }
                     }
                     Err(e)=>{error!("{e}")}

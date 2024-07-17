@@ -2,9 +2,9 @@ use alloy_primitives::{Address, Bytes, U256};
 use alloy_sol_types::SolInterface;
 use lazy_static::lazy_static;
 
-use defi_abi::{IERC20, IMultiCaller, IWETH};
 use defi_abi::balancer::IVault;
 use defi_abi::lido::{IStEth, IWStEth};
+use defi_abi::{IMultiCaller, IERC20, IWETH};
 
 pub struct EncoderHelper;
 
@@ -43,8 +43,8 @@ impl EncoderHelper {
             tips,
             owner,
         })
-            .abi_encode()
-            .into()
+        .abi_encode()
+        .into()
     }
     pub fn encode_multicaller_transfer_tips(token: Address, min_balance: U256, tips: U256, owner: Address) -> Bytes {
         IMultiCaller::IMultiCallerCalls::transferTipsMinBalance(IMultiCaller::transferTipsMinBalanceCall {
@@ -53,8 +53,8 @@ impl EncoderHelper {
             tips,
             owner,
         })
-            .abi_encode()
-            .into()
+        .abi_encode()
+        .into()
     }
 
     pub fn encode_multicaller_uni2_get_in_amount(token_from: Address, token_to: Address, pool: Address, amount: U256, fee: U256) -> Bytes {
@@ -65,17 +65,9 @@ impl EncoderHelper {
                 IMultiCaller::IMultiCallerCalls::uni2GetInAmountFrom1(IMultiCaller::uni2GetInAmountFrom1Call { pool, amount })
             }
         } else if token_from > token_to {
-            IMultiCaller::IMultiCallerCalls::uni2GetInAmountFrom0Comms(IMultiCaller::uni2GetInAmountFrom0CommsCall {
-                pool,
-                amount,
-                fee,
-            })
+            IMultiCaller::IMultiCallerCalls::uni2GetInAmountFrom0Comms(IMultiCaller::uni2GetInAmountFrom0CommsCall { pool, amount, fee })
         } else {
-            IMultiCaller::IMultiCallerCalls::uni2GetInAmountFrom1Comms(IMultiCaller::uni2GetInAmountFrom1CommsCall {
-                pool,
-                amount,
-                fee,
-            })
+            IMultiCaller::IMultiCallerCalls::uni2GetInAmountFrom1Comms(IMultiCaller::uni2GetInAmountFrom1CommsCall { pool, amount, fee })
         };
 
         call.abi_encode().into()
@@ -89,17 +81,9 @@ impl EncoderHelper {
                 IMultiCaller::IMultiCallerCalls::uni2GetOutAmountFrom1(IMultiCaller::uni2GetOutAmountFrom1Call { pool, amount })
             }
         } else if token_from < token_to {
-            IMultiCaller::IMultiCallerCalls::uni2GetOutAmountFrom0Comms(IMultiCaller::uni2GetOutAmountFrom0CommsCall {
-                pool,
-                amount,
-                fee,
-            })
+            IMultiCaller::IMultiCallerCalls::uni2GetOutAmountFrom0Comms(IMultiCaller::uni2GetOutAmountFrom0CommsCall { pool, amount, fee })
         } else {
-            IMultiCaller::IMultiCallerCalls::uni2GetOutAmountFrom1Comms(IMultiCaller::uni2GetOutAmountFrom1CommsCall {
-                pool,
-                amount,
-                fee,
-            })
+            IMultiCaller::IMultiCallerCalls::uni2GetOutAmountFrom1Comms(IMultiCaller::uni2GetOutAmountFrom1CommsCall { pool, amount, fee })
         };
 
         call.abi_encode().into()

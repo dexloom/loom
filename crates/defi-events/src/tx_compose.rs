@@ -2,8 +2,8 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::{Address, BlockNumber, Bytes, TxHash, U256};
 use alloy_primitives::private::alloy_rlp;
+use alloy_primitives::{Address, BlockNumber, Bytes, TxHash, U256};
 use alloy_rlp::Encodable;
 use alloy_rpc_types::{Transaction, TransactionRequest};
 use eyre::{eyre, Result};

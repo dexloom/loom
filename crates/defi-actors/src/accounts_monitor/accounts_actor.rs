@@ -57,8 +57,7 @@ pub async fn nonce_and_balance_monitor_worker(
         tokio::select! {
             msg = market_events.recv() => {
                 let market_event_msg : Result<MarketEvents, RecvError> = msg;
-                if let Ok(market_event) = market_event_msg {
-                   if let MarketEvents::BlockTxUpdate{ block_hash, .. } =  market_event {
+                   if let Ok(MarketEvents::BlockTxUpdate{ block_hash, .. }) =  market_event_msg {
                         if let Some(block_entry) = block_history_state.read().await.get_market_history_entry(&block_hash).cloned() {
                             if let Some(block) = block_entry.block {
                                 if let BlockTransactions::Full(txs) = block.transactions {
@@ -82,14 +81,12 @@ pub async fn nonce_and_balance_monitor_worker(
                                     }
                                 }
                             }
-                        }
                     }
                 }
             }
         }
     }
 }
-
 
 #[derive(Accessor, Consumer)]
 pub struct NonceAndBalanceMonitorActor<P, T, N> {

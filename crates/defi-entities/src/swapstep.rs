@@ -64,8 +64,8 @@ impl SwapStep {
     }
 
     pub fn add(&mut self, swap_path: SwapLine) -> &mut Self {
-        if self.is_empty() ||
-            ((self.first_token().unwrap() == swap_path.get_first_token().unwrap())
+        if self.is_empty()
+            || ((self.first_token().unwrap() == swap_path.get_first_token().unwrap())
                 && (self.last_token().unwrap() == swap_path.get_last_token().unwrap()))
         {
             self.swap_line_vec.push(swap_path);

@@ -1,4 +1,4 @@
-pub use node_player::NodeBlockPlayerActor;
+pub use actor::NodeBlockPlayerActor;
 
-mod node_player;
-mod node_player_worker;
+mod actor;
+mod worker;

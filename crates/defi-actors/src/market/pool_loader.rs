@@ -83,11 +83,8 @@ where
                 }
             };
 
-            match fetch_result {
-                Err(e) => {
-                    error!("fetch_and_add_pool uni2 error {:#20x} : {}", pool_address, e)
-                }
-                _ => {}
+            if let Err(e) = fetch_result {
+                error!("fetch_and_add_pool uni2 error {:#20x} : {}", pool_address, e)
             }
         }
         PoolClass::UniswapV3 => {
@@ -104,11 +101,8 @@ where
                         _ => PoolWrapper::new(Arc::new(UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?)),
                     };
 
-                    match fetch_state_and_add_pool(client, market, market_state, pool_wrapped).await {
-                        Err(e) => {
-                            error!("fetch_and_add_pool uni3 error {:#20x} : {}", pool_address, e)
-                        }
-                        _ => {}
+                    if let Err(e) = fetch_state_and_add_pool(client, market, market_state, pool_wrapped).await {
+                        error!("fetch_and_add_pool uni3 error {:#20x} : {}", pool_address, e)
                     }
                 }
                 Err(e) => {

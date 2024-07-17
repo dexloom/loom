@@ -10,7 +10,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{LatestBlock, NWETH, Swap, Token};
+use defi_entities::{LatestBlock, Swap, Token, NWETH};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose};
 use defi_types::debug_trace_transaction;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};

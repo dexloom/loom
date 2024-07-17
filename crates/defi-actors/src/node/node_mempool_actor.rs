@@ -28,12 +28,9 @@ where
             NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } },
             name.clone(),
         );
-        match mempool_tx.send(update_msg).await {
-            Err(e) => {
-                error!("mempool_tx.send error : {}", e);
-                break;
-            }
-            _ => {}
+        if let Err(e) = mempool_tx.send(update_msg).await {
+            error!("mempool_tx.send error : {}", e);
+            break;
         }
     }
     Ok(name)

@@ -2,17 +2,17 @@ use alloy_primitives::{Address, Bytes, U128, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
-use eyre::{ErrReport, eyre, OptionExt, Result};
+use eyre::{eyre, ErrReport, OptionExt, Result};
 use lazy_static::lazy_static;
 use log::error;
 use revm::primitives::Env;
 
-use defi_abi::IERC20;
-use defi_abi::maverick::{IMaverickPool, IMaverickQuoter, State};
 use defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaverickPoolInstance};
 use defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuoterCalls};
-use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use defi_abi::maverick::{IMaverickPool, IMaverickQuoter, State};
+use defi_abi::IERC20;
 use defi_entities::required_state::RequiredState;
+use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
@@ -193,7 +193,7 @@ impl Pool for MaverickPool {
             exactOutput: false,
             sqrtPriceLimit: U256::ZERO,
         })
-            .abi_encode();
+        .abi_encode();
 
         let (value, gas_used) = evm_call(state_db, env, *QUOTER_ADDRESS, call_data_vec)?;
 
@@ -232,7 +232,7 @@ impl Pool for MaverickPool {
             exactOutput: true,
             sqrtPriceLimit: U256::ZERO,
         })
-            .abi_encode();
+        .abi_encode();
 
         let (value, gas_used) = evm_call(state_db, env, *QUOTER_ADDRESS, call_data_vec)?;
 
@@ -263,7 +263,7 @@ impl Pool for MaverickPool {
             exactOutput: false,
             sqrtPriceLimit: U256::ZERO,
         })
-            .abi_encode();
+        .abi_encode();
 
         //let sqrt_price_limit = MaverickPool::get_price_limit(&self.token1, &self.token0);
 
@@ -274,7 +274,7 @@ impl Pool for MaverickPool {
             exactOutput: false,
             sqrtPriceLimit: U256::ZERO,
         })
-            .abi_encode();
+        .abi_encode();
 
         //let tick_bitmap_index = MaverickPool::get_tick_bitmap_index(tick, self.spacing.as_u32());
         let tick_bitmap_index = tick;
@@ -428,33 +428,32 @@ mod tests {
     use env_logger::Env as EnvLog;
     use log::debug;
 
-    use debug_provider::{AnvilDebugProvider, AnvilDebugProviderType};
     use defi_abi::maverick::IMaverickQuoter::IMaverickQuoterInstance;
-    use defi_entities::MarketState;
     use defi_entities::required_state::RequiredStateReader;
+    use defi_entities::MarketState;
     use loom_utils::evm::env_for_block;
 
     use super::*;
 
-    fn setup_anvil() -> Result<AnvilDebugProviderType> {
-        std::env::set_var("RUST_LOG", "debug,defi_entities::market_state=trace");
-        std::env::set_var("RUST_BACKTRACE", "1");
-        env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
-
-        let anvil_node_url = std::env::var("TEST_NODE_URL").unwrap_or("http://localhost:8545".to_string());
-        let anvil_node_url = url::Url::parse(anvil_node_url.as_str())?;
-        let anvil_client = ClientBuilder::default().http(anvil_node_url).boxed();
-
-        let full_node_url = std::env::var("FULL_NODE_URL").unwrap_or("http://falcon.loop:8008/rpc".to_string());
-        let full_node_url = url::Url::parse(full_node_url.as_str())?;
-        let full_node_client = ClientBuilder::default().http(full_node_url).boxed();
-
-        let anvil_provider = ProviderBuilder::new().on_client(anvil_client).boxed();
-        let node_provider = ProviderBuilder::new().on_client(full_node_client).boxed();
-
-        let client = AnvilDebugProvider::new(node_provider, anvil_provider, BlockNumberOrTag::Latest);
-        Ok(client)
-    }
+    // fn setup_anvil() -> Result<AnvilDebugProviderType> {
+    //     std::env::set_var("RUST_LOG", "debug,defi_entities::market_state=trace");
+    //     std::env::set_var("RUST_BACKTRACE", "1");
+    //     env_logger::init_from_env(EnvLog::default().default_filter_or("debug"));
+    //
+    //     let anvil_node_url = std::env::var("TEST_NODE_URL").unwrap_or("http://localhost:8545".to_string());
+    //     let anvil_node_url = url::Url::parse(anvil_node_url.as_str())?;
+    //     let anvil_client = ClientBuilder::default().http(anvil_node_url).boxed();
+    //
+    //     let full_node_url = std::env::var("FULL_NODE_URL").unwrap_or("http://falcon.loop:8008/rpc".to_string());
+    //     let full_node_url = url::Url::parse(full_node_url.as_str())?;
+    //     let full_node_client = ClientBuilder::default().http(full_node_url).boxed();
+    //
+    //     let anvil_provider = ProviderBuilder::new().on_client(anvil_client).boxed();
+    //     let node_provider = ProviderBuilder::new().on_client(full_node_client).boxed();
+    //
+    //     let client = AnvilDebugProvider::new(node_provider, anvil_provider, BlockNumberOrTag::Latest);
+    //     Ok(client)
+    // }
 
     async fn setup_ws_node() -> Result<RootProvider<BoxTransport>> {
         std::env::set_var("RUST_LOG", "debug");

@@ -9,10 +9,6 @@ use alloy_transport::Transport;
 use eyre::{eyre, Report, Result};
 use log::{debug, error, trace};
 
-use defi_abi::curve::{
-    ICurveI128_2, ICurveI128_2_To, ICurveI128_2_To_Meta, ICurveI128_3, ICurveI128_4, ICurveU256_2, ICurveU256_2_Eth_To, ICurveU256_2_To,
-    ICurveU256_3_Eth, ICurveU256_3_Eth_To, ICurveU256_3_Eth_To2,
-};
 use defi_abi::curve::ICurveAddressProvider::ICurveAddressProviderInstance;
 use defi_abi::curve::ICurveCommon::ICurveCommonInstance;
 use defi_abi::curve::ICurveCommonI128::ICurveCommonI128Instance;
@@ -28,6 +24,10 @@ use defi_abi::curve::ICurveU256_2_To::{ICurveU256_2_ToCalls, ICurveU256_2_ToInst
 use defi_abi::curve::ICurveU256_3_Eth::{ICurveU256_3_EthCalls, ICurveU256_3_EthInstance};
 use defi_abi::curve::ICurveU256_3_Eth_To::{ICurveU256_3_Eth_ToCalls, ICurveU256_3_Eth_ToInstance};
 use defi_abi::curve::ICurveU256_3_Eth_To2::{ICurveU256_3_Eth_To2Calls, ICurveU256_3_Eth_To2Instance};
+use defi_abi::curve::{
+    ICurveI128_2, ICurveI128_2_To, ICurveI128_2_To_Meta, ICurveI128_3, ICurveI128_4, ICurveU256_2, ICurveU256_2_Eth_To, ICurveU256_2_To,
+    ICurveU256_3_Eth, ICurveU256_3_Eth_To, ICurveU256_3_Eth_To2,
+};
 
 #[derive(Clone, Debug)]
 pub enum CurveContract<P, T, N>
@@ -251,7 +251,10 @@ where
     }
 
     pub fn can_calculate_in_amount(&self) -> bool {
-        matches!(self, CurveContract::I128_2To(_) | CurveContract::U256_2EthTo(_) | CurveContract::U256_3EthTo(_) | CurveContract::I128_2ToMeta(_))
+        matches!(
+            self,
+            CurveContract::I128_2To(_) | CurveContract::U256_2EthTo(_) | CurveContract::U256_3EthTo(_) | CurveContract::I128_2ToMeta(_)
+        )
     }
 
     pub async fn get_dy(&self, i: u32, j: u32, amount: U256) -> Result<U256> {

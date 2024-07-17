@@ -133,7 +133,7 @@ async fn arb_swap_path_merger_worker(
                                     let mut evm_env = Env::default();
 
 
-                                    evm_env.block.number = U256::from(block_header.number.unwrap() + 1).into();
+                                    evm_env.block.number = U256::from(block_header.number.unwrap() + 1);
                                     let timestamp = block_header.timestamp;
                                     evm_env.block.timestamp = U256::from(timestamp +12);
 
@@ -225,9 +225,9 @@ impl Actor for ArbSwapPathMergerActor {
 
 #[cfg(test)]
 mod test {
-    use alloy_primitives::{Address, U256};
+    use alloy_primitives::U256;
 
-    use defi_entities::{Swap, SwapAmountType, SwapLine, Token};
+    use defi_entities::{Swap, SwapAmountType, SwapLine};
     use defi_events::TxComposeData;
 
     #[test]
@@ -236,7 +236,7 @@ mod test {
 
         let mut sp0 = SwapLine::new();
         let mut sp1 = SwapLine::new();
-        let token = Token::new("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse::<Address>().unwrap());
+        //let token = Token::new("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse::<Address>().unwrap());
         sp0.amount_in = SwapAmountType::Set(U256::from(1));
         sp0.amount_out = SwapAmountType::Set(U256::from(2));
         sp1.amount_in = SwapAmountType::Set(U256::from(10));

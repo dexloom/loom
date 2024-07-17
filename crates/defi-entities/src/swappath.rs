@@ -190,8 +190,8 @@ mod test {
 
         let mut tasks: Vec<JoinHandle<_>> = Vec::new();
 
-        for i in 0..PATHS_COUNT {
-            let pool_address = pool_address_vec[i].0.get_address();
+        for (i, pools) in pool_address_vec.into_iter().enumerate() {
+            let pool_address = pools.0.get_address();
             let paths_shared_clone = paths_shared.clone();
             tasks.push(tokio::task::spawn(async move {
                 let pool = PoolWrapper::empty(pool_address);

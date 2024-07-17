@@ -71,11 +71,12 @@ impl Topology {
                 }
             };
 
-            let client = if client.is_err() {
-                error!("Error connecting to {name} error : {}", client.err().unwrap());
-                continue;
-            } else {
-                client.unwrap()
+            let client = match client {
+                Ok(client) => client,
+                Err(e) => {
+                    error!("Error connecting to {name} error : {}", e);
+                    continue;
+                }
             };
 
             let provider = Some(ProviderBuilder::new().on_client(client).boxed());

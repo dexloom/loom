@@ -67,9 +67,6 @@ pub fn append_all_matching_block_logs(
     block_body_indices: StoredBlockBodyIndices,
     block: BlockWithSenders,
 ) -> Result<()> {
-    // Tracks the index of a log in the entire block.
-    let mut log_index: u64 = 0;
-
     // Lazy loaded number of the first transaction in the block.
     // This is useful for blocks with multiple matching logs because it prevents
     // re-querying the block body indices.
@@ -78,7 +75,7 @@ pub fn append_all_matching_block_logs(
     let mut tx_iter = block.transactions();
 
     // Iterate over receipts and append matching logs.
-    for (receipt_idx, receipt) in receipts.iter().enumerate() {
+    for (log_index, (receipt_idx, receipt)) in (0_u64..).zip(receipts.iter().enumerate()) {
         // The transaction hash of the current receipt.
         let transaction_hash = tx_iter.next().ok_or_eyre("NO_NEXT_TX")?.hash();
 
@@ -96,7 +93,6 @@ pub fn append_all_matching_block_logs(
             };
             all_logs.push(log);
         }
-        log_index += 1;
     }
     Ok(())
 }
@@ -110,13 +106,10 @@ pub fn append_all_matching_block_logs_sealed(
     removed: bool,
     block: &SealedBlockWithSenders,
 ) -> Result<()> {
-    // Tracks the index of a log in the entire block.
-    let mut log_index: u64 = 0;
-
     let mut tx_iter = block.body.iter();
 
     // Iterate over receipts and append matching logs.
-    for (receipt_idx, receipt) in receipts.iter().enumerate() {
+    for (log_index, (receipt_idx, receipt)) in (0_u64..).zip(receipts.iter().enumerate()) {
         // The transaction hash of the current receipt.
         let transaction_hash = tx_iter.next().ok_or_eyre("NO_NEXT_TX")?.hash();
 
@@ -134,7 +127,6 @@ pub fn append_all_matching_block_logs_sealed(
             };
             all_logs.push(log);
         }
-        log_index += 1;
     }
     Ok(())
 }

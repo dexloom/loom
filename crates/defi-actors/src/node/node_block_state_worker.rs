@@ -25,12 +25,11 @@ where
         if let Ok(block_hash) = block_hash_receiver.recv().await {
             let trace_result = debug_trace_block(client.clone(), BlockId::Hash(block_hash.into()), true).await;
             match trace_result {
-                Ok((_, post)) => match sender.send(BlockStateUpdate { block_hash, state_update: post }).await {
-                    Err(e) => {
+                Ok((_, post)) => {
+                    if let Err(e) = sender.send(BlockStateUpdate { block_hash, state_update: post }).await {
                         error!("Broadcaster error {}", e)
                     }
-                    _ => {}
-                },
+                }
                 Err(e) => {
                     error!("debug_trace_block error : {e}")
                 }

@@ -39,7 +39,7 @@ async fn encoder_task(
         }
     };
 
-    if swap_vec.len() == 0 {
+    if swap_vec.is_empty() {
         return Err(eyre!("NO_SWAP_STEPS"));
     }
 
@@ -110,20 +110,17 @@ async fn arb_swap_path_encoder_worker(
                 let msg : Result<MessageTxCompose, RecvError> = msg;
                 match msg {
                     Ok(compose_request) => {
-                        match compose_request.inner {
-                            TxCompose::Encode(encode_request) => {
-                                info!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", encode_request.stuffing_txs_hashes, encode_request.swap);
-                                tokio::task::spawn(
-                                    encoder_task(
-                                        encode_request,
-                                        compose_channel_tx.clone(),
-                                        encoder.clone(),
-                                        signers.clone(),
-                                        account_monitor.clone(),
-                                    )
-                                );
-                            }
-                            _=>{}
+                        if let TxCompose::Encode(encode_request) = compose_request.inner {
+                            info!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", encode_request.stuffing_txs_hashes, encode_request.swap);
+                            tokio::task::spawn(
+                                encoder_task(
+                                    encode_request,
+                                    compose_channel_tx.clone(),
+                                    encoder.clone(),
+                                    signers.clone(),
+                                    account_monitor.clone(),
+                                )
+                            );
                         }
                     }
                     Err(e)=>{error!("compose_channel_rx {}",e)}

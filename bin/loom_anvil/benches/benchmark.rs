@@ -1,22 +1,14 @@
-use std::collections::HashMap;
-use std::ops::Deref;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::time::Duration;
-
 use alloy_primitives::{Address, BlockNumber, U256};
 use chrono::Local;
-use criterion::async_executor::AsyncExecutor;
-use criterion::{black_box, criterion_group, criterion_main, BenchmarkId, Criterion};
 use eyre::Result;
-use log::{debug, error, info};
+use log::error;
 use rand::prelude::{Rng, SeedableRng, StdRng};
-use rand::thread_rng;
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use revm::db::{CacheDB, EmptyDB};
 use revm::primitives::Env;
-use revm::InMemoryDB;
+use std::collections::HashMap;
+use std::ops::Deref;
+use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 
@@ -24,9 +16,10 @@ use debug_provider::AnvilDebugProviderFactory;
 use defi_entities::required_state::RequiredStateReader;
 use defi_entities::{MarketState, Pool, PoolWrapper};
 use defi_pools::protocols::UniswapV3Protocol;
-use defi_pools::{UniswapV2Pool, UniswapV3Pool};
+use defi_pools::UniswapV3Pool;
 use loom_revm_db::LoomInMemoryDB;
 
+#[allow(dead_code)]
 async fn performance_test() {
     let mut rng = StdRng::from_entropy();
 
@@ -64,7 +57,7 @@ async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
 
     let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
     //let pool_address: Address = "0x5777d92f208679db4b9778590fa3cab3ac9e2168".parse().unwrap();
-    let mut pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
+    let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
 
     //let pool_address: Address = "0x9c2dc3d5ffcecf61312c5f4c00660695b32fb3d1".parse().unwrap();
     //let pool_address: Address = "0xa478c2975ab1ea89e8196811f51a7b7ade33eb11".parse().unwrap();
@@ -79,24 +72,25 @@ async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
     Ok((market_state, PoolWrapper::new(Arc::new(pool))))
 }
 
+#[allow(dead_code)]
 async fn sync_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
     let evm_env = Env::default();
-    let mut step = U256::from(U256::from(10).pow(U256::from(18)));
+    let step = U256::from(U256::from(10).pow(U256::from(18)));
     let mut in_amount = U256::from(U256::from(10).pow(U256::from(18)));
-    for i in 0..10 {
+    (0..10).for_each(|_| {
         let (out_amount, gas_used) = pool.calculate_out_amount(state_db, evm_env.clone(), &pool.token1, &pool.token0, in_amount).unwrap();
         if out_amount.is_zero() || gas_used < 50_000 {
             panic!("BAD CALC")
         }
         in_amount += step;
-    }
+    });
 }
 
 async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc<ThreadPool>) {
     let start_time = chrono::Local::now();
     let evm_env = Env::default();
-    let mut step = U256::from(U256::from(10).pow(U256::from(16)));
-    let mut in_amount = U256::from(U256::from(10).pow(U256::from(18)));
+    let step = U256::from(U256::from(10).pow(U256::from(16)));
+    let in_amount = U256::from(U256::from(10).pow(U256::from(18)));
 
     const ITER_COUNT: usize = 10000;
 
@@ -104,7 +98,7 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
 
     let in_vec: Vec<U256> = range.map(|i| in_amount + (step * U256::from(i))).collect();
 
-    let (result_tx, mut result_rx) = tokio::sync::mpsc::channel::<U256>(ITER_COUNT / 1);
+    let (result_tx, mut result_rx) = tokio::sync::mpsc::channel::<U256>(ITER_COUNT);
 
     let state_db_clone = state_db.clone();
 
@@ -120,11 +114,8 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
                     panic!("BAD CALC")
                 }
 
-                match req.2.try_send(out_amount) {
-                    Err(e) => {
-                        error!("{e}")
-                    }
-                    _ => {}
+                if let Err(e) = req.2.try_send(out_amount) {
+                    error!("{e}")
                 }
             });
         });
@@ -135,9 +126,10 @@ async fn rayon_run(state_db: &LoomInMemoryDB, pool: PoolWrapper, threadpool: Arc
 
     let mut counter: usize = 0;
 
-    while let Some(result) = result_rx.recv().await {
+    if result_rx.recv().await.is_some() {
         counter += 1;
     }
+
     let time_spent = chrono::Local::now() - start_time;
     let calc_per_sec = time_spent / (counter as i32);
     println!("Iterations : {counter} Took: {time_spent} Per sec: {calc_per_sec}");
@@ -176,20 +168,20 @@ async fn rayon_parallel_run<'a>(state_db: &LoomInMemoryDB, pool: PoolWrapper) {
 
 async fn tokio_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
     let evm_env = Env::default();
-    let mut step = U256::from(U256::from(10).pow(U256::from(16)));
-    let mut in_amount = U256::from(U256::from(10).pow(U256::from(18)));
+    let step = U256::from(U256::from(10).pow(U256::from(16)));
+    let in_amount = U256::from(U256::from(10).pow(U256::from(18)));
 
     const ITER_COUNT: usize = 10000;
     const WORKERS_COUNT: usize = 10;
 
-    let (request_tx, mut request_rx) = tokio::sync::mpsc::channel::<Option<(Arc<LoomInMemoryDB>, Arc<Env>, U256)>>(ITER_COUNT);
+    let (request_tx, request_rx) = tokio::sync::mpsc::channel::<Option<(Arc<LoomInMemoryDB>, Arc<Env>, U256)>>(ITER_COUNT);
     let (result_tx, mut result_rx) = tokio::sync::mpsc::channel::<U256>(ITER_COUNT);
 
     let request_rx = Arc::new(RwLock::new(request_rx));
     let result_tx = Arc::new(result_tx);
 
-    for i in 0..WORKERS_COUNT {
-        let mut request_rx_clone = request_rx.clone();
+    for _ in 0..WORKERS_COUNT {
+        let request_rx_clone = request_rx.clone();
         let result_tx_ptr = result_tx.clone();
         let pool = pool.clone();
         tokio::task::spawn(async move {
@@ -208,11 +200,8 @@ async fn tokio_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
                                     panic!("BAD CALC")
                                 }
 
-                                match result_tx_ptr.try_send(out_amount) {
-                                    Err(e) => {
-                                        println!("result_tx_ptr error: {e}")
-                                    }
-                                    _ => {}
+                                if let Err(e) = result_tx_ptr.try_send(out_amount) {
+                                    println!("result_tx_ptr error: {e}")
                                 }
                             }
                             None => {
@@ -239,34 +228,28 @@ async fn tokio_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
     let state_db_clone = Arc::new(state_db.clone());
 
     for in_amount in in_vec.into_iter() {
-        match request_tx.try_send(Some((state_db_clone.clone(), env_clone.clone(), in_amount))) {
-            Err(e) => {
-                println!("error : {e}")
-            }
-            _ => {}
+        if let Err(e) = request_tx.try_send(Some((state_db_clone.clone(), env_clone.clone(), in_amount))) {
+            println!("error : {e}")
         }
     }
 
-    for w in 0..WORKERS_COUNT {
-        match request_tx.send(None).await {
-            Err(e) => {
-                println!("error : {e}")
-            }
-            _ => {}
+    for _ in 0..WORKERS_COUNT {
+        if let Err(e) = request_tx.send(None).await {
+            println!("error : {e}")
         }
     }
     println!("Broadcasting finished");
 
     let mut counter = 0;
 
-    while let Some(result) = result_rx.recv().await {
+    if result_rx.recv().await.is_some() {
         counter += 1;
-        //println!("Result received {counter}");
     }
     println!("{counter}");
     assert_eq!(counter, ITER_COUNT, "NOT_ALL_RESULTS");
 }
 
+#[allow(dead_code)]
 async fn tokio_parallel_run(state_db: &LoomInMemoryDB, pool: UniswapV3Pool) {
     const TASKS_COUNT: u32 = 3;
     let mut tasks: Vec<JoinHandle<_>> = Vec::new();
@@ -334,7 +317,6 @@ async fn main() {
 
 #[cfg(test)]
 mod test {
-    use super::*;
 
     #[test]
     fn test_run() {

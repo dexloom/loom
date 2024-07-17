@@ -7,7 +7,7 @@ use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use rand::random;
 
-use defi_entities::{NWETH, Swap, Token};
+use defi_entities::{Swap, Token, NWETH};
 
 #[derive(Clone, Debug)]
 pub struct Tips {
@@ -153,15 +153,16 @@ pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost
                     }
                 }
             } else {
-                let total_tips = tips_hashset.iter().map(|(_, x)| x.tips).sum::<U256>();
+                let total_tips = tips_hashset.values().map(|x| x.tips).sum::<U256>();
                 value = if total_tips >= eth_balance { eth_balance * U256::from(9000) / U256::from(10000) } else { total_tips };
 
                 for (idx, (_, token_tips)) in tips_hashset.iter_mut().enumerate() {
                     token_tips.tips = if idx == 0 { value } else { U256::ZERO };
                 }
             }
+            let tips_vec = tips_hashset.values().cloned().collect();
 
-            Ok((tips_hashset.into_iter().map(|(_, t)| t).collect(), value + U256::from(100)))
+            Ok((tips_vec, value + U256::from(100)))
         }
 
         _ => Err(eyre!("NOT_IMPLEMENTED")),

@@ -7,9 +7,9 @@ use alloy_rpc_types_trace::geth::AccountState;
 use eyre::Result;
 use log::{debug, error, trace};
 use revm::db::{AccountState as DbAccountState, Database};
-use revm::InMemoryDB;
-use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
+use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
+use revm::InMemoryDB;
 
 use defi_types::GethStateUpdate;
 use loom_revm_db::LoomInMemoryDB;
@@ -65,7 +65,7 @@ impl MarketState {
             if insert
                 || ((account.account_state == DbAccountState::NotExisting || account.account_state == DbAccountState::None) && only_new)
                 || (!only_new
-                && (account.account_state == DbAccountState::Touched || account.account_state == DbAccountState::StorageCleared))
+                    && (account.account_state == DbAccountState::Touched || account.account_state == DbAccountState::StorageCleared))
             {
                 let code: Option<Bytecode> = match &account_updated_state.code {
                     Some(c) => {

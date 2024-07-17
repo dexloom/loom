@@ -1,3 +1,3 @@
-pub use blockchain_actors::BlockchainActors;
+pub use actor::BlockchainActors;
 
-mod blockchain_actors;
+mod actor;

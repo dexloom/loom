@@ -103,6 +103,7 @@ tx_2 = { hash = "0x1ec982c2d4eb5475192b26f7208b797328eab88f8e5be053f797f74bcb87a
 [tokens]
 weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
         "#;
-        let config: TestConfig = toml::from_str(&cfg).unwrap();
+        let config: TestConfig = toml::from_str(cfg).unwrap();
+        assert_eq!(config.settings.block, 19101579);
     }
 }

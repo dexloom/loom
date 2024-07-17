@@ -16,6 +16,7 @@ use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer,
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomInMemoryDB;
 
+#[allow(clippy::too_many_arguments)]
 pub async fn new_block_history_worker(
     chain_parameters: ChainParameters,
     latest_block: SharedState<LatestBlock>,

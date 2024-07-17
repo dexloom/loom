@@ -62,7 +62,7 @@ impl UniswapV3DBReader {
 
     pub fn position_info(db: &LoomInMemoryDB, address: Address, position: B256) -> Result<U256> {
         //i16
-        let position = U256::try_from(position)?;
+        let position: U256 = position.into();
         let cell = try_read_hashmap_cell(db, &address, &U256::from(7), &position)?;
         Ok(cell)
     }

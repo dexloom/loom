@@ -34,44 +34,28 @@ where
     let new_block_hash_channel = Broadcaster::new(10);
     let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
 
-    match new_block_with_tx_channel {
-        Some(channel) => {
-            tasks.push(tokio::task::spawn(new_block_with_tx_worker(
-                client.clone(),
-                new_block_hash_channel.clone().subscribe().await,
-                channel,
-            )));
-        }
-        None => {}
+    if let Some(channel) = new_block_with_tx_channel {
+        tasks.push(tokio::task::spawn(new_block_with_tx_worker(client.clone(), new_block_hash_channel.clone().subscribe().await, channel)));
     }
 
-    match new_block_headers_channel {
-        Some(channel) => {
-            tasks.push(tokio::task::spawn(new_node_block_header_worker(client.clone(), new_block_hash_channel.clone(), channel)));
-        }
-        None => {}
+    if let Some(channel) = new_block_headers_channel {
+        tasks.push(tokio::task::spawn(new_node_block_header_worker(client.clone(), new_block_hash_channel.clone(), channel)));
     }
 
-    match new_block_logs_channel {
-        Some(channel) => {
-            tasks.push(tokio::task::spawn(new_node_block_logs_worker(
-                client.clone(),
-                new_block_hash_channel.clone().subscribe().await,
-                channel,
-            )));
-        }
-        None => {}
+    if let Some(channel) = new_block_logs_channel {
+        tasks.push(tokio::task::spawn(new_node_block_logs_worker(
+            client.clone(),
+            new_block_hash_channel.clone().subscribe().await,
+            channel,
+        )));
     }
 
-    match new_block_state_update_channel {
-        Some(channel) => {
-            tasks.push(tokio::task::spawn(new_node_block_state_worker(
-                client.clone(),
-                new_block_hash_channel.clone().subscribe().await,
-                channel,
-            )));
-        }
-        None => {}
+    if let Some(channel) = new_block_state_update_channel {
+        tasks.push(tokio::task::spawn(new_node_block_state_worker(
+            client.clone(),
+            new_block_hash_channel.clone().subscribe().await,
+            channel,
+        )));
     }
 
     Ok(tasks)
@@ -111,8 +95,8 @@ where
             block_with_tx_channel: None,
             block_logs_channel: None,
             block_state_update_channel: None,
-            _t: PhantomData::default(),
-            _n: PhantomData::default(),
+            _t: PhantomData,
+            _n: PhantomData,
         }
     }
 
@@ -147,13 +131,13 @@ where
             Some(db_path) => {
                 reth_node_worker_starter(
                     self.client.clone(),
-                    db_path,
+                    db_path.clone(),
                     self.block_header_channel.clone(),
                     self.block_with_tx_channel.clone(),
                     self.block_logs_channel.clone(),
                     self.block_state_update_channel.clone(),
                 )
-                    .await
+                .await
             }
             //RPC
             None => {
@@ -164,7 +148,7 @@ where
                     self.block_logs_channel.clone(),
                     self.block_state_update_channel.clone(),
                 )
-                    .await
+                .await
             }
         }
     }

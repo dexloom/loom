@@ -120,7 +120,7 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
-        Self { client, market: None, _t: PhantomData::default(), _n: PhantomData::default() }
+        Self { client, market: None, _t: PhantomData, _n: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {

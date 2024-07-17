@@ -330,7 +330,7 @@ mod test {
             client::{ClientBuilder, RpcClient},
             types::{
                 trace::geth::{GethDebugBuiltInTracerType, GethDebugTracerType, GethDebugTracingOptions, PreStateConfig},
-                BlockNumberOrTag, BlockTransactionsKind, Filter,
+                BlockNumberOrTag, BlockTransactionsKind,
             },
         },
     };
@@ -408,13 +408,13 @@ mod test {
             println!("Set next block: {}", i);
             tokio::time::sleep(Duration::from_millis(10)).await;
             //provider.next_block();
-            let current_block_number = transport.fetch_next_block().await?;
+            //let current_block_number = transport.fetch_next_block().await?;
 
             let total_supply = weth.totalSupply().call().await.unwrap();
             println!("Total supply : {}", total_supply._0);
 
-            let filter: Filter = Filter::new().to_block(current_block_number).from_block(current_block_number);
-            let logs = provider.get_logs(&filter).await?;
+            //let filter: Filter = Filter::new().to_block(current_block_number).from_block(current_block_number);
+            //let logs = provider.get_logs(&filter).await?;
             let block_by_number = provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?.unwrap();
             let block_by_hash =
                 provider.get_block_by_hash(block_by_number.header.hash.unwrap(), BlockTransactionsKind::Full).await?.unwrap();

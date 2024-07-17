@@ -116,11 +116,11 @@ async fn main() -> Result<()> {
 
     // Make tests
 
-    for (_, s) in swap_paths.iter().enumerate() {
-        if !s.tokens[0].is_weth() {
+    for swap_path in swap_paths.iter() {
+        if !swap_path.tokens[0].is_weth() {
             continue;
         }
-        let sp = s.as_ref().clone();
+        let sp = swap_path.as_ref().clone();
         let sp_dto: SwapLineDTO = (&sp).into();
 
         let mut swapline = SwapLine { path: sp, amount_in: SwapAmountType::Set(in_amount), ..SwapLine::default() };
@@ -139,7 +139,7 @@ async fn main() -> Result<()> {
         let calls = encoder.make_calls(&swap)?;
         let (to, payload) = encoder.encode_calls(calls)?;
 
-        calldata_map.insert(s.clone().as_ref().into(), payload.clone());
+        calldata_map.insert(swap_path.clone().as_ref().into(), payload.clone());
 
         let tx_request = TransactionRequest::default().to(to).from(operator_address).input(TransactionInput::new(payload));
 
@@ -154,13 +154,13 @@ async fn main() -> Result<()> {
             }
         };
 
-        gas_used_map.insert(s.clone().as_ref().into(), gas_used);
+        gas_used_map.insert(swap_path.clone().as_ref().into(), gas_used);
     }
 
     if let Some(bench_file) = cli.file {
         if cli.anvil {
             // Save anvil test data
-            let mut calldata_vec: Vec<(SwapLineDTO, Bytes)> = calldata_map.into_iter().map(|(k, v)| (k, v)).collect();
+            let mut calldata_vec: Vec<(SwapLineDTO, Bytes)> = calldata_map.into_iter().collect();
             calldata_vec.sort_by(|a, b| a.0.cmp(&b.0));
             let calldata_vec: Vec<(String, Bytes)> = calldata_vec.into_iter().map(|(k, v)| (k.to_string(), v)).collect();
             let test_data = create_sol_test(calldata_vec);
@@ -183,19 +183,18 @@ async fn main() -> Result<()> {
 
             let stored_results: Vec<(SwapLineDTO, u64)> = serde_json::from_str(&json_string)?;
 
-            let stored_gas_map: HashMap<SwapLineDTO, u64> = stored_results.clone().into_iter().map(|(k, v)| (k, v)).collect();
+            let stored_gas_map: HashMap<SwapLineDTO, u64> = stored_results.clone().into_iter().collect();
 
             for (current_entry, gas) in gas_used_map.iter() {
                 match stored_gas_map.get(current_entry) {
                     Some(stored_gas) => {
                         let change_i: i64 = *gas as i64 - *stored_gas as i64;
                         let change = format!("{change_i}");
-                        let change = if change_i > 0 {
-                            change.red()
-                        } else if change_i < 0 {
-                            change.green()
-                        } else {
-                            change.normal()
+
+                        let change = match change_i {
+                            i if i > 0 => change.red(),
+                            i if i < 0 => change.green(),
+                            _ => change.normal(),
                         };
                         println!("{} : {} {} - {} ", change, current_entry, gas, stored_gas,);
                     }

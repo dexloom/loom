@@ -1,13 +1,13 @@
 use std::convert::Infallible;
 
-use alloy_primitives::{Address, B256, Bytes, U256};
+use alloy_primitives::{Address, Bytes, B256, U256};
 use alloy_rpc_types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest};
 use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, trace};
-use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 use revm::interpreter::Host;
-use revm::primitives::{BlockEnv, Env, ExecutionResult, Output, SHANGHAI, SpecId, TransactTo, TxEnv};
+use revm::primitives::{BlockEnv, Env, ExecutionResult, Output, SpecId, TransactTo, TxEnv, SHANGHAI};
+use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();
@@ -18,7 +18,7 @@ pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
 
 pub fn evm_call<DB>(state_db: DB, env: Env, transact_to: Address, call_data_vec: Vec<u8>) -> Result<(Vec<u8>, u64)>
 where
-    DB: DatabaseRef<Error=Infallible>,
+    DB: DatabaseRef<Error = Infallible>,
 {
     let mut env = env;
     env.tx.transact_to = TransactTo::Call(transact_to);
@@ -34,9 +34,7 @@ where
 
     // unpack output call enum into raw bytes
     let value = match result {
-        ExecutionResult::Success { output: Output::Call(value), .. } => {
-            Some((value.to_vec(), gas_used))
-        }
+        ExecutionResult::Success { output: Output::Call(value), .. } => Some((value.to_vec(), gas_used)),
         ExecutionResult::Revert { output, gas_used } => {
             trace!("Revert {} : {:?}", gas_used, output);
             None
@@ -49,7 +47,7 @@ where
 
 pub fn evm_transact<DB>(evm: &mut Evm<(), DB>, tx: &Transaction) -> Result<()>
 where
-    DB: Database<Error=Infallible> + DatabaseCommit,
+    DB: Database<Error = Infallible> + DatabaseCommit,
 {
     let env = evm.context.env_mut();
 
@@ -92,7 +90,7 @@ lazy_static! {
 
 pub fn evm_access_list<DB>(state_db: DB, env: &Env, tx: &TransactionRequest) -> Result<(u64, AccessList)>
 where
-    DB: DatabaseRef<Error=Infallible>,
+    DB: DatabaseRef<Error = Infallible>,
 {
     let mut env = env.clone();
 

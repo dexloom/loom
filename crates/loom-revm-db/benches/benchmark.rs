@@ -2,11 +2,11 @@ use std::collections::{HashMap, HashSet};
 use std::hash::{DefaultHasher, Hash};
 
 use alloy::primitives::{Address, Bytes, U256};
-use criterion::{Criterion, criterion_group, criterion_main};
-use rand::{Rng, thread_rng};
-use revm::DatabaseRef;
+use criterion::{criterion_group, criterion_main, Criterion};
+use rand::{thread_rng, Rng};
 use revm::db::{AccountState as DbAccountState, CacheDB, DbAccount, EmptyDB};
 use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
+use revm::DatabaseRef;
 
 use loom_revm_db::fast_hasher::{HashedAddress, HashedAddressCell, SimpleBuildHasher, SimpleHasher};
 use loom_revm_db::LoomInMemoryDB;
@@ -162,39 +162,39 @@ fn test_read_one(addr: &[Address], accs: &[DbAccount], hm: &HashMap<HashedAddres
 
 fn test_hash_speed() {
     let addr = Address::random();
-    for i in 0..N {
+    for _ in 0..N {
         let mut hasher = DefaultHasher::new();
-        let hash = addr.hash(&mut hasher);
+        addr.hash(&mut hasher);
     }
 }
 
 fn test_hash_fx_speed() {
     let addr = Address::random();
-    for i in 0..N {
+    for _ in 0..N {
         let mut hasher = SimpleHasher::new();
-        let hash = addr.hash(&mut hasher);
+        addr.hash(&mut hasher);
     }
 }
 
 fn test_hashedaddr_speed() {
     let addr = HashedAddress::from(Address::random());
-    for i in 0..N {
+    for _ in 0..N {
         let mut hasher = SimpleHasher::new();
-        let hash = addr.hash(&mut hasher);
+        addr.hash(&mut hasher);
     }
 }
 
 fn test_hashedaddrcell_speed() {
     let addrcell = HashedAddressCell(Address::random(), U256::from(0x1234567));
-    for i in 0..N {
+    for _ in 0..N {
         let mut hasher = SimpleHasher::new();
-        let hash = addrcell.hash(&mut hasher);
+        addrcell.hash(&mut hasher);
     }
 }
 
 fn test_hashset_speed() {
     let mut addrmap = HashSet::new();
-    for i in 0..N {
+    for _ in 0..N {
         let addr = Address::random();
         addrmap.insert(addr);
     }
@@ -202,7 +202,7 @@ fn test_hashset_speed() {
 
 fn test_hashmap_speed() {
     let mut addrmap = HashMap::new();
-    for i in 0..N {
+    for _ in 0..N {
         let addr = Address::random();
         addrmap.insert(addr, true);
     }
@@ -210,7 +210,7 @@ fn test_hashmap_speed() {
 
 fn test_hashset_fx_speed() {
     let mut addrmap = HashSet::with_hasher(SimpleBuildHasher::default());
-    for i in 0..N {
+    for _ in 0..N {
         let addr = Address::random();
         addrmap.insert(addr);
     }
@@ -218,7 +218,7 @@ fn test_hashset_fx_speed() {
 
 fn test_hashset_hashedaddress_speed() {
     let mut addrmap: HashSet<HashedAddress, SimpleBuildHasher> = HashSet::with_hasher(SimpleBuildHasher::default());
-    for i in 0..N {
+    for _ in 0..N {
         let addr = Address::random();
         let ha: HashedAddress = addr.into();
         addrmap.insert(ha);
@@ -226,7 +226,7 @@ fn test_hashset_hashedaddress_speed() {
 }
 
 fn benchmark_test_group_hashmap(c: &mut Criterion) {
-    let addr: Vec<Address> = (0..N_ACC).map(|x| Address::random()).collect();
+    let addr: Vec<Address> = (0..N_ACC).map(|_| Address::random()).collect();
     let accs = generate_accounts(N_ACC, N_MEM);
 
     let one_hm = build_one(&addr, &accs);
@@ -253,14 +253,14 @@ fn benchmark_test_group_hashmap(c: &mut Criterion) {
 
 fn benchmark_test_group_hasher(c: &mut Criterion) {
     let mut group = c.benchmark_group("hasher_speed");
-    group.bench_function("test_hash_speed", |b| b.iter(|| test_hash_speed()));
-    group.bench_function("test_hash_fx_speed", |b| b.iter(|| test_hash_fx_speed()));
-    group.bench_function("test_hash_hashedaddr_speed", |b| b.iter(|| test_hashedaddr_speed()));
-    group.bench_function("test_hash_hashedaddrcell_speed", |b| b.iter(|| test_hashedaddrcell_speed()));
-    group.bench_function("test_hashset_speed", |b| b.iter(|| test_hashset_speed()));
-    group.bench_function("test_hashset_fx_speed", |b| b.iter(|| test_hashset_fx_speed()));
-    group.bench_function("test_hashset_hashedaddress_speed", |b| b.iter(|| test_hashset_hashedaddress_speed()));
-    group.bench_function("test_hashmap_speed", |b| b.iter(|| test_hashmap_speed()));
+    group.bench_function("test_hash_speed", |b| b.iter(test_hash_speed));
+    group.bench_function("test_hash_fx_speed", |b| b.iter(test_hash_fx_speed));
+    group.bench_function("test_hash_hashedaddr_speed", |b| b.iter(test_hashedaddr_speed));
+    group.bench_function("test_hash_hashedaddrcell_speed", |b| b.iter(test_hashedaddrcell_speed));
+    group.bench_function("test_hashset_speed", |b| b.iter(test_hashset_speed));
+    group.bench_function("test_hashset_fx_speed", |b| b.iter(test_hashset_fx_speed));
+    group.bench_function("test_hashset_hashedaddress_speed", |b| b.iter(test_hashset_hashedaddress_speed));
+    group.bench_function("test_hashmap_speed", |b| b.iter(test_hashmap_speed));
     group.finish();
 }
 

@@ -27,30 +27,25 @@ pub async fn pool_health_monitor_worker(
                 let pool_health_update : Result<MessageHealthEvent, RecvError>  = msg;
                 match pool_health_update {
                     Ok(pool_health_message)=>{
-                        match pool_health_message.inner {
-                            HealthEvent::PoolSwapError(swap_error) => {
-                                debug!("Pool health_monitor message update: {:?} {} {} ", swap_error.pool, swap_error.msg, swap_error.amount);
-                                let entry = pool_errors_map.entry(swap_error.pool).or_insert(0);
-                                *entry += 1;
-                                if *entry == 100 {
-                                    let mut market_guard = market.write().await;
-                                    market_guard.set_pool_ok(swap_error.pool, false);
-                                    match market_guard.get_pool(&swap_error.pool) {
-                                        Some(pool)=>{
-                                            error!("Disabling pool  {}@{:?} {} {}", pool.get_protocol(),swap_error.pool, swap_error.msg, swap_error.amount);
-                                        }
-                                        _=>{
-                                            error!("Disabling pool NOT_FOUND@{:?} {} {}", swap_error.pool, swap_error.msg, swap_error.amount);
-                                        }
+                        if let HealthEvent::PoolSwapError(swap_error) = pool_health_message.inner {
+                            debug!("Pool health_monitor message update: {:?} {} {} ", swap_error.pool, swap_error.msg, swap_error.amount);
+                            let entry = pool_errors_map.entry(swap_error.pool).or_insert(0);
+                            *entry += 1;
+                            if *entry == 100 {
+                                let mut market_guard = market.write().await;
+                                market_guard.set_pool_ok(swap_error.pool, false);
+                                match market_guard.get_pool(&swap_error.pool) {
+                                    Some(pool)=>{
+                                        error!("Disabling pool  {}@{:?} {} {}", pool.get_protocol(),swap_error.pool, swap_error.msg, swap_error.amount);
+                                    }
+                                    _=>{
+                                        error!("Disabling pool NOT_FOUND@{:?} {} {}", swap_error.pool, swap_error.msg, swap_error.amount);
                                     }
                                 }
-
-                                if *entry > 100  {
-                                    error!("Pool disabled : {:?} {} {}", swap_error.pool, swap_error.msg, swap_error.amount);
-                                }
                             }
-                            _=>{
 
+                            if *entry > 100  {
+                                error!("Pool disabled : {:?} {} {}", swap_error.pool, swap_error.msg, swap_error.amount);
                             }
                         }
                     }
@@ -64,7 +59,7 @@ pub async fn pool_health_monitor_worker(
     }
 }
 
-#[derive(Accessor, Consumer)]
+#[derive(Accessor, Consumer, Default)]
 pub struct PoolHealthMonitorActor {
     #[accessor]
     market: Option<SharedState<Market>>,
@@ -74,7 +69,7 @@ pub struct PoolHealthMonitorActor {
 
 impl PoolHealthMonitorActor {
     pub fn new() -> Self {
-        PoolHealthMonitorActor { market: None, pool_health_update_rx: None }
+        PoolHealthMonitorActor::default()
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {

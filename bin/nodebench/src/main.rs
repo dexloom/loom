@@ -54,7 +54,7 @@ impl TimeMap {
         self.time_map.get(&id)
     }
 
-    pub fn to_relative(&self, pings: &Vec<TimeDelta>) -> TimeMap {
+    pub fn to_relative(&self, pings: &[TimeDelta]) -> TimeMap {
         let rel_time: HashMap<usize, DateTime<Local>> =
             self.time_map.iter().map(|(k, v)| (*k, *v - pings.get(*k).cloned().unwrap())).collect();
         TimeMap { time_map: rel_time }
@@ -69,7 +69,7 @@ impl TimeMap {
     }
 }
 
-fn analyze_time_maps(time_map_vec: Vec<&TimeMap>, ping: Option<&Vec<TimeDelta>>) -> StatEntry {
+fn analyze_time_maps(time_map_vec: Vec<&TimeMap>, ping: Option<&[TimeDelta]>) -> StatEntry {
     let nodes_count = time_map_vec.first();
 
     if nodes_count.is_none() {

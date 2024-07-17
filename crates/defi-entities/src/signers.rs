@@ -58,7 +58,7 @@ impl TxSigner {
         let signed_tx = typed_tx.clone().into_signed(signature);
 
         let hash = signed_tx.signature_hash();
-        let tx_env: TxEnvelope = signed_tx.try_into()?;
+        let tx_env: TxEnvelope = signed_tx.into();
         let tx_data = tx_env.encoded_2718();
         Ok((hash, Bytes::from(tx_data)))
     }

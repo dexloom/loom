@@ -21,11 +21,8 @@ where
     loop {
         if let Ok(block_hash) = block_hash_receiver.recv().await {
             if let Some(block_with_txes) = client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await? {
-                match sender.send(block_with_txes).await {
-                    Err(e) => {
-                        error!("Broadcaster error {}", e);
-                    }
-                    _ => {}
+                if let Err(e) = sender.send(block_with_txes).await {
+                    error!("Broadcaster error {}", e);
                 }
             }
         }

@@ -19,11 +19,8 @@ pub async fn new_node_block_logs_worker<T: Transport + Clone, N: Network, P: Pro
             let filter = Filter::new().at_block_hash(block_hash);
 
             let logs = client.get_logs(&filter).await?;
-            match sender.send(BlockLogs { block_hash, logs }).await {
-                Err(e) => {
-                    error!("Broadcaster error {}", e);
-                }
-                _ => {}
+            if let Err(e) = sender.send(BlockLogs { block_hash, logs }).await {
+                error!("Broadcaster error {}", e);
             }
         }
     }
@@ -40,11 +37,8 @@ pub async fn new_node_block_logs_worker_reth<T: Transport + Clone, N: Network, P
             let filter = Filter::new().at_block_hash(block_hash);
 
             let logs = client.get_logs(&filter).await?;
-            match sender.send(BlockLogs { block_hash, logs }).await {
-                Err(e) => {
-                    error!("Broadcaster error {}", e);
-                }
-                _ => {}
+            if let Err(e) = sender.send(BlockLogs { block_hash, logs }).await {
+                error!("Broadcaster error {}", e);
             }
         }
     }

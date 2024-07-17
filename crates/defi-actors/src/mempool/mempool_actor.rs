@@ -11,7 +11,7 @@ use defi_blockchain::Blockchain;
 use defi_entities::BlockHistory;
 use defi_events::{MarketEvents, MempoolEvents, MessageMempoolDataUpdate};
 use defi_types::{ChainParameters, Mempool, MempoolTx};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, run_async, SharedState, WorkerResult};
+use loom_actors::{run_async, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 pub async fn new_mempool_worker(

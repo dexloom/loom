@@ -10,8 +10,8 @@ use log::error;
 use revm::primitives::Env;
 
 use defi_abi::IERC20;
-use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use defi_entities::required_state::RequiredState;
+use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
@@ -123,7 +123,7 @@ where
         let abi_encoder = Arc::new(CurveAbiSwapEncoder::new(
             pool_contract.get_address(),
             tokens.clone(),
-            if underlying_tokens.len() > 0 { Some(underlying_tokens.clone()) } else { None },
+            if !underlying_tokens.is_empty() { Some(underlying_tokens.clone()) } else { None },
             lp_token,
             is_meta,
             is_native,
@@ -414,8 +414,8 @@ where
     pub fn get_underlying_coin_idx(&self, address: Address) -> Result<u32> {
         match &self.underlying_tokens {
             Some(underlying_tokens) => {
-                for i in 0..underlying_tokens.len() {
-                    if address == underlying_tokens[i] {
+                for (i, token_address) in underlying_tokens.iter().enumerate() {
+                    if address == *token_address {
                         return Ok(i as u32);
                     }
                 }
@@ -455,12 +455,13 @@ where
             let i: Result<u32> = self.get_coin_idx(token_from_address);
             let j: Result<u32> = self.get_coin_idx(token_to_address);
 
-            if i.is_ok() && j.is_ok() {
-                self.curve_contract.get_exchange_call_data(i.unwrap(), j.unwrap(), amount, U256::ZERO, recipient)
-            } else {
-                let i: u32 = self.get_meta_coin_idx(token_from_address)?;
-                let j: u32 = self.get_meta_coin_idx(token_to_address)?;
-                self.curve_contract.get_exchange_underlying_call_data(i, j, amount, U256::ZERO, recipient)
+            match (i, j) {
+                (Ok(i), Ok(j)) => self.curve_contract.get_exchange_call_data(i, j, amount, U256::ZERO, recipient),
+                _ => {
+                    let meta_i: u32 = self.get_meta_coin_idx(token_from_address)?;
+                    let meta_j: u32 = self.get_meta_coin_idx(token_to_address)?;
+                    self.curve_contract.get_exchange_underlying_call_data(meta_i, meta_j, amount, U256::ZERO, recipient)
+                }
             }
         } else if let Some(lp_token) = self.lp_token {
             if token_from_address == lp_token {
@@ -521,13 +522,13 @@ mod tests {
     use log::info;
     use revm::db::EmptyDB;
 
-    use defi_entities::{MarketState, Pool};
     use defi_entities::required_state::RequiredStateReader;
+    use defi_entities::{MarketState, Pool};
     use loom_revm_db::fast_cache_db::FastCacheDB;
     use loom_revm_db::LoomInMemoryDB;
 
-    use crate::CurvePool;
     use crate::protocols::CurveProtocol;
+    use crate::CurvePool;
 
     #[tokio::test]
     async fn test_pool() {
@@ -562,7 +563,7 @@ mod tests {
             let mut evm_env = revm::primitives::Env::default();
 
             //evm_env.block.number = U256::from(block_header.number.unwrap().as_u64() + 1).into();
-            evm_env.block.number = U256::from(block_header.number.unwrap_or_default() + 0);
+            evm_env.block.number = U256::from(block_header.number.unwrap_or_default());
 
             let timestamp = block_header.timestamp;
 
@@ -615,10 +616,10 @@ mod tests {
 
             if pool.is_meta {
                 let underlying_tokens = pool.underlying_tokens.clone();
-                for j in 0..underlying_tokens.len() {
+                for underlying_token in underlying_tokens {
                     let in_amount = balances[0] / U256::from(1000);
                     let token_in = tokens[0];
-                    let token_out = underlying_tokens[j];
+                    let token_out = underlying_token;
                     let (out_amount, gas_used) = pool
                         .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount)
                         .unwrap_or_default();

@@ -35,6 +35,7 @@ lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn pending_tx_state_change_task<P, T, N>(
     client: P,
     tx_hash: TxHash,
@@ -143,14 +144,14 @@ where
 
             debug!("Mempool affected pools {:?} {} update len : {} strg : {}", tx_hash, source, affected_pools.len(), storage_len);
 
-            affecting_tx.write().await.insert(tx_hash, affected_pools.len() > 0);
+            affecting_tx.write().await.insert(tx_hash, !affected_pools.is_empty());
 
             //TODO : Fix Latest header is empty
             if let Some(latest_header) = latest_block.read().await.block_header.clone() {
                 let block_number = latest_header.number.unwrap().as_u64() + 1;
                 let block_timestamp = latest_header.timestamp.as_u64() + 12;
 
-                if affected_pools.len() > 0 {
+                if !affected_pools.is_empty() {
                     let cur_state_db = market_state.read().await.state_db.clone();
                     let request = StateUpdateEvent::new(
                         block_number,
@@ -165,11 +166,8 @@ where
                         "pending_tx_searcher".to_string(),
                         9000,
                     );
-                    match state_updates_broadcaster.send(request).await {
-                        Err(e) => {
-                            error!("state_updates_broadcaster : {}", e)
-                        }
-                        _ => {}
+                    if let Err(e) = state_updates_broadcaster.send(request).await {
+                        error!("state_updates_broadcaster : {}", e)
                     }
                 }
             } else {
@@ -183,11 +181,11 @@ where
                         match affecting_tx.write().await.entry(tx_hash) {
                             Entry::Occupied(mut v) => {
                                 if !v.get() {
-                                    v.insert(affected_pools.len() > 0);
+                                    v.insert(!affected_pools.is_empty());
                                 }
                             }
                             Entry::Vacant(v) => {
-                                v.insert(affected_pools.len() > 0);
+                                v.insert(!affected_pools.is_empty());
                             }
                         };
 
@@ -197,7 +195,7 @@ where
                             let block_number = latest_header.number.unwrap().as_u64() + 1;
                             let block_timestamp = latest_header.timestamp.as_u64() + 12;
 
-                            if affected_pools.len() > 0 {
+                            if !affected_pools.is_empty() {
                                 let cur_state = market_state.read().await.clone();
                                 let request = StateUpdateEvent::new(
                                     block_number,
@@ -212,11 +210,8 @@ where
                                     "poolcode_searcher".to_string(),
                                     3000,
                                 );
-                                match state_updates_broadcaster.send(request).await {
-                                    Err(e) => {
-                                        error!("state_updates_broadcaster : {}", e)
-                                    }
-                                    _ => {}
+                                if let Err(e) = state_updates_broadcaster.send(request).await {
+                                    error!("state_updates_broadcaster : {}", e)
                                 }
                             }
                         } else {
@@ -238,6 +233,7 @@ where
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 pub async fn pending_tx_state_change_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
@@ -265,30 +261,23 @@ where
             msg = market_events_rx.recv() => {
                 if let Ok(msg) = msg {
                     let market_event_msg : MarketEvents = msg;
-                    match market_event_msg {
-                        MarketEvents::BlockHeaderUpdate{ block_number, block_hash, timestamp, base_fee, next_base_fee } =>{
-                            debug!("Block header update {} {} base_fee {} ", block_number, block_hash, base_fee);
-                            cur_block_number = Some( block_number.as_u64() + 1);
-                            cur_block_time = Some(timestamp + 12 );
-                            cur_next_base_fee = next_base_fee;
-                            //cur_base_fee = base_fee;
+                    if let MarketEvents::BlockHeaderUpdate{ block_number, block_hash, timestamp, base_fee, next_base_fee } = market_event_msg {
+                        debug!("Block header update {} {} base_fee {} ", block_number, block_hash, base_fee);
+                        cur_block_number = Some( block_number.as_u64() + 1);
+                        cur_block_time = Some(timestamp + 12 );
+                        cur_next_base_fee = next_base_fee;
 
-                            for _counter in 0..5  {
-                                if let Ok(msg) = market_events_rx.recv().await {
-                                    if matches!(msg, MarketEvents::BlockStateUpdate{..} ) {
-                                        cur_state_override = latest_block.read().await.node_state_override();
-                                        debug!("Block state update received {} {}", block_number, block_hash);
-                                        break;
-                                    }
+                        for _counter in 0..5  {
+                            if let Ok(msg) = market_events_rx.recv().await {
+                                if matches!(msg, MarketEvents::BlockStateUpdate{..} ) {
+                                    cur_state_override = latest_block.read().await.node_state_override();
+                                    debug!("Block state update received {} {}", block_number, block_hash);
+                                    break;
                                 }
                             }
-
                         }
-                        _=>{}
                     }
-
                 }
-
             }
             msg = mempool_events_rx.recv() => {
                 if let Ok(msg) = msg {
@@ -354,8 +343,8 @@ where
             market_events_rx: None,
             mempool_events_rx: None,
             state_updates_tx: None,
-            _t: PhantomData::default(),
-            _n: PhantomData::default(),
+            _t: PhantomData,
+            _n: PhantomData,
         }
     }
 

@@ -1,9 +1,9 @@
 use std::time::Duration;
 
 use alloy_eips::eip1559::BaseFeeParams;
-use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder, TxSigner};
 use alloy_network::eip2718::Encodable2718;
-use alloy_primitives::{Address, B256, Bytes, hex, TxKind};
+use alloy_network::{Ethereum, EthereumWallet, TransactionBuilder, TxSigner};
+use alloy_primitives::{hex, Address, Bytes, TxKind, B256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_rpc_types_trace::geth::AccountState;
@@ -21,6 +21,7 @@ lazy_static! {
     static ref NO_OWNER_DEPLOY_PREFIX : Vec<u8> = hex::decode("612c2380600a3d393df3").unwrap();
 }
 
+#[derive(Default)]
 pub struct MulticallerDeployer {
     code: Bytes,
     address: Option<Address>,
@@ -28,10 +29,10 @@ pub struct MulticallerDeployer {
 
 impl MulticallerDeployer {
     pub fn with_address(self, address: Address) -> Self {
-        Self { address: Some(address), ..self }
+        Self { address: Some(address), ..Default::default() }
     }
     pub fn new() -> Self {
-        Self { code: Bytes::from(NO_OWNER_CODE.clone()), address: None }
+        Self { code: Bytes::from(NO_OWNER_CODE.clone()), ..Default::default() }
     }
 
     pub fn account_info(&self) -> AccountState {

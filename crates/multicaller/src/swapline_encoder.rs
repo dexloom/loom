@@ -109,8 +109,8 @@ impl SwapPathEncoder {
                             token_from_address,
                             &EncoderHelper::encode_erc20_transfer(flash_pool.get_address(), U256::ZERO),
                         )
-                            .set_call_stack(false, 1, 0x24, 0x20)
-                            .clone(),
+                        .set_call_stack(false, 1, 0x24, 0x20)
+                        .clone(),
                     };
 
                     inside_opcodes.add(transfer_opcode);
@@ -145,8 +145,8 @@ impl SwapPathEncoder {
                             U256::ZERO,
                             flash_pool.get_fee(),
                         ))
-                            .set_call_stack(false, 0, 0x24, 0x20)
-                            .clone(),
+                        .set_call_stack(false, 0, 0x24, 0x20)
+                        .clone(),
                     };
 
                     let mut swap_opcode = MulticallerCall::new_call(
@@ -193,13 +193,13 @@ impl SwapPathEncoder {
                                 inside_call_bytes,
                             )?,
                         )
-                            .set_call_stack(
-                                false,
-                                0,
-                                flash_pool.get_encoder().swap_in_amount_offset(token_from_address, token_to_address).unwrap(),
-                                0x20,
-                            )
-                            .clone(),
+                        .set_call_stack(
+                            false,
+                            0,
+                            flash_pool.get_encoder().swap_in_amount_offset(token_from_address, token_to_address).unwrap(),
+                            0x20,
+                        )
+                        .clone(),
                     };
 
                     flash_swap_opcodes.add(swap_opcode);
@@ -403,13 +403,13 @@ impl SwapPathEncoder {
                                     inside_call_bytes,
                                 )?,
                             )
-                                .set_call_stack(
-                                    true,
-                                    0,
-                                    flash_pool.get_encoder().swap_out_amount_offset(token_from_address, token_to_address).unwrap(),
-                                    0x20,
-                                )
-                                .clone()
+                            .set_call_stack(
+                                true,
+                                0,
+                                flash_pool.get_encoder().swap_out_amount_offset(token_from_address, token_to_address).unwrap(),
+                                0x20,
+                            )
+                            .clone()
                         }
                     };
 

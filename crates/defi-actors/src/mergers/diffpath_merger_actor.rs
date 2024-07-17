@@ -10,7 +10,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{MarketState, NWETH, Swap};
+use defi_entities::{MarketState, Swap, NWETH};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -144,7 +144,7 @@ async fn diff_path_merger_worker(
     }
 }
 
-#[derive(Consumer, Producer, Accessor)]
+#[derive(Consumer, Producer, Accessor, Default)]
 pub struct DiffPathMergerActor {
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
@@ -156,12 +156,7 @@ pub struct DiffPathMergerActor {
 
 impl DiffPathMergerActor {
     pub fn new() -> Self {
-        Self {
-            //encoder: SwapStepEncoder::new(multicaller),
-            market_events: None,
-            compose_channel_rx: None,
-            compose_channel_tx: None,
-        }
+        Self::default()
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -169,7 +164,6 @@ impl DiffPathMergerActor {
             market_events: Some(bc.market_events_channel()),
             compose_channel_tx: Some(bc.compose_channel()),
             compose_channel_rx: Some(bc.compose_channel()),
-            ..self
         }
     }
 }

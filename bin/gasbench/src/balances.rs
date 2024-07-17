@@ -40,12 +40,9 @@ where
 
     let balance_cell = calc_hashmap_cell(U256::from(3), U256::from_be_slice(target_address.as_slice()));
 
-    match client.set_storage(token_address, balance_cell.into(), weth_balance.into()).await {
-        Err(e) => {
-            error!("{e}");
-            return Err(eyre!(e));
-        }
-        _ => {}
+    if let Err(e) = client.set_storage(token_address, balance_cell.into(), weth_balance.into()).await {
+        error!("{e}");
+        return Err(eyre!(e));
     }
 
     let new_storage = client.get_storage_at(token_address, balance_cell).await?;

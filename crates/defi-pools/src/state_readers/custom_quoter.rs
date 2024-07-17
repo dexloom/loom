@@ -63,6 +63,7 @@ impl UniswapCustomQuoterEncoder {
 
 pub struct UniswapCustomQuoterStateReader {}
 
+#[allow(clippy::too_many_arguments)]
 impl UniswapCustomQuoterStateReader {
     pub fn quote_exact_input<DB: DatabaseRef<Error = Infallible>>(
         db: DB,

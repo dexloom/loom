@@ -25,6 +25,7 @@ pub struct StateUpdateEvent {
     pub tips_pct: u32,
 }
 
+#[allow(clippy::too_many_arguments)]
 impl StateUpdateEvent {
     pub fn new(
         block: u64,

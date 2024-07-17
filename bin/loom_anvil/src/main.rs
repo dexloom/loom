@@ -180,7 +180,7 @@ async fn main() -> Result<()> {
             token.set_eth_price(Some(price_u256));
         };
 
-        let _ = market_instance.write().await.add_token(token)?;
+        market_instance.write().await.add_token(token)?;
     }
 
     for (_pool_name, pool_config) in test_config.pools {

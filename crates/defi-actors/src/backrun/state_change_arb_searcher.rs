@@ -58,7 +58,7 @@ async fn state_change_arb_searcher_task(
     }
     drop(market_guard_read);
 
-    if swap_path_vec.len() == 0 {
+    if !swap_path_vec.is_empty() {
         warn!(
             "No swap path built for request: {:?} {}",
             msg.stuffing_txs_hashes().first().unwrap_or_default(),
@@ -101,11 +101,8 @@ async fn state_change_arb_searcher_task(
                                     && msg.gas_fee != 0
                                     && mut_item.abs_profit_eth() > GasStation::calc_gas_cost(200000u128, msg.gas_fee)
                                 {
-                                    match swap_path_tx.try_send(mut_item.clone()) {
-                                        Err(e) => {
-                                            error!("try_send 1 error : {e}")
-                                        }
-                                        _ => {}
+                                    if let Err(e) = swap_path_tx.try_send(mut_item.clone()) {
+                                        error!("try_send swap_path_tx  error : {e}")
                                     }
                                 }
                             }
@@ -116,11 +113,8 @@ async fn state_change_arb_searcher_task(
                             }
 
                             let pool_health_tx = req.3;
-                            match pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {
-                                Err(ee) => {
-                                    error!("try_send to pool_health_monitor error : {:?}", ee)
-                                }
-                                _ => {}
+                            if let Err(e) = pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {
+                                error!("try_send to pool_health_monitor error : {:?}", e)
                             }
                         }
                     }
@@ -158,11 +152,8 @@ async fn state_change_arb_searcher_task(
         });
 
         if !smart || best_answers.check(&encode_request) {
-            match swap_request_tx_clone.send(encode_request).await {
-                Err(e) => {
-                    error!("{}", e)
-                }
-                _ => {}
+            if let Err(e) = swap_request_tx_clone.send(encode_request).await {
+                error!("{}", e)
             }
         }
 

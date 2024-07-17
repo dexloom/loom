@@ -3,7 +3,7 @@ use std::marker::PhantomData;
 
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
-use alloy_primitives::{Address, U256};
+use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use async_trait::async_trait;
@@ -37,12 +37,10 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
                 if actual_value.is_zero() {
                     continue;
                 }
-                let actual_value: U256 = actual_value.into();
                 if *current_value != actual_value {
                     warn!("verify : account storage is different : {address:?} {cell:?} {current_value:#32x} -> {actual_value:#32x} storage size : {}", account.storage.len());
-                    match market_state.write().await.state_db.insert_account_storage(address, *cell, actual_value) {
-                        Err(e) => error!("{e}"),
-                        _ => {}
+                    if let Err(e) = market_state.write().await.state_db.insert_account_storage(address, *cell, actual_value) {
+                        error!("{e}");
                     }
                 }
             }
@@ -70,22 +68,18 @@ pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Et
                 let market_event_msg : Result<MarketEvents, RecvError> = msg;
                 match market_event_msg {
                     Ok(market_event)=>{
-                        match market_event {
-                            MarketEvents::BlockStateUpdate{..}=>{
-                                for pool_address in pool_address_to_verify_vec {
-                                    tokio::task::spawn(
-                                        verify_pool_state_task(
-                                            client.clone(),
-                                            pool_address,
-                                            market_state.clone()
-                                        )
-                                    );
-                                }
-                                pool_address_to_verify_vec = Vec::new();
+                        if matches!(market_event, MarketEvents::BlockStateUpdate{..}) {
+                            for pool_address in pool_address_to_verify_vec {
+                                tokio::task::spawn(
+                                    verify_pool_state_task(
+                                        client.clone(),
+                                        pool_address,
+                                        market_state.clone()
+                                    )
+                                );
                             }
-                            _=>{}
+                            pool_address_to_verify_vec = Vec::new();
                         }
-
                     }
                     Err(e)=>{error!("market_event_rx error : {e}")}
                 }
@@ -95,21 +89,16 @@ pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Et
                 let tx_compose_update : Result<MessageTxCompose, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
-                        match tx_compose_msg.inner {
-                            TxCompose::Broadcast(broadcast_data)=>{
-                                let pool_address_vec =  broadcast_data.swap.get_pool_address_vec();
-                                let now = chrono::Local::now();
-                                for pool_address in pool_address_vec {
-                                    if now - check_time_map.get(&pool_address).cloned().unwrap_or(DateTime::<Local>::MIN_UTC.into()) > Duration::seconds(60) {
-                                        check_time_map.insert(pool_address, Local::now());
-                                        if !pool_address_to_verify_vec.contains(&pool_address){
-                                            pool_address_to_verify_vec.push(pool_address)
-                                        }
+                        if let TxCompose::Broadcast(broadcast_data)= tx_compose_msg.inner {
+                            let pool_address_vec =  broadcast_data.swap.get_pool_address_vec();
+                            let now = chrono::Local::now();
+                            for pool_address in pool_address_vec {
+                                if now - check_time_map.get(&pool_address).cloned().unwrap_or(DateTime::<Local>::MIN_UTC.into()) > Duration::seconds(60) {
+                                    check_time_map.insert(pool_address, Local::now());
+                                    if !pool_address_to_verify_vec.contains(&pool_address){
+                                        pool_address_to_verify_vec.push(pool_address)
                                     }
                                 }
-                            }
-                            _=>{
-
                             }
                         }
 

@@ -24,16 +24,15 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
 
     loop {
         tokio::select! {
-            Some( block ) = stream.next() => {
-                match block.header.hash {
-                    Some(block_hash)=>{
+            block = stream.next() => {
+                if let Some(block) = block {
+                    if let Some(block_hash) = block.header.hash {
                         info!("Block hash received: {:?}" , block_hash );
-                        if block_processed.get(&block_hash).is_none() {
-                            block_processed.insert(block_hash, Utc::now());
+                        if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block_hash) {
+                            e.insert(Utc::now());
                             run_async!(sender.send(block_hash))
                         }
                     }
-                    _=>{}
                 }
 
             }
@@ -64,17 +63,14 @@ where
                     let block : Block = block_header;
                     let block_hash = block.header.hash.unwrap_or_default();
                     info!("Block hash received: {:?}" , block_hash);
-                    if block_processed.get(&block_hash).is_none() {
-                        block_processed.insert(block_hash, Utc::now());
-                        match block_hash_channel.send(block_hash).await {
-                            Err(e) => {error!("Block hash broadcaster error  {}", e)}
-                            _=>{}
+                    if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block_hash) {
+                        e.insert(Utc::now());
+                        if let Err(e) =  block_hash_channel.send(block_hash).await {
+                            error!("Block hash broadcaster error  {}", e);
                         }
-                        match block_header_channel.send(block.header).await {
-                            Err(e) => {error!("Block header broadcaster error {}", e)}
-                            _=>{}
+                        if let Err(e) = block_header_channel.send(block.header).await {
+                            error!("Block header broadcaster error {}", e);
                         }
-
                     }
                 }
             }

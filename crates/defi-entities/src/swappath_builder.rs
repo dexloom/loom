@@ -21,7 +21,7 @@ impl SwapPathSet {
         }
     }
 
-    pub fn to_arc_vec(self) -> Vec<Arc<SwapPath>> {
+    pub fn arc_vec(self) -> Vec<Arc<SwapPath>> {
         self.set.into_iter().map(Arc::new).collect()
     }
 }
@@ -445,5 +445,5 @@ pub fn build_swap_path_vec(market: &Market, directions: &BTreeMap<PoolWrapper, V
         }
     }
 
-    Ok(ret_map.to_arc_vec())
+    Ok(ret_map.arc_vec())
 }

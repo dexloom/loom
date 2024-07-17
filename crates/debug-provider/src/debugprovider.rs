@@ -8,8 +8,8 @@ use alloy::{
     providers::{ext::DebugApi, Network, Provider, ProviderBuilder, RootProvider},
     rpc::{
         client::{RpcCall, WsConnect},
-        types::{BlockNumberOrTag, TransactionRequest},
         types::trace::geth::{GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, TraceResult},
+        types::{BlockNumberOrTag, TransactionRequest},
     },
     transports::{BoxTransport, Transport, TransportResult},
 };
@@ -40,7 +40,7 @@ where
 pub struct AnvilDebugProviderFactory {}
 
 pub type AnvilDebugProviderType =
-AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>;
+    AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>;
 
 impl AnvilDebugProviderFactory {
     pub async fn from_node_on_block(node_url: String, block: BlockNumber) -> Result<AnvilDebugProviderType> {

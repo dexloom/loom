@@ -7,9 +7,16 @@ use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::{debug, error};
+use log::debug;
+#[cfg(any(test, debug_assertions))]
+use log::error;
 use revm::primitives::Env;
 
+#[cfg(any(test, debug_assertions))]
+use crate::protocols::UniswapV3Protocol;
+#[cfg(any(test, debug_assertions))]
+use crate::state_readers::UniswapCustomQuoterStateReader;
+use crate::state_readers::{UniswapV3QuoterEncoder, UniswapV3StateReader};
 use defi_abi::uniswap3::IUniswapV3Pool;
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use defi_abi::uniswap_periphery::ITickLens;
@@ -18,11 +25,6 @@ use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use loom_revm_db::LoomInMemoryDB;
 
-#[cfg(any(test, debug_assertions))]
-use crate::protocols::UniswapV3Protocol;
-#[cfg(any(test, debug_assertions))]
-use crate::state_readers::UniswapCustomQuoterStateReader;
-use crate::state_readers::{UniswapV3QuoterEncoder, UniswapV3StateReader};
 use crate::virtual_impl::UniswapV3PoolVirtual;
 
 lazy_static! {
@@ -272,7 +274,7 @@ impl Pool for UniswapV3Pool {
         state_db: &LoomInMemoryDB,
         env: Env,
         token_address_from: &Address,
-        token_address_to: &Address,
+        _token_address_to: &Address,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
@@ -290,7 +292,7 @@ impl Pool for UniswapV3Pool {
                 UniswapV3Protocol::get_custom_quoter_address(),
                 self.get_address(),
                 *token_address_from,
-                *token_address_to,
+                *_token_address_to,
                 self.fee,
                 out_amount + U256::from(0),
             )?;

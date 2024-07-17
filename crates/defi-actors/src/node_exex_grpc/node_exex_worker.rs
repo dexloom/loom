@@ -60,7 +60,7 @@ async fn process_chain_task(
 
         let receipts = receipts.iter().filter_map(|r| r.clone()).collect();
 
-        append_all_matching_block_logs_sealed(&mut logs, block_hash_num.clone(), receipts, false, &sealed_block)?;
+        append_all_matching_block_logs_sealed(&mut logs, block_hash_num, receipts, false, sealed_block)?;
 
         let log_update = BlockLogs { block_hash: sealed_block.hash(), logs };
 

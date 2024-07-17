@@ -47,12 +47,13 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a HashMap<TxHash, V
 
     let mut ret: Vec<&TxComposeData> = swap_paths
         .iter()
-        .filter(|(k, _)| **k != swap_stuffing_hash)
-        .map(|(_k, v)| {
-            v.iter().find(|a| if let Swap::BackrunSwapLine(a_line) = &a.swap { a_line.path == swap_line.path } else { false }).clone()
+        .filter_map(|(k, v)| {
+            if *k != swap_stuffing_hash {
+                v.iter().find(|a| if let Swap::BackrunSwapLine(a_line) = &a.swap { a_line.path == swap_line.path } else { false })
+            } else {
+                None
+            }
         })
-        .filter(|x| x.is_some())
-        .map(|x| x.unwrap())
         .collect();
 
     ret.sort_by(|a, b| b.swap.abs_profit_eth().cmp(&a.swap.abs_profit_eth()));
@@ -105,16 +106,14 @@ where
     let mut stuffing_states: Vec<(Transaction, GethStateUpdate)> = Vec::new();
 
     for (tx, lock) in stuffing_state_locks.into_iter() {
-        match lock {
-            FetchState::Fetching(lock) => match lock.read().await.deref() {
-                Some(t) => stuffing_states.push((tx, t.clone())),
-                _ => {}
-            },
-            _ => {}
+        if let FetchState::Fetching(lock) = lock {
+            if let Some(t) = lock.read().await.deref() {
+                stuffing_states.push((tx, t.clone()));
+            }
         }
     }
 
-    let mut tx_order: Vec<usize> = (0..stuffing_states.len()).into_iter().collect();
+    let mut tx_order: Vec<usize> = vec![0; stuffing_states.len()];
 
     let mut changing: Option<usize> = None;
     let mut counter = 0;
@@ -149,7 +148,7 @@ where
                 }
                 Err(e) => {
                     error!("Transaction {:?} commit error: {}", tx.hash, e);
-                    match changing.clone() {
+                    match changing {
                         Some(changing_idx) => {
                             if (changing_idx == idx && idx == 0) || (changing_idx == idx - 1) {
                                 tx_order.remove(changing_idx);
@@ -214,11 +213,8 @@ where
                         ..request
                     });
 
-                    match swap_request_tx.send(encode_request).await {
-                        Err(e) => {
-                            error!("{}", e)
-                        }
-                        _ => {}
+                    if let Err(e) = swap_request_tx.send(encode_request).await {
+                        error!("{}", e)
                     }
                     info!("+++ Calculation finished {swap_line}");
                 }
@@ -272,29 +268,26 @@ async fn same_path_merger_worker<
             msg = market_events_rx.recv() => {
                 if let Ok(msg) = msg {
                     let market_event_msg : MarketEvents = msg;
-                    match market_event_msg {
-                        MarketEvents::BlockHeaderUpdate{block_number, block_hash,  base_fee, next_base_fee, timestamp} =>{
-                            debug!("Block header update {} {} base_fee {} ", block_number, block_hash, base_fee);
-                            cur_block_number = Some( block_number + 1);
-                            cur_block_time = Some(timestamp + 12 );
-                            cur_next_base_fee = next_base_fee;
-                            //cur_base_fee = base_fee;
-                            *prestate.write().await = DataFetcher::<TxHash, GethStateUpdate>::new();
-                            swap_paths = HashMap::new();
+                    if let MarketEvents::BlockHeaderUpdate{block_number, block_hash,  base_fee, next_base_fee, timestamp} =  market_event_msg {
+                        debug!("Block header update {} {} base_fee {} ", block_number, block_hash, base_fee);
+                        cur_block_number = Some( block_number + 1);
+                        cur_block_time = Some(timestamp + 12 );
+                        cur_next_base_fee = next_base_fee;
+                        //cur_base_fee = base_fee;
+                        *prestate.write().await = DataFetcher::<TxHash, GethStateUpdate>::new();
+                        swap_paths = HashMap::new();
 
-                            let new_block_hash = block_hash;
+                        let new_block_hash = block_hash;
 
-                            for _counter in 0..5  {
-                                if let Ok(MarketEvents::BlockStateUpdate{block_hash}) = market_events_rx.recv().await {
-                                    if new_block_hash == block_hash {
-                                        cur_state_override = latest_block.read().await.node_state_override();
-                                        debug!("Block state update received {} {}", block_number, block_hash);
-                                        break;
-                                    }
+                        for _counter in 0..5  {
+                            if let Ok(MarketEvents::BlockStateUpdate{block_hash}) = market_events_rx.recv().await {
+                                if new_block_hash == block_hash {
+                                    cur_state_override = latest_block.read().await.node_state_override();
+                                    debug!("Block state update received {} {}", block_number, block_hash);
+                                    break;
                                 }
                             }
                         }
-                        _=>{}
                     }
                 }
             }
@@ -310,8 +303,8 @@ async fn same_path_merger_worker<
                                 if let Swap::BackrunSwapLine( _swap_line ) = &sign_request.swap {
                                     let stuffing_tx_hash = sign_request.first_stuffing_hash();
 
-                                    let requests_vec = get_merge_list(&sign_request, &swap_paths);
-                                    if requests_vec.len() > 0 {
+                                    let requests_vec = get_merge_list(sign_request, &swap_paths);
+                                    if !requests_vec.is_empty() {
 
                                         let mut stuffing_txs : Vec<Transaction> = vec![sign_request.stuffing_txs[0].clone()];
                                         stuffing_txs.extend( requests_vec.iter().map(|r| r.stuffing_txs[0].clone() ).collect::<Vec<Transaction>>());
@@ -343,7 +336,7 @@ async fn same_path_merger_worker<
                                         );
                                     }
 
-                                    let e = swap_paths.entry(stuffing_tx_hash).or_insert(Default::default());
+                                    let e = swap_paths.entry(stuffing_tx_hash).or_default();
                                     e.push( sign_request.clone() );
 
                                 }
@@ -391,8 +384,8 @@ where
             market_events: None,
             compose_channel_rx: None,
             compose_channel_tx: None,
-            _t: PhantomData::default(),
-            _n: PhantomData::default(),
+            _t: PhantomData,
+            _n: PhantomData,
         }
     }
 

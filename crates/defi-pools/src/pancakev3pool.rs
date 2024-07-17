@@ -5,18 +5,18 @@ use alloy_primitives::{Address, Bytes, I256, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
-use eyre::{ErrReport, eyre, OptionExt, Result};
+use eyre::{eyre, ErrReport, OptionExt, Result};
 use lazy_static::lazy_static;
 use revm::primitives::Env;
 
-use defi_abi::IERC20;
-use defi_abi::pancake::{IPancakeQuoterV2, IPancakeV3Pool};
 use defi_abi::pancake::IPancakeQuoterV2::IPancakeQuoterV2Calls;
 use defi_abi::pancake::IPancakeV3Pool::slot0Return;
+use defi_abi::pancake::{IPancakeQuoterV2, IPancakeV3Pool};
 use defi_abi::uniswap3::IUniswapV3Pool;
 use defi_abi::uniswap_periphery::ITickLens;
-use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use defi_abi::IERC20;
 use defi_entities::required_state::RequiredState;
+use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
@@ -226,7 +226,7 @@ impl Pool for PancakeV3Pool {
                 sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(token_address_from, token_address_to),
             },
         })
-            .abi_encode();
+        .abi_encode();
 
         let (value, gas_used) = evm_call(state_db, env, *QUOTER_ADDRESS, call_data)?;
 
@@ -259,7 +259,7 @@ impl Pool for PancakeV3Pool {
                 sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(token_address_from, token_address_to),
             },
         })
-            .abi_encode();
+        .abi_encode();
 
         let (value, gas_used) = evm_call(state_db, env, *QUOTER_ADDRESS, call_data)?;
 
@@ -301,7 +301,7 @@ impl Pool for PancakeV3Pool {
                 sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(&self.token0, &self.token1),
             },
         })
-            .abi_encode();
+        .abi_encode();
 
         let quoter_swap_1_0_call = IPancakeQuoterV2Calls::quoteExactInputSingle(IPancakeQuoterV2::quoteExactInputSingleCall {
             params: IPancakeQuoterV2::QuoteExactInputSingleParams {
@@ -312,7 +312,7 @@ impl Pool for PancakeV3Pool {
                 sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(&self.token1, &self.token0),
             },
         })
-            .abi_encode();
+        .abi_encode();
 
         let pool_address = self.get_address();
 
@@ -326,7 +326,7 @@ impl Pool for PancakeV3Pool {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 4,
                 })
-                    .abi_encode(),
+                .abi_encode(),
             )
             .add_call(
                 *TICK_LENS_ADDRESS,
@@ -334,7 +334,7 @@ impl Pool for PancakeV3Pool {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 3,
                 })
-                    .abi_encode(),
+                .abi_encode(),
             )
             .add_call(
                 *TICK_LENS_ADDRESS,
@@ -342,7 +342,7 @@ impl Pool for PancakeV3Pool {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 2,
                 })
-                    .abi_encode(),
+                .abi_encode(),
             )
             .add_call(
                 *TICK_LENS_ADDRESS,
@@ -350,7 +350,7 @@ impl Pool for PancakeV3Pool {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 1,
                 })
-                    .abi_encode(),
+                .abi_encode(),
             )
             .add_call(
                 *TICK_LENS_ADDRESS,
@@ -358,7 +358,7 @@ impl Pool for PancakeV3Pool {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index,
                 })
-                    .abi_encode(),
+                .abi_encode(),
             )
             .add_call(
                 *TICK_LENS_ADDRESS,
@@ -366,7 +366,7 @@ impl Pool for PancakeV3Pool {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 1,
                 })
-                    .abi_encode(),
+                .abi_encode(),
             )
             .add_call(
                 *TICK_LENS_ADDRESS,
@@ -374,7 +374,7 @@ impl Pool for PancakeV3Pool {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 2,
                 })
-                    .abi_encode(),
+                .abi_encode(),
             )
             .add_call(
                 *TICK_LENS_ADDRESS,
@@ -382,7 +382,7 @@ impl Pool for PancakeV3Pool {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 3,
                 })
-                    .abi_encode(),
+                .abi_encode(),
             )
             .add_call(
                 *TICK_LENS_ADDRESS,
@@ -390,7 +390,7 @@ impl Pool for PancakeV3Pool {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 4,
                 })
-                    .abi_encode(),
+                .abi_encode(),
             )
             .add_call(*QUOTER_ADDRESS, quoter_swap_0_1_call)
             .add_call(*QUOTER_ADDRESS, quoter_swap_1_0_call)
@@ -490,8 +490,8 @@ mod tests {
     use log::debug;
 
     use debug_provider::AnvilDebugProviderFactory;
-    use defi_entities::MarketState;
     use defi_entities::required_state::RequiredStateReader;
+    use defi_entities::MarketState;
 
     use super::*;
 

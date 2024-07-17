@@ -58,19 +58,17 @@ where
                         if let Some(block_hash) = block.header.hash  {
                             info!("Block hash received: {:?}" , block_hash);
 
-                            //tokio::time::sleep(Duration::from_millis(1000)).await;
                             let db_provider = factory.provider()?;
                             let state_provider = factory.latest()?;
 
                             let mut block_with_senders : Option<BlockWithSenders> = None;
 
-                            if block_processed.get(&block_hash).is_none() {
-                                block_processed.insert(block_hash, Utc::now());
+                            if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block_hash) {
+                                e.insert(Utc::now());
 
                                 if let Some(block_headers_channel) = &new_block_headers_channel {
-                                    match block_headers_channel.send(block.header.clone()).await {
-                                        Err(e) => {error!("Block header broadcaster error {}", e)}
-                                        _=>{}
+                                    if let Err(e) = block_headers_channel.send(block.header.clone()).await {
+                                        error!("Block header broadcaster error {}", e);
                                     }
                                 };
                                 if let Some(block_with_tx_channel) = &new_block_with_tx_channel {
@@ -78,7 +76,7 @@ where
                                     match db_provider.block_with_senders(BlockHashOrNumber::Hash(block_hash), TransactionVariant::WithHash) {
 
                                         Ok(block_with_senders_reth )=>{
-                                            block_with_senders = block_with_senders_reth.clone();
+                                            block_with_senders.clone_from(&block_with_senders_reth);
 
                                             if let Some(block_with_senders_reth) = block_with_senders_reth {
                                                 debug!("block_with_senders_reth : txs {}", block_with_senders_reth.body.len());
@@ -111,30 +109,27 @@ where
                                                 if let Some(block_body_indexes) = db_provider.block_body_indices(block_number)? {
 
                                                     let mut logs : Vec<Log> = Vec::new();
-                                                    match block_with_senders {
-                                                        Some(block_with_senders) =>{
-                                                            match append_all_matching_block_logs(&mut logs,  BlockNumHash::new(block_number, block_hash), block_receipts_reth, false, block_body_indexes, block_with_senders) {
-                                                                Ok(_)=>{
-                                                                    trace!("logs {block_number} {block_hash} : {logs:?}");
+                                                    if let Some(block_with_senders) = block_with_senders {
+                                                        match append_all_matching_block_logs(&mut logs,  BlockNumHash::new(block_number, block_hash), block_receipts_reth, false, block_body_indexes, block_with_senders) {
+                                                            Ok(_)=>{
+                                                                trace!("logs {block_number} {block_hash} : {logs:?}");
 
-                                                                    let logs_update = BlockLogs {
-                                                                        block_hash,
-                                                                        logs
-                                                                    };
+                                                                let logs_update = BlockLogs {
+                                                                    block_hash,
+                                                                    logs
+                                                                };
 
-                                                                    match block_logs_channel.send(logs_update).await {
-                                                                         Err(e) => {error!("Block header broadcaster error {}", e)}
-                                                                         _=>{
-                                                                            trace!("Logs update sent")
-                                                                         }
-                                                                    }
-                                                                }
-                                                                Err(e)=>{
-                                                                    error!("append_all_matching_block_logs error : {}", e);
+                                                                match block_logs_channel.send(logs_update).await {
+                                                                     Err(e) => {error!("Block header broadcaster error {}", e)}
+                                                                     _=>{
+                                                                        trace!("Logs update sent")
+                                                                     }
                                                                 }
                                                             }
+                                                            Err(e)=>{
+                                                                error!("append_all_matching_block_logs error : {}", e);
+                                                            }
                                                         }
-                                                        _=>{}
                                                     }
                                                 }
                                             }
@@ -155,13 +150,8 @@ where
                                     let storage_update : BTreeMap<Address, BTreeMap<B256, B256> >= changed_storage.into_iter().map(|(acc, cells)| {
                                         let cells : BTreeMap<B256, B256> = cells.into_iter().filter_map(|cell|
                                             match state_provider.storage(acc, cell){
-                                                Ok(x)=>{
-                                                    match x {
-                                                        Some(x)=>{
-                                                            Some( (cell, B256::from(x)  ))
-                                                        }
-                                                        _=>None
-                                                    }
+                                                Ok(Some(x))=>{
+                                                    Some( (cell, B256::from(x)  ))
                                                 }
                                                 _=>None
                                             }
@@ -213,7 +203,7 @@ where
                                         }
                                     }
                                 };
-                            }else{
+                            } else {
                                 error!("No block hash")
                             }
 
@@ -229,7 +219,7 @@ where
 
 pub async fn reth_node_worker_starter<P, T, N>(
     client: P,
-    db_path: &String,
+    db_path: String,
     new_block_headers_channel: Option<Broadcaster<Header>>,
     new_block_with_tx_channel: Option<Broadcaster<Block>>,
     new_block_logs_channel: Option<Broadcaster<BlockLogs>>,

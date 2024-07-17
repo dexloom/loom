@@ -11,9 +11,9 @@ use log::{debug, error, info};
 use revm::primitives::Env;
 
 use defi_entities::{Market, MarketState, Pool, PoolProtocol, PoolWrapper};
-use defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use defi_pools::protocols::{UniswapV2Protocol, UniswapV3Protocol};
 use defi_pools::state_readers::{UniswapV2StateReader, UniswapV3StateReader};
+use defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use defi_types::GethStateUpdateVec;
 use loom_actors::SharedState;
 
@@ -52,11 +52,9 @@ where
                                                 .await
                                             {
                                                 //info!("---- {} {} {:?}", address, i, data);
-                                                if let Err(e) = market_state.state_db.insert_account_storage(
-                                                    *address,
-                                                    U256::try_from(i).unwrap(),
-                                                    data,
-                                                ) {
+                                                if let Err(e) =
+                                                    market_state.state_db.insert_account_storage(*address, U256::try_from(i).unwrap(), data)
+                                                {
                                                     error!("{}", e)
                                                 }
                                             }
@@ -97,8 +95,7 @@ where
                                 Ok(factory_address) => {
                                     match get_protocol_by_factory(factory_address) {
                                         PoolProtocol::PancakeV3 => {
-                                            let pool =
-                                                PancakeV3Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
+                                            let pool = PancakeV3Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
                                             match pool {
                                                 Ok(pool) => {
                                                     info!("PancakeV3 Pool loaded {address:?} {}", pool.get_protocol());
