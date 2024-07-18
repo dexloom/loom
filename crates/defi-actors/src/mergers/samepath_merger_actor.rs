@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Network;
-use alloy_primitives::{Address, TxHash, U256, U64};
+use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::state::StateOverride;
 use alloy_rpc_types::{BlockOverrides, Transaction};
@@ -314,7 +314,7 @@ async fn same_path_merger_worker<
                                         let call_opts : GethDebugTracingCallOptions = GethDebugTracingCallOptions{
                                             block_overrides : Some(BlockOverrides {
                                                 number : Some( U256::from(cur_block_number.unwrap_or_default())),
-                                                time : Some(U64::from(cur_block_time.unwrap_or_default())),
+                                                time : Some(cur_block_time.unwrap_or_default()),
                                                 coinbase : Some(*COINBASE),
                                                 base_fee : Some(U256::from(cur_next_base_fee)),
                                                 ..Default::default()

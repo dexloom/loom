@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy_primitives::{Address, BlockHash, BlockNumber, B256, U64};
+use alloy_primitives::{Address, BlockHash, BlockNumber, B256};
 use alloy_rpc_types::state::{AccountOverride, StateOverride};
 use alloy_rpc_types::{Block, BlockTransactions, Header, Log, Transaction};
 
@@ -39,7 +39,7 @@ impl LatestBlock {
                 for (addr, state) in diff_entry {
                     let account = cur_state_override.entry(*addr).or_insert(AccountOverride::default());
                     account.balance = state.balance;
-                    account.nonce = state.nonce.map(|n| U64::from(n));
+                    account.nonce = state.nonce;
 
                     let diff: HashMap<B256, B256> = state.storage.iter().map(|(k, v)| (*k, *v)).collect();
                     account.state_diff = Some(diff);

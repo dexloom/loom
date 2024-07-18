@@ -5,7 +5,7 @@ use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::{Network, TransactionBuilder};
-use alloy_primitives::{Address, BlockNumber, TxHash, U256, U64};
+use alloy_primitives::{Address, BlockNumber, TxHash, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::state::StateOverride;
 use alloy_rpc_types::{BlockOverrides, TransactionRequest};
@@ -109,7 +109,7 @@ where
     let call_opts: GethDebugTracingCallOptions = GethDebugTracingCallOptions {
         block_overrides: Some(BlockOverrides {
             number: Some(U256::from(cur_block_number)),
-            time: Some(U64::from(cur_block_time)),
+            time: Some(cur_block_time),
             coinbase: Some(*COINBASE),
             base_fee: Some(U256::from(cur_next_base_fee)),
             ..Default::default()

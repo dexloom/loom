@@ -145,8 +145,9 @@ Makefile is shipped with following important commands:
 ## Testing
 
 Testing Loom requires two environment variables pointing at archive node:
-MAINNET_WS - websocket url of archive node
-MAINNET_HTTP - http url of archive node
+
+- MAINNET_WS - websocket url of archive node
+- MAINNET_HTTP - http url of archive node
 
 To run tests:
 
