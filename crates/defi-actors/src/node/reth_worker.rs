@@ -217,7 +217,7 @@ where
     }
 }
 
-pub async fn reth_node_worker_starter<P, T, N>(
+pub fn reth_node_worker_starter<P, T, N>(
     client: P,
     db_path: String,
     new_block_headers_channel: Option<Broadcaster<Header>>,

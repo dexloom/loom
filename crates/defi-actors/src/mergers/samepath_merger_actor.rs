@@ -26,7 +26,7 @@ use defi_blockchain::Blockchain;
 use defi_entities::{DataFetcher, FetchState, LatestBlock, MarketState, Swap};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, TRACING_CALL_OPTS};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_transact;
@@ -242,16 +242,15 @@ async fn same_path_merger_worker<
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 >(
     client: P,
-    //encoder: SwapStepEncoder,
-    //signers: SharedState<TxSigners>,
-    //account_monitor: SharedState<AccountNonceAndBalanceState>,
     latest_block: SharedState<LatestBlock>,
-    //mempool: SharedState<Mempool>,
     market_state: SharedState<MarketState>,
-    mut market_events_rx: Receiver<MarketEvents>,
-    mut compose_channel_rx: Receiver<MessageTxCompose>,
+    market_events_rx: Broadcaster<MarketEvents>,
+    compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
+    subscribe!(market_events_rx);
+    subscribe!(compose_channel_rx);
+
     let mut swap_paths: HashMap<TxHash, Vec<TxComposeData>> = HashMap::new();
 
     let prestate = Arc::new(RwLock::new(DataFetcher::<TxHash, GethStateUpdate>::new()));
@@ -408,13 +407,13 @@ where
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(same_path_merger_worker(
             self.client.clone(),
             self.latest_block.clone().unwrap(),
             self.market_state.clone().unwrap(),
-            self.market_events.clone().unwrap().subscribe().await,
-            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.market_events.clone().unwrap(),
+            self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])

@@ -10,15 +10,16 @@ use tokio::sync::broadcast::Receiver;
 use defi_blockchain::Blockchain;
 use defi_entities::Market;
 use defi_events::{HealthEvent, MessageHealthEvent};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
+use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
 pub async fn pool_health_monitor_worker(
     market: SharedState<Market>,
-    mut pool_health_monitor_rx: Receiver<MessageHealthEvent>,
+    pool_health_monitor_rx: Broadcaster<MessageHealthEvent>,
 ) -> WorkerResult {
+    subscribe!(pool_health_monitor_rx);
+
     let mut pool_errors_map: HashMap<Address, u32> = HashMap::new();
-    //let mut watch_txs : HashMap<H256, u64>;
 
     loop {
         tokio::select! {
@@ -79,11 +80,9 @@ impl PoolHealthMonitorActor {
 
 #[async_trait]
 impl Actor for PoolHealthMonitorActor {
-    async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(pool_health_monitor_worker(
-            self.market.clone().unwrap(),
-            self.pool_health_update_rx.clone().unwrap().subscribe().await,
-        ));
+    fn start(&self) -> ActorResult {
+        let task =
+            tokio::task::spawn(pool_health_monitor_worker(self.market.clone().unwrap(), self.pool_health_update_rx.clone().unwrap()));
         Ok(vec![task])
     }
 

@@ -22,12 +22,17 @@ pub async fn new_block_history_worker(
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState>,
     block_history: SharedState<BlockHistory>,
-    mut block_header_update_rx: Receiver<Header>,
-    mut block_update_rx: Receiver<Block>,
-    mut log_update_rx: Receiver<BlockLogs>,
-    mut state_update_rx: Receiver<BlockStateUpdate>,
+    block_header_update_rx: Broadcaster<Header>,
+    block_update_rx: Broadcaster<Block>,
+    log_update_rx: Broadcaster<BlockLogs>,
+    state_update_rx: Broadcaster<BlockStateUpdate>,
     sender: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
+    let mut block_header_update_rx: Receiver<Header> = block_header_update_rx.subscribe().await;
+    let mut block_update_rx: Receiver<Block> = block_update_rx.subscribe().await;
+    let mut log_update_rx: Receiver<BlockLogs> = log_update_rx.subscribe().await;
+    let mut state_update_rx: Receiver<BlockStateUpdate> = state_update_rx.subscribe().await;
+
     loop {
         tokio::select! {
             msg = block_header_update_rx.recv() => {
@@ -276,16 +281,16 @@ impl Default for BlockHistoryActor {
 
 #[async_trait]
 impl Actor for BlockHistoryActor {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_block_history_worker(
             self.chain_parameters.clone(),
             self.latest_block.clone().unwrap(),
             self.market_state.clone().unwrap(),
             self.block_history.clone().unwrap(),
-            self.block_header_update_rx.clone().unwrap().subscribe().await,
-            self.block_update_rx.clone().unwrap().subscribe().await,
-            self.log_update_rx.clone().unwrap().subscribe().await,
-            self.state_update_rx.clone().unwrap().subscribe().await,
+            self.block_header_update_rx.clone().unwrap(),
+            self.block_update_rx.clone().unwrap(),
+            self.log_update_rx.clone().unwrap(),
+            self.state_update_rx.clone().unwrap(),
             self.market_events_tx.clone().unwrap(),
         ));
         Ok(vec![task])

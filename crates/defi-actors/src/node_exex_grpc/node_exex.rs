@@ -51,7 +51,7 @@ impl NodeExExGrpcActor {
 
 #[async_trait]
 impl Actor for NodeExExGrpcActor {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let handler = tokio::task::spawn(node_exex_grpc_worker(
             Some(self.url.clone()),
             self.block_header_channel.clone().unwrap(),

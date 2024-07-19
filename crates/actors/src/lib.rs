@@ -17,3 +17,15 @@ macro_rules! run_async {
         }
     };
 }
+
+#[inline]
+pub async fn subscribe_helper<A: Clone + Send + Sync>(broadcaster: &Broadcaster<A>) -> tokio::sync::broadcast::Receiver<A> {
+    broadcaster.subscribe().await
+}
+
+#[macro_export]
+macro_rules! subscribe {
+    ($name:ident) => {
+        let mut $name = loom_actors::subscribe_helper(&$name).await;
+    };
+}

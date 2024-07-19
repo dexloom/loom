@@ -44,15 +44,13 @@ where
     Ok(())
 }
 
-async fn anvil_broadcaster_worker<P, T>(
-    client: P,
-    //latest_block: SharedState<LatestBlock>,
-    mut bundle_rx: Receiver<MessageTxCompose>,
-) -> WorkerResult
+async fn anvil_broadcaster_worker<P, T>(client: P, bundle_rx: Broadcaster<MessageTxCompose>) -> WorkerResult
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
+    let mut bundle_rx: Receiver<MessageTxCompose> = bundle_rx.subscribe().await;
+
     loop {
         tokio::select! {
             msg = bundle_rx.recv() => {
@@ -116,8 +114,8 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(anvil_broadcaster_worker(self.client.clone(), self.tx_compose_rx.clone().unwrap().subscribe().await));
+    fn start(&self) -> ActorResult {
+        let task = tokio::task::spawn(anvil_broadcaster_worker(self.client.clone(), self.tx_compose_rx.clone().unwrap()));
         Ok(vec![task])
     }
 

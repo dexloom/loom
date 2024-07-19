@@ -13,7 +13,7 @@ use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, MarketState};
 use defi_events::BlockLogs;
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
+use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
 use crate::market::logs_parser::process_log_entries;
@@ -22,13 +22,15 @@ pub async fn new_pool_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
-    mut log_update_rx: Receiver<BlockLogs>,
+    log_update_rx: Broadcaster<BlockLogs>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
+    subscribe!(log_update_rx);
+
     loop {
         tokio::select! {
             msg = log_update_rx.recv() => {
@@ -91,12 +93,12 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_pool_worker(
             self.client.clone(),
             self.market.clone().unwrap(),
             self.market_state.clone().unwrap(),
-            self.log_update_rx.clone().unwrap().subscribe().await,
+            self.log_update_rx.clone().unwrap(),
         ));
         Ok(vec![task])
     }

@@ -16,7 +16,6 @@ use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
-use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 
 use debug_provider::DebugProviderExt;
@@ -25,7 +24,7 @@ use defi_entities::required_state::accounts_vec_len;
 use defi_entities::{LatestBlock, Market, MarketState};
 use defi_events::{MarketEvents, MempoolEvents, StateUpdateEvent};
 use defi_types::{debug_trace_call_diff, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 use super::affected_pools::get_affected_pools;
@@ -240,8 +239,8 @@ pub async fn pending_tx_state_change_worker<P, T, N>(
     mempool: SharedState<Mempool>,
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState>,
-    mut mempool_events_rx: Receiver<MempoolEvents>,
-    mut market_events_rx: Receiver<MarketEvents>,
+    mempool_events_rx: Broadcaster<MempoolEvents>,
+    market_events_rx: Broadcaster<MarketEvents>,
     state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
 ) -> WorkerResult
 where
@@ -249,8 +248,10 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
+    subscribe!(mempool_events_rx);
+    subscribe!(market_events_rx);
+
     let affecting_tx: Arc<RwLock<HashMap<TxHash, bool>>> = Arc::new(RwLock::new(HashMap::new()));
-    //let mut cur_base_fee: u128 = 0;
     let mut cur_next_base_fee: u128 = 0;
     let mut cur_block_number: Option<BlockNumber> = None;
     let mut cur_block_time: Option<u64> = None;
@@ -369,15 +370,15 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(pending_tx_state_change_worker(
             self.client.clone(),
             self.market.clone().unwrap(),
             self.mempool.clone().unwrap(),
             self.latest_block.clone().unwrap(),
             self.market_state.clone().unwrap(),
-            self.mempool_events_rx.clone().unwrap().subscribe().await,
-            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.mempool_events_rx.clone().unwrap(),
+            self.market_events_rx.clone().unwrap(),
             self.state_updates_tx.clone().unwrap(),
         ));
         Ok(vec![task])

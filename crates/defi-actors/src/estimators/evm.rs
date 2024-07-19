@@ -11,7 +11,7 @@ use tokio::sync::broadcast::Receiver;
 use defi_blockchain::Blockchain;
 use defi_entities::{GasStation, NWETH};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
-use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
+use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 use loom_utils::evm::{env_for_block, evm_access_list};
@@ -173,9 +173,11 @@ async fn estimator_task(
 
 async fn estimator_worker(
     encoder: SwapStepEncoder,
-    mut compose_channel_rx: Receiver<MessageTxCompose>,
+    compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
+    subscribe!(compose_channel_rx);
+
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
@@ -220,10 +222,10 @@ impl EvmEstimatorActor {
 
 #[async_trait]
 impl Actor for EvmEstimatorActor {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(
             self.encoder.clone(),
-            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])

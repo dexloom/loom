@@ -7,13 +7,15 @@ use log::error;
 use tokio::sync::broadcast::Receiver;
 
 use defi_events::BlockLogs;
-use loom_actors::{Broadcaster, WorkerResult};
+use loom_actors::{subscribe, Broadcaster, WorkerResult};
 
 pub async fn new_node_block_logs_worker<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + 'static>(
     client: P,
-    mut block_hash_receiver: Receiver<BlockHash>,
+    block_hash_receiver: Broadcaster<BlockHash>,
     sender: Broadcaster<BlockLogs>,
 ) -> WorkerResult {
+    subscribe!(block_hash_receiver);
+
     loop {
         if let Ok(block_hash) = block_hash_receiver.recv().await {
             let filter = Filter::new().at_block_hash(block_hash);

@@ -9,11 +9,11 @@ use tokio::sync::broadcast::Receiver;
 use debug_provider::DebugProviderExt;
 use defi_events::BlockStateUpdate;
 use defi_types::debug_trace_block;
-use loom_actors::{Broadcaster, WorkerResult};
+use loom_actors::{subscribe, Broadcaster, WorkerResult};
 
 pub async fn new_node_block_state_worker<P, T, N>(
     client: P,
-    mut block_hash_receiver: Receiver<BlockHash>,
+    block_hash_receiver: Broadcaster<BlockHash>,
     sender: Broadcaster<BlockStateUpdate>,
 ) -> WorkerResult
 where
@@ -21,6 +21,8 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
+    subscribe!(block_hash_receiver);
+
     loop {
         if let Ok(block_hash) = block_hash_receiver.recv().await {
             let trace_result = debug_trace_block(client.clone(), BlockId::Hash(block_hash.into()), true).await;

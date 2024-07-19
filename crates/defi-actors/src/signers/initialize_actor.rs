@@ -4,7 +4,7 @@ use log::{error, info};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, KeyStore, TxSigners};
-use loom_actors::{Accessor, Actor, ActorResult, SharedState};
+use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 
 #[derive(Accessor)]
@@ -14,6 +14,17 @@ pub struct InitializeSignersActor {
     signers: Option<SharedState<TxSigners>>,
     #[accessor]
     monitor: Option<SharedState<AccountNonceAndBalanceState>>,
+}
+
+async fn initialize_signers_worker(
+    key: Vec<u8>,
+    signers: SharedState<TxSigners>,
+    monitor: SharedState<AccountNonceAndBalanceState>,
+) -> WorkerResult {
+    let new_signer = signers.write().await.add_privkey(Bytes::from(key));
+    monitor.write().await.add_account(new_signer.address());
+    info!("New signer added {:?}", new_signer.address());
+    Ok("Signer added".to_string())
 }
 
 impl InitializeSignersActor {
@@ -54,18 +65,16 @@ impl InitializeSignersActor {
 
 #[async_trait]
 impl Actor for InitializeSignersActor {
-    async fn start(&self) -> ActorResult {
-        match self.key.clone() {
+    fn start(&self) -> ActorResult {
+        Ok(match self.key.clone() {
             Some(key) => {
-                let new_signer = self.signers.clone().unwrap().write().await.add_privkey(Bytes::from(key));
-                self.monitor.clone().unwrap().write().await.add_account(new_signer.address());
-                info!("New signer added {:?}", new_signer.address());
+                vec![tokio::task::spawn(initialize_signers_worker(key, self.signers.clone().unwrap(), self.monitor.clone().unwrap()))]
             }
             _ => {
                 error!("No signer keys found");
+                vec![]
             }
-        }
-        Ok(vec![])
+        })
     }
 
     fn name(&self) -> &'static str {

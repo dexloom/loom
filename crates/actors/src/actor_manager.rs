@@ -14,11 +14,24 @@ impl ActorsManager {
         Self::default()
     }
 
-    pub async fn start(&mut self, actor: impl Actor + 'static) -> Result<()> {
-        match actor.start().await {
+    pub fn start(&mut self, actor: impl Actor + 'static) -> Result<()> {
+        match actor.start() {
             Ok(workers) => {
                 info!("{} started successfully", actor.name());
                 self.tasks.extend(workers);
+                Ok(())
+            }
+            Err(e) => {
+                error!("Error starting {} : {}", actor.name(), e);
+                Err(e)
+            }
+        }
+    }
+
+    pub fn start_and_wait(&mut self, actor: impl Actor + Send + Sync + 'static) -> Result<()> {
+        match actor.start_and_wait() {
+            Ok(_) => {
+                info!("{} started successfully", actor.name());
                 Ok(())
             }
             Err(e) => {

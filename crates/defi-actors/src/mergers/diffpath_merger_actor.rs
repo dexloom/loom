@@ -32,24 +32,15 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a [TxComposeData]) 
 }
 
 async fn diff_path_merger_worker(
-    //encoder: SwapStepEncoder,
-    //signers: SharedState<TxSigners>,
-    //account_monitor: SharedState<AccountNonceAndBalanceState>,
-    //latest_block: SharedState<LatestBlock>,
-    //mempool: SharedState<Mempool>,
-    //market_state: SharedState<MarketState>,
-    mut market_events_rx: Receiver<MarketEvents>,
-    mut compose_channel_rx: Receiver<MessageTxCompose>,
+    market_events_rx: Broadcaster<MarketEvents>,
+    compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
-    let mut swap_paths: Vec<TxComposeData> = Vec::new();
+    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
-    //let mut affecting_tx: HashMap<TxHash, bool> = HashMap::new();
-    //let mut cur_base_fee: u128 = 0;
-    //let mut cur_next_base_fee: u128 = 0;
-    //let mut cur_block_number: Option<alloy_primitives::BlockNumber> = None;
-    //let mut cur_block_time: Option<u64> = None;
-    //let mut cur_state_override: StateOverride = StateOverride::default();
+    let mut compose_channel_rx: Receiver<MessageTxCompose> = compose_channel_rx.subscribe().await;
+
+    let mut swap_paths: Vec<TxComposeData> = Vec::new();
 
     loop {
         tokio::select! {
@@ -170,10 +161,10 @@ impl DiffPathMergerActor {
 
 #[async_trait]
 impl Actor for DiffPathMergerActor {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(diff_path_merger_worker(
-            self.market_events.clone().unwrap().subscribe().await,
-            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.market_events.clone().unwrap(),
+            self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])

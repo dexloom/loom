@@ -56,9 +56,12 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
 pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Clone + 'static>(
     client: P,
     market_state: SharedState<MarketState>,
-    mut tx_compose_channel_rx: Receiver<MessageTxCompose>,
-    mut market_events_rx: Receiver<MarketEvents>,
+    tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
+    market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
+    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
+    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
+
     let mut check_time_map: HashMap<Address, DateTime<Local>> = HashMap::new();
     let mut pool_address_to_verify_vec: Vec<Address> = Vec::new();
 
@@ -150,12 +153,12 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_health_monitor_worker(
             self.client.clone(),
             self.market_state.clone().unwrap(),
-            self.tx_compose_channel_rx.clone().unwrap().subscribe().await,
-            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.tx_compose_channel_rx.clone().unwrap(),
+            self.market_events_rx.clone().unwrap(),
         ));
         Ok(vec![task])
     }

@@ -14,12 +14,14 @@ pub async fn new_gas_worker(
     chain_parameters: ChainParameters,
     gas_station: SharedState<GasStation>,
     market_history_state: SharedState<BlockHistory>,
-    mut market_events_receiver: Receiver<MarketEvents>,
+    market_events_rx: Broadcaster<MarketEvents>,
     broadcaster: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
+    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
+
     loop {
         tokio::select! {
-            msg = market_events_receiver.recv() => {
+            msg = market_events_rx.recv() => {
                 match msg {
                     Ok(market_event) => {
                         if let BlockTxUpdate{ block_number, block_hash } = market_event {
@@ -95,12 +97,12 @@ impl GasStationActor {
 
 #[async_trait]
 impl Actor for GasStationActor {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_gas_worker(
             self.chain_parameters.clone(),
             self.gas_station.clone().unwrap(),
             self.block_history.clone().unwrap(),
-            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.market_events_rx.clone().unwrap(),
             self.market_events_tx.clone().unwrap(),
         ));
 

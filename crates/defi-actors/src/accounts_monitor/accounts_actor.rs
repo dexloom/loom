@@ -51,8 +51,10 @@ where
 pub async fn nonce_and_balance_monitor_worker(
     accounts_state: SharedState<AccountNonceAndBalanceState>,
     block_history_state: SharedState<BlockHistory>,
-    mut market_events: Receiver<MarketEvents>,
+    market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
+    let mut market_events = market_events_rx.subscribe().await;
+
     loop {
         tokio::select! {
             msg = market_events.recv() => {
@@ -135,11 +137,11 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let monitor_task = tokio::task::spawn(nonce_and_balance_monitor_worker(
             self.accounts_nonce_and_balance.clone().unwrap(),
             self.block_history.clone().unwrap(),
-            self.market_events.clone().unwrap().subscribe().await,
+            self.market_events.clone().unwrap(),
         ));
 
         let fetcher_task =

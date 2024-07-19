@@ -60,9 +60,11 @@ async fn sign_task(sign_request: TxComposeData, compose_channel_tx: Broadcaster<
 }
 
 async fn request_listener_worker(
-    mut compose_channel_rx: Receiver<MessageTxCompose>,
+    compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
+    let mut compose_channel_rx: Receiver<MessageTxCompose> = compose_channel_rx.subscribe().await;
+
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
@@ -107,11 +109,9 @@ impl TxSignersActor {
 
 #[async_trait]
 impl Actor for TxSignersActor {
-    async fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(request_listener_worker(
-            self.compose_channel_rx.clone().unwrap().subscribe().await,
-            self.compose_channel_tx.clone().unwrap(),
-        ));
+    fn start(&self) -> ActorResult {
+        let task =
+            tokio::task::spawn(request_listener_worker(self.compose_channel_rx.clone().unwrap(), self.compose_channel_tx.clone().unwrap()));
 
         Ok(vec![task])
     }

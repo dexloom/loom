@@ -5,7 +5,7 @@ use tokio::sync::broadcast::Receiver;
 use defi_blockchain::Blockchain;
 use defi_entities::{BlockHistory, Market};
 use defi_events::{MarketEvents, StateUpdateEvent};
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 use super::affected_pools::get_affected_pools;
@@ -13,13 +13,11 @@ use super::affected_pools::get_affected_pools;
 pub async fn block_state_change_worker(
     market: SharedState<Market>,
     block_history: SharedState<BlockHistory>,
-    mut market_events_rx: Receiver<MarketEvents>,
+    market_events_rx: Broadcaster<MarketEvents>,
     state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
 ) -> WorkerResult {
-    //let mut block_number;
-    //let mut block_hash;
-    //let mut timestamp;
     let mut next_block_base_fee = 0;
+    subscribe!(market_events_rx);
 
     loop {
         tokio::select! {
@@ -118,11 +116,11 @@ impl BlockStateChangeProcessorActor {
 
 #[async_trait]
 impl Actor for BlockStateChangeProcessorActor {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(block_state_change_worker(
             self.market.clone().unwrap(),
             self.block_history.clone().unwrap(),
-            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.market_events_rx.clone().unwrap(),
             self.state_updates_tx.clone().unwrap(),
         ));
         Ok(vec![task])

@@ -19,7 +19,7 @@ use crate::node::node_block_state_worker::new_node_block_state_worker;
 use crate::node::node_block_with_tx_worker::new_block_with_tx_worker;
 use crate::node::reth_worker::reth_node_worker_starter;
 
-pub async fn new_node_block_starer<P, T, N>(
+pub fn new_node_block_starer<P, T, N>(
     client: P,
     new_block_headers_channel: Option<Broadcaster<Header>>,
     new_block_with_tx_channel: Option<Broadcaster<Block>>,
@@ -35,7 +35,7 @@ where
     let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
 
     if let Some(channel) = new_block_with_tx_channel {
-        tasks.push(tokio::task::spawn(new_block_with_tx_worker(client.clone(), new_block_hash_channel.clone().subscribe().await, channel)));
+        tasks.push(tokio::task::spawn(new_block_with_tx_worker(client.clone(), new_block_hash_channel.clone(), channel)));
     }
 
     if let Some(channel) = new_block_headers_channel {
@@ -43,19 +43,11 @@ where
     }
 
     if let Some(channel) = new_block_logs_channel {
-        tasks.push(tokio::task::spawn(new_node_block_logs_worker(
-            client.clone(),
-            new_block_hash_channel.clone().subscribe().await,
-            channel,
-        )));
+        tasks.push(tokio::task::spawn(new_node_block_logs_worker(client.clone(), new_block_hash_channel.clone(), channel)));
     }
 
     if let Some(channel) = new_block_state_update_channel {
-        tasks.push(tokio::task::spawn(new_node_block_state_worker(
-            client.clone(),
-            new_block_hash_channel.clone().subscribe().await,
-            channel,
-        )));
+        tasks.push(tokio::task::spawn(new_node_block_state_worker(client.clone(), new_block_hash_channel.clone(), channel)));
     }
 
     Ok(tasks)
@@ -122,31 +114,25 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         match &self.reth_db_path {
             //RETH DB
-            Some(db_path) => {
-                reth_node_worker_starter(
-                    self.client.clone(),
-                    db_path.clone(),
-                    self.block_header_channel.clone(),
-                    self.block_with_tx_channel.clone(),
-                    self.block_logs_channel.clone(),
-                    self.block_state_update_channel.clone(),
-                )
-                .await
-            }
+            Some(db_path) => reth_node_worker_starter(
+                self.client.clone(),
+                db_path.clone(),
+                self.block_header_channel.clone(),
+                self.block_with_tx_channel.clone(),
+                self.block_logs_channel.clone(),
+                self.block_state_update_channel.clone(),
+            ),
             //RPC
-            None => {
-                new_node_block_starer(
-                    self.client.clone(),
-                    self.block_header_channel.clone(),
-                    self.block_with_tx_channel.clone(),
-                    self.block_logs_channel.clone(),
-                    self.block_state_update_channel.clone(),
-                )
-                .await
-            }
+            None => new_node_block_starer(
+                self.client.clone(),
+                self.block_header_channel.clone(),
+                self.block_with_tx_channel.clone(),
+                self.block_logs_channel.clone(),
+                self.block_state_update_channel.clone(),
+            ),
         }
     }
     fn name(&self) -> &'static str {

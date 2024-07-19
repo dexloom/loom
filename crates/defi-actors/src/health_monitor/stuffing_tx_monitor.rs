@@ -40,9 +40,12 @@ async fn check_mf_tx<P: Provider + 'static>(client: P, tx_hash: TxHash, coinbase
 pub async fn stuffing_tx_monitor_worker<P: Provider + Clone + 'static>(
     client: P,
     latest_block: SharedState<LatestBlock>,
-    mut tx_compose_channel_rx: Receiver<MessageTxCompose>,
-    mut market_events_rx: Receiver<MarketEvents>,
+    tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
+    market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
+    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
+    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
+
     let mut txs_to_check: HashMap<TxHash, TxToCheck> = HashMap::new();
 
     loop {
@@ -151,12 +154,12 @@ impl<P> Actor for StuffingTxMonitorActor<P>
 where
     P: Provider + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(stuffing_tx_monitor_worker(
             self.client.clone(),
             self.latest_block.clone().unwrap(),
-            self.tx_compose_channel_rx.clone().unwrap().subscribe().await,
-            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.tx_compose_channel_rx.clone().unwrap(),
+            self.market_events_rx.clone().unwrap(),
         ));
         Ok(vec![task])
     }

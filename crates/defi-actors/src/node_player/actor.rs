@@ -72,7 +72,7 @@ where
     T: Send + Sync,
     N: Send + Sync,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let handler = tokio::task::spawn(node_player_worker(
             self.client.clone(),
             self.start_block,

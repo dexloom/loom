@@ -18,7 +18,7 @@ use defi_blockchain::Blockchain;
 use defi_entities::{GasStation, NWETH};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use flashbots::Flashbots;
-use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
+use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 
@@ -198,9 +198,11 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
 async fn estimator_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static>(
     client: Arc<Flashbots<P, T>>,
     encoder: SwapStepEncoder,
-    mut compose_channel_rx: Receiver<MessageTxCompose>,
+    compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
+    subscribe!(compose_channel_rx);
+
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
@@ -251,11 +253,11 @@ where
 
 #[async_trait]
 impl<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P, T> {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(
             self.client.clone(),
             self.encoder.clone(),
-            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])

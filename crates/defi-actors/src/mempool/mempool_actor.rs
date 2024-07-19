@@ -11,17 +11,20 @@ use defi_blockchain::Blockchain;
 use defi_entities::BlockHistory;
 use defi_events::{MarketEvents, MempoolEvents, MessageMempoolDataUpdate};
 use defi_types::{ChainParameters, Mempool, MempoolTx};
-use loom_actors::{run_async, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 pub async fn new_mempool_worker(
     chain_parameters: ChainParameters,
     mempool: SharedState<Mempool>,
     market_history: SharedState<BlockHistory>,
-    mut mempool_update_rx: Receiver<MessageMempoolDataUpdate>,
-    mut market_events_rx: Receiver<MarketEvents>,
+    mempool_update_rx: Broadcaster<MessageMempoolDataUpdate>,
+    market_events_rx: Broadcaster<MarketEvents>,
     broadcaster: Broadcaster<MempoolEvents>,
 ) -> WorkerResult {
+    subscribe!(mempool_update_rx);
+    subscribe!(market_events_rx);
+
     let mut current_gas_price: Option<u128> = None;
     let mut last_cleaning_block: Option<BlockNumber> = None;
 
@@ -192,13 +195,13 @@ impl MempoolActor {
 
 #[async_trait]
 impl Actor for MempoolActor {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_mempool_worker(
             self.chain_parameters.clone(),
             self.mempool.clone().unwrap(),
             self.block_history.clone().unwrap(),
-            self.mempool_update_rx.clone().unwrap().subscribe().await,
-            self.market_events_rx.clone().unwrap().subscribe().await,
+            self.mempool_update_rx.clone().unwrap(),
+            self.market_events_rx.clone().unwrap(),
             self.mempool_events_tx.clone().unwrap(),
         ));
         Ok(vec![task])

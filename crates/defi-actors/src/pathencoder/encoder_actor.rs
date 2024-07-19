@@ -101,9 +101,11 @@ async fn arb_swap_path_encoder_worker(
     encoder: SwapStepEncoder,
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
-    mut compose_channel_rx: Receiver<MessageTxCompose>,
+    compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
+    let mut compose_channel_rx: Receiver<MessageTxCompose> = compose_channel_rx.subscribe().await;
+
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
@@ -170,12 +172,12 @@ impl ArbSwapPathEncoderActor {
 
 #[async_trait]
 impl Actor for ArbSwapPathEncoderActor {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(arb_swap_path_encoder_worker(
             self.encoder.clone(),
             self.signers.clone().unwrap(),
             self.account_nonce_balance.clone().unwrap(),
-            self.compose_channel_rx.clone().unwrap().subscribe().await,
+            self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])

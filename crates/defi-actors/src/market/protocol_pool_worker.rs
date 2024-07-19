@@ -136,7 +136,7 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(curve_protocol_loader_worker(
             self.client.clone(),
             self.market.clone().unwrap(),

@@ -16,11 +16,11 @@ use defi_blockchain::Blockchain;
 use defi_entities::{MarketState, TxSigners};
 use defi_pools::protocols::UniswapV3Protocol;
 use defi_types::GethStateUpdate;
-use loom_actors::{Accessor, Actor, ActorResult, SharedState};
+use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 use loom_multicaller::SwapStepEncoder;
 
-pub async fn preload_market_state<P, T, N>(client: P, address_vec: Vec<Address>, market_state: SharedState<MarketState>) -> Result<()>
+pub async fn preload_market_state<P, T, N>(client: P, address_vec: Vec<Address>, market_state: SharedState<MarketState>) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
@@ -43,7 +43,7 @@ where
 
     market_state_guard.add_state(&state);
 
-    Ok(())
+    Ok("DONE".to_string())
 }
 
 #[allow(dead_code)]
@@ -111,9 +111,10 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
-        preload_market_state(self.client.clone(), self.addresses.clone(), self.market_state.clone().unwrap()).await?;
-        Ok(vec![])
+    fn start(&self) -> ActorResult {
+        let handler =
+            tokio::task::spawn(preload_market_state(self.client.clone(), self.addresses.clone(), self.market_state.clone().unwrap()));
+        Ok(vec![handler])
     }
     fn name(&self) -> &'static str {
         let full_name = type_name::<Self>();

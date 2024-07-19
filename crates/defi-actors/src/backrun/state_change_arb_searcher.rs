@@ -5,18 +5,17 @@ use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use chrono::TimeDelta;
 use eyre::{eyre, Result};
-use log::{debug, error, warn};
+use log::{debug, error, info, warn};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
 use defi_entities::{GasStation, Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxComposeData};
 use defi_types::SwapError;
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomInMemoryDB;
 
@@ -174,12 +173,14 @@ async fn state_change_arb_searcher_task(
 pub async fn state_change_arb_searcher_worker(
     smart: bool,
     market: SharedState<Market>,
-    mut search_request_rx: Receiver<StateUpdateEvent>,
+    search_request_rx: Broadcaster<StateUpdateEvent>,
     swap_request_tx: Broadcaster<MessageTxCompose>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> WorkerResult {
+    subscribe!(search_request_rx);
+
     let cpus = num_cpus::get();
-    println!("Cpus {cpus}");
+    info!("Cpus : {cpus}");
     let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(cpus - 2).build().unwrap());
 
     loop {
@@ -248,11 +249,11 @@ impl StateChangeArbSearcherActor {
 
 #[async_trait]
 impl Actor for StateChangeArbSearcherActor {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_change_arb_searcher_worker(
             self.smart,
             self.market.clone().unwrap(),
-            self.state_update_rx.clone().unwrap().subscribe().await,
+            self.state_update_rx.clone().unwrap(),
             self.compose_tx.clone().unwrap(),
             self.pool_health_monitor_tx.clone().unwrap(),
         ));

@@ -78,7 +78,7 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    async fn start(&self) -> ActorResult {
+    fn start(&self) -> ActorResult {
         let searcher_pool_update_channel = Broadcaster::new(100);
         let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
 
@@ -89,7 +89,6 @@ where
             .produce(self.compose_channel_tx.clone().unwrap())
             .produce(self.pool_health_monitor_tx.clone().unwrap())
             .start()
-            .await
         {
             Err(e) => {
                 panic!("{}", e)
@@ -111,7 +110,6 @@ where
                 .consume(self.market_events_tx.clone().unwrap())
                 .produce(searcher_pool_update_channel.clone())
                 .start()
-                .await
             {
                 Err(e) => {
                     panic!("{}", e)
@@ -131,7 +129,6 @@ where
                 .consume(self.market_events_tx.clone().unwrap())
                 .produce(searcher_pool_update_channel.clone())
                 .start()
-                .await
             {
                 Err(e) => {
                     panic!("{}", e)
