@@ -14,7 +14,7 @@ use alloy_rpc_types_trace::geth::{
 use alloy_transport::Transport;
 use eyre::Result;
 use lazy_static::lazy_static;
-use log::trace;
+use log::{debug, trace};
 
 use debug_provider::DebugProviderExt;
 
@@ -31,6 +31,12 @@ lazy_static! {
     };
     pub static ref TRACING_CALL_OPTS: GethDebugTracingCallOptions =
         GethDebugTracingCallOptions { tracing_options: TRACING_OPTS.clone(), state_overrides: None, block_overrides: None };
+}
+
+pub fn debug_log_geth_state_update(state_update: &GethStateUpdate) {
+    for (address, state) in state_update {
+        debug!("{} nonce {:?} balance {:?} is_code {}", address, state.nonce, state.balance, state.code.is_some())
+    }
 }
 
 pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugProviderExt<T, N>>(

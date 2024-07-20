@@ -1,6 +1,6 @@
 use alloy_provider::Provider;
 use eyre::Result;
-use log::{error, info, LevelFilter};
+use log::{error, info};
 
 use defi_actors::{
     ArbSwapPathEncoderActor, ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateChangeArbActor,
@@ -12,7 +12,11 @@ use loom_topology::{Topology, TopologyConfig};
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::builder().format_timestamp_micros().filter_level(LevelFilter::Debug).init();
+    env_logger::Builder::from_env(
+        env_logger::Env::default().default_filter_or("debug,tokio_tungstenite=off,tungstenite=off,alloy_rpc_client=off"),
+    )
+    .format_timestamp_micros()
+    .init();
 
     let topology_config = TopologyConfig::load_from_file("config.toml".to_string())?;
     let (topology, mut worker_task_vec) = Topology::from(topology_config).await?;

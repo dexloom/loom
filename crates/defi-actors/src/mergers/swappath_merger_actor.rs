@@ -21,7 +21,7 @@ async fn arb_swap_steps_optimizer_task(
     evm_env: Env,
     request: TxComposeData,
 ) -> Result<()> {
-    info!("Step Simulation started");
+    debug!("Step Simulation started");
 
     if let Swap::BackrunSwapSteps((sp0, sp1)) = request.swap {
         let start_time = chrono::Local::now();
@@ -40,7 +40,7 @@ async fn arb_swap_steps_optimizer_task(
                 return Err(eyre!("OPTIMIZATION_ERROR"));
             }
         }
-        info!("Step Optimization finished {} + {} {}", &sp0, &sp1, chrono::Local::now() - start_time);
+        debug!("Step Optimization finished {} + {} {}", &sp0, &sp1, chrono::Local::now() - start_time);
     } else {
         error!("Incorrect swap_type");
         return Err(eyre!("INCORRECT_SWAP_TYPE"));

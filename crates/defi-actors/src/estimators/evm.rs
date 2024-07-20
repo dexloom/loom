@@ -4,7 +4,7 @@ use alloy_primitives::{Bytes, TxKind};
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
-use log::{error, info};
+use log::{debug, error, info};
 use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;
@@ -22,7 +22,7 @@ async fn estimator_task(
     encoder: SwapStepEncoder,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
-    info!(
+    debug!(
         "EVM estimation. Gas limit: {} price: {} cost: {} stuffing txs: {}",
         estimate_request.gas,
         NWETH::to_float_gwei(estimate_request.gas_fee),

@@ -1,7 +1,7 @@
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
 use eyre::{eyre, OptionExt, Result};
-use log::{error, info};
+use log::{debug, error};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
@@ -21,7 +21,7 @@ async fn encoder_task(
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
 ) -> Result<()> {
-    info!("Encoding started {}", encode_request.swap);
+    debug!("Encoding started {}", encode_request.swap);
 
     let swap_vec = match &encode_request.swap {
         Swap::BackrunSwapLine(_) | Swap::BackrunSwapSteps(_) => {
@@ -113,7 +113,7 @@ async fn arb_swap_path_encoder_worker(
                 match msg {
                     Ok(compose_request) => {
                         if let TxCompose::Encode(encode_request) = compose_request.inner {
-                            info!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", encode_request.stuffing_txs_hashes, encode_request.swap);
+                            debug!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", encode_request.stuffing_txs_hashes, encode_request.swap);
                             tokio::task::spawn(
                                 encoder_task(
                                     encode_request,

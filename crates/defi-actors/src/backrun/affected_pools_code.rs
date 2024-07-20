@@ -7,7 +7,7 @@ use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::eyre;
-use log::{debug, error, info};
+use log::{debug, error};
 use revm::primitives::Env;
 
 use defi_entities::{Market, MarketState, Pool, PoolProtocol, PoolWrapper};
@@ -40,7 +40,7 @@ where
                 if UniswapV2Protocol::is_code(code) {
                     match market.read().await.get_pool(address) {
                         None => {
-                            info!("Loading UniswapV2 class pool {address:?}");
+                            debug!("Loading UniswapV2 class pool {address:?}");
                             let env = Env::default();
                             match UniswapV2StateReader::factory(&market_state.state_db, env.clone(), *address) {
                                 Ok(factory_address) => {
@@ -64,7 +64,7 @@ where
                                     match UniswapV2Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address) {
                                         Ok(pool) => {
                                             let pool = PoolWrapper::new(Arc::new(pool));
-                                            info!("UniswapV2 Pool loaded {address:?} {}", pool.get_protocol());
+                                            debug!("UniswapV2 Pool loaded {address:?} {}", pool.get_protocol());
                                             let swap_directions = pool.get_swap_directions();
                                             ret.insert(pool, swap_directions);
                                         }
@@ -84,11 +84,10 @@ where
                     }
                 }
 
-                //TODO : Fix Maverick
                 if UniswapV3Protocol::is_code(code) {
                     match market.read().await.get_pool(address) {
                         None => {
-                            info!("Loading UniswapV3 class pool : {address:?}");
+                            debug!("Loading UniswapV3 class pool : {address:?}");
                             let env = Env::default();
                             // TODO : Fix factory
                             match UniswapV3StateReader::factory(&market_state.state_db, env.clone(), *address) {
@@ -98,7 +97,7 @@ where
                                             let pool = PancakeV3Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
                                             match pool {
                                                 Ok(pool) => {
-                                                    info!("PancakeV3 Pool loaded {address:?} {}", pool.get_protocol());
+                                                    debug!("PancakeV3 Pool loaded {address:?} {}", pool.get_protocol());
                                                     let swap_directions = pool.get_swap_directions();
                                                     ret.insert(PoolWrapper::new(Arc::new(pool)), swap_directions);
                                                 }
@@ -111,7 +110,7 @@ where
                                             let pool = MaverickPool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address);
                                             match pool {
                                                 Ok(pool) => {
-                                                    info!("Maverick Pool loaded {address:?} {}", pool.get_protocol());
+                                                    debug!("Maverick Pool loaded {address:?} {}", pool.get_protocol());
                                                     let swap_directions = pool.get_swap_directions();
                                                     ret.insert(PoolWrapper::new(Arc::new(pool)), swap_directions);
                                                 }
@@ -123,8 +122,8 @@ where
                                         _ => match UniswapV3Pool::fetch_pool_data_evm(&market_state.state_db, env.clone(), *address) {
                                             Ok(pool) => {
                                                 let pool = PoolWrapper::new(Arc::new(pool));
-                                                info!("UniswapV3 Pool loaded {address:?} {}", pool.get_protocol());
                                                 let swap_directions = pool.get_swap_directions();
+                                                debug!("UniswapV3 Pool loaded {address:?} {} : {:?}", pool.get_protocol(), swap_directions);
                                                 ret.insert(pool, swap_directions);
                                             }
                                             Err(e) => {

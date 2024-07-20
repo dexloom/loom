@@ -14,7 +14,7 @@ use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info};
+use log::{debug, error, info, trace};
 use revm::primitives::{BlockEnv, Env, SHANGHAI};
 use revm::Evm;
 use tokio::sync::broadcast::error::RecvError;
@@ -74,7 +74,7 @@ where
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    info!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len());
+    debug!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len());
 
     let mut prestate_guard = pre_states.write().await;
 
@@ -112,10 +112,13 @@ where
         }
     }
 
-    let mut tx_order: Vec<usize> = vec![0; stuffing_states.len()];
+    let mut tx_order: Vec<usize> = (0..stuffing_states.len()).collect();
 
     let mut changing: Option<usize> = None;
     let mut counter = 0;
+
+    let db_org = market_state.read().await.state_db.clone();
+
     let rdb: Option<LoomInMemoryDB> = loop {
         counter += 1;
         if counter > 10 {
@@ -126,15 +129,10 @@ where
 
         let tx_and_state: Vec<&(Transaction, GethStateUpdate)> = tx_order.iter().map(|i| stuffing_states.get(*i).unwrap()).collect();
 
-        let db = market_state.read().await.state_db.clone();
-
         let states: GethStateUpdateVec = tx_and_state.iter().map(|(_tx, state)| state.clone()).collect();
 
-        let mut market_db = MarketState::new(db);
-
-        market_db.apply_state_update(&states, false, true);
-
-        let db = market_db.state_db;
+        let mut db = db_org.clone();
+        db.apply_geth_update_vec(states);
 
         let mut evm = Evm::builder().with_spec_id(SHANGHAI).with_db(db).with_env(Box::new(env.clone())).build();
 
@@ -143,35 +141,29 @@ where
 
             match evm_transact(&mut evm, tx) {
                 Ok(_c) => {
-                    info!("Transaction committed successfully {:?}", tx.hash);
+                    trace!("Transaction {} committed successfully {:?}", idx, tx.hash);
                 }
                 Err(e) => {
-                    error!("Transaction {:?} commit error: {}", tx.hash, e);
+                    error!("Transaction {} {:?} commit error: {}", idx, tx.hash, e);
                     match changing {
                         Some(changing_idx) => {
                             if (changing_idx == idx && idx == 0) || (changing_idx == idx - 1) {
                                 tx_order.remove(changing_idx);
-                                debug!("Removing Some {idx} {changing_idx}");
+                                trace!("Removing Some {idx} {changing_idx}");
                                 changing = None;
-                                //TODO : Check idx > 1 condition
                             } else if idx < tx_order.len() && idx > 0 {
-                                // Next
                                 tx_order.swap(idx, idx - 1);
-                                debug!("Swapping Some {idx} {changing_idx}");
+                                trace!("Swapping Some {idx} {changing_idx}");
                                 changing = Some(idx - 1)
-                            } /*else {
-                                  debug!("Removing Some 2 {idx} {changing_idx}");
-                                  tx_order.remove(idx);
-                                  ok = true;
-                              }*/
+                            }
                         }
                         None => {
                             if idx > 0 {
-                                debug!("Swapping None {idx}");
+                                trace!("Swapping None {idx}");
                                 tx_order.swap(idx, idx - 1);
                                 changing = Some(idx - 1)
                             } else {
-                                debug!("Removing None {idx}");
+                                trace!("Removing None {idx}");
                                 tx_order.remove(0);
                                 changing = None
                             }
@@ -184,7 +176,7 @@ where
         }
 
         if ok {
-            info!("Transaction sequence found {tx_order:?}");
+            debug!("Transaction sequence found {tx_order:?}");
             let (db, _) = evm.into_db_and_env_with_handler_cfg();
             break Some(db);
         }
@@ -224,13 +216,7 @@ where
         }
     }
 
-    //let (db,_) = evm.into_db_and_env_with_handler_cfg();
-
-    /*for (addr,acc) in db.accounts.iter(){
-        debug!("-- {} : {:?} code len: {} storage len: {}", addr, acc.account_state, acc.info.code.as_ref().map_or(0, |c| c.len()), acc.storage.len() )
-    }*/
-
-    info!("same_path_merger_task stuffing_states len {}", stuffing_states.len());
+    trace!("same_path_merger_task stuffing_states len {}", stuffing_states.len());
 
     Ok(())
 }

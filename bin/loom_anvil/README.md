@@ -1,4 +1,10 @@
-#WETH GROK AND WBTC ARB CASE WITH  NEW WBTC CRV POOL
+# ARB CASE TESTER WITH ANVIL
+
+Each test case is described in config file that contains preloading
+information and expected calculation results.
+
+```toml
+# WETH GROK AND WBTC ARB CASE WITH  NEW WBTC CRV POOL
 # 0x67857131Ae32f72739a2c8d0bd0e812793D8BB24 UNI3 CRV-WBTC Pool created
 [modules]
 signer = false
@@ -30,3 +36,17 @@ wbtc = { address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599", symbol = "WBTC"
 swaps_encoded = 14
 swaps_ok = 11
 best_profit_eth = 181.37
+```
+
+Run current available tests
+
+```shell
+make swap-test-all
+```
+
+Run specific
+
+```shell
+make swap-test FILE=<PATH_TO_TEST_CONFIG>
+```
+

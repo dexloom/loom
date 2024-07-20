@@ -9,6 +9,7 @@ use alloy::{
     primitives::{Address, Log, B256, U256},
     rpc::types::trace::geth::AccountState as GethAccountState,
 };
+use log::debug;
 use revm::db::{AccountState, EmptyDB};
 use revm::primitives::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
@@ -70,6 +71,7 @@ impl FastInMemoryDB {
                 for (k, v) in account.storage.iter() {
                     db_account.storage.insert(*k, *v);
                 }
+                db_account.account_state = AccountState::Touched
             });
         }
         db
@@ -93,6 +95,7 @@ impl FastInMemoryDB {
                 for (k, v) in account.storage.iter() {
                     db_account.storage.entry(*k).and_modify(|cv| cv.clone_from(v));
                 }
+                db_account.account_state = AccountState::Touched
             });
         }
         db
@@ -100,6 +103,8 @@ impl FastInMemoryDB {
 
     pub fn apply_geth_update(&mut self, update: BTreeMap<Address, GethAccountState>) {
         for (addr, acc_state) in update {
+            debug!("{} is code {} storage_len {} ", addr, acc_state.code.is_some(), acc_state.storage.len());
+
             for (k, v) in acc_state.storage.iter() {
                 let _ = self.insert_account_storage(addr, (*k).into(), (*v).into());
             }
@@ -110,11 +115,13 @@ impl FastInMemoryDB {
                     account.info.code = Some(bytecode);
                 }
                 if let Some(nonce) = acc_state.nonce {
+                    debug!("nonce : {} -> {}", account.info.nonce, nonce);
                     account.info.nonce = nonce;
                 }
                 if let Some(balance) = acc_state.balance {
                     account.info.balance = balance;
                 }
+                account.account_state = AccountState::Touched;
             }
         }
     }
@@ -125,19 +132,6 @@ impl FastInMemoryDB {
         }
     }
 }
-
-/*impl Clone for FastInMemoryDB {
-    fn clone(&self) -> Self {
-        FastInMemoryDB {
-            accounts: self.accounts.clone(),
-            logs: self.logs.clone(),
-            contracts: self.contracts.clone(),
-            block_hashes: self.block_hashes.clone(),
-            db: self.db.clone(),
-        }
-    }
-}
- */
 
 /// A [Database] implementation that stores all state changes in memory.
 ///

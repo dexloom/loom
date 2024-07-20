@@ -78,6 +78,8 @@ async fn diff_path_merger_worker(
                                 let mut merge_list = get_merge_list(sign_request, &swap_paths);
 
                                 if !merge_list.is_empty() {
+                                    let swap_vec : Vec<Swap> = merge_list.iter().map(|x|x.swap.clone()).collect();
+                                    info!("Merging started {:?}", swap_vec );
 
                                     let mut state = MarketState::new(sign_request.poststate.clone().unwrap().as_ref().clone());
 

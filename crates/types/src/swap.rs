@@ -7,6 +7,7 @@ pub struct SwapError {
     pub pool: Address,
     pub token_from: Address,
     pub token_to: Address,
+    pub is_in_amount: bool,
     pub amount: U256,
 }
 

@@ -1,5 +1,6 @@
 use std::env;
 use std::fmt::{Display, Formatter};
+use std::process::exit;
 use std::time::Duration;
 
 use alloy_consensus::TxEnvelope;
@@ -539,7 +540,7 @@ async fn main() -> Result<()> {
     let mut s = tx_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
-    let timeout_duration = Duration::from_secs(30);
+    let timeout_duration = Duration::from_secs(5);
 
     loop {
         tokio::select! {
@@ -547,7 +548,7 @@ async fn main() -> Result<()> {
                 match msg {
                     Ok(msg) => match msg.inner {
                         TxCompose::Sign(sign_message) => {
-                            info!("Sign message. Swap : {}", sign_message.swap);
+                            debug!("Sign message. Swap : {}", sign_message.swap);
                             stat.sign_counter += 1;
                             if stat.best_profit_eth < sign_message.swap.abs_profit_eth() {
                                 stat.best_profit_eth = sign_message.swap.abs_profit_eth();
@@ -555,7 +556,7 @@ async fn main() -> Result<()> {
                             }
                         }
                         TxCompose::Encode(encode_message) => {
-                            info!("Encode message. Swap : {}", encode_message.swap);
+                            debug!("Encode message. Swap : {}", encode_message.swap);
                             stat.encode_counter +=1;
                         }
                         _ => {}
@@ -566,13 +567,34 @@ async fn main() -> Result<()> {
                 }
             }
             msg = tokio::time::sleep(timeout_duration) => {
-                info!("Timed out : {:?} ", msg);
+                debug!("Timed out : {:?} ", msg);
                 break;
             }
         }
     }
 
-    println!("Stat : {}", stat);
+    println!("\n\n-------------------\nStat : {}\n-------------------\n", stat);
+
+    if let Some(results) = test_config.results {
+        if let Some(swaps_encoded) = results.swaps_encoded {
+            if swaps_encoded > stat.encode_counter {
+                error!("Test failed. Not enough encoded swaps : {} need {}", stat.encode_counter, swaps_encoded);
+                exit(1)
+            }
+        }
+        if let Some(swaps_ok) = results.swaps_ok {
+            if swaps_ok > stat.sign_counter {
+                error!("Test failed. Not enough verified swaps : {} need {}", stat.sign_counter, swaps_ok);
+                exit(1)
+            }
+        }
+        if let Some(best_profit) = results.best_profit_eth {
+            if NWETH::from_float(best_profit) > stat.best_profit_eth {
+                error!("Profit is too small {} need {}", NWETH::to_float(stat.best_profit_eth), best_profit);
+                exit(1)
+            }
+        }
+    }
 
     Ok(())
 }

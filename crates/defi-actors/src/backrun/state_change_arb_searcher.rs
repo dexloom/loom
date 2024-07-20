@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
 use async_trait::async_trait;
+#[cfg(not(debug_assertions))]
 use chrono::TimeDelta;
 use eyre::{eyre, Result};
 use log::{debug, error, info, warn};
@@ -67,10 +68,7 @@ async fn state_change_arb_searcher_task(
     }
     warn!("Calculation started {} {}", swap_path_vec.len(), chrono::Local::now() - start_time);
 
-    //let state_db = msg.market_state().clone();
     let env = msg.evm_env();
-
-    //let channel_len = if swap_path_vec.len() > 1000 { 1000 } else {swap_path_vec.len()};
 
     let channel_len = swap_path_vec.len();
     let (swap_path_tx, mut swap_line_rx) = tokio::sync::mpsc::channel(channel_len);
@@ -86,15 +84,21 @@ async fn state_change_arb_searcher_task(
                 (&swap_path_tx, &market_state_clone, &env, &pool_health_monitor_tx),
                 |req, item| {
                     let mut mut_item: SwapLine = SwapLine { path: item.as_ref().clone(), ..Default::default() };
+                    #[cfg(not(debug_assertions))]
                     let start_time = chrono::Local::now();
                     let calc_result = Calculator::calculate(&mut mut_item, req.1, req.2.clone());
+                    #[cfg(not(debug_assertions))]
                     let took_time = chrono::Local::now() - start_time;
 
                     match calc_result {
                         Ok(_) => {
-                            if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
-                                warn!("Took longer than expected {} {}", took_time, mut_item.clone())
+                            #[cfg(not(debug_assertions))]
+                            {
+                                if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                                    warn!("Took longer than expected {} {}", took_time, mut_item.clone())
+                                }
                             }
+
                             if let Ok(profit) = mut_item.profit() {
                                 if profit.is_positive()
                                     && msg.gas_fee != 0
@@ -107,10 +111,13 @@ async fn state_change_arb_searcher_task(
                             }
                         }
                         Err(e) => {
-                            if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
-                                warn!("Took longer than expected {:?} {}", e, mut_item.clone())
+                            #[cfg(not(debug_assertions))]
+                            {
+                                if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                                    warn!("Took longer than expected {:?} {}", e, mut_item.clone())
+                                }
                             }
-                            debug!("Swap error: {:?}", e);
+                            error!("Swap error: {:?}", e);
 
                             let pool_health_tx = req.3;
                             if let Err(e) = pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {
@@ -121,10 +128,10 @@ async fn state_change_arb_searcher_task(
                 },
             );
         });
-        warn!("Calculation iteration finished {}", chrono::Local::now() - start_time);
+        debug!("Calculation iteration finished {}", chrono::Local::now() - start_time);
     });
 
-    warn!("Calculation results receiver started {}", chrono::Local::now() - start_time);
+    debug!("Calculation results receiver started {}", chrono::Local::now() - start_time);
 
     let swap_request_tx_clone = swap_request_tx.clone();
     let arc_db = Arc::new(db);
@@ -208,6 +215,7 @@ pub async fn state_change_arb_searcher_worker(
 struct Calculator {}
 
 impl Calculator {
+    #[inline]
     pub fn calculate<'a>(path: &'a mut SwapLine, state: &LoomInMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
         let first_token = path.get_first_token().unwrap();
         if let Some(amount_in) = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))) {

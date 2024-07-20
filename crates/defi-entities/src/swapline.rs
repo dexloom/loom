@@ -166,6 +166,7 @@ impl SwapLine {
             pool: self.get_first_pool().map_or(Address::ZERO, |x| x.get_address()),
             token_from: self.get_first_token().map_or(Address::ZERO, |x| x.get_address()),
             token_to: self.get_last_token().map_or(Address::ZERO, |x| x.get_address()),
+            is_in_amount: true,
             amount: self.amount_in.unwrap_or_zero(),
         }
     }
@@ -356,19 +357,22 @@ impl SwapLine {
                             pool: pool.get_address(),
                             token_from: token_from.get_address(),
                             token_to: token_to.get_address(),
-                            amount: in_amount,
+                            is_in_amount: true,
+                            amount: out_amount,
                         });
                     }
                     out_amount = r;
                     gas_used += g
                 }
                 Err(e) => {
+                    //error!("calculate_with_in_amount calculate_out_amount error {} amount {} : {}", self, in_amount, e);
                     return Err(SwapError {
                         msg: e.to_string(),
                         pool: pool.get_address(),
                         token_from: token_from.get_address(),
                         token_to: token_to.get_address(),
-                        amount: in_amount,
+                        is_in_amount: true,
+                        amount: out_amount,
                     });
                 }
             }
@@ -395,19 +399,23 @@ impl SwapLine {
                             pool: pool.get_address(),
                             token_from: token_from.get_address(),
                             token_to: token_to.get_address(),
-                            amount: out_amount,
+                            is_in_amount: false,
+                            amount: in_amount,
                         });
                     }
                     in_amount = r;
                     gas_used += g;
                 }
                 Err(e) => {
+                    //error!("calculate_with_out_amount calculate_in_amount error {} amount {} : {}", self, in_amount, e);
+
                     return Err(SwapError {
                         msg: e.to_string(),
                         pool: pool.get_address(),
                         token_from: token_from.get_address(),
                         token_to: token_to.get_address(),
-                        amount: out_amount,
+                        is_in_amount: false,
+                        amount: in_amount,
                     });
                 }
             }

@@ -151,5 +151,4 @@ criterion = { version = "0.5.1", features = ["async_tokio"] }
 
 
 [patch.crates-io]
-
-
+alloy-node-bindings = { git = "https://github.com/alloy-rs/alloy", rev = "2be7dde" }

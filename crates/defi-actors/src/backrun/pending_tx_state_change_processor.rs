@@ -141,7 +141,7 @@ where
         Ok(affected_pools) => {
             let storage_len = accounts_vec_len(&state_update_vec);
 
-            debug!("Mempool affected pools {:?} {} update len : {} strg : {}", tx_hash, source, affected_pools.len(), storage_len);
+            info!("Mempool affected pools {:?} {} update len : {} strg : {}", tx_hash, source, affected_pools.len(), storage_len);
 
             affecting_tx.write().await.insert(tx_hash, !affected_pools.is_empty());
 
@@ -158,7 +158,7 @@ where
                         cur_next_base_fee,
                         cur_state_db,
                         state_update_vec,
-                        Some(state_required_vec),
+                        Some(state_required_vec.clone()),
                         affected_pools,
                         vec![tx_hash],
                         vec![mempool_tx.tx.clone().unwrap()],

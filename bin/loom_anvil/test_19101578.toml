@@ -24,3 +24,8 @@ tx_6 = { hash = "0x505ef4f817f97da840ca09a811d2d6a185bbb889f5afb9817ad74dc86b541
 
 [tokens]
 weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
+
+[results]
+swaps_encoded = 11
+swaps_ok = 11
+best_profit_eth = 0.283
