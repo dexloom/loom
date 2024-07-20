@@ -18,7 +18,6 @@ use log::{debug, error, info};
 use revm::primitives::{BlockEnv, Env, SHANGHAI};
 use revm::Evm;
 use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
 
 use debug_provider::DebugProviderExt;

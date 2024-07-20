@@ -180,7 +180,6 @@ mod test {
             .produce(new_block_logs_channel.clone())
             .produce(new_block_state_update_channel.clone())
             .start()
-            .await
         {
             Err(e) => {
                 error!("{}", e)

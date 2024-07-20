@@ -14,7 +14,6 @@ use defi_blockchain::Blockchain;
 #[tokio::main]
 async fn main() -> Result<()> {
     let start_block_number = 20179184;
-    let end_block_number = start_block_number + 1000;
 
     env_logger::init_from_env(
         env_logger::Env::default()
@@ -73,21 +72,15 @@ async fn main() -> Result<()> {
     // instead fo code above
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
     bc_actors
-        .initialize_signers_with_key(None)
-        .await?
-        .with_market_state_preloader()
-        .await?
-        .with_signers()
-        .await?
-        .with_nonce_and_balance_monitor()
-        .await?
-        .with_block_history()
-        .await?
-        .with_gas_station()
-        .await?;
+        .initialize_signers_with_key(None)?
+        .with_signers()?
+        .with_market_state_preloader()?
+        .with_nonce_and_balance_monitor()?
+        .with_block_history()?
+        .with_gas_station()?;
 
-    // Start node block player actor
-    if let Err(e) = bc_actors.start(NodeBlockPlayerActor::new(provider.clone(), start_block_number, end_block_number).on_bc(&bc)).await {
+    //Start node block player actor
+    if let Err(e) = bc_actors.start(NodeBlockPlayerActor::new(provider.clone(), start_block_number, start_block_number + 1000).on_bc(&bc)) {
         panic!("Cannot start block player : {}", e);
     }
 

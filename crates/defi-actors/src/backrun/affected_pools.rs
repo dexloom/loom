@@ -1,10 +1,9 @@
 use std::collections::BTreeMap;
 
 use alloy_primitives::Address;
-use eyre::Result;
-
 use defi_entities::{Market, PoolWrapper};
 use defi_types::GethStateUpdateVec;
+use eyre::Result;
 use loom_actors::SharedState;
 
 pub async fn get_affected_pools(

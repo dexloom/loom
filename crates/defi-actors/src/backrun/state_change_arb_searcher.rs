@@ -57,7 +57,7 @@ async fn state_change_arb_searcher_task(
     }
     drop(market_guard_read);
 
-    if !swap_path_vec.is_empty() {
+    if swap_path_vec.is_empty() {
         warn!(
             "No swap path built for request: {:?} {}",
             msg.stuffing_txs_hashes().first().unwrap_or_default(),
@@ -110,6 +110,7 @@ async fn state_change_arb_searcher_task(
                             if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
                                 warn!("Took longer than expected {:?} {}", e, mut_item.clone())
                             }
+                            debug!("Swap error: {:?}", e);
 
                             let pool_health_tx = req.3;
                             if let Err(e) = pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {

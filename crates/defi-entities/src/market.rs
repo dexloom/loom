@@ -106,6 +106,10 @@ impl Market {
         self.pools.contains_key(address)
     }
 
+    pub fn pools(&self) -> &HashMap<Address, PoolWrapper> {
+        &self.pools
+    }
+
     /*pub fn add_error(&mut self, address: Address) {
         match self.pool_errors_map.entry(address) {
             Entry::Vacant(e)=>{

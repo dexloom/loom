@@ -39,7 +39,6 @@ async fn main() -> Result<()> {
         .produce(blockchain.compose_channel())
         .produce(blockchain.pool_health_monitor_channel())
         .start()
-        .await
     {
         Err(e) => {
             error!("{}", e)
@@ -61,7 +60,6 @@ async fn main() -> Result<()> {
         .consume(blockchain.compose_channel())
         .produce(blockchain.compose_channel())
         .start()
-        .await
     {
         Ok(r) => {
             worker_task_vec.extend(r);
@@ -81,7 +79,6 @@ async fn main() -> Result<()> {
         .consume(blockchain.compose_channel())
         .produce(blockchain.compose_channel())
         .start()
-        .await
     {
         Ok(r) => {
             worker_task_vec.extend(r);
@@ -101,7 +98,6 @@ async fn main() -> Result<()> {
         .consume(blockchain.compose_channel())
         .produce(blockchain.compose_channel())
         .start()
-        .await
     {
         Ok(r) => {
             worker_task_vec.extend(r);
@@ -120,7 +116,6 @@ async fn main() -> Result<()> {
         .consume(blockchain.compose_channel())
         .produce(blockchain.compose_channel())
         .start()
-        .await
     {
         Ok(r) => {
             worker_task_vec.extend(r);
@@ -139,7 +134,6 @@ async fn main() -> Result<()> {
         .consume(blockchain.compose_channel())
         .consume(blockchain.market_events_channel())
         .start()
-        .await
     {
         Err(e) => {
             panic!("State health monitor actor failed : {}", e)
@@ -157,7 +151,6 @@ async fn main() -> Result<()> {
         .consume(blockchain.compose_channel())
         .consume(blockchain.market_events_channel())
         .start()
-        .await
     {
         Err(e) => {
             panic!("Stuffing txs monitor actor failed : {}", e)

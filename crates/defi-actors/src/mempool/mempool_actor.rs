@@ -5,7 +5,6 @@ use chrono::{Duration, Utc};
 use eyre::{eyre, Result};
 use log::{debug, error, info, trace};
 use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
 use defi_entities::BlockHistory;

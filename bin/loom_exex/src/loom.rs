@@ -225,7 +225,7 @@ where
         .with_health_monitor_pools()? // monitor pools health to disable empty
         .with_health_monitor_state()? // monitor state health
         .with_health_monitor_stuffing_tx()? // collect stuffing tx information
-        .with_encoder(multicaller_address)? // convert swaps to opcodes and passes to estimator
+        .with_swap_encoder(multicaller_address)? // convert swaps to opcodes and passes to estimator
         .with_evm_estimator()? // estimate gas, add tips
         .with_signers()? // start signer actor that signs transactions before broadcasting
         .with_flashbots_broadcaster(true)? // broadcast signed txes to flashbots
@@ -233,7 +233,7 @@ where
         .with_nonce_and_balance_monitor()? // start monitoring balances of
         .with_pool_history_loader()? // load pools used in latest 10000 blocks
         .with_pool_protocol_loader()? // load curve + steth + wsteth
-        .with_new_pool_loader()? // load new pools // TODO : fix subscription
+        .with_new_pool_loader()? // load new pools
         .with_swap_path_merger()? // load merger for multiple swap paths
         .with_diff_path_merger()? // load merger for different swap paths
         .with_same_path_merger()? // load merger for same swap paths with different stuffing txes

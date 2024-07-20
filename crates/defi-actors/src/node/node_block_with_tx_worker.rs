@@ -4,7 +4,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{Block, BlockTransactionsKind};
 use alloy_transport::Transport;
 use log::error;
-use tokio::sync::broadcast::Receiver;
 
 use loom_actors::{subscribe, Broadcaster, WorkerResult};
 

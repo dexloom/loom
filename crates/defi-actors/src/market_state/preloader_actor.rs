@@ -1,4 +1,3 @@
-use std::any::type_name;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
@@ -9,8 +8,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use async_trait::async_trait;
-use eyre::Result;
-use log::debug;
+use log::{debug, error};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{MarketState, TxSigners};
@@ -82,12 +80,16 @@ where
     }
 
     pub fn with_signers(self, tx_signers: SharedState<TxSigners>) -> Self {
-        if let Ok(signers) = tx_signers.try_read() {
-            let mut addresses = self.addresses;
-            addresses.extend(signers.get_address_vec());
-            Self { addresses, ..self }
-        } else {
-            self
+        match tx_signers.try_read() {
+            Ok(signers) => {
+                let mut addresses = self.addresses;
+                addresses.extend(signers.get_address_vec());
+                Self { addresses, ..self }
+            }
+            Err(e) => {
+                error!("tx_signers.try_read() {}", e);
+                self
+            }
         }
     }
 
@@ -117,7 +119,6 @@ where
         Ok(vec![handler])
     }
     fn name(&self) -> &'static str {
-        let full_name = type_name::<Self>();
-        full_name.split("::").last().unwrap_or(full_name)
+        "MarketStatePreloadedActor"
     }
 }

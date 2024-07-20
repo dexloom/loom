@@ -4,7 +4,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::BlockId;
 use alloy_transport::Transport;
 use log::error;
-use tokio::sync::broadcast::Receiver;
 
 use debug_provider::DebugProviderExt;
 use defi_events::BlockStateUpdate;

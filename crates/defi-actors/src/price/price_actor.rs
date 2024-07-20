@@ -8,10 +8,10 @@ use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use async_trait::async_trait;
-use log::{error, info};
+use log::{debug, error, info};
 
 use defi_blockchain::Blockchain;
-use defi_entities::Market;
+use defi_entities::{Market, Pool};
 use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
@@ -23,6 +23,7 @@ use loom_actors_macros::Accessor;
 async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(
     client: P,
     market: SharedState<Market>,
+    once: bool,
 ) -> WorkerResult {
     let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
 
@@ -43,8 +44,8 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
     let curve_tricrypto_usdt_pool = CurvePool::fetch_pool_data(client.clone(), curve_tricrypto_usdt).await?;
 
     coins_hash_map.insert(usdc_address, curve_tricrypto_usdc_pool.clone());
-    coins_hash_map.insert(usdt_address, curve_tricrypto_usdt_pool.clone());
     coins_hash_map.insert(wbtc_address, curve_tricrypto_usdc_pool.clone());
+    coins_hash_map.insert(usdt_address, curve_tricrypto_usdt_pool.clone());
 
     let one_ether = U256::from(10).pow(U256::from(18));
     let weth_amount = one_ether.mul(U256::from(5));
@@ -60,13 +61,16 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
 
     loop {
         for (token_address, curve_pool) in coins_hash_map.iter() {
+            debug!("Fetching price of {} at {}", token_address, curve_pool.get_address());
+
             match curve_pool.fetch_out_amount(weth_address, *token_address, weth_amount).await {
                 Ok(out_amount) => {
                     let price = out_amount.mul(one_ether).div(weth_amount);
-                    info!("{token_address:#20x} {price}");
+                    info!("Price of ETH in {token_address:#20x} is {price}");
                     match market.read().await.get_token(token_address) {
                         Some(tkn) => {
                             tkn.set_eth_price(Some(price));
+                            debug!("price is set");
                         }
                         _ => {
                             error!("Token {token_address:#20x} not found");
@@ -79,7 +83,7 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
             }
         }
 
-        let usdt_price = market.read().await.get_token_or_default(&usdc_address).get_eth_price();
+        let usdt_price = market.read().await.get_token_or_default(&usdt_address).get_eth_price();
         let usdc_price = market.read().await.get_token_or_default(&usdc_address).get_eth_price();
 
         let mut usd_price: Option<U256> = None;
@@ -99,14 +103,19 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
                 }
             }
         }
+        if once {
+            break;
+        }
 
         let _ = tokio::time::sleep(Duration::new(60, 0)).await;
     }
+    Ok("PriceWorker finished".to_string())
 }
 
 #[derive(Accessor)]
 pub struct PriceActor<P, T, N> {
     client: P,
+    only_once: bool,
     #[accessor]
     market: Option<SharedState<Market>>,
     _t: PhantomData<T>,
@@ -120,7 +129,11 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
-        Self { client, market: None, _t: PhantomData, _n: PhantomData }
+        Self { client, only_once: false, market: None, _t: PhantomData, _n: PhantomData }
+    }
+
+    pub fn only_once(self) -> Self {
+        Self { only_once: true, ..self }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -136,7 +149,7 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(price_worker(self.client.clone(), self.market.clone().unwrap()));
+        let task = tokio::task::spawn(price_worker(self.client.clone(), self.market.clone().unwrap(), self.only_once));
         Ok(vec![task])
     }
 

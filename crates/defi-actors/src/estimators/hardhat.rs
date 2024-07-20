@@ -9,7 +9,6 @@ use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
 
 use debug_provider::DebugProviderExt;
 use defi_entities::GasStation;

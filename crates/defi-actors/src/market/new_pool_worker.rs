@@ -7,7 +7,6 @@ use async_trait::async_trait;
 use eyre::Result;
 use log::{debug, error, info};
 use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;

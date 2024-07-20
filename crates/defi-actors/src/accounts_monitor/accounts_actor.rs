@@ -10,7 +10,6 @@ use alloy_transport::Transport;
 use async_trait::async_trait;
 use log::debug;
 use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
 use tokio::time::sleep;
 
 use defi_blockchain::Blockchain;

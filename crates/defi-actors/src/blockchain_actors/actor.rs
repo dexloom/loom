@@ -5,11 +5,10 @@ use alloy_network::Ethereum;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use eyre::{eyre, Result};
-
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
 use defi_entities::TxSigners;
+use eyre::{eyre, Result};
 use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
 use loom_multicaller::MulticallerSwapEncoder;
@@ -63,17 +62,19 @@ where
 
     /// Initialize signers with the private key. Random key generated if param in None
     pub fn initialize_signers_with_key(&mut self, key: Option<Vec<u8>>) -> Result<&mut Self> {
-        self.actor_manager.start(InitializeSignersActor::new(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start_and_wait(InitializeSignersActor::new(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
     pub fn initialize_signers_with_encrypted_key(&mut self, key: Vec<u8>) -> Result<&mut Self> {
-        self.actor_manager.start(InitializeSignersActor::new_from_encrypted_key(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager
+            .start_and_wait(InitializeSignersActor::new_from_encrypted_key(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Initializes signers with encrypted key form DATA env var
     pub fn initialize_signers_with_env(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(InitializeSignersActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager
+            .start_and_wait(InitializeSignersActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 
@@ -84,7 +85,7 @@ where
     }
 
     /// Initializes encoder and start encoder actor
-    pub fn with_encoder(&mut self, multicaller_address: Address) -> Result<&mut Self> {
+    pub fn with_swap_encoder(&mut self, multicaller_address: Address) -> Result<&mut Self> {
         self.encoder = Some(MulticallerSwapEncoder::new(multicaller_address));
         self.actor_manager.start(ArbSwapPathEncoderActor::new(multicaller_address).with_signers(self.signers.clone()).on_bc(&self.bc))?;
         Ok(self)
@@ -92,14 +93,15 @@ where
 
     /// Starts market state preloader
     pub fn with_market_state_preloader(&mut self) -> Result<&mut Self> {
-        let mut address_vec = self.signers.try_read()?.get_address_vec();
+        let mut address_vec = self.signers.inner().try_read()?.get_address_vec();
 
-        let multicaller_address = self.encoder.clone().unwrap().multicaller_address;
-        address_vec.push(multicaller_address);
+        if let Some(encoder) = &self.encoder {
+            let multicaller_address = encoder.multicaller_address;
+            address_vec.push(multicaller_address);
+        }
 
         self.actor_manager
             .start_and_wait(MarketStatePreloadedActor::new(self.provider.clone()).with_address_vec(address_vec).on_bc(&self.bc))?;
-
         Ok(self)
     }
 

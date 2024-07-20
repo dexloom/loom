@@ -164,6 +164,17 @@ async fn main() -> Result<()> {
     let (_, post) = debug_trace_block(client.clone(), BlockId::Number(BlockNumberOrTag::Number(block_nr)), true).await?;
     latest_block.write().await.update(block_nr, block_hash, Some(block_header.clone()), Some(block_header_with_txes), None, Some(post));
 
+    info!("Starting initialize signers actor");
+
+    let mut initialize_signers_actor = InitializeSignersActor::new(Some(priv_key.to_bytes().to_vec()));
+    match initialize_signers_actor.access(tx_signers.clone()).access(accounts_state.clone()).start_and_wait() {
+        Err(e) => {
+            error!("{}", e);
+            panic!("Cannot initialize signers");
+        }
+        _ => info!("Signers have been initialized"),
+    }
+
     for (token_name, token_config) in test_config.tokens {
         let symbol = token_config.symbol.unwrap_or(token_config.address.to_checksum(None));
         let name = token_config.name.unwrap_or(symbol.clone());
@@ -185,47 +196,10 @@ async fn main() -> Result<()> {
         market_instance.write().await.add_token(token)?;
     }
 
-    for (_pool_name, pool_config) in test_config.pools {
-        match pool_config.class {
-            PoolClass::UniswapV2 | PoolClass::UniswapV3 => {
-                fetch_and_add_pool_by_address(
-                    client.clone(),
-                    market_instance.clone(),
-                    market_state.clone(),
-                    pool_config.address,
-                    pool_config.class,
-                )
-                .await?;
-            }
-            PoolClass::Curve => {
-                if let Ok(curve_contract) = CurveProtocol::get_contract_from_code(client.clone(), pool_config.address).await {
-                    let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
-                    fetch_state_and_add_pool(client.clone(), market_instance.clone(), market_state.clone(), curve_pool.into()).await?
-                } else {
-                    error!("CURVE_POOL_NOT_LOADED");
-                }
-            }
-            _ => {
-                error!("Unknown pool class")
-            }
-        }
-    }
-
-    info!("Starting initialize signers actor");
-
-    let mut initialize_signers_actor = InitializeSignersActor::new(Some(priv_key.to_bytes().to_vec()));
-    match initialize_signers_actor.access(tx_signers.clone()).access(accounts_state.clone()).start().await {
-        Err(e) => {
-            error!("{}", e);
-            panic!("Cannot initialize signers");
-        }
-        _ => info!("Signers have been initialized"),
-    }
-
     info!("Starting market state preload actor");
     let mut market_state_preload_actor =
         MarketStatePreloadedActor::new(client.clone()).with_encoder(&encoder).with_signers(tx_signers.clone());
-    match market_state_preload_actor.access(market_state.clone()).start().await {
+    match market_state_preload_actor.access(market_state.clone()).start_and_wait() {
         Err(e) => {
             error!("{}", e)
         }
@@ -244,7 +218,6 @@ async fn main() -> Result<()> {
         .produce(new_block_logs_channel.clone())
         .produce(new_block_state_update_channel.clone())
         .start()
-        .await
     {
         Err(e) => {
             error!("{}", e)
@@ -261,7 +234,6 @@ async fn main() -> Result<()> {
         .access(block_history_state.clone())
         .consume(market_events_channel.clone())
         .start()
-        .await
     {
         Err(e) => {
             error!("{}", e);
@@ -271,8 +243,8 @@ async fn main() -> Result<()> {
     }
 
     info!("Starting price actor");
-    let mut price_actor = PriceActor::new(client.clone());
-    match price_actor.access(market_instance.clone()).start().await {
+    let mut price_actor = PriceActor::new(client.clone()).only_once();
+    match price_actor.access(market_instance.clone()).start_and_wait() {
         Err(e) => {
             error!("{}", e);
             panic!("Cannot initialize price actor");
@@ -288,13 +260,42 @@ async fn main() -> Result<()> {
         .consume(market_events_channel.clone())
         .produce(market_events_channel.clone())
         .start()
-        .await
     {
         Err(e) => {
             error!("{}", e)
         }
         _ => {
             info!("Gas station actor started successfully")
+        }
+    }
+
+    for (_pool_name, pool_config) in test_config.pools {
+        match pool_config.class {
+            PoolClass::UniswapV2 | PoolClass::UniswapV3 => {
+                debug!("Loading uniswap pool");
+                fetch_and_add_pool_by_address(
+                    client.clone(),
+                    market_instance.clone(),
+                    market_state.clone(),
+                    pool_config.address,
+                    pool_config.class,
+                )
+                .await?;
+                debug!("Loaded uniswap pool ");
+            }
+            PoolClass::Curve => {
+                debug!("Loading curve pool");
+                if let Ok(curve_contract) = CurveProtocol::get_contract_from_code(client.clone(), pool_config.address).await {
+                    let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
+                    fetch_state_and_add_pool(client.clone(), market_instance.clone(), market_state.clone(), curve_pool.into()).await?
+                } else {
+                    error!("CURVE_POOL_NOT_LOADED");
+                }
+                debug!("Loaded curve pool");
+            }
+            _ => {
+                error!("Unknown pool class")
+            }
         }
     }
 
@@ -310,7 +311,6 @@ async fn main() -> Result<()> {
         .consume(new_block_state_update_channel.clone())
         .produce(market_events_channel.clone())
         .start()
-        .await
     {
         Err(e) => {
             error!("{}", e)
@@ -323,7 +323,7 @@ async fn main() -> Result<()> {
     let tx_compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
 
     let mut broadcast_actor = AnvilBroadcastActor::new(client.clone());
-    match broadcast_actor.consume(tx_compose_channel.clone()).start().await {
+    match broadcast_actor.consume(tx_compose_channel.clone()).start() {
         Err(e) => error!("{}", e),
         _ => {
             info!("Broadcast actor started successfully")
@@ -332,7 +332,7 @@ async fn main() -> Result<()> {
 
     //let mut estimator_actor = HardhatEstimatorActor::new(client.clone(), encoder.clone());
     let mut estimator_actor = EvmEstimatorActor::new(encoder.clone());
-    match estimator_actor.consume(tx_compose_channel.clone()).produce(tx_compose_channel.clone()).start().await {
+    match estimator_actor.consume(tx_compose_channel.clone()).produce(tx_compose_channel.clone()).start() {
         Err(e) => error!("{e}"),
         _ => {
             info!("Estimate actor started successfully")
@@ -351,7 +351,6 @@ async fn main() -> Result<()> {
             .consume(tx_compose_channel.clone())
             .produce(tx_compose_channel.clone())
             .start()
-            .await
         {
             Err(e) => {
                 error!("{}", e)
@@ -366,7 +365,7 @@ async fn main() -> Result<()> {
     if test_config.modules.signer {
         info!("Starting signers actor");
         let mut signers_actor = TxSignersActor::new();
-        match signers_actor.consume(tx_compose_channel.clone()).produce(tx_compose_channel.clone()).start().await {
+        match signers_actor.consume(tx_compose_channel.clone()).produce(tx_compose_channel.clone()).start() {
             Err(e) => {
                 error!("{}", e);
                 panic!("Cannot start signers");
@@ -391,7 +390,6 @@ async fn main() -> Result<()> {
             .produce(tx_compose_channel.clone())
             .produce(pool_health_monitor_channel.clone())
             .start()
-            .await
         {
             Err(e) => {
                 error!("{}", e)
@@ -412,7 +410,6 @@ async fn main() -> Result<()> {
             .consume(market_events_channel.clone())
             .produce(tx_compose_channel.clone())
             .start()
-            .await
         {
             Err(e) => {
                 error!("{}", e)
@@ -433,7 +430,6 @@ async fn main() -> Result<()> {
             .consume(market_events_channel.clone())
             .produce(tx_compose_channel.clone())
             .start()
-            .await
         {
             Err(e) => {
                 error!("{}", e)
@@ -451,7 +447,6 @@ async fn main() -> Result<()> {
         .consume(market_events_channel.clone())
         .produce(tx_compose_channel.clone())
         .start()
-        .await
     {
         Err(e) => {
             error!("{}", e)
@@ -544,7 +539,7 @@ async fn main() -> Result<()> {
     let mut s = tx_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
-    let timeout_duration = Duration::from_secs(10);
+    let timeout_duration = Duration::from_secs(30);
 
     loop {
         tokio::select! {

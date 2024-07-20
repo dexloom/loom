@@ -233,9 +233,9 @@ async fn collect_stat_task(
 
     let mut bc_actors = BlockchainActors::new(provider, bc.clone());
     if grps {
-        bc_actors.with_exex_events().await?;
+        bc_actors.with_exex_events()?;
     } else {
-        bc_actors.with_block_events().await?.with_local_mempool_events().await?;
+        bc_actors.with_block_events()?.with_local_mempool_events()?;
     }
 
     let mut blocks_counter: usize = 0;

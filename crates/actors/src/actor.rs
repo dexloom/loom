@@ -9,24 +9,30 @@ pub type WorkerResult = Result<String>;
 
 pub type ActorResult = Result<Vec<JoinHandle<WorkerResult>>>;
 
-fn wait_for_handles(handles: Vec<JoinHandle<WorkerResult>>) {
-    tokio::runtime::Runtime::new().unwrap().block_on(async {
-        futures::future::join_all(handles).await;
-    });
-}
-
 #[async_trait]
 pub trait Actor {
     fn start_and_wait(&self) -> Result<()> {
         let handles = self.start();
         match handles {
             Ok(handles) => {
-                wait_for_handles(handles);
+                loop {
+                    let mut finished = 0;
+                    for h in &handles {
+                        if h.is_finished() {
+                            finished += 1;
+                        }
+                    }
+                    if finished == handles.len() {
+                        break;
+                    }
+                    std::thread::sleep(std::time::Duration::from_millis(100));
+                }
                 Ok(())
             }
             Err(e) => Err(e),
         }
     }
+
     fn start(&self) -> ActorResult;
 
     fn name(&self) -> &'static str;

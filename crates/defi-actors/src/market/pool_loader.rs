@@ -149,43 +149,38 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     match pool_wrapped.get_state_required() {
-        Ok(required_state) => {
-            match RequiredStateReader::fetch_calls_and_slots(client, required_state, None).await {
-                Ok(state) => {
-                    //info!("Pool added {} {:?} {:?} accs :{} , storage: {}", pool.get_protocol(), pool.get_address(), pool.get_tokens() ,accs, storage );
-                    {
-                        let pool_address = pool_wrapped.get_address();
-                        {
-                            let mut market_state_write_guard = market_state.write().await;
-                            market_state_write_guard.add_state(&state);
-                            market_state_write_guard.add_force_insert(pool_address);
-                            market_state_write_guard.disable_cell_vec(pool_address, pool_wrapped.get_read_only_cell_vec());
+        Ok(required_state) => match RequiredStateReader::fetch_calls_and_slots(client, required_state, None).await {
+            Ok(state) => {
+                let pool_address = pool_wrapped.get_address();
+                {
+                    let mut market_state_write_guard = market_state.write().await;
+                    market_state_write_guard.add_state(&state);
+                    market_state_write_guard.add_force_insert(pool_address);
+                    market_state_write_guard.disable_cell_vec(pool_address, pool_wrapped.get_read_only_cell_vec());
 
-                            drop(market_state_write_guard);
-                        }
-
-                        let directions_vec = pool_wrapped.get_swap_directions();
-                        let mut directions_tree: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
-
-                        directions_tree.insert(pool_wrapped.clone(), directions_vec);
-
-                        let mut market_write_guard = market.write().await;
-                        if let Err(e) = market_write_guard.add_pool(pool_wrapped) {
-                            error!("{}", e)
-                        }
-
-                        let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
-                        market_write_guard.add_paths(swap_paths);
-
-                        drop(market_write_guard)
-                    }
+                    drop(market_state_write_guard);
                 }
-                Err(e) => {
-                    error!("{}", e);
-                    return Err(e);
+
+                let directions_vec = pool_wrapped.get_swap_directions();
+                let mut directions_tree: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
+
+                directions_tree.insert(pool_wrapped.clone(), directions_vec);
+
+                let mut market_write_guard = market.write().await;
+                if let Err(e) = market_write_guard.add_pool(pool_wrapped) {
+                    error!("{}", e)
                 }
+
+                let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
+                market_write_guard.add_paths(swap_paths);
+
+                drop(market_write_guard)
             }
-        }
+            Err(e) => {
+                error!("{}", e);
+                return Err(e);
+            }
+        },
         Err(e) => {
             error!("{}", e);
             return Err(e);

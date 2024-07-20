@@ -47,7 +47,7 @@ impl AnvilDebugProviderFactory {
         let node_ws = WsConnect::new(node_url.clone());
         let node_provider = ProviderBuilder::new().on_ws(node_ws).await?.boxed();
 
-        let anvil = Anvil::new().fork_block_number(block).fork(node_url.clone()).chain_id(1).spawn();
+        let anvil = Anvil::new().fork_block_number(block).fork(node_url.clone()).chain_id(1).arg("--disable-console-log").spawn();
 
         //let anvil_layer = AnvilLayer::from(anvil.clone());
         let anvil_url = anvil.ws_endpoint_url();

@@ -82,7 +82,7 @@ impl TxSigners {
     }
     pub fn add_privkey(&mut self, priv_key: Bytes) -> TxSigner {
         let wallet = PrivateKeySigner::from_bytes(&B256::from_slice(priv_key.as_ref())).unwrap();
-        if self.signers_vec.iter().any(|item| item.address() == wallet.address()) {
+        if !self.signers_vec.iter().any(|item| item.address() == wallet.address()) {
             self.signers_vec.push(TxSigner::new(wallet.clone()));
         }
         TxSigner::new(wallet)

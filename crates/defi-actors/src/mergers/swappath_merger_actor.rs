@@ -6,7 +6,6 @@ use eyre::{eyre, Result};
 use log::{debug, error, info};
 use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
 use defi_entities::{LatestBlock, Swap, SwapStep};

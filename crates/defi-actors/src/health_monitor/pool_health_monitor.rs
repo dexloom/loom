@@ -5,7 +5,6 @@ use async_trait::async_trait;
 use eyre::Result;
 use log::{debug, error};
 use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
 use defi_entities::Market;
