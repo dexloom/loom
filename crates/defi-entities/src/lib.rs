@@ -17,7 +17,7 @@ pub use swapline::{SwapAmountType, SwapLine};
 pub use swappath::{SwapPath, SwapPaths};
 pub use swappath_builder::build_swap_path_vec;
 pub use swapstep::SwapStep;
-pub use token::{Token, TokenWrapper, NWETH};
+pub use token::{Token, TokenWrapper};
 
 mod block_history;
 mod latest_block;

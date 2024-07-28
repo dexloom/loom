@@ -29,6 +29,7 @@ defi-actors.workspace = true
 defi-pools.workspace = true
 defi-events.workspace = true
 defi-blockchain.workspace = true
+loom-utils.workspace = true
 
 loom-multicaller.workspace = true
 

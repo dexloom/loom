@@ -1,24 +1,74 @@
+use std::collections::btree_map::Entry;
 use std::collections::BTreeMap;
 use std::marker::PhantomData;
 
 use alloy_eips::{BlockId, BlockNumberOrTag};
 use alloy_network::Network;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use async_trait::async_trait;
-use log::{debug, error};
+use eyre::{eyre, Result};
+use log::{debug, error, info};
 
 use defi_blockchain::Blockchain;
-use defi_entities::{MarketState, TxSigners};
+use defi_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
 use defi_pools::protocols::UniswapV3Protocol;
 use defi_types::GethStateUpdate;
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 use loom_multicaller::SwapStepEncoder;
+use loom_utils::tokens::ETH_NATIVE_ADDRESS;
+use loom_utils::{BalanceCheater, NWETH};
 
-pub async fn preload_market_state<P, T, N>(client: P, address_vec: Vec<Address>, market_state: SharedState<MarketState>) -> WorkerResult
+async fn fetch_account_state<P, T, N>(client: P, address: Address) -> Result<AccountState>
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
+{
+    let code = client.get_code_at(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.ok();
+    let balance = client.get_balance(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.ok();
+    let nonce = client.get_transaction_count(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.ok();
+
+    Ok(AccountState { balance, code, nonce, storage: BTreeMap::new() })
+}
+
+async fn set_monitor_token_balance(
+    account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
+    owner: Address,
+    token: Address,
+    balance: U256,
+) {
+    if let Some(account_nonce_balance) = account_nonce_balance_state {
+        debug!("set_monitor_balance {} {} {}", owner, token, balance);
+        let mut account_nonce_balance_guard = account_nonce_balance.write().await;
+        let entry = account_nonce_balance_guard.get_entry_or_default(owner);
+        debug!("set_monitor_balance {:?}", entry);
+
+        entry.add_balance(token, balance);
+    }
+}
+
+async fn set_monitor_nonce(account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>, owner: Address, nonce: u64) {
+    if let Some(account_nonce_balance) = account_nonce_balance_state {
+        debug!("set_monitor_nonce {} {}", owner, nonce);
+        let mut account_nonce_balance_guard = account_nonce_balance.write().await;
+        let mut entry = account_nonce_balance_guard.get_entry_or_default(owner);
+        debug!("set_monitor_nonce {:?}", entry);
+        entry.set_nonce(nonce);
+    }
+}
+
+pub async fn preload_market_state<P, T, N>(
+    client: P,
+    copied_accounts_vec: Vec<Address>,
+    new_accounts_vec: Vec<(Address, u64, U256, Option<Bytes>)>,
+    token_balances_vec: Vec<(Address, Address, U256)>,
+    market_state: SharedState<MarketState>,
+    account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
+) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
@@ -30,15 +80,55 @@ where
 
     let mut state: GethStateUpdate = BTreeMap::new();
 
-    for address in address_vec {
+    for address in copied_accounts_vec {
         debug!("Loading address : {address}");
-        let code = client.get_code_at(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
-        let balance = client.get_balance(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
-        let nonce = client.get_transaction_count(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.unwrap();
+        let acc_state = fetch_account_state(client.clone(), address).await?;
 
-        state.insert(address, AccountState { balance: Some(balance), code: Some(code), nonce: Some(nonce), storage: BTreeMap::new() });
+        set_monitor_token_balance(
+            account_nonce_balance_state.clone(),
+            address,
+            NWETH::NATIVE_ADDRESS,
+            acc_state.balance.unwrap_or_default(),
+        )
+        .await;
+
+        set_monitor_nonce(account_nonce_balance_state.clone(), address, acc_state.nonce.unwrap_or_default()).await;
+        debug!("Loaded address : {address} {:?}", acc_state);
+
+        state.insert(address, acc_state);
     }
 
+    for (address, nonce, balance, code) in new_accounts_vec {
+        debug!("new_accounts added {} {} {}", address, nonce, balance);
+        set_monitor_token_balance(account_nonce_balance_state.clone(), address, NWETH::NATIVE_ADDRESS, balance).await;
+        state.insert(address, AccountState { balance: Some(balance), code, nonce: Some(nonce), storage: BTreeMap::new() });
+    }
+
+    for (token, owner, balance) in token_balances_vec {
+        if token == ETH_NATIVE_ADDRESS {
+            match state.entry(owner) {
+                Entry::Vacant(e) => {
+                    e.insert(AccountState { balance: Some(balance), nonce: Some(0), code: None, storage: BTreeMap::new() });
+                }
+                Entry::Occupied(mut e) => {
+                    e.get_mut().balance = Some(balance);
+                }
+            }
+        } else {
+            match state.entry(token) {
+                Entry::Vacant(e) => {
+                    let mut acc_state = fetch_account_state(client.clone(), token).await?;
+                    acc_state.storage.insert(BalanceCheater::get_balance_cell(token, owner)?.into(), balance.into());
+                    e.insert(acc_state);
+                }
+                Entry::Occupied(mut e) => {
+                    e.get_mut().storage.insert(BalanceCheater::get_balance_cell(token, owner)?.into(), balance.into());
+                }
+            }
+        }
+
+        set_monitor_token_balance(account_nonce_balance_state.clone(), owner, token, balance).await;
+    }
     market_state_guard.add_state(&state);
 
     Ok("DONE".to_string())
@@ -49,9 +139,13 @@ where
 pub struct MarketStatePreloadedActor<P, T, N> {
     name: &'static str,
     client: P,
-    addresses: Vec<Address>,
+    copied_accounts: Vec<Address>,
+    new_accounts: Vec<(Address, u64, U256, Option<Bytes>)>,
+    token_balances: Vec<(Address, Address, U256)>,
     #[accessor]
     market_state: Option<SharedState<MarketState>>,
+    #[accessor]
+    account_nonce_balabnce_state: Option<SharedState<AccountNonceAndBalanceState>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -68,7 +162,17 @@ where
     }
 
     pub fn new(client: P) -> Self {
-        Self { name: "MarketStatePreloadedActor", client, addresses: Vec::new(), market_state: None, _t: PhantomData, _n: PhantomData }
+        Self {
+            name: "MarketStatePreloadedActor",
+            client,
+            copied_accounts: Vec::new(),
+            new_accounts: Vec::new(),
+            token_balances: Vec::new(),
+            market_state: None,
+            account_nonce_balabnce_state: None,
+            _t: PhantomData,
+            _n: PhantomData,
+        }
     }
 
     pub fn with_name(self, name: &'static str) -> Self {
@@ -76,15 +180,15 @@ where
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self { market_state: Some(bc.market_state()), ..self }
+        Self { market_state: Some(bc.market_state()), account_nonce_balabnce_state: Some(bc.nonce_and_balance()), ..self }
     }
 
     pub fn with_signers(self, tx_signers: SharedState<TxSigners>) -> Self {
         match tx_signers.try_read() {
             Ok(signers) => {
-                let mut addresses = self.addresses;
+                let mut addresses = self.copied_accounts;
                 addresses.extend(signers.get_address_vec());
-                Self { addresses, ..self }
+                Self { copied_accounts: addresses, ..self }
             }
             Err(e) => {
                 error!("tx_signers.try_read() {}", e);
@@ -94,15 +198,33 @@ where
     }
 
     pub fn with_encoder(self, encoder: &SwapStepEncoder) -> Self {
-        let mut addresses = self.addresses;
+        let mut addresses = self.copied_accounts;
         addresses.extend(vec![encoder.get_multicaller()]);
-        Self { addresses, ..self }
+        Self { copied_accounts: addresses, ..self }
     }
 
-    pub fn with_address_vec(self, address_vec: Vec<Address>) -> Self {
-        let mut addresses = self.addresses;
-        addresses.extend(address_vec);
-        Self { addresses, ..self }
+    pub fn with_copied_account(self, address: Address) -> Self {
+        let mut copied_accounts = self.copied_accounts;
+        copied_accounts.push(address);
+        Self { copied_accounts, ..self }
+    }
+
+    pub fn with_copied_accounts(self, address_vec: Vec<Address>) -> Self {
+        let mut copied_accounts = self.copied_accounts;
+        copied_accounts.extend(address_vec);
+        Self { copied_accounts, ..self }
+    }
+
+    pub fn with_new_account(self, address: Address, nonce: u64, balance: U256, code: Option<Bytes>) -> Self {
+        let mut new_accounts = self.new_accounts;
+        new_accounts.push((address, nonce, balance, code));
+        Self { new_accounts, ..self }
+    }
+
+    pub fn with_token_balance(self, token: Address, owner: Address, balance: U256) -> Self {
+        let mut token_balances = self.token_balances;
+        token_balances.push((token, owner, balance));
+        Self { token_balances, ..self }
     }
 }
 
@@ -114,10 +236,23 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let handler =
-            tokio::task::spawn(preload_market_state(self.client.clone(), self.addresses.clone(), self.market_state.clone().unwrap()));
-        Ok(vec![handler])
+        Err(eyre!("NEED_TO_BE_WAITED"))
     }
+
+    fn start_and_wait(&self) -> eyre::Result<()> {
+        let handler = tokio::task::spawn(preload_market_state(
+            self.client.clone(),
+            self.copied_accounts.clone(),
+            self.new_accounts.clone(),
+            self.token_balances.clone(),
+            self.market_state.clone().unwrap(),
+            self.account_nonce_balabnce_state.clone(),
+        ));
+
+        Self::wait(Ok(vec![handler]))?;
+        Ok(())
+    }
+
     fn name(&self) -> &'static str {
         "MarketStatePreloadedActor"
     }

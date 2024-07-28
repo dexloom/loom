@@ -34,16 +34,27 @@ async fn encoder_task(
             }
             ret
         }
+        Swap::ExchangeSwapLine(_) => vec![],
         Swap::None => {
             vec![]
         }
     };
 
-    if swap_vec.is_empty() {
-        return Err(eyre!("NO_SWAP_STEPS"));
-    }
-
-    let swap_opcodes = if swap_vec.len() == 1 {
+    let swap_opcodes = if swap_vec.is_empty() {
+        match &encode_request.swap {
+            Swap::ExchangeSwapLine(swap_line) => {
+                debug!("Swap::ExchangeSwapLine encoding started");
+                match encoder.swap_line_encoder.encode_swap_line_in_amount(swap_line, encoder.multicaller, encoder.multicaller) {
+                    Ok(calls) => calls,
+                    Err(e) => {
+                        error!("swap_line_encoder.encode_swap_line_in_amount : {}", e);
+                        return Err(eyre!("ENCODING_FAILED"));
+                    }
+                }
+            }
+            _ => return Err(eyre!("NO_SWAP_STEPS")),
+        }
+    } else if swap_vec.len() == 1 {
         let sp0 = &swap_vec[0].0;
         let sp1 = &swap_vec[0].1;
         encoder.encode(sp0, sp1)?
@@ -64,6 +75,7 @@ async fn encoder_task(
             let gas_fee: u128 = encode_request.gas_fee;
 
             if gas_fee == 0 {
+                error!("Block base fee is not set");
                 Err(eyre!("NO_BLOCK_GAS_FEE"))
             } else {
                 let gas = (encode_request.swap.pre_estimate_gas() as u128) * 2;
@@ -133,7 +145,7 @@ async fn arb_swap_path_encoder_worker(
 }
 
 #[derive(Consumer, Producer, Accessor)]
-pub struct ArbSwapPathEncoderActor {
+pub struct SwapEncoderActor {
     encoder: SwapStepEncoder,
     #[accessor]
     signers: Option<SharedState<TxSigners>>,
@@ -145,9 +157,9 @@ pub struct ArbSwapPathEncoderActor {
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
 }
 
-impl ArbSwapPathEncoderActor {
-    pub fn new(multicaller: Address) -> ArbSwapPathEncoderActor {
-        ArbSwapPathEncoderActor {
+impl SwapEncoderActor {
+    pub fn new(multicaller: Address) -> SwapEncoderActor {
+        SwapEncoderActor {
             encoder: SwapStepEncoder::new(multicaller),
             signers: None,
             account_nonce_balance: None,
@@ -171,7 +183,7 @@ impl ArbSwapPathEncoderActor {
 }
 
 #[async_trait]
-impl Actor for ArbSwapPathEncoderActor {
+impl Actor for SwapEncoderActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(arb_swap_path_encoder_worker(
             self.encoder.clone(),

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{address, Address, Bytes, U256};
 use eyre::{eyre, Result};
 use log::{error, trace};
 
@@ -12,13 +12,13 @@ use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::poolencoders::{CurveSwapEncoder, StEthSwapEncoder, WstEthSwapEncoder};
 
 #[derive(Clone)]
-pub struct SwapPathEncoder {
+pub struct SwapLineEncoder {
     multicaller: Address,
 }
 
-impl SwapPathEncoder {
-    pub fn new(multicaller: Address) -> SwapPathEncoder {
-        SwapPathEncoder { multicaller }
+impl SwapLineEncoder {
+    pub fn new(multicaller: Address) -> SwapLineEncoder {
+        SwapLineEncoder { multicaller }
     }
 
     pub fn encode_flash_swap_line_in_amount(
@@ -707,7 +707,7 @@ impl SwapPathEncoder {
         to: Address,
     ) -> Result<MulticallerCalls> {
         let mut tips_opcodes = swap_opcodes.clone();
-        let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
+        let weth_address: Address = address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 
         let call_data = if token_address == weth_address {
             EncoderHelper::encode_multicaller_transfer_tips_weth(min_balance, tips, to)

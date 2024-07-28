@@ -225,7 +225,7 @@ where
         .with_health_monitor_pools()? // monitor pools health to disable empty
         .with_health_monitor_state()? // monitor state health
         .with_health_monitor_stuffing_tx()? // collect stuffing tx information
-        .with_swap_encoder(multicaller_address)? // convert swaps to opcodes and passes to estimator
+        .with_swap_encoder(Some(multicaller_address))? // convert swaps to opcodes and passes to estimator
         .with_evm_estimator()? // estimate gas, add tips
         .with_signers()? // start signer actor that signs transactions before broadcasting
         .with_flashbots_broadcaster(true)? // broadcast signed txes to flashbots

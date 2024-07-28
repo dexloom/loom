@@ -1,12 +1,20 @@
+use std::collections::BTreeMap;
 use std::convert::Infallible;
 
-use alloy_primitives::{Address, Bytes, B256, U256};
-use alloy_rpc_types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest};
+use alloy::eips::BlockNumHash;
+use alloy::primitives::TxHash;
+use alloy::rpc::types::trace::geth::AccountState;
+use alloy::rpc::types::Log;
+use alloy::{
+    primitives::{Address, Bytes, B256, U256},
+    rpc::types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest},
+};
+use defi_types::GethStateUpdate;
 use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, trace};
 use revm::interpreter::Host;
-use revm::primitives::{BlockEnv, Env, ExecutionResult, Output, TransactTo, TxEnv, SHANGHAI};
+use revm::primitives::{Account, BlockEnv, Env, ExecutionResult, Output, ResultAndState, TransactTo, TxEnv, SHANGHAI};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
@@ -140,7 +148,7 @@ where
     }
 }
 
-pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env {
+pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> Env {
     let tx = tx.into();
 
     /*let blob_gas = if block_header.blob_gas_used.is_some() && block_header.excess_blob_gas.is_some() {
@@ -184,4 +192,57 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: Header) -> Env
             //eof_initcodes_hashed: Default::default(),
         },
     }
+}
+
+pub fn evm_call_tx_in_block<DB, T: Into<Transaction>>(tx: T, state_db: DB, header: &Header) -> Result<ResultAndState>
+where
+    DB: DatabaseRef<Error = Infallible>,
+{
+    let env = evm_env_from_tx(tx, header);
+
+    let mut evm = Evm::builder().with_spec_id(SHANGHAI).with_ref_db(state_db).with_env(Box::new(env)).build();
+
+    evm.transact().map_err(|_| eyre!("TRANSACT_ERROR"))
+}
+
+pub fn convert_evm_result_to_rpc(
+    result: ResultAndState,
+    tx_hash: TxHash,
+    block_num_hash: BlockNumHash,
+    block_timestamp: u64,
+) -> Result<(Vec<Log>, GethStateUpdate)> {
+    let logs = match result.result {
+        ExecutionResult::Success { logs, .. } => logs
+            .into_iter()
+            .enumerate()
+            .map(|(log_index, l)| Log {
+                inner: l.clone(),
+                block_hash: Some(block_num_hash.hash),
+                block_number: Some(block_num_hash.number),
+                transaction_hash: Some(tx_hash),
+                transaction_index: Some(0u64),
+                log_index: Some(log_index as u64),
+                removed: false,
+                block_timestamp: Some(block_timestamp),
+            })
+            .collect(),
+        _ => return Err(eyre!("EXECUTION_REVERTED")),
+    };
+
+    let mut state_update: GethStateUpdate = GethStateUpdate::default();
+
+    for (address, account) in result.state.into_iter() {
+        let (address, account): (Address, Account) = (address, account);
+        let storage: BTreeMap<B256, B256> = account.storage.into_iter().map(|(k, v)| (k.into(), v.present_value.into())).collect();
+
+        let account_state = AccountState {
+            balance: Some(account.info.balance),
+            code: account.info.code.map(|x| x.bytes()),
+            nonce: Some(account.info.nonce),
+            storage,
+        };
+        state_update.insert(address, account_state);
+    }
+
+    Ok((logs, state_update))
 }

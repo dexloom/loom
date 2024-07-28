@@ -11,8 +11,7 @@ pub type ActorResult = Result<Vec<JoinHandle<WorkerResult>>>;
 
 #[async_trait]
 pub trait Actor {
-    fn start_and_wait(&self) -> Result<()> {
-        let handles = self.start();
+    fn wait(handles: ActorResult) -> Result<()> {
         match handles {
             Ok(handles) => {
                 loop {
@@ -31,6 +30,11 @@ pub trait Actor {
             }
             Err(e) => Err(e),
         }
+    }
+
+    fn start_and_wait(&self) -> Result<()> {
+        let handles = self.start();
+        Self::wait(handles)
     }
 
     fn start(&self) -> ActorResult;

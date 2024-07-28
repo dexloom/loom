@@ -5,10 +5,13 @@ use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
+use reth_primitives::U256;
 use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{GasStation, NWETH};
+use defi_entities::{GasStation, Swap};
+use loom_utils::NWETH;
+
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
@@ -37,21 +40,30 @@ async fn estimator_task(
     let opcodes = estimate_request.opcodes.clone().ok_or(eyre!("NO_OPCODES"))?;
 
     let profit = estimate_request.swap.abs_profit();
-    if profit.is_zero() {
-        return Err(eyre!("NO_PROFIT"));
-    }
 
     let gas_price = estimate_request.priority_gas_fee + estimate_request.gas_fee;
     let gas_cost = GasStation::calc_gas_cost(100_000, gas_price);
 
-    let (tips_vec, call_value) = tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
+    // EXCHANGE SWAP
+    let (tips_opcodes, call_value) = if matches!(estimate_request.swap, Swap::ExchangeSwapLine(_)) {
+        debug!("Exchange swap, no tips");
+        (opcodes.clone(), U256::ZERO)
+    } else {
+        if profit.is_zero() {
+            error!("No profit for arb");
+            return Err(eyre!("NO_PROFIT"));
+        }
 
-    let mut tips_opcodes = opcodes.clone();
+        let (tips_vec, call_value) = tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
 
-    for tips in tips_vec {
-        tips_opcodes = encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
-    }
+        let mut tips_opcodes = opcodes.clone();
 
+        for tips in tips_vec {
+            tips_opcodes =
+                encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
+        }
+        (tips_opcodes, call_value)
+    };
     let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
 
     let tx_request = TransactionRequest {
@@ -81,24 +93,36 @@ async fn estimator_task(
 
                 let gas_cost = GasStation::calc_gas_cost(gas_used as u128, gas_price);
 
-                if gas_cost > estimate_request.swap.abs_profit_eth() {
-                    error!("Profit is too small");
-                    return Err(eyre!("TOO_SMALL_PROFIT"));
-                }
+                let mut tips_vec = vec![];
 
-                let (tips_vec, call_value) =
-                    tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
+                let (to, calldata, call_value) = if !matches!(estimate_request.swap, Swap::ExchangeSwapLine(_)) {
+                    if gas_cost > estimate_request.swap.abs_profit_eth() {
+                        error!("Profit is too small");
+                        return Err(eyre!("TOO_SMALL_PROFIT"));
+                    }
 
-                let call_value = if call_value.is_zero() { None } else { Some(call_value) };
+                    let (upd_tips_vec, call_value) =
+                        tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
+                    tips_vec = upd_tips_vec;
 
-                let mut tips_opcodes = opcodes.clone();
+                    let call_value = if call_value.is_zero() { None } else { Some(call_value) };
 
-                for tips in tips_vec.iter() {
-                    tips_opcodes =
-                        encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
-                }
+                    let mut tips_opcodes = opcodes.clone();
 
-                let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
+                    for tips in tips_vec.iter() {
+                        tips_opcodes = encoder.encode_tips(
+                            tips_opcodes,
+                            tips.token_in.get_address(),
+                            tips.min_change,
+                            tips.tips,
+                            tx_signer.address(),
+                        )?;
+                    }
+                    let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
+                    (to, calldata, call_value)
+                } else {
+                    (to, calldata, None)
+                };
 
                 let tx_request = TransactionRequest {
                     transaction_type: Some(2),

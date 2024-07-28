@@ -10,17 +10,23 @@ use async_trait::async_trait;
 
 use debug_provider::{DebugProviderExt, HttpCachedTransport};
 use defi_blockchain::Blockchain;
+use defi_entities::MarketState;
 use defi_events::{BlockLogs, BlockStateUpdate};
-use loom_actors::{Actor, ActorResult, Broadcaster, Producer};
-use loom_actors_macros::Producer;
+use defi_types::Mempool;
+use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Producer, SharedState};
+use loom_actors_macros::{Accessor, Producer};
 
 use crate::node_player::worker::node_player_worker;
 
-#[derive(Producer)]
+#[derive(Producer, Accessor)]
 pub struct NodeBlockPlayerActor<P, T, N> {
     client: P,
     start_block: BlockNumber,
     end_block: BlockNumber,
+    #[accessor]
+    mempool: Option<SharedState<Mempool>>,
+    #[accessor]
+    market_state: Option<SharedState<MarketState>>,
     #[producer]
     block_header_channel: Option<Broadcaster<Header>>,
     #[producer]
@@ -44,6 +50,8 @@ where
             client,
             start_block,
             end_block,
+            mempool: None,
+            market_state: None,
             block_header_channel: None,
             block_with_tx_channel: None,
             block_logs_channel: None,
@@ -55,11 +63,12 @@ where
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
+            mempool: Some(bc.mempool()),
+            market_state: Some(bc.market_state()),
             block_header_channel: Some(bc.new_block_headers_channel()),
             block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
             block_logs_channel: Some(bc.new_block_logs_channel()),
             block_state_update_channel: Some(bc.new_block_state_update_channel()),
-
             ..self
         }
     }
@@ -77,6 +86,8 @@ where
             self.client.clone(),
             self.start_block,
             self.end_block,
+            self.mempool.clone(),
+            self.market_state.clone(),
             self.block_header_channel.clone(),
             self.block_with_tx_channel.clone(),
             self.block_logs_channel.clone(),

@@ -42,13 +42,13 @@ impl Blockchain {
         let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
         let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
 
-        let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(1000);
+        let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(5000);
 
-        let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(1000);
-        let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(1000);
+        let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(100);
+        let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(2000);
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
-        let compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(1000);
-        let state_update_channel: Broadcaster<StateUpdateEvent> = Broadcaster::new(1000);
+        let compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
+        let state_update_channel: Broadcaster<StateUpdateEvent> = Broadcaster::new(100);
 
         let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
         let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();

@@ -15,20 +15,19 @@ use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 
+use crate::cli::Cli;
+use crate::dto::SwapLineDTO;
+use crate::preloader::preload_pools;
+use crate::soltest::create_sol_test;
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::preload_market_state;
-use defi_entities::{Market, MarketState, PoolWrapper, Swap, SwapAmountType, SwapLine, NWETH};
+use defi_entities::{Market, MarketState, PoolWrapper, Swap, SwapAmountType, SwapLine};
+
 use loom_actors::SharedState;
 use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapEncoder};
 use loom_revm_db::LoomInMemoryDB;
+use loom_utils::{BalanceCheater, NWETH};
 
-use crate::balances::set_balance;
-use crate::cli::Cli;
-use crate::dto::SwapLineDTO;
-use crate::preloader::{preload_pools, WETH_ADDRESS};
-use crate::soltest::create_sol_test;
-
-mod balances;
 mod cli;
 mod dto;
 mod preloader;
@@ -63,8 +62,8 @@ async fn main() -> Result<()> {
         MulticallerDeployer::new().set_code(client.clone(), multicaller_address).await?.address().ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     info!("Multicaller deployed at {:?}", multicaller_address);
 
-    // SET Multicaller WETH balance
-    set_balance(client.clone(), multicaller_address, *WETH_ADDRESS).await?;
+    // Cheat : SET Multicaller WETH balance
+    BalanceCheater::set_anvil_token_balance_float(client.clone(), NWETH::ADDRESS, multicaller_address, 1.0).await?;
 
     // Initialization
     let cache_db = LoomInMemoryDB::default();
@@ -80,7 +79,7 @@ async fn main() -> Result<()> {
     let encoder = Arc::new(MulticallerSwapEncoder::new(multicaller_address));
 
     //preload state
-    preload_market_state(client.clone(), vec![multicaller_address], market_state_instance.clone()).await?;
+    preload_market_state(client.clone(), vec![multicaller_address], vec![], vec![], market_state_instance.clone(), None).await?;
 
     //Preloading market
     preload_pools(client.clone(), market_instance.clone(), market_state_instance.clone()).await?;

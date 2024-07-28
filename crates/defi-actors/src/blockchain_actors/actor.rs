@@ -1,26 +1,27 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use crate::backrun::BlockStateChangeProcessorActor;
+use crate::{
+    ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor,
+    GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor,
+    NodeBlockActor, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor,
+    PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor,
+    StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
+};
 use alloy_network::Ethereum;
-use alloy_primitives::Address;
+use alloy_primitives::{Address, B256, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
-use defi_entities::TxSigners;
+use defi_entities::{PoolClass, TxSigners};
 use eyre::{eyre, Result};
 use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
 use loom_multicaller::MulticallerSwapEncoder;
-
-use crate::backrun::BlockStateChangeProcessorActor;
-use crate::{
-    ArbSwapPathEncoderActor, ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor,
-    GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor,
-    NewPoolLoaderActor, NodeBlockActor, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
-    PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, SamePathMergerActor,
-    StateChangeArbSearcherActor, StateHealthMonitorActor, TxSignersActor,
-};
+use loom_utils::tokens::{ETH_NATIVE_ADDRESS, WETH_ADDRESS};
+use loom_utils::NWETH;
 
 pub struct BlockchainActors<P, T> {
     provider: P,
@@ -30,6 +31,8 @@ pub struct BlockchainActors<P, T> {
     encoder: Option<MulticallerSwapEncoder>,
     has_mempool: bool,
     has_state_update: bool,
+    has_signers: bool,
+    mutlicaller_address: Option<Address>,
     _t: PhantomData<T>,
 }
 
@@ -47,6 +50,8 @@ where
             encoder: None,
             has_mempool: false,
             has_state_update: false,
+            has_signers: false,
+            mutlicaller_address: None,
             _t: PhantomData,
         }
     }
@@ -59,15 +64,27 @@ where
     pub fn start(&mut self, actor: impl Actor + 'static) -> Result<()> {
         self.actor_manager.start(actor)
     }
+    /// Initialize signers with the default anvil Private Key
+    pub fn initialize_signers_with_anvil(&mut self) -> Result<&mut Self> {
+        let key: B256 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".parse()?;
+
+        self.actor_manager
+            .start_and_wait(InitializeSignersActor::new(Some(key.to_vec())).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.with_signers()?;
+        Ok(self)
+    }
 
     /// Initialize signers with the private key. Random key generated if param in None
     pub fn initialize_signers_with_key(&mut self, key: Option<Vec<u8>>) -> Result<&mut Self> {
         self.actor_manager.start_and_wait(InitializeSignersActor::new(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.with_signers()?;
         Ok(self)
     }
+    /// Initialize signers with encrypted private key
     pub fn initialize_signers_with_encrypted_key(&mut self, key: Vec<u8>) -> Result<&mut Self> {
         self.actor_manager
             .start_and_wait(InitializeSignersActor::new_from_encrypted_key(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.with_signers()?;
         Ok(self)
     }
 
@@ -75,19 +92,31 @@ where
     pub fn initialize_signers_with_env(&mut self) -> Result<&mut Self> {
         self.actor_manager
             .start_and_wait(InitializeSignersActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.with_signers()?;
         Ok(self)
     }
 
     /// Starts signer actor
     pub fn with_signers(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(TxSignersActor::new().on_bc(&self.bc))?;
+        if !self.has_signers {
+            self.has_signers = true;
+            self.actor_manager.start(TxSignersActor::new().on_bc(&self.bc))?;
+        }
         Ok(self)
     }
 
     /// Initializes encoder and start encoder actor
-    pub fn with_swap_encoder(&mut self, multicaller_address: Address) -> Result<&mut Self> {
+    pub fn with_swap_encoder(&mut self, multicaller_address: Option<Address>) -> Result<&mut Self> {
+        let multicaller_address = match multicaller_address {
+            Some(multicaller) => multicaller,
+            None => match self.mutlicaller_address {
+                Some(multicaller) => multicaller,
+                None => return Err(eyre!("MULTICALLER_ADDRESS_NOT_SET")),
+            },
+        };
+
         self.encoder = Some(MulticallerSwapEncoder::new(multicaller_address));
-        self.actor_manager.start(ArbSwapPathEncoderActor::new(multicaller_address).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(SwapEncoderActor::new(multicaller_address).with_signers(self.signers.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 
@@ -95,19 +124,56 @@ where
     pub fn with_market_state_preloader(&mut self) -> Result<&mut Self> {
         let mut address_vec = self.signers.inner().try_read()?.get_address_vec();
 
-        if let Some(encoder) = &self.encoder {
-            let multicaller_address = encoder.multicaller_address;
-            address_vec.push(multicaller_address);
+        if let Some(loom_multicaller) = self.mutlicaller_address {
+            address_vec.push(loom_multicaller);
         }
 
         self.actor_manager
-            .start_and_wait(MarketStatePreloadedActor::new(self.provider.clone()).with_address_vec(address_vec).on_bc(&self.bc))?;
+            .start_and_wait(MarketStatePreloadedActor::new(self.provider.clone()).with_copied_accounts(address_vec).on_bc(&self.bc))?;
+        Ok(self)
+    }
+
+    /// Starts preloaded virtual artefacts
+    pub fn with_market_state_preloader_virtual(&mut self, address_to_copy: Vec<Address>) -> Result<&mut Self> {
+        let address_vec = self.signers.inner().try_read()?.get_address_vec();
+
+        let mut market_state_preloader = MarketStatePreloadedActor::new(self.provider.clone());
+
+        for address in address_vec {
+            //            market_state_preloader = market_state_preloader.with_new_account(address, 0, NWETH::from_float(10.0), None);
+            market_state_preloader = market_state_preloader.with_copied_account(address).with_token_balance(
+                ETH_NATIVE_ADDRESS,
+                address,
+                NWETH::from_float(10.0),
+            );
+        }
+
+        market_state_preloader = market_state_preloader.with_copied_accounts(address_to_copy);
+
+        market_state_preloader = market_state_preloader.with_new_account(
+            loom_multicaller::DEFAULT_VIRTUAL_ADDRESS,
+            0,
+            U256::ZERO,
+            loom_multicaller::MulticallerDeployer::new().account_info().code,
+        );
+
+        market_state_preloader =
+            market_state_preloader.with_token_balance(WETH_ADDRESS, loom_multicaller::DEFAULT_VIRTUAL_ADDRESS, NWETH::from_float(10.0));
+
+        self.mutlicaller_address = Some(loom_multicaller::DEFAULT_VIRTUAL_ADDRESS);
+
+        self.actor_manager.start_and_wait(market_state_preloader.on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Starts nonce and balance monitor
     pub fn with_nonce_and_balance_monitor(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(NonceAndBalanceMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        Ok(self)
+    }
+
+    pub fn with_nonce_and_balance_monitor_only_events(&mut self) -> Result<&mut Self> {
+        self.actor_manager.start(NonceAndBalanceMonitorActor::new(self.provider.clone()).only_once().on_bc(&self.bc))?;
         Ok(self)
     }
 
@@ -241,6 +307,17 @@ where
     /// Start all pool loaders
     pub fn with_pool_loaders(&mut self) -> Result<&mut Self> {
         self.with_new_pool_loader()?.with_pool_history_loader()?.with_pool_protocol_loader()
+    }
+
+    pub fn with_pools_preloaded(&mut self, pools: Vec<(Address, PoolClass)>) -> Result<&mut Self> {
+        let mut actor = RequiredPoolLoaderActor::new(self.provider.clone());
+
+        for (pool_address, pool_class) in pools {
+            actor = actor.with_pool(pool_address, pool_class);
+        }
+
+        self.actor_manager.start_and_wait(actor.on_bc(&self.bc))?;
+        Ok(self)
     }
 
     /// Start swap path merger

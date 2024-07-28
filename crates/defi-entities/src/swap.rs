@@ -1,15 +1,14 @@
-use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
-use eyre::{eyre, OptionExt};
 
 use crate::{SwapAmountType, SwapLine, SwapStep, Token};
 
 #[derive(Clone, Debug)]
 pub enum Swap {
     None,
+    ExchangeSwapLine(SwapLine),
     BackrunSwapSteps((SwapStep, SwapStep)),
     BackrunSwapLine(SwapLine),
     Multiple(Vec<Swap>),
@@ -18,6 +17,7 @@ pub enum Swap {
 impl Display for Swap {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
+            Swap::ExchangeSwapLine(path) => write!(f, "{path}"),
             Swap::BackrunSwapLine(path) => write!(f, "{path}"),
             Swap::BackrunSwapSteps((sp0, sp1)) => write!(f, "{sp0} {sp1}"),
             Swap::Multiple(_) => write!(f, "MULTIPLE_SWAP"),
@@ -69,11 +69,13 @@ impl Swap {
             Swap::BackrunSwapSteps((sp0, sp1)) => SwapStep::abs_profit(sp0, sp1),
             Swap::Multiple(swap_vec) => swap_vec.iter().map(|x| x.abs_profit()).sum(),
             Swap::None => U256::ZERO,
+            Swap::ExchangeSwapLine(_) => U256::ZERO,
         }
     }
 
     pub fn pre_estimate_gas(&self) -> u64 {
         match self {
+            Swap::ExchangeSwapLine(path) => path.gas_used.unwrap_or_default(),
             Swap::BackrunSwapLine(path) => path.gas_used.unwrap_or_default(),
             Swap::BackrunSwapSteps((sp0, sp1)) => {
                 sp0.swap_line_vec().iter().map(|i| i.gas_used.unwrap_or_default()).sum::<u64>()
@@ -86,6 +88,7 @@ impl Swap {
 
     pub fn abs_profit_eth(&self) -> U256 {
         match self {
+            Swap::ExchangeSwapLine(_) => U256::ZERO,
             Swap::BackrunSwapLine(path) => path.abs_profit_eth(),
             Swap::BackrunSwapSteps((sp0, sp1)) => SwapStep::abs_profit_eth(sp0, sp1),
             Swap::Multiple(swap_vec) => swap_vec.iter().map(|x| x.abs_profit_eth()).sum(),
@@ -95,6 +98,7 @@ impl Swap {
 
     pub fn get_first_token(&self) -> Option<&Arc<Token>> {
         match self {
+            Swap::ExchangeSwapLine(swap_path) => swap_path.get_first_token(),
             Swap::BackrunSwapLine(swap_path) => swap_path.get_first_token(),
             Swap::BackrunSwapSteps((sp0, _sp1)) => sp0.get_first_token(),
             Swap::Multiple(_) => None,
@@ -102,30 +106,13 @@ impl Swap {
         }
     }
 
-    pub fn get_first_tokens(&self) -> eyre::Result<Vec<&Arc<Token>>> {
-        match self {
-            Swap::BackrunSwapLine(swap_path) => vec![swap_path.get_first_token().ok_or_eyre("NO_FIRST_TOKEN")].into_iter().collect(),
-            Swap::BackrunSwapSteps((sp0, _sp1)) => vec![sp0.get_first_token().ok_or_eyre("NO_FIRST_TOKEN")].into_iter().collect(),
-            Swap::Multiple(s) => {
-                let mut seen = HashSet::new();
-                s.iter()
-                    .filter(|x| {
-                        let t = x.get_first_token();
-                        t.is_some() && seen.insert(t.unwrap())
-                    })
-                    .map(|x| x.get_first_token().ok_or_eyre("x"))
-                    .collect()
-            }
-            Swap::None => Err(eyre!("NOT_SUPPORTED_SWAP_TYPE")),
-        }
-    }
-
     pub fn get_pool_address_vec(&self) -> Vec<Address> {
         match self {
+            Swap::ExchangeSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_address()).collect(),
+            Swap::BackrunSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_address()).collect(),
             Swap::BackrunSwapSteps((sp0, _sp1)) => {
                 sp0.swap_line_vec().iter().flat_map(|item| item.pools().iter().map(|p| p.get_address()).collect::<Vec<_>>()).collect()
             }
-            Swap::BackrunSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_address()).collect(),
             Swap::Multiple(swap_vec) => swap_vec.iter().flat_map(|x| x.get_pool_address_vec()).collect(),
             Swap::None => Vec::new(),
         }

@@ -7,7 +7,8 @@ use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use rand::random;
 
-use defi_entities::{Swap, Token, NWETH};
+use defi_entities::{Swap, Token};
+use loom_utils::NWETH;
 
 #[derive(Clone, Debug)]
 pub struct Tips {

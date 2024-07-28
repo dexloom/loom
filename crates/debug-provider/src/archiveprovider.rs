@@ -5,10 +5,12 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
+use alloy::eips::BlockId;
+use alloy::primitives::{Address, StorageValue};
 use alloy::{
     network::Ethereum,
     primitives::{BlockNumber, Bytes, U256, U64},
-    providers::{EthCall, Provider, RootProvider},
+    providers::{EthCall, Provider, RootProvider, RpcWithBlock},
     rpc::{
         client::RpcCall,
         json_rpc::{Id, Request, RpcReturn},
@@ -16,6 +18,7 @@ use alloy::{
     },
     transports::{Transport, TransportResult},
 };
+use log::debug;
 use tokio::sync::RwLock;
 
 use crate::httpcached::HttpCachedTransport;
@@ -42,6 +45,10 @@ where
 {
     pub fn block_number(&self) -> u64 {
         self.current_block.load(Ordering::Relaxed)
+    }
+
+    pub fn block_id(&self) -> BlockId {
+        BlockId::Number(BlockNumberOrTag::Number(self.block_number()))
     }
 }
 
@@ -85,9 +92,14 @@ where
     }
 
     fn call<'req>(&self, tx: &'req TransactionRequest) -> EthCall<'req, 'static, T, Ethereum, Bytes> {
-        let call = EthCall::new(self.weak_client(), tx);
-        println!("call {}", self.block_number() - 2);
+        let call = EthCall::new(self.weak_client(), tx).block(self.block_id());
+        debug!("call {:?}", self.block_id());
         call
+    }
+
+    fn get_storage_at(&self, address: Address, key: U256) -> RpcWithBlock<T, (Address, U256), StorageValue> {
+        debug!("get_storage_at {:?}", self.block_id());
+        RpcWithBlock::new(self.weak_client(), "eth_getStorageAt", (address, key)).block_id(self.block_id())
     }
 
     fn get_block_by_number<'life0, 'async_trait>(

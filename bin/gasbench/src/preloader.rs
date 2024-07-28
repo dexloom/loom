@@ -1,24 +1,12 @@
 use alloy_network::Network;
-use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use lazy_static::lazy_static;
 
 use debug_provider::DebugProviderExt;
 use defi_actors::fetch_and_add_pool_by_address;
 use defi_entities::{Market, MarketState, PoolClass, Token};
 use loom_actors::SharedState;
-
-lazy_static! {
-    pub static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-    pub static ref USDC_ADDRESS: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
-    pub static ref USDT_ADDRESS: Address = "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap();
-    pub static ref DAI_ADDRESS: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();
-    pub static ref WBTC_ADDRESS: Address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".parse().unwrap();
-    pub static ref THREECRV_ADDRESS: Address = "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse().unwrap();
-    pub static ref CRV_ADDRESS: Address = "0xD533a949740bb3306d119CC777fa900bA034cd52".parse().unwrap();
-    pub static ref LUSD_ADDRESS: Address = "0x5f98805A4E8be255a32880FDeC7F6728C6568bA0".parse().unwrap();
-}
+use loom_utils::tokens::*;
 
 pub async fn preload_pools<P, T, N>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState>) -> eyre::Result<()>
 where
@@ -26,15 +14,15 @@ where
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    let weth_token = Token::new_with_data(*WETH_ADDRESS, Some("WETH".to_string()), None, Some(18), true, false);
-    let usdc_token = Token::new_with_data(*USDC_ADDRESS, Some("USDC".to_string()), None, Some(6), true, false);
-    let usdt_token = Token::new_with_data(*USDT_ADDRESS, Some("USDT".to_string()), None, Some(6), true, false);
-    let dai_token = Token::new_with_data(*DAI_ADDRESS, Some("DAI".to_string()), None, Some(18), true, false);
-    let wbtc_token = Token::new_with_data(*WBTC_ADDRESS, Some("WBTC".to_string()), None, Some(8), true, false);
-    let threecrv_token = Token::new_with_data(*THREECRV_ADDRESS, Some("3Crv".to_string()), None, Some(18), false, true);
-    let crv_token = Token::new_with_data(*CRV_ADDRESS, Some("Crv".to_string()), None, Some(18), false, false);
+    let weth_token = Token::new_with_data(WETH_ADDRESS, Some("WETH".to_string()), None, Some(18), true, false);
+    let usdc_token = Token::new_with_data(USDC_ADDRESS, Some("USDC".to_string()), None, Some(6), true, false);
+    let usdt_token = Token::new_with_data(USDT_ADDRESS, Some("USDT".to_string()), None, Some(6), true, false);
+    let dai_token = Token::new_with_data(DAI_ADDRESS, Some("DAI".to_string()), None, Some(18), true, false);
+    let wbtc_token = Token::new_with_data(WBTC_ADDRESS, Some("WBTC".to_string()), None, Some(8), true, false);
+    let threecrv_token = Token::new_with_data(THREECRV_ADDRESS, Some("3Crv".to_string()), None, Some(18), false, true);
+    let crv_token = Token::new_with_data(CRV_ADDRESS, Some("Crv".to_string()), None, Some(18), false, false);
 
-    let lusd_token = Token::new_with_data(*LUSD_ADDRESS, Some("LUSD".to_string()), None, Some(18), false, false);
+    let lusd_token = Token::new_with_data(LUSD_ADDRESS, Some("LUSD".to_string()), None, Some(18), false, false);
 
     let mut market_instance = market.write().await;
 

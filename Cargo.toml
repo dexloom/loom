@@ -92,7 +92,7 @@ alloy-rlp = "0.3.7"
 alloy-trie = "0.4.1"
 
 alloy-serde = "0.2.0"
-alloy = { version = "0.2.0", features = ["full", "serde", "consensus", "node-bindings", "rpc-types-anvil", "rpc-types-trace", "json-rpc", "rpc-types-json", "rand"] }
+alloy = { version = "0.2.0", features = ["full", "serde", "consensus", "node-bindings", "rpc-types-anvil", "rpc-types-trace", "json-rpc", "rpc-types-json", "rand", "rlp"] }
 
 
 alloy-contract = "0.2.0"

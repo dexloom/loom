@@ -7,4 +7,5 @@ pub mod custom_quoter;
 mod uniswapv2;
 mod uniswapv3;
 
+mod erc20;
 pub mod uniswapv3_quoter;

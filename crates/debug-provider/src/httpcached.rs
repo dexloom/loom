@@ -4,6 +4,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use std::task::{Context, Poll};
 
+use alloy::primitives::{Address, U256};
 use alloy::{
     primitives::{BlockHash, BlockNumber, B128, B256, U128},
     rpc::{
@@ -199,7 +200,7 @@ impl HttpCachedTransport {
     pub async fn eth_call(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
         let request: (TransactionRequest, BlockNumberOrTag) = serde_json::from_str(req.params().unwrap().get())
             .map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
-        debug!("call req : {:?}", request);
+        debug!("eth_call req : {:?}", request);
 
         let new_req = Request::<(TransactionRequest, BlockNumberOrTag)>::new(
             "eth_call",
@@ -209,7 +210,30 @@ impl HttpCachedTransport {
         let new_req: SerializedRequest = new_req.try_into().unwrap();
 
         let resp = self.cached_or_execute(new_req.clone()).await;
-        trace!("call resp : {:?}", resp);
+        trace!("eth_call resp : {:?}", resp);
+        resp
+    }
+
+    pub async fn eth_get_storage_at(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
+        let request: (Address, U256, BlockNumberOrTag) = serde_json::from_str(req.params().unwrap().get())
+            .map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
+        debug!("eth_get_storage_at req : {:?}", request);
+
+        let new_req = Request::<(Address, U256, BlockNumberOrTag)>::new(
+            "eth_getStorageAt",
+            req.id().clone(),
+            (
+                request.0,
+                request.1,
+                self.convert_block_number(request.2).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?,
+            ),
+        );
+        debug!("eth_get_storage_at updated req : {:?}", new_req);
+
+        let new_req: SerializedRequest = new_req.try_into().unwrap();
+
+        let resp = self.client.clone().call(RequestPacket::Single(new_req)).await;
+        trace!("eth_get_storage_at resp : {:?}", resp);
         resp
     }
 
@@ -287,6 +311,7 @@ impl Service<RequestPacket> for HttpCachedTransport {
                     "eth_newBlockFilter" => Box::pin(self_clone.new_block_filter()),
                     "eth_getFilterChanges" => Box::pin(self_clone.get_filter_changes(single_req)),
                     "eth_call" => Box::pin(self_clone.eth_call(single_req)),
+                    "eth_getStorageAt" => Box::pin(self_clone.eth_get_storage_at(single_req)),
                     "eth_getLogs" => Box::pin(self_clone.eth_get_logs(single_req)),
                     "eth_getBlockByNumber" => Box::pin(self_clone.eth_get_block_by_number(single_req)),
                     "eth_getBlockByHash" => Box::pin(self_clone.eth_get_block_by_hash(single_req)),

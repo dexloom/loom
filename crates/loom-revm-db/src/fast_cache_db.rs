@@ -9,7 +9,6 @@ use alloy::{
     primitives::{Address, Log, B256, U256},
     rpc::types::trace::geth::AccountState as GethAccountState,
 };
-use log::debug;
 use revm::db::{AccountState, EmptyDB};
 use revm::primitives::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
@@ -103,7 +102,7 @@ impl FastInMemoryDB {
 
     pub fn apply_geth_update(&mut self, update: BTreeMap<Address, GethAccountState>) {
         for (addr, acc_state) in update {
-            debug!("{} is code {} storage_len {} ", addr, acc_state.code.is_some(), acc_state.storage.len());
+            //trace!("{} is code {} storage_len {} ", addr, acc_state.code.is_some(), acc_state.storage.len());
 
             for (k, v) in acc_state.storage.iter() {
                 let _ = self.insert_account_storage(addr, (*k).into(), (*v).into());
@@ -115,7 +114,7 @@ impl FastInMemoryDB {
                     account.info.code = Some(bytecode);
                 }
                 if let Some(nonce) = acc_state.nonce {
-                    debug!("nonce : {} -> {}", account.info.nonce, nonce);
+                    //trace!("nonce : {} -> {}", account.info.nonce, nonce);
                     account.info.nonce = nonce;
                 }
                 if let Some(balance) = acc_state.balance {

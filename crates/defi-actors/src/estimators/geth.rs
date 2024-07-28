@@ -14,7 +14,9 @@ use rand::random;
 use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{GasStation, NWETH};
+use defi_entities::GasStation;
+use loom_utils::NWETH;
+
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use flashbots::Flashbots;
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};

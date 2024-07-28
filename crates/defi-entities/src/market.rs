@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use alloy_primitives::Address;
-use eyre::Result;
+use eyre::{OptionExt, Result};
 use lazy_static::lazy_static;
 use log::debug;
 
@@ -177,5 +177,19 @@ impl Market {
 
     pub fn build_swap_path_vec(&self, directions: &BTreeMap<PoolWrapper, Vec<(Address, Address)>>) -> Result<Vec<Arc<SwapPath>>> {
         build_swap_path_vec(self, directions)
+    }
+
+    pub fn swap_path(&self, token_address_vec: Vec<Address>, pool_address_vec: Vec<Address>) -> Result<SwapPath> {
+        let mut tokens: Vec<Arc<Token>> = Vec::new();
+        let mut pools: Vec<PoolWrapper> = Vec::new();
+
+        for token_address in token_address_vec.iter() {
+            tokens.push(self.get_token(token_address).ok_or_eyre("TOKEN_NOT_FOUND")?);
+        }
+        for pool_address in pool_address_vec.iter() {
+            pools.push(self.get_pool(pool_address).cloned().ok_or_eyre("TOKEN_NOT_FOUND")?);
+        }
+
+        Ok(SwapPath { tokens, pools })
     }
 }

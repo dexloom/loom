@@ -146,8 +146,10 @@ pub async fn new_block_history_worker(
                                 {
                                     let market_state_read_guard= market_state.read().await;
                                     let accounts_len = market_state_read_guard.accounts_len();
+                                    let accounts_db_len = market_state_read_guard.accounts_db_len();
                                     let storage_len = market_state_read_guard.storage_len();
-                                    trace!("Market state len accounts {} storage {} ", accounts_len, storage_len);
+                                    let storage_db_len = market_state_read_guard.storage_db_len();
+                                    trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
                                 }
 
                                 for state_diff in msg.state_update.iter(){

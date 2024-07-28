@@ -9,7 +9,7 @@ use defi_abi::{IMultiCaller, IERC20, IWETH};
 pub struct EncoderHelper;
 
 lazy_static! {
-    static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
+    pub static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
 }
 
 impl EncoderHelper {

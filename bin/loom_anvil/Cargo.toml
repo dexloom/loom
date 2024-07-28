@@ -26,6 +26,7 @@ loom-topology.workspace = true
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
 loom-revm-db.workspace = true
+loom-utils.workspace = true
 defi-entities.workspace = true
 defi-types.workspace = true
 defi-actors.workspace = true

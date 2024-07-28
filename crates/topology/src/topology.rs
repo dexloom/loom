@@ -187,9 +187,8 @@ impl Topology {
                     let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
 
                     let mut initialize_signers_actor = InitializeSignersActor::new_from_encrypted_env();
-                    match initialize_signers_actor.access(signers.clone()).access(blockchain.nonce_and_balance()).start() {
-                        Ok(r) => {
-                            tasks.extend(r);
+                    match initialize_signers_actor.access(signers.clone()).access(blockchain.nonce_and_balance()).start_and_wait() {
+                        Ok(_) => {
                             info!("Signers have been initialized")
                         }
                         Err(e) => {

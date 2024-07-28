@@ -1,5 +1,6 @@
 use alloy_primitives::{hex, Bytes, B256};
 use async_trait::async_trait;
+use eyre::eyre;
 use log::{error, info};
 
 use defi_blockchain::Blockchain;
@@ -65,16 +66,22 @@ impl InitializeSignersActor {
 
 #[async_trait]
 impl Actor for InitializeSignersActor {
-    fn start(&self) -> ActorResult {
-        Ok(match self.key.clone() {
+    fn start_and_wait(&self) -> eyre::Result<()> {
+        let handle = match self.key.clone() {
             Some(key) => {
-                vec![tokio::task::spawn(initialize_signers_worker(key, self.signers.clone().unwrap(), self.monitor.clone().unwrap()))]
+                Ok(tokio::task::spawn(initialize_signers_worker(key, self.signers.clone().unwrap(), self.monitor.clone().unwrap())))
             }
             _ => {
                 error!("No signer keys found");
-                vec![]
+                Err(eyre!("NO_SIGNER_KEY"))
             }
-        })
+        }?;
+
+        Self::wait(Ok(vec![handle]))?;
+        Ok(())
+    }
+    fn start(&self) -> ActorResult {
+        Err(eyre!("NEED_TO_BE_WAITED"))
     }
 
     fn name(&self) -> &'static str {

@@ -30,9 +30,21 @@ impl MarketState {
         self.state_db.accounts.len()
     }
 
+    pub fn accounts_db_len(&self) -> usize {
+        self.state_db.db.accounts.len()
+    }
+
     pub fn storage_len(&self) -> usize {
         let mut ret = 0;
         for (_, a) in self.state_db.accounts.iter() {
+            ret += a.storage.len()
+        }
+        ret
+    }
+
+    pub fn storage_db_len(&self) -> usize {
+        let mut ret = 0;
+        for (_, a) in self.state_db.db.accounts.iter() {
             ret += a.storage.len()
         }
         ret

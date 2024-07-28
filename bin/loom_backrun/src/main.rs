@@ -3,8 +3,8 @@ use eyre::Result;
 use log::{error, info};
 
 use defi_actors::{
-    ArbSwapPathEncoderActor, ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateChangeArbActor,
-    StateHealthMonitorActor, StuffingTxMonitorActor,
+    ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateChangeArbActor, StateHealthMonitorActor, StuffingTxMonitorActor,
+    SwapEncoderActor,
 };
 use defi_events::MarketEvents;
 use loom_actors::{Accessor, Actor, Consumer, Producer};
@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
     let multicaller = topology.get_encoder(None).unwrap().get_multicaller();
     info!("Starting swap path encoder actor with multicaller at : {}", multicaller);
 
-    let mut swap_path_encoder_actor = ArbSwapPathEncoderActor::new(multicaller);
+    let mut swap_path_encoder_actor = SwapEncoderActor::new(multicaller);
 
     match swap_path_encoder_actor
         .access(tx_signers.clone())

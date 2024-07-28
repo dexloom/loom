@@ -1,6 +1,6 @@
 use std::convert::Infallible;
 
-use alloy_primitives::{keccak256, Address, U256};
+use alloy::primitives::{keccak256, Address, U256};
 use eyre::{eyre, Result};
 use log::debug;
 use revm::{DatabaseRef, InMemoryDB};

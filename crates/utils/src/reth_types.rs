@@ -1,8 +1,16 @@
-use alloy_primitives::{B256, B64};
-use alloy_rpc_types::{Block as ABlock, BlockNumHash, BlockTransactions, Header as AHeader, Log as ALog};
+use alloy::primitives::Bytes;
+use alloy::rpc::types::Transaction;
+use alloy::{
+    primitives::{B256, B64},
+    rlp::Decodable,
+    rpc::types::{Block as ABlock, BlockNumHash, BlockTransactions, Header as AHeader, Log as ALog},
+};
+
 use eyre::{OptionExt, Result};
 use reth_db::models::StoredBlockBodyIndices;
-use reth_primitives::{Block as RBlock, BlockWithSenders, Header as RHeader, Receipt, SealedBlockWithSenders};
+use reth_primitives::{
+    Block as RBlock, BlockWithSenders, Header as RHeader, Receipt, SealedBlockWithSenders, TransactionSignedEcRecovered,
+};
 
 pub trait Convert<T> {
     fn convert(&self) -> T;
@@ -129,4 +137,12 @@ pub fn append_all_matching_block_logs_sealed(
         }
     }
     Ok(())
+}
+
+pub fn decode_into_transaction(rlp_tx: &Bytes) -> Result<Transaction> {
+    let raw_tx = rlp_tx.clone().to_vec();
+    let mut raw_tx = raw_tx.as_slice();
+    let transaction_recovered: TransactionSignedEcRecovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;
+
+    Ok(reth_rpc_types_compat::transaction::from_recovered(transaction_recovered))
 }

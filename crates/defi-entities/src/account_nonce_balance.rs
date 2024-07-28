@@ -30,13 +30,17 @@ impl AccountNonceAndBalances {
 
     pub fn add_balance(&mut self, token: Address, balance: U256) -> &mut Self {
         let entry = self.balance.entry(token).or_default();
-        *entry += balance;
+        if let Some(value) = entry.checked_add(balance) {
+            *entry = value
+        }
         self
     }
 
     pub fn sub_balance(&mut self, token: Address, balance: U256) -> &mut Self {
         let entry = self.balance.entry(token).or_default();
-        *entry -= balance;
+        if let Some(value) = entry.checked_sub(balance) {
+            *entry = value
+        }
         self
     }
 
@@ -76,5 +80,9 @@ impl AccountNonceAndBalanceState {
 
     pub fn is_monitored(&self, account: &Address) -> bool {
         self.accounts.contains_key(account)
+    }
+
+    pub fn get_entry_or_default(&mut self, account: Address) -> &mut AccountNonceAndBalances {
+        self.accounts.entry(account).or_default()
     }
 }

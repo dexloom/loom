@@ -1,8 +1,8 @@
 #![allow(dead_code)]
-pub use deploy::MulticallerDeployer;
+pub use deploy::{MulticallerDeployer, DEFAULT_VIRTUAL_ADDRESS};
 pub use swap_encoder::MulticallerSwapEncoder;
 pub use swap_encoder::SwapEncoder;
-pub use swapline_encoder::SwapPathEncoder;
+pub use swapline_encoder::SwapLineEncoder;
 pub use swapstep_encoder::SwapStepEncoder;
 
 mod deploy;

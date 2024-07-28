@@ -1,12 +1,11 @@
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-
+use crate::{AccountNonceAndTransactions, FetchState, GethStateUpdate, MempoolTx};
 use alloy_primitives::{Address, BlockNumber, TxHash};
+use alloy_provider::network::TransactionResponse;
 use alloy_rpc_types::{Log, Transaction};
 use chrono::{DateTime, Utc};
 use eyre::{eyre, Result};
-
-use crate::{AccountNonceAndTransactions, FetchState, GethStateUpdate, MempoolTx};
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default)]
 pub struct Mempool {
@@ -32,7 +31,7 @@ impl Mempool {
     }
 
     pub fn add_tx(&mut self, tx: Transaction) -> &mut Self {
-        let tx_hash: TxHash = tx.hash;
+        let tx_hash: TxHash = tx.tx_hash();
         let entry = self.txs.entry(tx_hash).or_default();
         entry.tx = Some(tx);
         self
@@ -85,6 +84,11 @@ impl Mempool {
         }
     }
 
+    pub fn clean(&mut self) {
+        self.txs = Default::default();
+        self.accounts = Default::default();
+    }
+
     pub fn clean_txs(&mut self, max_block_number: BlockNumber, max_time: DateTime<Utc>) {
         self.txs = self
             .txs
@@ -123,5 +127,9 @@ impl Mempool {
 
     pub fn get_or_fetch_pre_state(&mut self, _tx_hash: &TxHash) -> Result<FetchState<GethStateUpdate>> {
         Err(eyre!("NOT_IMPLEMENTED"))
+    }
+
+    pub fn remove_tx(&mut self, tx_hash: &TxHash) -> Option<MempoolTx> {
+        self.txs.remove(tx_hash)
     }
 }

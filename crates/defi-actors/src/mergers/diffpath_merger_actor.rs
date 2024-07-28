@@ -10,10 +10,11 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{MarketState, Swap, NWETH};
+use defi_entities::{MarketState, Swap};
 use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
+use loom_utils::NWETH;
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();

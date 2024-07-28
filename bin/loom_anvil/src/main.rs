@@ -15,13 +15,15 @@ use log::{debug, error, info};
 
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
-    fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathEncoderActor, ArbSwapPathMergerActor,
-    BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor,
-    NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, TxSignersActor,
+    fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
+    DiffPathMergerActor, EvmEstimatorActor, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor,
+    NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapEncoderActor, TxSignersActor,
 };
 use defi_entities::{
-    AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners, NWETH,
+    AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners,
 };
+use loom_utils::NWETH;
+
 use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageTxCompose, TxCompose};
 use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
@@ -344,7 +346,7 @@ async fn main() -> Result<()> {
     if test_config.modules.encoder {
         info!("Starting swap path encoder actor");
 
-        let mut swap_path_encoder_actor = ArbSwapPathEncoderActor::new(multicaller_address);
+        let mut swap_path_encoder_actor = SwapEncoderActor::new(multicaller_address);
 
         match swap_path_encoder_actor
             .access(tx_signers.clone())
