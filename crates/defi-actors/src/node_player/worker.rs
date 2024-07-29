@@ -1,10 +1,9 @@
-use crate::node_player::mempool::process_mempool_task;
+use crate::node_player::mempool::replayer_mempool_task;
 use alloy_eips::BlockId;
 use alloy_network::Ethereum;
 use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, BlockTransactions, BlockTransactionsKind, Filter, Header};
-use chrono::{DateTime, Utc};
 use debug_provider::{DebugProviderExt, HttpCachedTransport};
 use defi_entities::MarketState;
 use defi_events::{BlockLogs, BlockStateUpdate};
@@ -14,7 +13,6 @@ use loom_actors::{Broadcaster, SharedState, WorkerResult};
 use loom_revm_db::LoomInMemoryDB;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
-use std::time::Duration;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn node_player_worker<P>(
@@ -35,27 +33,27 @@ where
         let curblock_number = provider.client().transport().fetch_next_block().await?;
         let block = provider.get_block_by_number(curblock_number.into(), false).await?;
 
-        if let Some(mempool) = mempool.clone() {
-            let mut mempool_guard = mempool.write().await;
-            for tx_hash in mempool_guard.txs.clone().keys() {
-                if mempool_guard.is_mined(tx_hash) {
-                    mempool_guard.remove_tx(&tx_hash);
-                } else {
-                    mempool_guard.set_mined(*tx_hash, curblock_number);
-                }
-            }
-
-            //mempool_guard.clean_txs(curblock_number - 1, DateTime::<Utc>::MIN_UTC);
-            debug!("Mempool cleaned");
-        }
-
         if let Some(block) = block {
             let curblock_hash = block.header.hash.unwrap_or_default();
+
+            if let Some(mempool) = mempool.clone() {
+                let mut mempool_guard = mempool.write().await;
+                for tx_hash in mempool_guard.txs.clone().keys() {
+                    if mempool_guard.is_mined(tx_hash) {
+                        //mempool_guard.remove_tx(tx_hash);
+                    } else {
+                        mempool_guard.set_mined(*tx_hash, curblock_number);
+                    }
+                }
+
+                //mempool_guard.clean_txs(curblock_number - 1, DateTime::<Utc>::MIN_UTC);
+                debug!("Mempool cleaned");
+            }
 
             // Processing mempool tx to update state
             if let Some(mempool) = mempool.clone() {
                 if let Some(market_state) = market_state.clone() {
-                    if let Err(e) = process_mempool_task(mempool, market_state, block.header.clone()).await {
+                    if let Err(e) = replayer_mempool_task(mempool, market_state, block.header.clone()).await {
                         error!("process_mempool_task : {e}");
                     }
                 };
@@ -74,12 +72,13 @@ where
                                 let guard = mempool.read().await;
 
                                 if !guard.is_empty() {
-                                    guard
-                                        .txs
-                                        .values()
-                                        .filter(|x| x.state_update.is_some() && x.logs.is_some())
-                                        .flat_map(|x| x.tx.clone())
-                                        .collect()
+                                    guard.filter_on_block(curblock_number).into_iter().flat_map(|x| x.tx.clone()).collect()
+                                    // guard
+                                    //     .txs
+                                    //     .values()
+                                    //     .filter(|x| x.state_update.is_some() && x.logs.is_some() && x.mined.is_none())
+                                    //     .flat_map(|x| x.tx.clone())
+                                    //     .collect()
                                 } else {
                                     vec![]
                                 }
@@ -93,15 +92,13 @@ where
                                 if let Err(e) = block_with_tx_channel.send(block).await {
                                     error!("new_block_with_tx_channel.send error: {e}");
                                 }
-                            } else {
-                                if let Some(block_txs) = block.transactions.as_transactions() {
-                                    txs.extend(block_txs.iter().cloned());
-                                    let mut updated_block = block;
+                            } else if let Some(block_txs) = block.transactions.as_transactions() {
+                                txs.extend(block_txs.iter().cloned());
+                                let mut updated_block = block;
 
-                                    updated_block.transactions = BlockTransactions::Full(txs);
-                                    if let Err(e) = block_with_tx_channel.send(updated_block).await {
-                                        error!("new_block_with_tx_channel.send updated block error: {e}");
-                                    }
+                                updated_block.transactions = BlockTransactions::Full(txs);
+                                if let Err(e) = block_with_tx_channel.send(updated_block).await {
+                                    error!("new_block_with_tx_channel.send updated block error: {e}");
                                 }
                             }
                         } else {
@@ -121,7 +118,7 @@ where
                     let guard = mempool.read().await;
 
                     if !guard.is_empty() {
-                        guard.txs.values().flat_map(|x| x.logs.clone().unwrap_or_default()).collect()
+                        guard.filter_on_block(curblock_number).into_iter().flat_map(|x| x.logs.clone().unwrap_or_default()).collect()
                     } else {
                         vec![]
                     }
@@ -147,10 +144,10 @@ where
             if let Some(block_state_update_channel) = &new_block_state_update_channel {
                 if let Some(mempool) = mempool.clone() {
                     if let Some(market_state) = market_state.clone() {
-                        let mut mempool_guard = mempool.write().await;
+                        let mempool_guard = mempool.read().await;
                         if !mempool_guard.is_empty() {
                             let mut marker_state_guard = market_state.write().await;
-                            for mempool_tx in mempool_guard.txs.values() {
+                            for mempool_tx in mempool_guard.filter_on_block(curblock_number) {
                                 if let Some(state_update) = &mempool_tx.state_update {
                                     marker_state_guard.state_db.apply_geth_update(state_update.clone());
                                 }
@@ -173,8 +170,6 @@ where
                     }
                 }
             }
-
-            tokio::time::sleep(Duration::from_millis(500)).await;
         }
     }
 

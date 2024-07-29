@@ -1,24 +1,24 @@
 use std::any::type_name;
 use std::marker::PhantomData;
 
+use crate::node_player::compose::replayer_compose_worker;
+use crate::node_player::worker::node_player_worker;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header};
 use alloy_transport::Transport;
 use async_trait::async_trait;
-
 use debug_provider::{DebugProviderExt, HttpCachedTransport};
 use defi_blockchain::Blockchain;
 use defi_entities::MarketState;
-use defi_events::{BlockLogs, BlockStateUpdate};
+use defi_events::{BlockLogs, BlockStateUpdate, MessageTxCompose};
 use defi_types::Mempool;
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Producer, SharedState};
-use loom_actors_macros::{Accessor, Producer};
+use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors_macros::{Accessor, Consumer, Producer};
+use tokio::task::JoinHandle;
 
-use crate::node_player::worker::node_player_worker;
-
-#[derive(Producer, Accessor)]
+#[derive(Producer, Consumer, Accessor)]
 pub struct NodeBlockPlayerActor<P, T, N> {
     client: P,
     start_block: BlockNumber,
@@ -27,6 +27,8 @@ pub struct NodeBlockPlayerActor<P, T, N> {
     mempool: Option<SharedState<Mempool>>,
     #[accessor]
     market_state: Option<SharedState<MarketState>>,
+    #[consumer]
+    compose_channel: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
     block_header_channel: Option<Broadcaster<Header>>,
     #[producer]
@@ -52,6 +54,7 @@ where
             end_block,
             mempool: None,
             market_state: None,
+            compose_channel: None,
             block_header_channel: None,
             block_with_tx_channel: None,
             block_logs_channel: None,
@@ -65,6 +68,7 @@ where
         Self {
             mempool: Some(bc.mempool()),
             market_state: Some(bc.market_state()),
+            compose_channel: Some(bc.compose_channel()),
             block_header_channel: Some(bc.new_block_headers_channel()),
             block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
             block_logs_channel: Some(bc.new_block_logs_channel()),
@@ -82,7 +86,15 @@ where
     N: Send + Sync,
 {
     fn start(&self) -> ActorResult {
-        let handler = tokio::task::spawn(node_player_worker(
+        let mut handles: Vec<JoinHandle<WorkerResult>> = Vec::new();
+        if let Some(mempool) = self.mempool.clone() {
+            if let Some(compose_channel) = self.compose_channel.clone() {
+                let handle = tokio::task::spawn(replayer_compose_worker(mempool, compose_channel));
+                handles.push(handle);
+            }
+        }
+
+        let handle = tokio::task::spawn(node_player_worker(
             self.client.clone(),
             self.start_block,
             self.end_block,
@@ -93,7 +105,8 @@ where
             self.block_logs_channel.clone(),
             self.block_state_update_channel.clone(),
         ));
-        Ok(vec![handler])
+        handles.push(handle);
+        Ok(handles)
     }
 
     fn name(&self) -> &'static str {

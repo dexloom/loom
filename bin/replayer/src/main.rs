@@ -13,8 +13,7 @@ use debug_provider::HttpCachedTransport;
 use defi_actors::{BlockchainActors, NodeBlockPlayerActor};
 use defi_blockchain::Blockchain;
 use defi_entities::{PoolClass, Swap, SwapAmountType, SwapLine};
-use defi_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData};
-use loom_utils::reth_types::decode_into_transaction;
+use defi_events::{MessageTxCompose, TxComposeData};
 use loom_utils::tokens::{USDC_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
 
@@ -63,14 +62,12 @@ async fn main() -> Result<()> {
     tokio::task::spawn(bc_actors.wait());
     let compose_channel = bc.compose_channel();
 
-    let mut compose_sub = bc.compose_channel().subscribe().await;
-
     let mut header_sub = bc.new_block_headers_channel().subscribe().await;
     let mut block_sub = bc.new_block_with_tx_channel().subscribe().await;
     let mut logs_sub = bc.new_block_logs_channel().subscribe().await;
     let mut state_update_sub = bc.new_block_state_update_channel().subscribe().await;
 
-    let memepool = bc.mempool();
+    //let memepool = bc.mempool();
     let market = bc.market();
     let market_state = bc.market_state();
 
@@ -149,45 +146,6 @@ async fn main() -> Result<()> {
                     }
                 }
             }
-
-            compose_update = compose_sub.recv() => {
-                match compose_update {
-                    Ok(compose_update)=>{
-                            #[allow(clippy::single_match)]
-                            match compose_update.inner {
-                            TxCompose::Broadcast(broadcast_msg)=>{
-                                info!("Broadcast compose message received. {:?}", broadcast_msg.tx_bundle);
-                                for tx in broadcast_msg.rlp_bundle.unwrap_or_default() {
-                                    match tx {
-                                        RlpState::Backrun( rlp_tx) | RlpState::Stuffing( rlp_tx)=>{
-                                            match decode_into_transaction( &rlp_tx ) {
-                                                Ok(new_tx)=>{
-                                                    memepool.write().await.add_tx(new_tx);
-                                                }
-                                                Err(e)=>{
-                                                    error!("decode_into_transaction {}", e);
-                                                }
-                                            }
-
-                                        }
-                                        _=>{
-                                            error!("Unknown RLP tx type");
-                                        }
-                                    }
-                                }
-                            }
-                            _=>{
-
-
-                            }
-                        }
-                    }
-                    Err(e)=>{
-                        error!("Error receiving compose update: {e}");
-                    }
-                }
-            }
-
         }
     }
 }

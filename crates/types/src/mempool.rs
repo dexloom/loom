@@ -70,6 +70,10 @@ impl Mempool {
             .collect()
     }
 
+    pub fn filter_on_block(&self, block_number: BlockNumber) -> Vec<&MempoolTx> {
+        self.txs.values().filter(|&item| item.mined == Some(block_number)).collect()
+    }
+
     pub fn is_mined(&self, tx_hash: &TxHash) -> bool {
         match self.txs.get(tx_hash) {
             Some(tx) => tx.mined.is_some(),

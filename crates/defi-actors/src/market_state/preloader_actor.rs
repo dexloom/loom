@@ -10,7 +10,7 @@ use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use async_trait::async_trait;
 use eyre::{eyre, Result};
-use log::{debug, error, info};
+use log::{debug, error};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
@@ -55,7 +55,7 @@ async fn set_monitor_nonce(account_nonce_balance_state: Option<SharedState<Accou
     if let Some(account_nonce_balance) = account_nonce_balance_state {
         debug!("set_monitor_nonce {} {}", owner, nonce);
         let mut account_nonce_balance_guard = account_nonce_balance.write().await;
-        let mut entry = account_nonce_balance_guard.get_entry_or_default(owner);
+        let entry = account_nonce_balance_guard.get_entry_or_default(owner);
         debug!("set_monitor_nonce {:?}", entry);
         entry.set_nonce(nonce);
     }
