@@ -11,6 +11,7 @@ use crate::fetch_and_add_pool_by_address;
 use crate::market::fetch_state_and_add_pool;
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
+use defi_entities::required_state::{RequiredState, RequiredStateReader};
 use defi_entities::{Market, MarketState, PoolClass};
 use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
@@ -20,6 +21,7 @@ use loom_actors_macros::{Accessor, Consumer};
 async fn required_pools_loader_worker<P, T, N>(
     client: P,
     pools: Vec<(Address, PoolClass)>,
+    required_state: Option<RequiredState>,
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
 ) -> WorkerResult
@@ -51,6 +53,11 @@ where
         }
     }
 
+    if let Some(required_state) = required_state {
+        let update = RequiredStateReader::fetch_calls_and_slots(client.clone(), required_state, None).await?;
+        market_state.write().await.state_db.apply_geth_update(update);
+    }
+
     Ok("curve_protocol_loader_worker".to_string())
 }
 
@@ -58,6 +65,7 @@ where
 pub struct RequiredPoolLoaderActor<P, T, N> {
     client: P,
     pools: Vec<(Address, PoolClass)>,
+    required_state: Option<RequiredState>,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
@@ -73,7 +81,7 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
-        Self { client, pools: Vec::new(), market: None, market_state: None, _n: PhantomData, _t: PhantomData }
+        Self { client, pools: Vec::new(), required_state: None, market: None, market_state: None, _n: PhantomData, _t: PhantomData }
     }
 
     pub fn with_pool(self, address: Address, pool_class: PoolClass) -> Self {
@@ -84,6 +92,10 @@ where
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self { market: Some(bc.market()), market_state: Some(bc.market_state()), ..self }
+    }
+
+    pub fn with_required_state(self, required_state: RequiredState) -> Self {
+        Self { required_state: Some(required_state), ..self }
     }
 }
 
@@ -98,6 +110,7 @@ where
         let task = tokio::task::spawn(required_pools_loader_worker(
             self.client.clone(),
             self.pools.clone(),
+            self.required_state.clone(),
             self.market.clone().unwrap(),
             self.market_state.clone().unwrap(),
         ));

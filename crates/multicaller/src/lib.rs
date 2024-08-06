@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 pub use deploy::{MulticallerDeployer, DEFAULT_VIRTUAL_ADDRESS};
+pub use helpers::EncoderHelper;
 pub use swap_encoder::MulticallerSwapEncoder;
 pub use swap_encoder::SwapEncoder;
 pub use swapline_encoder::SwapLineEncoder;

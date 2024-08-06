@@ -13,6 +13,7 @@ use loom_actors::{Broadcaster, SharedState, WorkerResult};
 use loom_revm_db::LoomInMemoryDB;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
+use std::time::Duration;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn node_player_worker<P>(
@@ -145,9 +146,11 @@ where
                 if let Some(mempool) = mempool.clone() {
                     if let Some(market_state) = market_state.clone() {
                         let mempool_guard = mempool.read().await;
-                        if !mempool_guard.is_empty() {
+                        let txes = mempool_guard.filter_on_block(curblock_number);
+
+                        if !txes.is_empty() {
                             let mut marker_state_guard = market_state.write().await;
-                            for mempool_tx in mempool_guard.filter_on_block(curblock_number) {
+                            for mempool_tx in txes {
                                 if let Some(state_update) = &mempool_tx.state_update {
                                     marker_state_guard.state_db.apply_geth_update(state_update.clone());
                                 }
@@ -171,6 +174,8 @@ where
                 }
             }
         }
+
+        tokio::time::sleep(Duration::from_millis(500)).await;
     }
 
     Ok("Node block player worker finished".to_string())

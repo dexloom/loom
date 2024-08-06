@@ -152,6 +152,12 @@ pub async fn new_block_history_worker(
                                     trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
                                 }
 
+
+                                //new_market_state_db.apply_geth_update_vec(msg.state_update.clone());
+                                //let merged_db = new_market_state_db.update_cells();
+                                //new_market_state_db = LoomInMemoryDB::new(Arc::new(merged_db));
+
+
                                 for state_diff in msg.state_update.iter(){
                                     for (address, account_state) in state_diff.iter() {
                                         let address : Address = *address;
@@ -160,7 +166,7 @@ pub async fn new_block_history_worker(
                                                 match new_market_state_db.load_account(address) {
                                                     Ok(x) => {
                                                         x.info.balance = balance;
-                                                        trace!("Balance updated {:#20x} {}", address, balance );
+                                                        //trace!("Balance updated {:#20x} {}", address, balance );
                                                     }
                                                     _=>{
                                                         trace!("Balance updated for {:#20x} not found", address );
@@ -198,12 +204,15 @@ pub async fn new_block_history_worker(
                                         }
                                     }
                                 }
-                                market_state.write().await.state_db = new_market_state_db.clone();
+
+                                let market_state_clone= market_state.clone();
                                 info!("market state updated ok records : update len: {} accounts: {} contracts: {}", msg.state_update.len(), new_market_state_db.accounts.len(),  new_market_state_db.contracts.len()  );
+                                market_state.write().await.state_db = new_market_state_db.clone();
+
                                 sender.send(MarketEvents::BlockStateUpdate{ block_hash} ).await.unwrap();
 
+                                // TODO : Fix
                                 //Merging DB in background and update market state
-                                let market_state_clone= market_state.clone();
                                 tokio::task::spawn( async move{
                                     let merged_db = LoomInMemoryDB::new( Arc::new(new_market_state_db.merge()));
                                     market_state_clone.write().await.state_db = merged_db;

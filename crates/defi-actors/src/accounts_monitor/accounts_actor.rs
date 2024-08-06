@@ -113,7 +113,7 @@ pub async fn nonce_and_balance_monitor_worker(
                                         if let Some(log_entry) = log_entry {
                                             if let Ok(event) = IERC20Events::decode_log(&log_entry, false ){
                                                 if let  IERC20Events::Transfer(event) = event.data {
-                                                    //debug!("ERC20TransferEvent : {:?}", event);
+                                                    //debug!("ERC20TransferEvent {} : {:?}", log_entry.address, event);
                                                     if accounts_lock.is_monitored(&event.to) {
                                                         if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&event.to) {
                                                             account.add_balance(log_entry.address, event.value);

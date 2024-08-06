@@ -15,6 +15,7 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
+use defi_entities::required_state::RequiredState;
 use defi_entities::{PoolClass, TxSigners};
 use eyre::{eyre, Result};
 use flashbots::Flashbots;
@@ -309,11 +310,15 @@ where
         self.with_new_pool_loader()?.with_pool_history_loader()?.with_pool_protocol_loader()
     }
 
-    pub fn with_pools_preloaded(&mut self, pools: Vec<(Address, PoolClass)>) -> Result<&mut Self> {
+    pub fn with_preloaded_state(&mut self, pools: Vec<(Address, PoolClass)>, state_required: Option<RequiredState>) -> Result<&mut Self> {
         let mut actor = RequiredPoolLoaderActor::new(self.provider.clone());
 
         for (pool_address, pool_class) in pools {
             actor = actor.with_pool(pool_address, pool_class);
+        }
+
+        if let Some(state_required) = state_required {
+            actor = actor.with_required_state(state_required);
         }
 
         self.actor_manager.start_and_wait(actor.on_bc(&self.bc))?;

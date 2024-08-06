@@ -59,11 +59,13 @@ impl MarketState {
     }
 
     pub fn is_account(&self, address: &Address) -> bool {
-        self.state_db.accounts.contains_key(address)
+        self.state_db.accounts.contains_key(address) || self.state_db.db.accounts.contains_key(address)
     }
 
     pub fn is_slot(&self, address: &Address, slot: &U256) -> bool {
         if let Some(account) = self.state_db.accounts.get(address) {
+            account.storage.contains_key(slot)
+        } else if let Some(account) = self.state_db.db.accounts.get(address) {
             account.storage.contains_key(slot)
         } else {
             false

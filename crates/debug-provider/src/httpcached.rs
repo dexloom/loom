@@ -5,6 +5,7 @@ use std::sync::Arc;
 use std::task::{Context, Poll};
 
 use alloy::primitives::{Address, U256};
+use alloy::rpc::types::trace::geth::GethDebugTracingCallOptions;
 use alloy::{
     primitives::{BlockHash, BlockNumber, B128, B256, U128},
     rpc::{
@@ -67,6 +68,21 @@ impl HttpCachedTransport {
             }
             BlockNumberOrTag::Earliest => Ok(BlockNumberOrTag::Earliest),
             _ => Ok(BlockNumberOrTag::Number(current_block)),
+        }
+    }
+
+    fn convert_block_number_next(&self, number_or_tag: BlockNumberOrTag) -> Result<BlockNumberOrTag> {
+        let current_block = self.read_block_number();
+        match number_or_tag {
+            BlockNumberOrTag::Number(x) => {
+                if x > current_block {
+                    Err(eyre!("INCORRECT_BLOCK_NUMBER"))
+                } else {
+                    Ok(BlockNumberOrTag::Number(x))
+                }
+            }
+            BlockNumberOrTag::Earliest => Ok(BlockNumberOrTag::Earliest),
+            _ => Ok(BlockNumberOrTag::Number(current_block + 1)),
         }
     }
 
@@ -209,9 +225,10 @@ impl HttpCachedTransport {
         );
         let new_req: SerializedRequest = new_req.try_into().unwrap();
 
-        let resp = self.cached_or_execute(new_req.clone()).await;
-        trace!("eth_call resp : {:?}", resp);
-        resp
+        //let resp = self.cached_or_execute(new_req.clone()).await;
+        //trace!("eth_call resp : {:?}", resp);
+        //resp
+        self.client.clone().call(RequestPacket::Single(new_req)).await
     }
 
     pub async fn eth_get_storage_at(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
@@ -266,12 +283,34 @@ impl HttpCachedTransport {
         let new_req = Request::<(BlockNumberOrTag, GethDebugTracingOptions)>::new(
             "debug_traceBlockByNumber",
             req.id().clone(),
-            (self.convert_block_number(request.0).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?, request.1),
+            (self.convert_block_number_next(request.0).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?, request.1),
         );
 
         let new_req: SerializedRequest = new_req.try_into().unwrap();
 
         self.cached_or_execute(new_req.clone()).await
+    }
+
+    pub async fn debug_trace_call(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
+        let request: (TransactionRequest, BlockNumberOrTag, GethDebugTracingCallOptions) =
+            serde_json::from_str(req.params().unwrap().get())
+                .map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
+        debug!("eth_debug_trace_call req : {:?}", request);
+
+        let new_req = Request::<(TransactionRequest, BlockNumberOrTag, GethDebugTracingCallOptions)>::new(
+            "debug_traceCall",
+            req.id().clone(),
+            (
+                request.0,
+                self.convert_block_number_next(request.1).map_err(|e| TransportErrorKind::custom_str(e.to_string().as_str()))?,
+                request.2,
+            ),
+        );
+        let new_req: SerializedRequest = new_req.try_into().unwrap();
+
+        // let resp = self.cached_or_execute(new_req.clone()).await;
+        // trace!("eth_call resp : {:?}", resp);
+        self.client.clone().call(RequestPacket::Single(new_req)).await
     }
 
     pub async fn debug_trace_block_by_hash(self, req: SerializedRequest) -> Result<ResponsePacket, TransportError> {
@@ -317,6 +356,7 @@ impl Service<RequestPacket> for HttpCachedTransport {
                     "eth_getBlockByHash" => Box::pin(self_clone.eth_get_block_by_hash(single_req)),
                     "debug_traceBlockByHash" => Box::pin(self_clone.debug_trace_block_by_hash(single_req)),
                     "debug_traceBlockByNumber" => Box::pin(self_clone.debug_trace_block_by_number(single_req)),
+                    "debug_traceCall" => Box::pin(self_clone.debug_trace_call(single_req)),
                     _ => Box::pin(async move {
                         match self_clone.client.call(RequestPacket::Single(single_req)).await {
                             Ok(response) => {
