@@ -5,10 +5,10 @@
 //!
 //! In addition to leveraging the standard Ethers middleware API ([`send_transaction`][ethers::providers::Middleware::send_transaction]),
 //! custom bundles can be crafted, simulated and submitted.
+pub use body::make_signed_body;
 pub use bundle::{BundleHash, BundleRequest, BundleTransaction, SimulatedBundle, SimulatedTransaction};
 pub use middleware::{FlashbotsMiddleware, FlashbotsMiddlewareError};
 pub use relay::{Relay, RelayError};
-
 mod bundle;
 
 mod middleware;
@@ -16,4 +16,5 @@ mod middleware;
 mod jsonrpc;
 mod relay;
 
+mod body;
 mod utils;

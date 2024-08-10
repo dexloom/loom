@@ -245,7 +245,7 @@ where
 
     //TODO : Refactor estimators actors encoder type to SwapEncoders
     pub fn with_geth_estimator(&mut self) -> Result<&mut Self> {
-        let flashbots = Flashbots::new(self.provider.clone(), "https://relay.flashbots.net");
+        let flashbots = Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays();
 
         self.actor_manager
             .start(GethEstimatorActor::new(Arc::new(flashbots), self.encoder.clone().unwrap().swap_step_encoder.clone()).on_bc(&self.bc))?;
@@ -260,7 +260,7 @@ where
 
     /// Starts flashbots broadcaster
     pub fn with_flashbots_broadcaster(&mut self, smart: bool) -> Result<&mut Self> {
-        let flashbots = Flashbots::new(self.provider.clone(), "https://relay.flashbots.net");
+        let flashbots = Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays();
         self.actor_manager.start(FlashbotsBroadcastActor::new(flashbots, smart).on_bc(&self.bc))?;
         Ok(self)
     }

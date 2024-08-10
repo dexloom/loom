@@ -53,14 +53,15 @@ where
 
     let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
     for curve_contract in curve_contracts.into_iter() {
-        let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
-        let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
-        match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
-            Err(e) => {
-                error!("Curve pool loading error : {}", e)
-            }
-            Ok(_) => {
-                info!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
+        if let Ok(curve_pool) = CurvePool::fetch_pool_data(client.clone(), curve_contract).await {
+            let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
+            match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
+                Err(e) => {
+                    error!("Curve pool loading error : {}", e)
+                }
+                Ok(_) => {
+                    info!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
+                }
             }
         }
     }
@@ -76,17 +77,23 @@ where
 
                         match CurveProtocol::get_contract_from_code(client.clone(), addr).await {
                             Ok(curve_contract) => {
-                                let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
-                                let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
+                                if let Ok(curve_pool) = CurvePool::fetch_pool_data(client.clone(), curve_contract).await {
+                                    let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
 
-                                match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone())
+                                    match fetch_state_and_add_pool(
+                                        client.clone(),
+                                        market.clone(),
+                                        market_state.clone(),
+                                        pool_wrapped.clone(),
+                                    )
                                     .await
-                                {
-                                    Err(e) => {
-                                        error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
-                                    }
-                                    Ok(_) => {
-                                        info!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
+                                    {
+                                        Err(e) => {
+                                            error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
+                                        }
+                                        Ok(_) => {
+                                            info!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
+                                        }
                                     }
                                 }
                             }

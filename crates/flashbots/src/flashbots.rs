@@ -1,15 +1,15 @@
-use std::marker::PhantomData;
-use std::sync::Arc;
-
+use crate::client::{make_signed_body, BundleRequest, BundleTransaction, FlashbotsMiddleware, FlashbotsMiddlewareError, SimulatedBundle};
 use alloy_network::Ethereum;
 use alloy_primitives::{TxHash, U64};
 use alloy_provider::Provider;
+use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
+use std::marker::PhantomData;
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::Arc;
 use url::Url;
-
-use crate::client::{BundleRequest, BundleTransaction, FlashbotsMiddleware, FlashbotsMiddlewareError, SimulatedBundle};
 
 pub struct FlashbotsClient<P, T> {
     pub flashbots_middleware: FlashbotsMiddleware<P, T>,
@@ -54,23 +54,11 @@ where
             Err(e) => {
                 error!("{}", e);
                 Err(eyre!("FLASHBOTS LOCAL ERROR"))
-
-                /*match e {
-                    FlashbotsMiddlewareError::MiddlewareError(e) => {
-                        error!("{:?}", e);
-                        Err(eyre!("FLASHBOTS MIDDLEWARE ERROR"))
-                    }
-                    FlashbotsMiddlewareError::RelayError(e) => {
-                        Err(eyre!("FLASHBOTS RELAY ERROR"))
-                    }
-                    FlashbotsMiddlewareError::MissingParameters => {
-                        Err(eyre!("FLASHBOTS MISSING PARAMETERS ERROR"))
-                    }
-                }*/
             }
         }
     }
 
+    #[allow(dead_code)]
     pub async fn send_bundle(&self, request: &BundleRequest) -> Result<()> {
         match self.flashbots_middleware.send_bundle(request).await {
             Ok(_resp) => {
@@ -93,9 +81,25 @@ where
             },
         }
     }
+
+    pub async fn send_signed_body(&self, body: String, signature: String) -> Result<()> {
+        match self.flashbots_middleware.relay().serialized_request::<()>(body, Some(signature)).await {
+            Ok(_resp) => {
+                info!("Bundle sent to : {}", self.name);
+                Ok(())
+            }
+            Err(error) => {
+                error!("{} {}", self.name, error.to_string());
+                Err(eyre!("FLASHBOTS_RELAY_ERROR"))
+            }
+        }
+    }
 }
 
 pub struct Flashbots<P, T> {
+    req_id: AtomicU64,
+    signer: PrivateKeySigner,
+    provider: P,
     simulation_client: FlashbotsClient<P, T>,
     clients: Vec<Arc<FlashbotsClient<P, T>>>,
     _t: PhantomData<T>,
@@ -106,7 +110,16 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(provider: P, simulation_endpoint: &str) -> Self {
+    pub fn new(provider: P, simulation_endpoint: &str, signer: Option<PrivateKeySigner>) -> Self {
+        let signer = signer.unwrap_or(PrivateKeySigner::random());
+        let simulation_client = FlashbotsClient::new(provider.clone(), simulation_endpoint);
+
+        Flashbots { req_id: AtomicU64::new(0), signer, provider, clients: Vec::new(), simulation_client, _t: PhantomData }
+    }
+
+    pub fn with_default_relays(self) -> Self {
+        let provider = self.provider.clone();
+
         let flashbots = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
         let beaverbuild = FlashbotsClient::new(provider.clone(), "https://rpc.beaverbuild.org/");
         let titan = FlashbotsClient::new(provider.clone(), "https://rpc.titanbuilder.xyz");
@@ -143,11 +156,15 @@ where
             gambitbuilder,
         ];
 
-        Flashbots {
-            clients: clients_vec.into_iter().map(Arc::new).collect(),
-            simulation_client: FlashbotsClient::new(provider.clone(), simulation_endpoint),
-            _t: PhantomData,
-        }
+        let clients = clients_vec.into_iter().map(Arc::new).collect();
+
+        Self { clients, ..self }
+    }
+
+    pub fn with_relay(self, url: &str) -> Self {
+        let mut clients = self.clients;
+        clients.push(Arc::new(FlashbotsClient::new(self.provider.clone(), url)));
+        Self { clients, ..self }
     }
 
     pub async fn simulate_txes<TX>(
@@ -181,14 +198,19 @@ where
             bundle = bundle.push_transaction(t);
         }
 
-        let bundle_arc = Arc::new(bundle);
+        let next_req_id = self.req_id.load(Ordering::SeqCst) + 1;
+        self.req_id.store(next_req_id, Ordering::SeqCst);
+
+        let (body, signature) = make_signed_body(next_req_id, "eth_sendBundle", bundle, &self.signer)?;
 
         for client in self.clients.iter() {
             let client_clone = client.clone();
-            let bundle_arc_clone = bundle_arc.clone();
+            let body_clone = body.clone();
+            let signature_clone = signature.clone();
+
             tokio::task::spawn(async move {
                 debug!("Sending bundle to {}", client_clone.name);
-                let bundle_result = client_clone.send_bundle(bundle_arc_clone.as_ref()).await;
+                let bundle_result = client_clone.send_signed_body(body_clone, signature_clone).await;
                 match bundle_result {
                     Ok(_) => {
                         info!("Flashbots bundle broadcast successfully {}", client_clone.name);
@@ -213,20 +235,47 @@ mod test {
     use super::*;
 
     #[tokio::test]
-    async fn test_send_bundle() -> Result<()> {
-        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("info,flashbots=off"));
+    async fn test_client_send_bundle() -> Result<()> {
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("debug,flashbots=off"));
         let node_url = Url::try_from(env::var("MAINNET_HTTP")?.as_str())?;
 
         let provider = ProviderBuilder::new().on_http(node_url).boxed();
         let block = provider.get_block_number().await?;
 
-        let flashbots = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
+        let flashbots_client = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
 
         let tx = Bytes::from(vec![1, 1, 1, 1]);
 
         let bundle_request = BundleRequest::new().set_block(U64::from(block)).push_transaction(tx);
 
-        match flashbots.send_bundle(&bundle_request).await {
+        match flashbots_client.send_bundle(&bundle_request).await {
+            Ok(resp) => {
+                debug!("{:?}", resp);
+                panic!("SHOULD_FAIL");
+            }
+            Err(e) => {
+                debug!("{}", e);
+                assert_eq!(e.to_string(), "FLASHBOTS_RELAY_ERROR".to_string());
+            }
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_send_bundle() -> Result<()> {
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("trace"));
+        let node_url = Url::try_from(env::var("MAINNET_HTTP")?.as_str())?;
+
+        let provider = ProviderBuilder::new().on_http(node_url).boxed();
+        let block = provider.get_block_number().await?;
+
+        let flashbots_client =
+            Flashbots::new(provider.clone(), "https://relay.flashbots.net", None).with_relay("https://relay.flashbots.net");
+
+        let tx = Bytes::from(vec![1, 1, 1, 1]);
+
+        match flashbots_client.broadcast_txes(vec![tx], block).await {
             Ok(resp) => {
                 debug!("{:?}", resp);
                 panic!("SHOULD_FAIL");

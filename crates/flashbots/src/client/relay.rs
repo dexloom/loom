@@ -73,13 +73,46 @@ impl Relay {
         let body_hash = keccak256(body.clone()).to_string();
         trace!("Body hash : {} {}", body_hash, body);
 
-        let mut req = self.client.post(self.url.as_ref()).body(body.clone()).body(body);
+        let mut req = self.client.post(self.url.as_ref()).body(body);
 
         if let Some(signer) = &self.signer {
             trace!("Signer on wallet  : {}", signer.address());
             let signature = signer.sign_message(body_hash.as_bytes()).await.map_err(RelayError::SignerError)?;
 
             req = req.header("X-Flashbots-Signature", format!("{}:0x{}", signer.address(), hex::encode(signature.as_bytes())));
+            req = req.header("Content-Type", "application/json");
+        }
+
+        let res = req.send().await?;
+        let status = res.error_for_status_ref();
+
+        match status {
+            Err(err) => {
+                let text = res.text().await?;
+                let status_code = err.status().unwrap();
+                if status_code.is_client_error() {
+                    // Client error (400-499)
+                    Err(RelayError::ClientError { text })
+                } else {
+                    // Internal server error (500-599)
+                    Err(RelayError::RequestError(err))
+                }
+            }
+            Ok(_) => {
+                let text = res.text().await?;
+                debug!("Flashbots repsonse: {}", text);
+                let res: Response<R> = serde_json::from_str(&text).map_err(|err| RelayError::ResponseSerdeJson { err, text })?;
+
+                Ok(res.data.into_result()?)
+            }
+        }
+    }
+
+    pub async fn serialized_request<R: DeserializeOwned>(&self, body: String, signature: Option<String>) -> Result<R, RelayError> {
+        let mut req = self.client.post(self.url.as_ref()).body(body);
+
+        if let Some(signature) = signature {
+            req = req.header("X-Flashbots-Signature", signature);
             req = req.header("Content-Type", "application/json");
         }
 

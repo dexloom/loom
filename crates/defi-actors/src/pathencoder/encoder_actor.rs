@@ -13,6 +13,8 @@ use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer,
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 
+const PRIORITY_GAS_FEE: u128 = 10_u128.pow(9);
+
 /// encoder task performs encode for request
 async fn encoder_task(
     encode_request: TxComposeData,
@@ -80,7 +82,7 @@ async fn encoder_task(
             } else {
                 let gas = (encode_request.swap.pre_estimate_gas() as u128) * 2;
                 let value = U256::ZERO;
-                let priority_gas_fee: u128 = 10_u128.pow(9);
+                let priority_gas_fee: u128 = if gas_fee > PRIORITY_GAS_FEE { PRIORITY_GAS_FEE } else { gas_fee };
 
                 let estimate_request = TxComposeData {
                     signer: Some(signer),

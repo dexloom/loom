@@ -1,11 +1,10 @@
-use std::marker::PhantomData;
-
 use alloy_json_rpc::RpcError;
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::{Transport, TransportErrorKind};
 use eyre::Result;
+use std::marker::PhantomData;
 use thiserror::Error;
 use url::Url;
 

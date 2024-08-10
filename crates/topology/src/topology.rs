@@ -364,7 +364,7 @@ impl Topology {
                         let client = topology.get_client(params.client.as_ref()).unwrap();
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
 
-                        let flashbots_client = Flashbots::new(client, "https://relay.flashbots.net");
+                        let flashbots_client = Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays();
                         let mut flashbots_actor = FlashbotsBroadcastActor::new(flashbots_client, params.smart.unwrap_or(false));
                         match flashbots_actor.consume(blockchain.compose_channel()).start() {
                             Ok(r) => {
@@ -460,7 +460,7 @@ impl Topology {
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
                         let encoder = topology.get_encoder(params.encoder.as_ref()).unwrap();
 
-                        let flashbots_client = Arc::new(Flashbots::new(client, "https://relay.flashbots.net"));
+                        let flashbots_client = Arc::new(Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays());
 
                         let mut geth_estimator_actor = GethEstimatorActor::new(flashbots_client, encoder);
                         match geth_estimator_actor.consume(blockchain.compose_channel()).produce(blockchain.compose_channel()).start() {
