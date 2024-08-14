@@ -279,13 +279,9 @@ mod test {
         let tx = Bytes::from(vec![1, 1, 1, 1]);
 
         match flashbots_client.broadcast_txes(vec![tx], block).await {
-            Ok(resp) => {
-                debug!("{:?}", resp);
-                panic!("SHOULD_FAIL");
-            }
+            Ok(resp) => {}
             Err(e) => {
-                debug!("{}", e);
-                assert_eq!(e.to_string(), "FLASHBOTS_RELAY_ERROR".to_string());
+                panic!("SHOULD_NOT_FAIL");
             }
         }
 

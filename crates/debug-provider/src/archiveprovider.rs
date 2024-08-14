@@ -91,7 +91,7 @@ where
         rpc_call
     }
 
-    fn call<'req>(&self, tx: &'req TransactionRequest) -> EthCall<'req, 'static, T, Ethereum, Bytes> {
+    fn call<'req, 'state>(&self, tx: &'req TransactionRequest) -> EthCall<'req, 'state, T, Ethereum, Bytes> {
         let call = EthCall::new(self.weak_client(), tx).block(self.block_id());
         debug!("call {:?}", self.block_id());
         call

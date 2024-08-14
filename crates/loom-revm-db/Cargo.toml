@@ -10,7 +10,8 @@ exclude.workspace = true
 
 [features]
 std = []
-
+serde = []
+serde-json = []
 
 [dependencies]
 log.workspace = true

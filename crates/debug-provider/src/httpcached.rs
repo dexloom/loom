@@ -482,8 +482,11 @@ mod test {
                 provider.get_block_by_hash(block_by_number.header.hash.unwrap(), BlockTransactionsKind::Full).await?.unwrap();
             assert_eq!(block_by_hash.header, block_by_number.header);
 
+            let block_number = block_by_number.header.number.unwrap_or_default();
+
             let trace_block_by_hash = provider.debug_trace_block_by_hash(block_by_number.header.hash.unwrap(), trace_opts.clone()).await?;
-            let trace_block_by_number = provider.debug_trace_block_by_number(BlockNumberOrTag::Latest, trace_opts.clone()).await?;
+            let trace_block_by_number =
+                provider.debug_trace_block_by_number(BlockNumberOrTag::Number(block_number), trace_opts.clone()).await?;
             assert_eq!(trace_block_by_hash, trace_block_by_number);
         }
 
