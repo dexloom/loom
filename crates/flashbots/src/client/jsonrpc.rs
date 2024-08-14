@@ -1,10 +1,10 @@
 use std::fmt;
 
+use crate::client::BundleHash;
 use alloy_primitives::U256;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use thiserror::Error;
-
 // Code adapted from: https://github.com/althea-net/guac_rs/tree/master/web3/src/jsonrpc
 // NOTE: This module only exists since there is no way to use the data structures
 // in the `ethers-providers/src/transports/common.rs` from another crate.
@@ -88,9 +88,27 @@ impl<R> ResponseData<R> {
     }
 }
 
+#[derive(Deserialize, Debug, PartialEq, Eq, Hash)]
+#[serde(untagged)]
+pub enum SendBundleResponseType {
+    Integer(u64),
+    BundleHash(BundleHash),
+    String(String),
+    SendBundleResponse(SendBundleResponse),
+    Null(Option<()>),
+}
+
+#[derive(Deserialize, Debug, PartialEq, Eq, Hash)]
+#[serde(rename_all = "camelCase")]
+pub struct SendBundleResponse {
+    #[serde(default)]
+    pub(crate) bundle_hash: Option<BundleHash>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_primitives::{hex, TxHash};
 
     #[test]
     fn deser_response() {
@@ -107,4 +125,56 @@ mod tests {
         let request: Request<u32> = Request::new(300, "method_name", 1);
         assert_eq!(&serde_json::to_string(&request).unwrap(), r#"{"id":300,"jsonrpc":"2.0","method":"method_name","params":1}"#);
     }
+
+    #[test]
+    fn deser_response_enum() {
+        let response: Response<SendBundleResponseType> = serde_json::from_str(r#"{"jsonrpc": "2.0", "result": 19, "id": 1}"#).unwrap();
+        assert_eq!(response.id, 1);
+        assert_eq!(response.data.into_result().unwrap(), SendBundleResponseType::Integer(19));
+    }
+
+    #[test]
+    fn deser_response_result_null() {
+        // https://rpc.penguinbuild.org
+        let response: Response<SendBundleResponseType> = serde_json::from_str(r#"{"jsonrpc":"2.0","id":2,"result":null}"#).unwrap();
+        assert_eq!(response.id, 2);
+        assert_eq!(response.data.into_result().unwrap(), SendBundleResponseType::Null(None));
+    }
+
+    #[test]
+    fn deser_response_result_string() {
+        // https://rpc.lokibuilder.xyz
+        // https://api.securerpc.com/v1
+        let response: Response<SendBundleResponseType> = serde_json::from_str(r#"{"jsonrpc":"2.0","id":1,"result":"nil"}"#).unwrap();
+        assert_eq!(response.id, 1);
+        assert_eq!(response.data.into_result().unwrap(), SendBundleResponseType::String("nil".to_string()));
+    }
+    #[test]
+    fn deser_response_result_send_bundle_response() {
+        let response: Response<SendBundleResponseType> = serde_json::from_str(
+            r#"{"id":1,"result":{"bundleHash":"0xcc6c61428c6516a252768859d167dc8f5c8c8c682334a184710f898e422530f8"},"jsonrpc":"2.0"}"#,
+        )
+        .unwrap();
+        assert_eq!(response.id, 1);
+        assert_eq!(
+            response.data.into_result().unwrap(),
+            SendBundleResponseType::SendBundleResponse(SendBundleResponse {
+                bundle_hash: Some(TxHash::from(hex!("cc6c61428c6516a252768859d167dc8f5c8c8c682334a184710f898e422530f8")))
+            })
+        )
+    }
+    #[test]
+    fn deser_response_result_bundle_hash_response() {
+        let response: Response<SendBundleResponseType> = serde_json::from_str(
+            r#"{"jsonrpc":"2.0","id":1,"result":"0xcc6c61428c6516a252768859d167dc8f5c8c8c682334a184710f898e422530f8"}"#,
+        )
+        .unwrap();
+        assert_eq!(response.id, 1);
+        assert_eq!(
+            response.data.into_result().unwrap(),
+            SendBundleResponseType::BundleHash(TxHash::from(hex!("cc6c61428c6516a252768859d167dc8f5c8c8c682334a184710f898e422530f8")))
+        )
+    }
+
+    //
 }

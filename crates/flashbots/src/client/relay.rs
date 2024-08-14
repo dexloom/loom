@@ -1,16 +1,15 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
+use crate::client::jsonrpc::{JsonRpcError, Request, Response};
 use alloy_primitives::{hex, keccak256};
 use alloy_signer::Signer;
 use alloy_signer_local::PrivateKeySigner;
 use log::{debug, trace};
 use reqwest::{Client, Error as ReqwestError};
-use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 use url::Url;
-
-use crate::client::jsonrpc::{JsonRpcError, Request, Response};
 
 /// A Flashbots relay client.
 ///
@@ -140,11 +139,4 @@ impl Relay {
             }
         }
     }
-}
-
-#[derive(Deserialize)]
-#[serde(rename_all = "camelCase")]
-pub(crate) struct SendBundleResponse {
-    //#[serde(default)]
-    //pub(crate) bundle_hash: Option<BundleHash>,
 }

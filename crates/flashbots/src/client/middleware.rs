@@ -8,9 +8,10 @@ use std::marker::PhantomData;
 use thiserror::Error;
 use url::Url;
 
+use crate::client::SendBundleResponseType;
 use crate::{
     client::bundle::{BundleRequest, SimulatedBundle},
-    client::relay::{Relay, RelayError, SendBundleResponse},
+    client::relay::{Relay, RelayError},
 };
 
 /// Errors for the Flashbots middleware.
@@ -121,7 +122,7 @@ where
             return Err(FlashbotsMiddlewareError::MissingParameters);
         }
 
-        let _response: SendBundleResponse =
+        let _response: SendBundleResponseType =
             self.relay.request("eth_sendBundle", [bundle]).await.map_err(FlashbotsMiddlewareError::RelayError)?;
 
         Ok(())

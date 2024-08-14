@@ -1,4 +1,7 @@
-use crate::client::{make_signed_body, BundleRequest, BundleTransaction, FlashbotsMiddleware, FlashbotsMiddlewareError, SimulatedBundle};
+use crate::client::{
+    make_signed_body, BundleRequest, BundleTransaction, FlashbotsMiddleware, FlashbotsMiddlewareError, SendBundleResponseType,
+    SimulatedBundle,
+};
 use alloy_network::Ethereum;
 use alloy_primitives::{TxHash, U64};
 use alloy_provider::Provider;
@@ -83,7 +86,7 @@ where
     }
 
     pub async fn send_signed_body(&self, body: String, signature: String) -> Result<()> {
-        match self.flashbots_middleware.relay().serialized_request::<()>(body, Some(signature)).await {
+        match self.flashbots_middleware.relay().serialized_request::<SendBundleResponseType>(body, Some(signature)).await {
             Ok(_resp) => {
                 info!("Bundle sent to : {}", self.name);
                 Ok(())

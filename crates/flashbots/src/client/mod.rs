@@ -7,8 +7,10 @@
 //! custom bundles can be crafted, simulated and submitted.
 pub use body::make_signed_body;
 pub use bundle::{BundleHash, BundleRequest, BundleTransaction, SimulatedBundle, SimulatedTransaction};
+pub use jsonrpc::SendBundleResponseType;
 pub use middleware::{FlashbotsMiddleware, FlashbotsMiddlewareError};
 pub use relay::{Relay, RelayError};
+
 mod bundle;
 
 mod middleware;
