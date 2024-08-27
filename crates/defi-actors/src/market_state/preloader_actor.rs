@@ -8,7 +8,6 @@ use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{debug, error};
 
@@ -136,7 +135,7 @@ where
 
 #[allow(dead_code)]
 #[derive(Accessor)]
-pub struct MarketStatePreloadedActor<P, T, N> {
+pub struct MarketStatePreloadedOneShotActor<P, T, N> {
     name: &'static str,
     client: P,
     copied_accounts: Vec<Address>,
@@ -151,7 +150,7 @@ pub struct MarketStatePreloadedActor<P, T, N> {
 }
 
 #[allow(dead_code)]
-impl<P, T, N> MarketStatePreloadedActor<P, T, N>
+impl<P, T, N> MarketStatePreloadedOneShotActor<P, T, N>
 where
     T: Transport + Clone,
     N: Network,
@@ -163,7 +162,7 @@ where
 
     pub fn new(client: P) -> Self {
         Self {
-            name: "MarketStatePreloadedActor",
+            name: "MarketStatePreloadedOneShotActor",
             client,
             copied_accounts: Vec::new(),
             new_accounts: Vec::new(),
@@ -228,19 +227,15 @@ where
     }
 }
 
-#[async_trait]
-impl<P, T, N> Actor for MarketStatePreloadedActor<P, T, N>
+impl<P, T, N> Actor for MarketStatePreloadedOneShotActor<P, T, N>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    fn start(&self) -> ActorResult {
-        Err(eyre!("NEED_TO_BE_WAITED"))
-    }
-
-    fn start_and_wait(&self) -> eyre::Result<()> {
-        let handler = tokio::task::spawn(preload_market_state(
+    fn start_and_wait(&self) -> Result<()> {
+        let rt = tokio::runtime::Runtime::new()?; // we need a different runtime to wait for the result
+        let handler = rt.spawn(preload_market_state(
             self.client.clone(),
             self.copied_accounts.clone(),
             self.new_accounts.clone(),
@@ -249,11 +244,16 @@ where
             self.account_nonce_balabnce_state.clone(),
         ));
 
-        Self::wait(Ok(vec![handler]))?;
+        self.wait(Ok(vec![handler]))?;
+        rt.shutdown_background();
         Ok(())
     }
 
+    fn start(&self) -> ActorResult {
+        Err(eyre!("NEED_TO_BE_WAITED"))
+    }
+
     fn name(&self) -> &'static str {
-        "MarketStatePreloadedActor"
+        "MarketStatePreloadedOneShotActor"
     }
 }

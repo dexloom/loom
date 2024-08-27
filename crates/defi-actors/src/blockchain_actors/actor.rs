@@ -4,10 +4,10 @@ use std::sync::Arc;
 use crate::backrun::BlockStateChangeProcessorActor;
 use crate::{
     ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor,
-    GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor,
-    NodeBlockActor, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor,
-    PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor,
-    StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
+    GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor,
+    NewPoolLoaderActor, NodeBlockActor, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
+    PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, RequiredPoolLoaderActor,
+    SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
 };
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, B256, U256};
@@ -70,21 +70,22 @@ where
         let key: B256 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".parse()?;
 
         self.actor_manager
-            .start_and_wait(InitializeSignersActor::new(Some(key.to_vec())).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+            .start_and_wait(InitializeSignersOneShotActor::new(Some(key.to_vec())).with_signers(self.signers.clone()).on_bc(&self.bc))?;
         self.with_signers()?;
         Ok(self)
     }
 
     /// Initialize signers with the private key. Random key generated if param in None
     pub fn initialize_signers_with_key(&mut self, key: Option<Vec<u8>>) -> Result<&mut Self> {
-        self.actor_manager.start_and_wait(InitializeSignersActor::new(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start_and_wait(InitializeSignersOneShotActor::new(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
         self.with_signers()?;
         Ok(self)
     }
     /// Initialize signers with encrypted private key
     pub fn initialize_signers_with_encrypted_key(&mut self, key: Vec<u8>) -> Result<&mut Self> {
-        self.actor_manager
-            .start_and_wait(InitializeSignersActor::new_from_encrypted_key(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start_and_wait(
+            InitializeSignersOneShotActor::new_from_encrypted_key(key).with_signers(self.signers.clone()).on_bc(&self.bc),
+        )?;
         self.with_signers()?;
         Ok(self)
     }
@@ -92,7 +93,7 @@ where
     /// Initializes signers with encrypted key form DATA env var
     pub fn initialize_signers_with_env(&mut self) -> Result<&mut Self> {
         self.actor_manager
-            .start_and_wait(InitializeSignersActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc))?;
+            .start_and_wait(InitializeSignersOneShotActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc))?;
         self.with_signers()?;
         Ok(self)
     }
@@ -129,8 +130,9 @@ where
             address_vec.push(loom_multicaller);
         }
 
-        self.actor_manager
-            .start_and_wait(MarketStatePreloadedActor::new(self.provider.clone()).with_copied_accounts(address_vec).on_bc(&self.bc))?;
+        self.actor_manager.start_and_wait(
+            MarketStatePreloadedOneShotActor::new(self.provider.clone()).with_copied_accounts(address_vec).on_bc(&self.bc),
+        )?;
         Ok(self)
     }
 
@@ -138,7 +140,7 @@ where
     pub fn with_market_state_preloader_virtual(&mut self, address_to_copy: Vec<Address>) -> Result<&mut Self> {
         let address_vec = self.signers.inner().try_read()?.get_address_vec();
 
-        let mut market_state_preloader = MarketStatePreloadedActor::new(self.provider.clone());
+        let mut market_state_preloader = MarketStatePreloadedOneShotActor::new(self.provider.clone());
 
         for address in address_vec {
             //            market_state_preloader = market_state_preloader.with_new_account(address, 0, NWETH::from_float(10.0), None);

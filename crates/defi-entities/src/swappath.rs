@@ -105,6 +105,8 @@ impl SwapPaths {
         if self.paths.insert(rc_path.clone()) {
             for pool in rc_path.pools.iter() {
                 let e = self.pool_paths.entry(pool.get_address()).or_insert(Arc::new(HashSet::new()));
+                // TODO: Fix this clippy warning
+                #[allow(clippy::mutable_key_type)]
                 let mut v = e.clone().deref().clone();
                 v.insert(rc_path.clone());
                 *e = Arc::new(v);
@@ -121,6 +123,8 @@ impl SwapPaths {
         if self.paths.insert(rc_path.clone()) {
             for pool in rc_path.pools.iter() {
                 let e = self.pool_paths.entry(pool.get_address()).or_insert(Arc::new(HashSet::new()));
+                // TODO: Fix this clippy warning
+                #[allow(clippy::mutable_key_type)]
                 let mut v = e.clone().deref().clone();
                 v.insert(rc_path.clone());
                 *e = Arc::new(v);

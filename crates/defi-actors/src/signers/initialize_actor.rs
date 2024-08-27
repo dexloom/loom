@@ -1,5 +1,4 @@
 use alloy_primitives::{hex, Bytes, B256};
-use async_trait::async_trait;
 use eyre::eyre;
 use log::{error, info};
 
@@ -8,8 +7,9 @@ use defi_entities::{AccountNonceAndBalanceState, KeyStore, TxSigners};
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 
+/// The one-shot actor adds a new signer to the signers and monitor list after and stops.
 #[derive(Accessor)]
-pub struct InitializeSignersActor {
+pub struct InitializeSignersOneShotActor {
     key: Option<Vec<u8>>,
     #[accessor]
     signers: Option<SharedState<TxSigners>>,
@@ -17,7 +17,7 @@ pub struct InitializeSignersActor {
     monitor: Option<SharedState<AccountNonceAndBalanceState>>,
 }
 
-async fn initialize_signers_worker(
+async fn initialize_signers_one_shot_worker(
     key: Vec<u8>,
     signers: SharedState<TxSigners>,
     monitor: SharedState<AccountNonceAndBalanceState>,
@@ -28,14 +28,14 @@ async fn initialize_signers_worker(
     Ok("Signer added".to_string())
 }
 
-impl InitializeSignersActor {
-    pub fn new(key: Option<Vec<u8>>) -> InitializeSignersActor {
+impl InitializeSignersOneShotActor {
+    pub fn new(key: Option<Vec<u8>>) -> InitializeSignersOneShotActor {
         let key = key.unwrap_or_else(|| B256::random().to_vec());
 
-        InitializeSignersActor { key: Some(key), signers: None, monitor: None }
+        InitializeSignersOneShotActor { key: Some(key), signers: None, monitor: None }
     }
 
-    pub fn new_from_encrypted_env() -> InitializeSignersActor {
+    pub fn new_from_encrypted_env() -> InitializeSignersOneShotActor {
         let key = match std::env::var("DATA") {
             Ok(priv_key_enc) => {
                 let keystore = KeyStore::new();
@@ -45,14 +45,14 @@ impl InitializeSignersActor {
             _ => None,
         };
 
-        InitializeSignersActor { key, signers: None, monitor: None }
+        InitializeSignersOneShotActor { key, signers: None, monitor: None }
     }
 
-    pub fn new_from_encrypted_key(priv_key_enc: Vec<u8>) -> InitializeSignersActor {
+    pub fn new_from_encrypted_key(priv_key_enc: Vec<u8>) -> InitializeSignersOneShotActor {
         let keystore = KeyStore::new();
         let key = keystore.encrypt_once(priv_key_enc.as_slice()).unwrap();
 
-        InitializeSignersActor { key: Some(key), signers: None, monitor: None }
+        InitializeSignersOneShotActor { key: Some(key), signers: None, monitor: None }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -64,20 +64,29 @@ impl InitializeSignersActor {
     }
 }
 
-#[async_trait]
-impl Actor for InitializeSignersActor {
+impl Actor for InitializeSignersOneShotActor {
     fn start_and_wait(&self) -> eyre::Result<()> {
-        let handle = match self.key.clone() {
-            Some(key) => {
-                Ok(tokio::task::spawn(initialize_signers_worker(key, self.signers.clone().unwrap(), self.monitor.clone().unwrap())))
-            }
+        let key = match self.key.clone() {
+            Some(key) => key,
             _ => {
                 error!("No signer keys found");
-                Err(eyre!("NO_SIGNER_KEY"))
+                return Err(eyre!("NO_SIGNER_KEY"));
             }
-        }?;
+        };
+        let (signers, monitor) = match (self.signers.clone(), self.monitor.clone()) {
+            (Some(signers), Some(monitor)) => (signers, monitor),
+            _ => {
+                error!("Signers or monitor not initialized");
+                return Err(eyre!("SIGNERS_OR_MONITOR_NOT_INITIALIZED"));
+            }
+        };
 
-        Self::wait(Ok(vec![handle]))?;
+        let rt = tokio::runtime::Runtime::new()?; // we need a different runtime to wait for the result
+        let handle = rt.spawn(async { initialize_signers_one_shot_worker(key, signers, monitor).await });
+
+        self.wait(Ok(vec![handle]))?;
+        rt.shutdown_background();
+
         Ok(())
     }
     fn start(&self) -> ActorResult {
@@ -85,6 +94,6 @@ impl Actor for InitializeSignersActor {
     }
 
     fn name(&self) -> &'static str {
-        "InitializeSignersActor"
+        "InitializeSignersOneShotActor"
     }
 }
