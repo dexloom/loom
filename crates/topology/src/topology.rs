@@ -13,7 +13,7 @@ use tokio::task::JoinHandle;
 
 use defi_actors::{
     BlockHistoryActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor,
-    InitializeSignersActor, MarketStatePreloadedActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeExExGrpcActor,
+    InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeExExGrpcActor,
     NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, TxSignersActor,
 };
 use defi_blockchain::Blockchain;
@@ -186,7 +186,7 @@ impl Topology {
                     info!("Starting initialize env signers actor {name}");
                     let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
 
-                    let mut initialize_signers_actor = InitializeSignersActor::new_from_encrypted_env();
+                    let mut initialize_signers_actor = InitializeSignersOneShotActor::new_from_encrypted_env();
                     match initialize_signers_actor.access(signers.clone()).access(blockchain.nonce_and_balance()).start_and_wait() {
                         Ok(_) => {
                             info!("Signers have been initialized")
@@ -221,13 +221,13 @@ impl Topology {
                 let signers = topology.get_signers(params.signers.as_ref()).unwrap();
 
                 let mut market_state_preload_actor =
-                    MarketStatePreloadedActor::new(client).with_signers(signers.clone()).with_encoder(&topology.get_encoder(None)?);
+                    MarketStatePreloadedOneShotActor::new(client).with_signers(signers.clone()).with_encoder(&topology.get_encoder(None)?);
                 match market_state_preload_actor.access(blockchain.market_state()).start_and_wait() {
                     Ok(_) => {
                         info!("Market state preload actor executed successfully")
                     }
                     Err(e) => {
-                        panic!("MarketStatePreloadedActor : {}", e)
+                        panic!("MarketStatePreloadedOneShotActor : {}", e)
                     }
                 }
             }
