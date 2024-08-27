@@ -25,7 +25,7 @@ pub async fn new_gas_worker(
                 match msg {
                     Ok(market_event) => {
                         if let BlockTxUpdate{ block_number, block_hash } = market_event {
-                            if let Some(entry) = market_history_state.read().await.get_market_history_entry(&block_hash).cloned() {
+                            if let Some(entry) = market_history_state.read().await.get_block_history_entry(&block_hash).cloned() {
                                 if let Some(block) = entry.block {
                                     if let Some(cur_base_fee) = block.header.base_fee_per_gas {
                                         let next_block_base_fee : u128 = chain_parameters.calc_next_block_base_fee(block.header.gas_used, block.header.gas_limit, cur_base_fee);

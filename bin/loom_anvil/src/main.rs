@@ -152,7 +152,7 @@ async fn main() -> Result<()> {
     let mempool_instance = SharedState::new(mempool_instance);
     let gas_station_state = SharedState::new(GasStation::new());
 
-    let block_history_state = SharedState::new(BlockHistory::fetch(client.clone(), market_state.inner(), 10).await?);
+    let block_history_state = SharedState::new(BlockHistory::init(client.clone(), market_state.inner(), 10).await?);
 
     let tx_signers = TxSigners::new();
     let accounts_state = AccountNonceAndBalanceState::new();

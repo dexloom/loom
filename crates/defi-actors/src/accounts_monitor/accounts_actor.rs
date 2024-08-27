@@ -70,7 +70,7 @@ pub async fn nonce_and_balance_monitor_worker(
                 if let Ok(market_event_msg) = market_event_msg {
                     match market_event_msg {
                         MarketEvents::BlockTxUpdate{ block_hash, .. }=>{
-                            if let Some(block_entry) = block_history_state.read().await.get_market_history_entry(&block_hash).cloned() {
+                            if let Some(block_entry) = block_history_state.read().await.get_block_history_entry(&block_hash).cloned() {
                                 if let Some(block) = block_entry.block {
                                     if let BlockTransactions::Full(txs) = block.transactions {
 
@@ -102,7 +102,7 @@ pub async fn nonce_and_balance_monitor_worker(
                             }
                         },
                         MarketEvents::BlockLogsUpdate { block_hash, .. }=>{
-                            if let Some(block_entry) = block_history_state.read().await.get_market_history_entry(&block_hash) {
+                            if let Some(block_entry) = block_history_state.read().await.get_block_history_entry(&block_hash) {
                                 if let Some(logs) = &block_entry.logs {
 
                                     // acquire accounts shared state write lock

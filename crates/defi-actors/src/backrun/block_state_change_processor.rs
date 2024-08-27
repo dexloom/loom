@@ -39,7 +39,7 @@ pub async fn block_state_change_worker(
 
 
                             MarketEvents::BlockStateUpdate{ block_hash } => {
-                                if let Some(block_history_update) = block_history.read().await.get_market_history_entry(&block_hash).cloned() {
+                                if let Some(block_history_update) = block_history.read().await.get_block_history_entry(&block_hash).cloned() {
                                     if let Some(state_update) = block_history_update.state_update {
                                         if let Some(block_header) = block_history_update.header {
                                             let affected_pools = get_affected_pools(market.clone(), &state_update).await?;

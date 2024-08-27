@@ -2,16 +2,17 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
+use alloy_network::primitives::BlockTransactionsKind;
 use alloy_network::Network;
-use alloy_primitives::BlockHash;
+use alloy_primitives::{BlockHash, BlockNumber};
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, Header, Log};
+use alloy_rpc_types::{Block, BlockId, Filter, Header, Log};
 use alloy_transport::Transport;
 use eyre::{ErrReport, OptionExt, Result};
 use log::warn;
 use tokio::sync::RwLock;
 
-use defi_types::GethStateUpdateVec;
+use defi_types::{debug_trace_block, GethStateUpdateVec};
 use loom_revm_db::LoomInMemoryDB;
 
 use crate::MarketState;
@@ -50,7 +51,7 @@ impl BlockHistory {
         BlockHistory { depth, latest_block_number: 0, block_entries: HashMap::new(), block_numbers: HashMap::new() }
     }
 
-    pub async fn fetch<P, T, N>(client: P, current_state: Arc<RwLock<MarketState>>, depth: usize) -> Result<BlockHistory>
+    pub async fn init<P, T, N>(client: P, current_state: Arc<RwLock<MarketState>>, depth: usize) -> Result<BlockHistory>
     where
         N: Network,
         T: Transport + Clone,
@@ -77,6 +78,26 @@ impl BlockHistory {
         Ok(BlockHistory { depth, latest_block_number, block_entries, block_numbers })
     }
 
+    pub async fn fetch_entry<P, T, N>(client: P, block_hash: BlockHash) -> Result<BlockHistoryEntry>
+    where
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
+    {
+        let block = client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await?.unwrap();
+
+        let header = block.header.clone();
+
+        let filter = Filter::new().at_block_hash(block_hash);
+
+        let logs = client.get_logs(&filter).await?;
+
+        let (_, state_update) = debug_trace_block(client.clone(), BlockId::Hash(block_hash.into()), true).await?;
+
+        let block_entry = BlockHistoryEntry::new(Some(header), Some(block), Some(logs), Some(state_update), None);
+        Ok(block_entry)
+    }
+
     pub fn len(&self) -> usize {
         self.block_entries.len()
     }
@@ -91,15 +112,43 @@ impl BlockHistory {
             self.latest_block_number = block_number;
             self.block_numbers.insert(block_number, block_hash);
         }
-        self.block_numbers.retain(|&key, _| key > (block_number - self.depth as u64));
-        let actual_hashes: Vec<BlockHash> = self.block_numbers.values().cloned().collect();
-        self.block_entries.retain(|key, _| actual_hashes.contains(key));
+
+        if block_number > self.depth as u64 {
+            self.block_numbers.retain(|&key, _| key > (block_number - self.depth as u64));
+            let actual_hashes: Vec<BlockHash> = self.block_numbers.values().cloned().collect();
+            self.block_entries.retain(|key, _| actual_hashes.contains(key));
+        }
 
         self.block_entries.entry(block_hash).or_default()
     }
 
     fn process_block_hash(&mut self, block_hash: BlockHash) -> &mut BlockHistoryEntry {
         self.block_entries.entry(block_hash).or_default()
+    }
+
+    fn check_reorg_at_block(&mut self, block_number: BlockNumber) -> Option<BlockHash> {
+        if let Some(block_hash) = self.get_block_hash_for_block_number(block_number) {
+            self.get_block_history_entry()
+        } else {
+            None
+        }
+    }
+
+    fn process_reorg(&mut self) -> Option<BlockNumber> {
+        let current_block_number = self.latest_block_number;
+        let current_block_hash = self.block_numbers.get(&current_block_number);
+        let prev_block_hash = self.block_numbers.get(&(current_block_number - 1)).unwrap_or_default().clone();
+
+        if let Some(current_block_hash) = current_block_hash {
+            if let Some(current_block_entry) = self.block_entries.get(current_block_hash) {
+                if let Some(current_block_header) = current_block_entry.header.clone() {
+                    if current_block_header.parent_hash != prev_block_hash {
+                        // reorg detected
+                    }
+                }
+            }
+        }
+        None
     }
 
     pub fn add_block_header(&mut self, block_header: Header) -> Result<()> {
@@ -171,11 +220,93 @@ impl BlockHistory {
         }
     }
 
-    pub fn get_market_history_entry(&self, block_hash: &BlockHash) -> Option<&BlockHistoryEntry> {
+    pub fn get_block_history_entry(&self, block_hash: &BlockHash) -> Option<&BlockHistoryEntry> {
         self.block_entries.get(block_hash)
     }
 
     pub fn get_block_by_hash(&self, block_hash: &BlockHash) -> Option<Block> {
         self.block_entries.get(block_hash).and_then(|entry| entry.block.clone())
+    }
+
+    pub fn get_block_hash_for_block_number(&self, block_number: BlockNumber) -> Option<BlockHash> {
+        *self.block_numbers.get(&block_number)
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+    use alloy_primitives::U256;
+
+    fn create_next_header(parent: &Header, child_id: u64) -> Header {
+        let number = parent.number.unwrap() + 1;
+        let hash: Option<BlockHash> = Some(
+            (U256::try_from(parent.hash.unwrap_or_default()).unwrap() * U256::from(256) + U256::from(number + child_id))
+                .try_into()
+                .unwrap(),
+        );
+        let number = Some(parent.number.unwrap_or_default() + 1);
+
+        Header { hash, parent_hash: parent.hash.unwrap_or_default(), number, ..Default::default() }
+    }
+
+    #[test]
+    fn test_add_block_header() {
+        let mut block_history = BlockHistory::new(10);
+
+        let header_1_0 = Header { number: Some(1), hash: Some(U256::from(1).into()), ..Default::default() };
+        let header_2_0 = create_next_header(&header_1_0, 0);
+        let header_3_0 = create_next_header(&header_2_0, 0);
+
+        block_history.add_block_header(header_1_0).unwrap();
+        block_history.add_block_header(header_2_0).unwrap();
+        block_history.add_block_header(header_3_0).unwrap();
+
+        assert_eq!(block_history.block_entries.len(), 3);
+        assert_eq!(block_history.latest_block_number, 3);
+        assert_eq!(block_history.block_numbers[&3], BlockHash::from(U256::from(0x010203)));
+    }
+
+    #[test]
+    fn test_add_missed_header() {
+        let mut block_history = BlockHistory::new(10);
+
+        let header_1_0 = Header { number: Some(1), hash: Some(U256::from(1).into()), ..Default::default() };
+        let header_2_0 = create_next_header(&header_1_0, 0);
+        let header_2_1 = create_next_header(&header_1_0, 1);
+        let header_3_0 = create_next_header(&header_2_0, 0);
+
+        block_history.add_block_header(header_1_0).unwrap();
+        block_history.add_block_header(header_2_0).unwrap();
+        block_history.add_block_header(header_3_0).unwrap();
+        block_history.add_block_header(header_2_1).unwrap();
+
+        assert_eq!(block_history.block_entries.len(), 4);
+        assert_eq!(block_history.latest_block_number, 3);
+        assert_eq!(block_history.block_numbers[&3], BlockHash::from(U256::from(0x010203)));
+    }
+
+    #[test]
+    fn test_add_reorged_header() {
+        let mut block_history = BlockHistory::new(10);
+
+        let header_1_0 = Header { number: Some(1), hash: Some(U256::from(1).into()), ..Default::default() };
+        let header_2_0 = create_next_header(&header_1_0, 0);
+        let header_2_1 = create_next_header(&header_1_0, 1);
+        let header_3_0 = create_next_header(&header_2_0, 0);
+        let header_3_1 = create_next_header(&header_2_1, 0);
+        let header_4_1 = create_next_header(&header_3_1, 0);
+
+        block_history.add_block_header(header_1_0).unwrap();
+        block_history.add_block_header(header_2_0).unwrap();
+        block_history.add_block_header(header_3_0).unwrap();
+        block_history.add_block_header(header_2_1).unwrap();
+        //block_history.add_block_header(header_3_1).unwrap();
+        block_history.add_block_header(header_4_1).unwrap();
+
+        assert_eq!(block_history.block_entries.len(), 5);
+        assert_eq!(block_history.latest_block_number, 4);
+        assert_eq!(block_history.block_numbers[&3], BlockHash::from(U256::from(0x010304)));
+        assert_eq!(block_history.block_numbers[&4], BlockHash::from(U256::from(0x01030404)));
     }
 }
