@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, TxHash};
 use alloy_rpc_types::Transaction;
-use async_trait::async_trait;
 use eyre::{OptionExt, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -162,7 +161,7 @@ impl DiffPathMergerActor {
     }
 }
 
-#[async_trait]
+
 impl Actor for DiffPathMergerActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(diff_path_merger_worker(

@@ -11,7 +11,6 @@ use alloy_rpc_types::state::StateOverride;
 use alloy_rpc_types::{BlockOverrides, TransactionRequest};
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use log::{debug, error, info};
@@ -363,7 +362,7 @@ where
     }
 }
 
-#[async_trait]
+
 impl<P, T, N> Actor for PendingTxStateChangeProcessorActor<P, T, N>
 where
     T: Transport + Clone,

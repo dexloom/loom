@@ -5,7 +5,6 @@ use alloy_network::{Ethereum, Network};
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockTransactions;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use eyre::Result;
 use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
@@ -108,7 +107,6 @@ where
     }
 }
 
-#[async_trait]
 impl<P, T> Actor for AnvilBroadcastActor<P, T>
 where
     T: Transport + Clone,

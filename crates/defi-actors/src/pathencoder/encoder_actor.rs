@@ -1,5 +1,4 @@
 use alloy_primitives::{Address, U256};
-use async_trait::async_trait;
 use eyre::{eyre, OptionExt, Result};
 use log::{debug, error};
 use tokio::sync::broadcast::error::RecvError;
@@ -184,7 +183,6 @@ impl SwapEncoderActor {
     }
 }
 
-#[async_trait]
 impl Actor for SwapEncoderActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(arb_swap_path_encoder_worker(

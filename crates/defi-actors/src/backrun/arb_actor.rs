@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use log::info;
 use tokio::task::JoinHandle;
 
@@ -71,7 +70,7 @@ where
     }
 }
 
-#[async_trait]
+
 impl<P, T, N> Actor for StateChangeArbActor<P, T, N>
 where
     T: Transport + Clone,

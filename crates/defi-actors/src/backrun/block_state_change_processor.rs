@@ -1,4 +1,4 @@
-use async_trait::async_trait;
+
 use log::{debug, error};
 
 use defi_blockchain::Blockchain;
@@ -113,7 +113,6 @@ impl BlockStateChangeProcessorActor {
     }
 }
 
-#[async_trait]
 impl Actor for BlockStateChangeProcessorActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(block_state_change_worker(

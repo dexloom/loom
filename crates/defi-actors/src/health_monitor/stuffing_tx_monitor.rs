@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
@@ -151,7 +150,7 @@ impl<P: Provider + Send + Sync + Clone + 'static> StuffingTxMonitorActor<P> {
     }
 }
 
-#[async_trait]
+
 impl<P> Actor for StuffingTxMonitorActor<P>
 where
     P: Provider + Send + Sync + Clone + 'static,

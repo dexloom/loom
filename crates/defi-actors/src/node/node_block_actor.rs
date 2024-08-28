@@ -4,7 +4,6 @@ use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header};
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use tokio::task::JoinHandle;
 
 use debug_provider::DebugProviderExt;
@@ -107,7 +106,6 @@ where
     }
 }
 
-#[async_trait]
 impl<P, T, N> Actor for NodeBlockActor<P, T, N>
 where
     T: Transport + Clone,

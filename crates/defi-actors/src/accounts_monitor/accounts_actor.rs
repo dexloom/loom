@@ -8,7 +8,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::BlockTransactions;
 use alloy_sol_types::SolEventInterface;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use defi_abi::IERC20::IERC20Events;
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory};
@@ -193,7 +192,7 @@ where
     }
 }
 
-#[async_trait]
+
 impl<P, T, N> Actor for NonceAndBalanceMonitorActor<P, T, N>
 where
     T: Transport + Clone,

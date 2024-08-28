@@ -4,7 +4,6 @@ use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use log::{debug, error};
 
 use crate::fetch_and_add_pool_by_address;
@@ -99,7 +98,7 @@ where
     }
 }
 
-#[async_trait]
+
 impl<P, T, N> Actor for RequiredPoolLoaderActor<P, T, N>
 where
     T: Transport + Clone,

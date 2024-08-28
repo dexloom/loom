@@ -1,6 +1,5 @@
 use alloy_primitives::BlockNumber;
 use alloy_rpc_types::BlockTransactions;
-use async_trait::async_trait;
 use chrono::{Duration, Utc};
 use eyre::{eyre, Result};
 use log::{debug, error, info, trace};
@@ -192,7 +191,7 @@ impl MempoolActor {
     }
 }
 
-#[async_trait]
+
 impl Actor for MempoolActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_mempool_worker(

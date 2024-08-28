@@ -1,7 +1,6 @@
 use std::any::type_name;
 
 use alloy_rpc_types::{Block, Header};
-use async_trait::async_trait;
 
 use defi_blockchain::Blockchain;
 use defi_events::{BlockLogs, BlockStateUpdate, MessageMempoolDataUpdate};
@@ -49,7 +48,6 @@ impl NodeExExGrpcActor {
     }
 }
 
-#[async_trait]
 impl Actor for NodeExExGrpcActor {
     fn start(&self) -> ActorResult {
         let handler = tokio::task::spawn(node_exex_grpc_worker(

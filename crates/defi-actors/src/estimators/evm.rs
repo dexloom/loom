@@ -2,7 +2,6 @@ use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Bytes, TxKind};
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
 use reth_primitives::U256;
@@ -243,7 +242,6 @@ impl EvmEstimatorActor {
     }
 }
 
-#[async_trait]
 impl Actor for EvmEstimatorActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(

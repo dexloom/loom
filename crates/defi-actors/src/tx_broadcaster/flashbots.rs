@@ -5,7 +5,6 @@ use alloy_network::Ethereum;
 use alloy_primitives::{Bytes, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::error;
 use tokio::sync::broadcast::error::RecvError;
@@ -124,7 +123,6 @@ where
     }
 }
 
-#[async_trait]
 impl<P, T> Actor for FlashbotsBroadcastActor<P, T>
 where
     T: Transport + Clone,

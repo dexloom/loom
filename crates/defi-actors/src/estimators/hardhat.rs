@@ -5,7 +5,6 @@ use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
@@ -16,7 +15,6 @@ use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
-
 async fn estimator_worker(
     encoder: Arc<SwapStepEncoder>,
     compose_channel_rx: Broadcaster<MessageTxCompose>,
@@ -116,7 +114,6 @@ impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> HardhatEsti
     }
 }
 
-#[async_trait]
 impl<P: Provider + DebugProviderExt + Clone + Send + Sync + 'static> Actor for HardhatEstimatorActor<P> {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(

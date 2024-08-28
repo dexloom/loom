@@ -8,7 +8,6 @@ use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header};
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use debug_provider::{DebugProviderExt, HttpCachedTransport};
 use defi_blockchain::Blockchain;
 use defi_entities::MarketState;
@@ -78,7 +77,6 @@ where
     }
 }
 
-#[async_trait]
 impl<P, T, N> Actor for NodeBlockPlayerActor<P, T, N>
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,

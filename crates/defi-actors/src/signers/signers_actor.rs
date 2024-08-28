@@ -1,6 +1,5 @@
 use alloy_consensus::TxEnvelope;
 use alloy_rlp::Encodable;
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
@@ -111,7 +110,6 @@ impl TxSignersActor {
     }
 }
 
-#[async_trait]
 impl Actor for TxSignersActor {
     fn start(&self) -> ActorResult {
         let task =
