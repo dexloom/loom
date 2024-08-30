@@ -4,7 +4,6 @@ use alloy_network::Ethereum;
 use alloy_primitives::TxHash;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use futures::StreamExt;
 use log::error;
 
@@ -67,7 +66,6 @@ where
     }
 }
 
-#[async_trait]
 impl<P, T> Actor for NodeMempoolActor<P, T>
 where
     T: Transport + Clone,

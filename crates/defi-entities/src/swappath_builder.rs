@@ -20,6 +20,9 @@ impl SwapPathSet {
             self.set.insert(path);
         }
     }
+    pub fn vec(self) -> Vec<SwapPath> {
+        self.set.into_iter().collect()
+    }
 
     pub fn arc_vec(self) -> Vec<Arc<SwapPath>> {
         self.set.into_iter().map(Arc::new).collect()
@@ -410,7 +413,7 @@ fn build_swap_path_three_hopes_no_basic(
     Ok(ret)
 }
 
-pub fn build_swap_path_vec(market: &Market, directions: &BTreeMap<PoolWrapper, Vec<(Address, Address)>>) -> Result<Vec<Arc<SwapPath>>> {
+pub fn build_swap_path_vec(market: &Market, directions: &BTreeMap<PoolWrapper, Vec<(Address, Address)>>) -> Result<Vec<SwapPath>> {
     //let mut ret : Vec<SwapPath> = Vec::new();
     let mut ret_map = SwapPathSet::new();
 
@@ -445,5 +448,5 @@ pub fn build_swap_path_vec(market: &Market, directions: &BTreeMap<PoolWrapper, V
         }
     }
 
-    Ok(ret_map.arc_vec())
+    Ok(ret_map.vec())
 }

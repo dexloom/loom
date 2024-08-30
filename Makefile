@@ -46,6 +46,20 @@ pre-release:
 fmt:
 	cargo +stable fmt --all
 
+# replayer test
+.PHONY: replayer
+replayer:
+	@echo "Running Replayer test case: $(FILE)\n"
+	@RL=${RL:-info}; \
+	RUST_LOG=$(RL) cargo run --package replayer --bin replayer --; \
+	EXIT_CODE=$$?; \
+	if [ $$EXIT_CODE -ne 0 ]; then \
+		echo "\n\033[0;31mError: Replayer tester exited with code $$EXIT_CODE\033[0m\n"; \
+	else \
+		echo "\n\033[0;32mReplayer test passed successfully.\033[0m"; \
+	fi
+
+# swap tests with loom_anvil
 .PHONY: swap-test
 swap-test:
 	@echo "Running anvil swap test case: $(FILE)\n"

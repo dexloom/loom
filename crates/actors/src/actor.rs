@@ -1,40 +1,34 @@
-use async_trait::async_trait;
-use eyre::Result;
-use tokio::task::JoinHandle;
-
 use crate::channels::Broadcaster;
 use crate::shared_state::SharedState;
+use eyre::{eyre, Result};
+use log::info;
+use tokio::task::JoinHandle;
 
 pub type WorkerResult = Result<String>;
 
 pub type ActorResult = Result<Vec<JoinHandle<WorkerResult>>>;
 
-#[async_trait]
 pub trait Actor {
-    fn wait(handles: ActorResult) -> Result<()> {
-        match handles {
-            Ok(handles) => {
-                loop {
-                    let mut finished = 0;
-                    for h in &handles {
-                        if h.is_finished() {
-                            finished += 1;
-                        }
-                    }
-                    if finished == handles.len() {
-                        break;
-                    }
-                    std::thread::sleep(std::time::Duration::from_millis(100));
+    fn wait(&self, handles: ActorResult) -> Result<()> {
+        let handles = handles?;
+        let actor_name = self.name();
+        futures::executor::block_on(async {
+            for handle in handles {
+                match handle.await {
+                    Ok(result) => match result {
+                        Ok(msg) => info!("One-shot actor '{}' completed with message: {}", actor_name, msg),
+                        Err(e) => return Err(eyre!("Actor '{}' failed with error: {}", actor_name, e)),
+                    },
+                    Err(e) => return Err(eyre!("Actor task execution failed for '{}' with error: {}", actor_name, e)),
                 }
-                Ok(())
             }
-            Err(e) => Err(e),
-        }
+            Ok(())
+        })
     }
 
     fn start_and_wait(&self) -> Result<()> {
         let handles = self.start();
-        Self::wait(handles)
+        self.wait(handles)
     }
 
     fn start(&self) -> ActorResult;

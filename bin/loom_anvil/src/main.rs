@@ -16,8 +16,8 @@ use log::{debug, error, info};
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
-    DiffPathMergerActor, EvmEstimatorActor, GasStationActor, InitializeSignersActor, MarketStatePreloadedActor, NodeBlockActor,
-    NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapEncoderActor, TxSignersActor,
+    DiffPathMergerActor, EvmEstimatorActor, GasStationActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor,
+    NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapEncoderActor, TxSignersActor,
 };
 use defi_entities::{
     AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners,
@@ -169,7 +169,7 @@ async fn main() -> Result<()> {
 
     info!("Starting initialize signers actor");
 
-    let mut initialize_signers_actor = InitializeSignersActor::new(Some(priv_key.to_bytes().to_vec()));
+    let mut initialize_signers_actor = InitializeSignersOneShotActor::new(Some(priv_key.to_bytes().to_vec()));
     match initialize_signers_actor.access(tx_signers.clone()).access(accounts_state.clone()).start_and_wait() {
         Err(e) => {
             error!("{}", e);
@@ -201,7 +201,7 @@ async fn main() -> Result<()> {
 
     info!("Starting market state preload actor");
     let mut market_state_preload_actor =
-        MarketStatePreloadedActor::new(client.clone()).with_encoder(&encoder).with_signers(tx_signers.clone());
+        MarketStatePreloadedOneShotActor::new(client.clone()).with_encoder(&encoder).with_signers(tx_signers.clone());
     match market_state_preload_actor.access(market_state.clone()).start_and_wait() {
         Err(e) => {
             error!("{}", e)

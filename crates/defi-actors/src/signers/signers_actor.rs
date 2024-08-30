@@ -1,6 +1,5 @@
 use alloy_consensus::TxEnvelope;
 use alloy_rlp::Encodable;
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
@@ -12,7 +11,13 @@ use loom_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerRes
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 async fn sign_task(sign_request: TxComposeData, compose_channel_tx: Broadcaster<MessageTxCompose>) -> Result<()> {
-    let signer = sign_request.signer.clone().unwrap();
+    let signer = match sign_request.signer.clone() {
+        Some(signer) => signer,
+        None => {
+            error!("No signer found in sign_request");
+            return Err(eyre!("NO_SIGNER_FOUND"));
+        }
+    };
 
     let rlp_bundle: Vec<RlpState> = sign_request
         .tx_bundle
@@ -46,7 +51,6 @@ async fn sign_task(sign_request: TxComposeData, compose_channel_tx: Broadcaster<
         error!("Bundle is not ready. Cannot sign");
         return Err(eyre!("CANNOT_SIGN_BUNDLE"));
     }
-    //let rlp_bundle= rlp_bundle.into_iter().map(|item| item.unwrap()).collect();
 
     let broadcast_request = TxComposeData { rlp_bundle: Some(rlp_bundle), ..sign_request };
 
@@ -73,7 +77,6 @@ async fn request_listener_worker(
                     Ok(compose_request) =>{
 
                         if let TxCompose::Sign( sign_request)= compose_request.inner {
-                            //let rlp_bundle : Vec<Option<Bytes>> = Vec::new();
                             tokio::task::spawn(
                                 sign_task(
                                     sign_request,
@@ -107,7 +110,6 @@ impl TxSignersActor {
     }
 }
 
-#[async_trait]
 impl Actor for TxSignersActor {
     fn start(&self) -> ActorResult {
         let task =

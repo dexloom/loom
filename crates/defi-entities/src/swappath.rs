@@ -84,7 +84,7 @@ impl Hash for SwapPath {
 #[derive(Clone, Debug, Default)]
 pub struct SwapPaths {
     paths: HashSet<Arc<SwapPath>>,
-    pool_paths: HashMap<Address, Arc<HashSet<Arc<SwapPath>>>>,
+    pool_paths: HashMap<Address, Arc<Vec<SwapPath>>>,
 }
 
 impl SwapPaths {
@@ -100,14 +100,15 @@ impl SwapPaths {
     }
 
     pub fn add_mut(&mut self, path: SwapPath) -> bool {
-        let rc_path = Arc::new(path);
+        let rc_path = Arc::new(path.clone());
 
         if self.paths.insert(rc_path.clone()) {
             for pool in rc_path.pools.iter() {
-                let e = self.pool_paths.entry(pool.get_address()).or_insert(Arc::new(HashSet::new()));
-                let mut v = e.clone().deref().clone();
-                v.insert(rc_path.clone());
-                *e = Arc::new(v);
+                let mut e = self.pool_paths.get(&pool.get_address()).cloned().unwrap_or(Arc::new(Vec::new()));
+                let e_mut = Arc::make_mut(&mut e);
+
+                e_mut.push(path.clone());
+                self.pool_paths.insert(pool.get_address(), e);
             }
             true
         } else {
@@ -115,24 +116,25 @@ impl SwapPaths {
         }
     }
 
-    pub fn add<T: Into<Arc<SwapPath>>>(&mut self, path: T) {
-        let rc_path: Arc<SwapPath> = path.into();
+    pub fn add<T: Into<SwapPath> + Clone>(&mut self, path: T) {
+        let rc_path: Arc<SwapPath> = Arc::new(path.clone().into());
 
         if self.paths.insert(rc_path.clone()) {
             for pool in rc_path.pools.iter() {
-                let e = self.pool_paths.entry(pool.get_address()).or_insert(Arc::new(HashSet::new()));
-                let mut v = e.clone().deref().clone();
-                v.insert(rc_path.clone());
-                *e = Arc::new(v);
+                let mut e = self.pool_paths.get(&pool.get_address()).cloned().map_or_else(Vec::new, |v| v.deref().clone());
+                //let e_mut = Arc::make_mut(&mut e);
+
+                e.push(path.clone().into());
+                self.pool_paths.insert(pool.get_address(), Arc::new(e));
             }
         }
     }
 
-    pub fn get_pool_paths_hashset(&self, pool_address: &Address) -> Option<&Arc<HashSet<Arc<SwapPath>>>> {
+    pub fn get_pool_paths_hashset(&self, pool_address: &Address) -> Option<&Arc<Vec<SwapPath>>> {
         self.pool_paths.get(pool_address)
     }
 
-    pub fn get_pool_paths_vec(&self, pool_address: &Address) -> Option<Vec<Arc<SwapPath>>> {
+    pub fn get_pool_paths_vec(&self, pool_address: &Address) -> Option<Vec<SwapPath>> {
         self.get_pool_paths_hashset(pool_address).map(|set| set.iter().cloned().collect())
     }
 }

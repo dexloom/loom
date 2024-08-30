@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
 use alloy_primitives::Address;
-use async_trait::async_trait;
 use eyre::Result;
 use log::{debug, error};
 use tokio::sync::broadcast::error::RecvError;
@@ -77,7 +76,6 @@ impl PoolHealthMonitorActor {
     }
 }
 
-#[async_trait]
 impl Actor for PoolHealthMonitorActor {
     fn start(&self) -> ActorResult {
         let task =

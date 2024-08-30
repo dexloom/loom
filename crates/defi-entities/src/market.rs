@@ -88,13 +88,13 @@ impl Market {
         Ok(())
     }
 
-    pub fn add_paths<T: Into<Arc<SwapPath>>>(&mut self, paths: Vec<T>) {
+    pub fn add_paths<T: Into<SwapPath> + Clone>(&mut self, paths: Vec<T>) {
         for path in paths.into_iter() {
             self.swap_paths.add(path);
         }
     }
 
-    pub fn get_pool_paths(&self, pool_address: &Address) -> Option<Vec<Arc<SwapPath>>> {
+    pub fn get_pool_paths(&self, pool_address: &Address) -> Option<Vec<SwapPath>> {
         self.swap_paths.get_pool_paths_vec(pool_address)
     }
 
@@ -175,7 +175,7 @@ impl Market {
         None
     }
 
-    pub fn build_swap_path_vec(&self, directions: &BTreeMap<PoolWrapper, Vec<(Address, Address)>>) -> Result<Vec<Arc<SwapPath>>> {
+    pub fn build_swap_path_vec(&self, directions: &BTreeMap<PoolWrapper, Vec<(Address, Address)>>) -> Result<Vec<SwapPath>> {
         build_swap_path_vec(self, directions)
     }
 

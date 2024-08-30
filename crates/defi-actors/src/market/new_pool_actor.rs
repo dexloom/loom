@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use eyre::Result;
 use log::{debug, error, info};
 use tokio::sync::broadcast::error::RecvError;
@@ -85,7 +84,6 @@ where
     }
 }
 
-#[async_trait]
 impl<P, T, N> Actor for NewPoolLoaderActor<P, T, N>
 where
     T: Transport + Clone,

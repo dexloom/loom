@@ -68,6 +68,17 @@ impl From<&SwapPath> for SwapLineDTO {
     }
 }
 
+impl From<SwapPath> for SwapLineDTO {
+    fn from(value: SwapPath) -> Self {
+        Self {
+            pool_types: value.pools.iter().map(|x| x.get_protocol()).collect(),
+            token_symbols: value.tokens.iter().map(|x| x.get_symbol()).collect(),
+            pools: value.pools.iter().map(|x| x.get_address()).collect(),
+            tokens: value.tokens.iter().map(|x| x.get_address()).collect(),
+        }
+    }
+}
+
 impl Hash for SwapLineDTO {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.tokens.hash(state);

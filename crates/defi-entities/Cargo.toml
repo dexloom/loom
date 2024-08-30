@@ -31,7 +31,6 @@ eyre.workspace = true
 log.workspace = true
 hex.workspace = true
 lazy_static.workspace = true
-async-trait.workspace = true
 rand.workspace = true
 sha2.workspace = true
 aes.workspace = true

@@ -274,23 +274,7 @@ pub trait Pool: Sync + Send {
 
     fn get_state_required(&self) -> Result<RequiredState>;
 }
-/*
-#[async_trait]
-pub trait PoolSetup<P: Provider + Send + Sync + Clone + 'static>: Pool {
-    async fn fetch_state_required(&self, client: P, block_number: Option<BlockNumber>) -> Result<GethStateUpdate>;
-    /*async fn fetch_pool_data(client: P, address: Address) -> Result<PoolWrapper> {
-        Err(ErrReport::msg("HE"))
-    }*/
-    /*async fn fetch_pool_data_evm<D>(&mut self, db : &CacheDB<D>, env : Env) -> Result<()>
-    where
-        D : DatabaseRef<Error=Infallible> + Clone + Default + Send + Sync + 'static,
-        <D as DatabaseRef>::Error : Debug
-    {
-        Err(ErrReport::msg("HE"))
-    }
-     */
-}
-*/
+
 pub struct DefaultAbiSwapEncoder {}
 
 impl AbiSwapEncoder for DefaultAbiSwapEncoder {}

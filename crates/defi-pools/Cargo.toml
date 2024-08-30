@@ -10,7 +10,6 @@ exclude.workspace = true
 
 [dependencies]
 lazy_static.workspace = true
-async-trait.workspace = true
 
 defi-entities.workspace = true
 defi-abi.workspace = true

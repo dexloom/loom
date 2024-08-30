@@ -5,7 +5,6 @@ use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
@@ -116,7 +115,6 @@ impl<P: Provider + DebugProviderExt + Send + Sync + Clone + 'static> HardhatEsti
     }
 }
 
-#[async_trait]
 impl<P: Provider + DebugProviderExt + Clone + Send + Sync + 'static> Actor for HardhatEstimatorActor<P> {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(

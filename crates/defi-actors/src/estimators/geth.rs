@@ -7,7 +7,6 @@ use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
 use rand::random;
@@ -252,7 +251,6 @@ where
     }
 }
 
-#[async_trait]
 impl<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P, T> {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(

@@ -9,7 +9,7 @@ pub use market::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, HistoryPoolLoaderActor, NewPoolLoaderActor, ProtocolPoolLoaderActor,
     RequiredPoolLoaderActor,
 };
-pub use market_state::{preload_market_state, MarketStatePreloadedActor};
+pub use market_state::{preload_market_state, MarketStatePreloadedOneShotActor};
 pub use mempool::MempoolActor;
 pub use mergers::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 pub use node::{NodeBlockActor, NodeMempoolActor};
@@ -17,7 +17,7 @@ pub use node_exex_grpc::NodeExExGrpcActor;
 pub use node_player::NodeBlockPlayerActor;
 pub use pathencoder::SwapEncoderActor;
 pub use price::PriceActor;
-pub use signers::{InitializeSignersActor, TxSignersActor};
+pub use signers::{InitializeSignersOneShotActor, TxSignersActor};
 pub use tx_broadcaster::{AnvilBroadcastActor, FlashbotsBroadcastActor};
 
 mod market;

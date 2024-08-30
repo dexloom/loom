@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, BlockHash, BlockNumber};
 use alloy_rpc_types::{Block, Header};
-use async_trait::async_trait;
 use eyre::Result;
 use log::{debug, error, info, trace};
 use tokio::sync::broadcast::error::RecvError;
@@ -290,7 +289,6 @@ impl Default for BlockHistoryActor {
     }
 }
 
-#[async_trait]
 impl Actor for BlockHistoryActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_block_history_worker(
