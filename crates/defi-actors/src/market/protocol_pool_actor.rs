@@ -4,7 +4,6 @@ use std::sync::Arc;
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use log::{error, info};
 
 use debug_provider::DebugProviderExt;
@@ -27,30 +26,6 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    /*
-        let steth_pool = StEthPool::new();
-
-        match fetch_and_add_pool(client.clone(), market.clone(), market_state.clone(), steth_pool.clone()).await {
-            Err(e) => {
-                error!("StEth pool loading error : {}", e)
-            }
-            Ok(_) => {
-                info!("StEth pool loaded {:#20x}", steth_pool.get_address());
-            }
-        }
-
-        let wsteth_pool = WStEthPool::new();
-
-        match fetch_and_add_pool(client.clone(), market.clone(), market_state.clone(), wsteth_pool.clone()).await {
-            Err(e) => {
-                error!("WstEth pool loading error : {}", e)
-            }
-            Ok(_) => {
-                info!("WstEth pool loaded {:#20x}", wsteth_pool.get_address());
-            }
-        }
-    */
-
     let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
     for curve_contract in curve_contracts.into_iter() {
         if let Ok(curve_pool) = CurvePool::fetch_pool_data(client.clone(), curve_contract).await {
@@ -136,7 +111,6 @@ where
     }
 }
 
-#[async_trait]
 impl<P, T, N> Actor for ProtocolPoolLoaderActor<P, T, N>
 where
     T: Transport + Clone,

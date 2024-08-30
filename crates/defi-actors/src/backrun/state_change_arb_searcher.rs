@@ -2,7 +2,6 @@ use std::collections::BTreeMap;
 use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
-use async_trait::async_trait;
 #[cfg(not(debug_assertions))]
 use chrono::TimeDelta;
 use eyre::{eyre, Result};
@@ -256,7 +255,6 @@ impl StateChangeArbSearcherActor {
     }
 }
 
-#[async_trait]
 impl Actor for StateChangeArbSearcherActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_change_arb_searcher_worker(

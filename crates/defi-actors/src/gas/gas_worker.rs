@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use log::{error, info};
 use tokio::sync::broadcast::Receiver;
 
@@ -95,7 +94,6 @@ impl GasStationActor {
     }
 }
 
-#[async_trait]
 impl Actor for GasStationActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_gas_worker(

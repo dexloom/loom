@@ -4,7 +4,6 @@ use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::SolCall;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::error;
 use revm::primitives::Env;
@@ -144,7 +143,6 @@ where
     }
 }
 
-#[async_trait]
 impl<P, T, N> Pool for CurvePool<P, T, N>
 where
     T: Transport + Clone,

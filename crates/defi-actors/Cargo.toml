@@ -27,7 +27,6 @@ defi-blockchain.workspace = true
 eyre.workspace = true
 tokio.workspace = true
 rayon.workspace = true
-async-trait.workspace = true
 log.workspace = true
 chrono.workspace = true
 futures.workspace = true

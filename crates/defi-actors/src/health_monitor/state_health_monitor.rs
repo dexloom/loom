@@ -6,7 +6,6 @@ use alloy_network::Ethereum;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use async_trait::async_trait;
 use chrono::{DateTime, Duration, Local};
 use eyre::Result;
 use log::{error, info, warn};
@@ -147,7 +146,6 @@ where
     }
 }
 
-#[async_trait]
 impl<P, T> Actor for StateHealthMonitorActor<P, T>
 where
     T: Transport + Clone,

@@ -1,7 +1,6 @@
 use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
-use async_trait::async_trait;
 use eyre::{eyre, Result};
 use log::{debug, error, info};
 use revm::primitives::Env;
@@ -200,7 +199,6 @@ impl ArbSwapPathMergerActor {
     }
 }
 
-#[async_trait]
 impl Actor for ArbSwapPathMergerActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(arb_swap_path_merger_worker(
