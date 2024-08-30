@@ -37,11 +37,11 @@ async fn state_change_arb_searcher_task(
     //current_market_state.apply_state_update(msg.state_update(), true, false);
 
     let start_time = chrono::Local::now();
-    let mut swap_path_vec: Vec<Arc<SwapPath>> = Vec::new();
+    let mut swap_path_vec: Vec<SwapPath> = Vec::new();
 
     let market_guard_read = market.read().await;
     for (pool, v) in msg.directions().iter() {
-        let pool_paths: Vec<Arc<SwapPath>> = match market_guard_read.get_pool_paths(&pool.get_address()) {
+        let pool_paths: Vec<SwapPath> = match market_guard_read.get_pool_paths(&pool.get_address()) {
             Some(paths) => paths
                 .into_iter()
                 .filter(|swap_path| !swap_path.pools.iter().any(|pool| !market_guard_read.is_pool_ok(&pool.get_address())))
@@ -82,7 +82,7 @@ async fn state_change_arb_searcher_task(
             swap_path_vec.into_par_iter().for_each_with(
                 (&swap_path_tx, &market_state_clone, &env, &pool_health_monitor_tx),
                 |req, item| {
-                    let mut mut_item: SwapLine = SwapLine { path: item.as_ref().clone(), ..Default::default() };
+                    let mut mut_item: SwapLine = SwapLine { path: item, ..Default::default() };
                     #[cfg(not(debug_assertions))]
                     let start_time = chrono::Local::now();
                     let calc_result = Calculator::calculate(&mut mut_item, req.1, req.2.clone());

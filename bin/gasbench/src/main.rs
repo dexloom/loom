@@ -119,7 +119,7 @@ async fn main() -> Result<()> {
         if !swap_path.tokens[0].is_weth() {
             continue;
         }
-        let sp = swap_path.as_ref().clone();
+        let sp = swap_path.clone();
         let sp_dto: SwapLineDTO = (&sp).into();
 
         let mut swapline = SwapLine { path: sp, amount_in: SwapAmountType::Set(in_amount), ..SwapLine::default() };
@@ -138,7 +138,7 @@ async fn main() -> Result<()> {
         let calls = encoder.make_calls(&swap)?;
         let (to, payload) = encoder.encode_calls(calls)?;
 
-        calldata_map.insert(swap_path.clone().as_ref().into(), payload.clone());
+        calldata_map.insert(swap_path.into(), payload.clone());
 
         let tx_request = TransactionRequest::default().to(to).from(operator_address).input(TransactionInput::new(payload));
 
@@ -153,7 +153,7 @@ async fn main() -> Result<()> {
             }
         };
 
-        gas_used_map.insert(swap_path.clone().as_ref().into(), gas_used);
+        gas_used_map.insert(swap_path.into(), gas_used);
     }
 
     if let Some(bench_file) = cli.file {
