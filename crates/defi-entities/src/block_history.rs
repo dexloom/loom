@@ -8,7 +8,7 @@ use alloy_primitives::{BlockHash, BlockNumber};
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, BlockId, Filter, Header, Log};
 use alloy_transport::Transport;
-use eyre::{ErrReport, OptionExt, Result};
+use eyre::{eyre, ErrReport, OptionExt, Result};
 use log::warn;
 use tokio::sync::RwLock;
 
@@ -27,7 +27,7 @@ pub struct BlockHistoryEntry {
 }
 
 impl BlockHistoryEntry {
-    fn new(
+    pub fn new(
         header: Option<Header>,
         block: Option<Block>,
         logs: Option<Vec<Log>>,
@@ -35,6 +35,58 @@ impl BlockHistoryEntry {
         state_db: Option<LoomInMemoryDB>,
     ) -> BlockHistoryEntry {
         BlockHistoryEntry { header, block, logs, state_update, state_db }
+    }
+
+    pub fn is_complete(&self) -> bool {
+        self.state_db.is_some() && self.is_fetched()
+    }
+
+    pub fn is_fetched(&self) -> bool {
+        self.state_update.is_some() && self.header.is_some() && self.block.is_some() && self.logs.is_some()
+    }
+
+    pub async fn fetch<P, T, N>(&mut self, client: P) -> Result<()>
+    where
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
+    {
+        if let Some(header) = &self.header {
+            if let Some(block_hash) = header.hash {
+                if self.logs.is_none() {
+                    let filter = Filter::new().at_block_hash(block_hash);
+                    let logs = client.get_logs(&filter).await?;
+                    self.logs = Some(logs);
+                }
+
+                if self.block.is_none() {
+                    let block = client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await?;
+                    if let Some(block) = block {
+                        self.block = Some(block);
+                    }
+                }
+
+                if self.state_update.is_none() {
+                    let (_, state_update) = debug_trace_block(client.clone(), BlockId::Hash(block_hash.into()), true).await?;
+                    self.state_update = Some(state_update);
+                }
+            }
+        }
+        if self.is_fetched() {
+            Ok(())
+        } else {
+            Err(eyre!("BLOCK_DATA_NOT_FETCHED"))
+        }
+    }
+
+    pub async fn add_parent_entry(&mut self, parent: &BlockHistoryEntry) {
+        if let Some(mut parent_db) = parent.state_db.clone() {
+            if let Some(parent_state_update) = parent.state_update.clone() {
+                // Update only current cells
+                parent_db.apply_geth_update_vec(parent_state_update);
+                self.state_db = Some(parent_db);
+            }
+        }
     }
 }
 
@@ -57,25 +109,26 @@ impl BlockHistory {
         T: Transport + Clone,
         P: Provider<T, N> + Send + Sync + Clone + 'static,
     {
-        //let market_guard = current_market.read().await;
-
         let latest_block_number = client.get_block_number().await?;
 
-        let block = client.get_block_by_number(latest_block_number.into(), true).await?.unwrap();
+        let block = client.get_block_by_number(latest_block_number.into(), true).await?;
+        if let Some(block) = block {
+            let block_hash = block.header.hash.ok_or_eyre("NO_BLOCK_HASH")?;
 
-        let block_hash = block.header.hash.ok_or_eyre("NO_BLOCK_HASH")?;
+            let market_state_guard = current_state.read().await;
 
-        let market_state_guard = current_state.read().await;
+            let block_entry = BlockHistoryEntry::new(None, None, None, None, Some(market_state_guard.state_db.clone()));
 
-        let block_entry = BlockHistoryEntry::new(None, None, None, None, Some(market_state_guard.state_db.clone()));
+            let mut block_entries: HashMap<BlockHash, BlockHistoryEntry> = HashMap::new();
+            block_entries.insert(block_hash, block_entry);
 
-        let mut block_entries: HashMap<BlockHash, BlockHistoryEntry> = HashMap::new();
-        block_entries.insert(block_hash, block_entry);
+            let mut block_numbers: HashMap<u64, BlockHash> = HashMap::new();
+            block_numbers.insert(latest_block_number, block_hash);
 
-        let mut block_numbers: HashMap<u64, BlockHash> = HashMap::new();
-        block_numbers.insert(latest_block_number, block_hash);
-
-        Ok(BlockHistory { depth, latest_block_number, block_entries, block_numbers })
+            Ok(BlockHistory { depth, latest_block_number, block_entries, block_numbers })
+        } else {
+            Err(eyre!("BLOCK_IS_EMPTY"))
+        }
     }
 
     pub async fn fetch_entry<P, T, N>(client: P, block_hash: BlockHash) -> Result<BlockHistoryEntry>
@@ -84,18 +137,40 @@ impl BlockHistory {
         T: Transport + Clone,
         P: Provider<T, N> + Send + Sync + Clone + 'static,
     {
-        let block = client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await?.unwrap();
+        let block = client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await?;
+        if let Some(block) = block {
+            let header = block.header.clone();
 
-        let header = block.header.clone();
+            let filter = Filter::new().at_block_hash(block_hash);
 
-        let filter = Filter::new().at_block_hash(block_hash);
+            let logs = client.get_logs(&filter).await?;
 
-        let logs = client.get_logs(&filter).await?;
+            let (_, state_update) = debug_trace_block(client.clone(), BlockId::Hash(block_hash.into()), true).await?;
 
-        let (_, state_update) = debug_trace_block(client.clone(), BlockId::Hash(block_hash.into()), true).await?;
+            let block_entry = BlockHistoryEntry::new(Some(header), Some(block), Some(logs), Some(state_update), None);
+            Ok(block_entry)
+        } else {
+            Err(eyre!("BLOCK_IS_EMPTY"))
+        }
+    }
 
-        let block_entry = BlockHistoryEntry::new(Some(header), Some(block), Some(logs), Some(state_update), None);
-        Ok(block_entry)
+    pub fn add_entry_by_hash<P,T, N>(&mut self, client:P, block_hash: BlockHash, ) -> Result<()>
+    where
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
+    {
+        let entry = match self.get_entry(&block_hash) {
+            Some(entry)=>{
+                entry
+            }
+            None=>{
+                Self::fetch_entry(client, block_hash)?
+                self.
+            }
+        };
+        let parent_entry = self.get_or_fetch_entry()
+
     }
 
     pub fn len(&self) -> usize {
@@ -122,13 +197,15 @@ impl BlockHistory {
         self.block_entries.entry(block_hash).or_default()
     }
 
-    fn process_block_hash(&mut self, block_hash: BlockHash) -> &mut BlockHistoryEntry {
+    fn get_or_insert_entry(&mut self, block_hash: BlockHash) -> &mut BlockHistoryEntry {
         self.block_entries.entry(block_hash).or_default()
     }
 
     fn check_reorg_at_block(&mut self, block_number: BlockNumber) -> Option<BlockHash> {
         if let Some(block_hash) = self.get_block_hash_for_block_number(block_number) {
-            self.get_block_history_entry()
+            let entry = self.get_or_insert_entry();
+
+            None
         } else {
             None
         }
@@ -197,7 +274,7 @@ impl BlockHistory {
     }
 
     pub fn add_state_diff(&mut self, block_hash: BlockHash, state_db: LoomInMemoryDB, state_diff: GethStateUpdateVec) -> Result<()> {
-        let market_history_entry = self.process_block_hash(block_hash);
+        let market_history_entry = self.get_or_insert_entry(block_hash);
 
         if market_history_entry.state_db.is_none() {
             market_history_entry.state_db = Some(state_db);
@@ -210,7 +287,7 @@ impl BlockHistory {
     }
 
     pub fn add_logs(&mut self, block_hash: BlockHash, logs: Vec<Log>) -> Result<()> {
-        let market_history_entry = self.process_block_hash(block_hash);
+        let market_history_entry = self.get_or_insert_entry(block_hash);
 
         if market_history_entry.logs.is_none() {
             market_history_entry.logs = Some(logs);
@@ -220,7 +297,20 @@ impl BlockHistory {
         }
     }
 
-    pub fn get_block_history_entry(&self, block_hash: &BlockHash) -> Option<&BlockHistoryEntry> {
+    pub fn get_or_fetch_entry<P, T, N>(&mut self, client:  P, block_hash : BlockHash) -> Result<&BlockHistoryEntry>
+    where
+        N: Network,
+        T: Transport + Clone,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
+    {
+        if let Some(entry) = self.get_entry(&block_hash) {
+            Ok(entry)
+        }else{
+            Ok(Self::fetch_entry(client, block_hash)?)
+        }
+    }
+
+    pub fn get_entry(&self, block_hash: &BlockHash) -> Option<&BlockHistoryEntry> {
         self.block_entries.get(block_hash)
     }
 
