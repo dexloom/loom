@@ -165,7 +165,7 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> En
     Env {
         cfg: Default::default(),
         block: BlockEnv {
-            number: U256::from(block_header.number.unwrap_or_default()),
+            number: U256::from(block_header.number),
             coinbase: block_header.miner,
             timestamp: U256::from(block_header.timestamp),
             gas_limit: U256::from(block_header.gas_limit),

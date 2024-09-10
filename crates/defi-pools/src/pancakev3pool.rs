@@ -1,7 +1,8 @@
 use std::fmt::Debug;
 use std::ops::Sub;
 
-use alloy_primitives::{Address, Bytes, I256, U256};
+use alloy_primitives::aliases::{I24, U24};
+use alloy_primitives::{Address, Bytes, I256, U160, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
@@ -30,9 +31,9 @@ lazy_static! {
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct Slot0 {
-    pub tick: i32,
+    pub tick: I24,
     pub fee_protocol: u32,
-    pub sqrt_price_x96: U256,
+    pub sqrt_price_x96: U160,
     pub unlocked: bool,
     pub observation_index: u16,
     pub observation_cardinality: u16,
@@ -62,7 +63,8 @@ pub struct PancakeV3Pool {
     pub token1: Address,
     liquidity0: U256,
     liquidity1: U256,
-    fee: u32,
+    fee: U24,
+    fee_u32: u32,
     slot0: Option<Slot0>,
     factory: Address,
     protocol: PoolProtocol,
@@ -77,7 +79,8 @@ impl PancakeV3Pool {
             token1: Address::ZERO,
             liquidity0: U256::ZERO,
             liquidity1: U256::ZERO,
-            fee: 0,
+            fee: U24::ZERO,
+            fee_u32: 0,
             slot0: None,
             factory: Address::ZERO,
             protocol: PoolProtocol::PancakeV3,
@@ -105,11 +108,11 @@ impl PancakeV3Pool {
         }
     }
 
-    pub fn get_price_limit(token_address_from: &Address, token_address_to: &Address) -> U256 {
+    pub fn get_price_limit(token_address_from: &Address, token_address_to: &Address) -> U160 {
         if *token_address_from < *token_address_to {
-            U256::from(4295128740u64)
+            U160::from(4295128740u64)
         } else {
-            U256::from_str_radix("1461446703485210103287273052203988822378723970341", 10).unwrap()
+            U160::from_str_radix("1461446703485210103287273052203988822378723970341", 10).unwrap()
         }
     }
 
@@ -129,6 +132,7 @@ impl PancakeV3Pool {
         let token0: Address = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1: Address = UniswapV3StateReader::token1(db, env.clone(), address)?;
         let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
+        let fee_u32: u32 = fee.to();
         let factory = UniswapV3StateReader::factory(db, env.clone(), address)?;
         let protocol = Self::get_protocol_by_factory(factory);
 
@@ -139,6 +143,7 @@ impl PancakeV3Pool {
             liquidity0: Default::default(),
             liquidity1: Default::default(),
             fee,
+            fee_u32,
             slot0: None,
             factory,
             protocol,
@@ -156,7 +161,8 @@ impl PancakeV3Pool {
 
         let token0: Address = uni3_pool.token0().call().await?._0;
         let token1: Address = uni3_pool.token1().call().await?._0;
-        let fee: u32 = uni3_pool.fee().call().await?._0;
+        let fee = uni3_pool.fee().call().await?._0;
+        let fee_u32: u32 = fee.to();
         let slot0 = uni3_pool.slot0().call().await?;
         let factory: Address = uni3_pool.factory().call().await?._0;
 
@@ -173,6 +179,7 @@ impl PancakeV3Pool {
             token0,
             token1,
             fee,
+            fee_u32,
             slot0: Some(slot0.into()),
             liquidity0,
             liquidity1,
@@ -286,11 +293,11 @@ impl Pool for PancakeV3Pool {
 
     fn get_state_required(&self) -> Result<RequiredState> {
         let tick = self.slot0.as_ref().ok_or_eyre("SLOT0_NOT_SET")?.tick;
-        let price_step = PancakeV3Pool::get_price_step(self.fee);
+        let price_step = PancakeV3Pool::get_price_step(self.fee_u32);
         if price_step == 0 {
             return Err(eyre!("BAD_PRICE_STEP"));
         }
-        let tick_bitmap_index = PancakeV3Pool::get_tick_bitmap_index(tick, PancakeV3Pool::get_price_step(self.fee));
+        let tick_bitmap_index = PancakeV3Pool::get_tick_bitmap_index(tick.as_i32(), PancakeV3Pool::get_price_step(self.fee_u32));
 
         let quoter_swap_0_1_call = IPancakeQuoterV2Calls::quoteExactInputSingle(IPancakeQuoterV2::quoteExactInputSingleCall {
             params: IPancakeQuoterV2::QuoteExactInputSingleParams {

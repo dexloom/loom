@@ -160,7 +160,7 @@ async fn main() -> Result<()> {
     let tx_signers = SharedState::new(tx_signers);
     let accounts_state = SharedState::new(accounts_state);
 
-    let block_hash: BlockHash = block_header.hash.unwrap_or_default();
+    let block_hash: BlockHash = block_header.hash;
 
     let latest_block = SharedState::new(LatestBlock::new(block_nr, block_hash));
 
@@ -470,8 +470,8 @@ async fn main() -> Result<()> {
     // Sending block header update message
     if let Err(e) = market_events_channel_clone
         .send(MarketEvents::BlockHeaderUpdate {
-            block_number: block_header.number.unwrap_or_default(),
-            block_hash: block_header.hash.unwrap_or_default(),
+            block_number: block_header.number,
+            block_hash: block_header.hash,
             timestamp: block_header.timestamp,
             base_fee: block_header.base_fee_per_gas.unwrap_or_default(),
             next_base_fee: next_block_base_fee,
@@ -482,9 +482,7 @@ async fn main() -> Result<()> {
     }
 
     // Sending block state update message
-    if let Err(e) =
-        market_events_channel_clone.send(MarketEvents::BlockStateUpdate { block_hash: block_header.hash.unwrap_or_default() }).await
-    {
+    if let Err(e) = market_events_channel_clone.send(MarketEvents::BlockStateUpdate { block_hash: block_header.hash }).await {
         error!("{}", e);
     }
 

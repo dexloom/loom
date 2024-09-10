@@ -252,8 +252,8 @@ async fn collect_stat_task(
             header = block_header_subscription.recv() => {
                 match header {
                     Ok(header)=>{
-                        let block_number = header.number.unwrap_or_default();
-                        let block_hash = header.hash.unwrap_or_default();
+                        let block_number = header.number;
+                        let block_hash = header.hash;
                         stat.write().await.blocks.insert(block_hash, block_number);
 
                         blocks_counter += 1;
@@ -277,8 +277,8 @@ async fn collect_stat_task(
             block = block_with_tx_subscription.recv() => {
                 match block {
                     Ok(block)=>{
-                        let block_number = block.header.number.unwrap_or_default();
-                        let block_hash = block.header.hash.unwrap_or_default();
+                        let block_number = block.header.number;
+                        let block_hash = block.header.hash;
                         if blocks_counter >= warn_up_blocks {
                             let recv_time = stat.write().await.block_with_tx.entry(block_number).or_default().add_now(id);
                             println!("{id} : {} block with tx received {} {}", block_number, block_hash, recv_time - ping_time);

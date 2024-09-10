@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use alloy_network::Network;
+use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header};
 use alloy_transport::Transport;
@@ -18,7 +18,7 @@ use crate::node::node_block_state_worker::new_node_block_state_worker;
 use crate::node::node_block_with_tx_worker::new_block_with_tx_worker;
 use crate::node::reth_worker::reth_node_worker_starter;
 
-pub fn new_node_block_starer<P, T, N>(
+pub fn new_node_block_starer<P, T>(
     client: P,
     new_block_headers_channel: Option<Broadcaster<Header>>,
     new_block_with_tx_channel: Option<Broadcaster<Block>>,
@@ -27,8 +27,7 @@ pub fn new_node_block_starer<P, T, N>(
 ) -> ActorResult
 where
     T: Transport + Clone,
-    N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     let new_block_hash_channel = Broadcaster::new(10);
     let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
@@ -53,7 +52,7 @@ where
 }
 
 #[derive(Producer)]
-pub struct NodeBlockActor<P, T, N> {
+pub struct NodeBlockActor<P, T> {
     client: P,
     reth_db_path: Option<String>,
     #[producer]
@@ -65,20 +64,18 @@ pub struct NodeBlockActor<P, T, N> {
     #[producer]
     block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
     _t: PhantomData<T>,
-    _n: PhantomData<N>,
 }
 
-impl<P, T, N> NodeBlockActor<P, T, N>
+impl<P, T> NodeBlockActor<P, T>
 where
     T: Transport + Clone,
-    N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     fn name(&self) -> &'static str {
         "NodeBlockActor"
     }
 
-    pub fn new(client: P) -> NodeBlockActor<P, T, N> {
+    pub fn new(client: P) -> NodeBlockActor<P, T> {
         NodeBlockActor {
             client,
             reth_db_path: None,
@@ -87,7 +84,6 @@ where
             block_logs_channel: None,
             block_state_update_channel: None,
             _t: PhantomData,
-            _n: PhantomData,
         }
     }
 
@@ -106,11 +102,10 @@ where
     }
 }
 
-impl<P, T, N> Actor for NodeBlockActor<P, T, N>
+impl<P, T> Actor for NodeBlockActor<P, T>
 where
     T: Transport + Clone,
-    N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         match &self.reth_db_path {

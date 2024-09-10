@@ -1,7 +1,7 @@
 use std::fmt::Debug;
 use std::ops::Sub;
 
-use alloy_primitives::{Address, Bytes, I256, U256};
+use alloy_primitives::{Address, Bytes, I256, U160, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
@@ -48,11 +48,11 @@ pub struct Slot0 {
 impl From<slot0Return> for Slot0 {
     fn from(value: slot0Return) -> Self {
         Self {
-            tick: value.tick,
+            tick: value.tick.try_into().unwrap_or_default(),
             fee_protocol: value.feeProtocol,
             observation_cardinality: value.observationCardinality,
             observation_cardinality_next: value.observationCardinalityNext,
-            sqrt_price_x96: value.sqrtPriceX96,
+            sqrt_price_x96: value.sqrtPriceX96.to(),
             unlocked: value.unlocked,
             observation_index: value.observationIndex,
         }
@@ -116,11 +116,11 @@ impl UniswapV3Pool {
         }
     }
 
-    pub fn get_price_limit(token_address_from: &Address, token_address_to: &Address) -> U256 {
+    pub fn get_price_limit(token_address_from: &Address, token_address_to: &Address) -> U160 {
         if *token_address_from < *token_address_to {
-            U256::from(4295128740u64)
+            U160::from(4295128740u64)
         } else {
-            U256::from_str_radix("1461446703485210103287273052203988822378723970341", 10).unwrap()
+            U160::from_str_radix("1461446703485210103287273052203988822378723970341", 10).unwrap()
         }
     }
 
@@ -141,7 +141,7 @@ impl UniswapV3Pool {
     pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self> {
         let token0 = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1 = UniswapV3StateReader::token1(db, env.clone(), address)?;
-        let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
+        let fee: u32 = UniswapV3StateReader::fee(db, env.clone(), address)?.to();
         let liquidity = UniswapV3StateReader::liquidity(db, env.clone(), address)?;
         let factory = UniswapV3StateReader::factory(db, env.clone(), address).unwrap_or_default();
         let protocol = UniswapV3Pool::get_protocol_by_factory(factory);
@@ -172,7 +172,7 @@ impl UniswapV3Pool {
 
         let token0: Address = uni3_pool.token0().call().await?._0;
         let token1: Address = uni3_pool.token1().call().await?._0;
-        let fee: u32 = uni3_pool.fee().call().await?._0;
+        let fee: u32 = uni3_pool.fee().call().await?._0.try_into()?;
         let liquidity: u128 = uni3_pool.liquidity().call().await?._0;
         let slot0 = uni3_pool.slot0().call().await?;
         let factory: Address = uni3_pool.factory().call().await?._0;
@@ -248,7 +248,7 @@ impl Pool for UniswapV3Pool {
                 self.get_address(),
                 *token_address_from,
                 *_token_address_to,
-                self.fee,
+                self.fee.try_into()?,
                 in_amount,
             )?;
 
@@ -289,7 +289,7 @@ impl Pool for UniswapV3Pool {
                 self.get_address(),
                 *token_address_from,
                 *_token_address_to,
-                self.fee,
+                self.fee.try_into()?,
                 out_amount + U256::from(0),
             )?;
 
@@ -417,13 +417,13 @@ impl Pool for UniswapV3Pool {
             let amount = self.liquidity0 / U256::from(100);
             let price_limit = UniswapV3Pool::get_price_limit(&self.token0, &self.token1);
             let quoter_swap_0_1_call =
-                UniswapV3QuoterEncoder::quote_exact_input_encode(self.token0, self.token1, self.fee, price_limit, amount);
+                UniswapV3QuoterEncoder::quote_exact_input_encode(self.token0, self.token1, self.fee.try_into()?, price_limit, amount);
 
             let price_limit = UniswapV3Pool::get_price_limit(&self.token1, &self.token0);
             let amount = self.liquidity1 / U256::from(100);
 
             let quoter_swap_1_0_call =
-                UniswapV3QuoterEncoder::quote_exact_input_encode(self.token1, self.token0, self.fee, price_limit, amount);
+                UniswapV3QuoterEncoder::quote_exact_input_encode(self.token1, self.token0, self.fee.try_into()?, price_limit, amount);
 
             state_required.add_call(*QUOTER_ADDRESS, quoter_swap_0_1_call).add_call(*QUOTER_ADDRESS, quoter_swap_1_0_call);
         }

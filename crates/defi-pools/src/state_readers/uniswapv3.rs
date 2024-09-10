@@ -1,3 +1,4 @@
+use alloy_primitives::aliases::U24;
 use alloy_primitives::Address;
 use alloy_sol_types::{SolCall, SolInterface};
 use revm::primitives::Env;
@@ -31,7 +32,7 @@ impl UniswapV3StateReader {
         Ok(call_return._0)
     }
 
-    pub fn fee(db: &LoomInMemoryDB, env: Env, pool: Address) -> eyre::Result<u32> {
+    pub fn fee(db: &LoomInMemoryDB, env: Env, pool: Address) -> eyre::Result<U24> {
         let call_data_result =
             evm_call(db, env, pool, IUniswapV3Pool::IUniswapV3PoolCalls::fee(IUniswapV3Pool::feeCall {}).abi_encode())?.0;
         let call_return = IUniswapV3Pool::feeCall::abi_decode_returns(&call_data_result, false)?;
@@ -42,7 +43,7 @@ impl UniswapV3StateReader {
         let call_data_result =
             evm_call(db, env, pool, IUniswapV3Pool::IUniswapV3PoolCalls::tickSpacing(IUniswapV3Pool::tickSpacingCall {}).abi_encode())?.0;
         let call_return = IUniswapV3Pool::tickSpacingCall::abi_decode_returns(&call_data_result, false)?;
-        Ok(call_return._0 as u32)
+        Ok(call_return._0.try_into()?)
     }
 
     pub fn slot0(db: &LoomInMemoryDB, env: Env, pool: Address) -> eyre::Result<slot0Return> {

@@ -1,6 +1,7 @@
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use alloy::eips::BlockId;
 use alloy::{
     network::Ethereum,
     node_bindings::{Anvil, AnvilInstance},
@@ -59,7 +60,7 @@ impl AnvilDebugProviderFactory {
 
         match curblock {
             Some(curblock) => {
-                if curblock.header.number.unwrap_or_default() != block {
+                if curblock.header.number != block {
                     return Err(eyre!("INCORRECT_BLOCK_NUMBER"));
                 }
             }
@@ -82,7 +83,7 @@ impl AnvilDebugProviderFactory {
 
         match curblock {
             Some(curblock) => {
-                if curblock.header.number.unwrap_or_default() != block {
+                if curblock.header.number != block {
                     return Err(eyre!("INCORRECT_BLOCK_NUMBER"));
                 }
             }
@@ -155,7 +156,7 @@ where
         self._anvil.root()
     }
 
-    fn get_block_number(&self) -> RpcCall<TA, (), U64, u64> {
+    fn get_block_number(&self) -> RpcCall<TA, [(); 0], U64, u64> {
         self._anvil.get_block_number().map_resp(|x| x.to())
     }
 }
@@ -165,7 +166,7 @@ pub trait DebugProviderExt<T = BoxTransport, N = Ethereum> {
     async fn geth_debug_trace_call(
         &self,
         tx: TransactionRequest,
-        block: BlockNumberOrTag,
+        block: BlockId,
         trace_options: GethDebugTracingCallOptions,
     ) -> TransportResult<GethTrace>;
     async fn geth_debug_trace_block_by_number(
@@ -189,7 +190,7 @@ where
     async fn geth_debug_trace_call(
         &self,
         tx: TransactionRequest,
-        block: BlockNumberOrTag,
+        block: BlockId,
         trace_options: GethDebugTracingCallOptions,
     ) -> TransportResult<GethTrace> {
         self.debug_trace_call(tx, block, trace_options).await
@@ -219,7 +220,7 @@ where
     async fn geth_debug_trace_call(
         &self,
         tx: TransactionRequest,
-        block: BlockNumberOrTag,
+        block: BlockId,
         trace_options: GethDebugTracingCallOptions,
     ) -> TransportResult<GethTrace> {
         self.debug_trace_call(tx, block, trace_options).await
@@ -252,13 +253,16 @@ where
     async fn geth_debug_trace_call(
         &self,
         tx: TransactionRequest,
-        block: BlockNumberOrTag,
+        block: BlockId,
         trace_options: GethDebugTracingCallOptions,
     ) -> TransportResult<GethTrace> {
         let block = match block {
-            BlockNumberOrTag::Number(_) => block,
-            BlockNumberOrTag::Latest => self.block_number,
-            _ => block,
+            BlockId::Hash(hash) => BlockId::Hash(hash),
+            BlockId::Number(number) => match number {
+                BlockNumberOrTag::Number(number) => BlockId::Number(BlockNumberOrTag::Number(number)),
+                BlockNumberOrTag::Latest => BlockId::Number(self.block_number),
+                _ => block,
+            },
         };
         self._node.debug_trace_call(tx, block, trace_options).await
     }
@@ -316,7 +320,11 @@ mod test {
         debug!("{} {}", block_number, cell0);
 
         match client
-            .geth_debug_trace_call(TransactionRequest::default(), BlockNumberOrTag::Latest, GethDebugTracingCallOptions::default())
+            .geth_debug_trace_call(
+                TransactionRequest::default(),
+                BlockId::Number(BlockNumberOrTag::Latest),
+                GethDebugTracingCallOptions::default(),
+            )
             .await
         {
             Ok(trace) => {

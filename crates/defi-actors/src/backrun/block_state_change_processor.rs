@@ -46,7 +46,7 @@ pub async fn block_state_change_worker(
                                             let cur_state = block_history_update.state_db.unwrap().clone();
 
 
-                                            let block = block_header.number.unwrap() + 1;
+                                            let block = block_header.number + 1;
 
                                             let block_timestamp = block_header.timestamp + 12;
                                             let next_base_fee= next_block_base_fee;

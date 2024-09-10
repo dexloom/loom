@@ -35,7 +35,7 @@ where
         let block = provider.get_block_by_number(curblock_number.into(), false).await?;
 
         if let Some(block) = block {
-            let curblock_hash = block.header.hash.unwrap_or_default();
+            let curblock_hash = block.header.hash;
 
             if let Some(mempool) = mempool.clone() {
                 let mut mempool_guard = mempool.write().await;

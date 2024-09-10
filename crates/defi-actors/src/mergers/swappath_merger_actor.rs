@@ -127,7 +127,7 @@ async fn arb_swap_path_merger_worker(
                                     let mut evm_env = Env::default();
 
 
-                                    evm_env.block.number = U256::from(block_header.number.unwrap() + 1);
+                                    evm_env.block.number = U256::from(block_header.number + 1);
                                     let timestamp = block_header.timestamp;
                                     evm_env.block.timestamp = U256::from(timestamp +12);
 

@@ -39,8 +39,8 @@ pub async fn new_block_history_worker(
                 let block_update : Result<Header, RecvError>  = msg;
                 match block_update {
                     Ok(block_header)=>{
-                        let block_hash : BlockHash = block_header.hash.unwrap_or_default();
-                        let block_number : BlockNumber = block_header.number.unwrap_or_default();
+                        let block_hash : BlockHash = block_header.hash;
+                        let block_number : BlockNumber = block_header.number;
                         let timestamp : u64 = block_header.timestamp;
                         let base_fee: u128 = block_header.base_fee_per_gas.unwrap_or_default();
 
@@ -74,8 +74,8 @@ pub async fn new_block_history_worker(
                 match block_update {
                     Ok(block)=>{
 
-                        let block_hash : BlockHash = block.header.hash.unwrap_or_default();
-                        let block_number : BlockNumber = block.header.number.unwrap_or_default();
+                        let block_hash : BlockHash = block.header.hash;
+                        let block_number : BlockNumber = block.header.number;
 
 
                         match block_history.write().await.add_block(block.clone()) {

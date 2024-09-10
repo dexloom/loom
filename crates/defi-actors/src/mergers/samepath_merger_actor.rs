@@ -92,7 +92,7 @@ where
 
         let lock = prestate_guard
             .fetch(tx_hash, |_tx_hash| async move {
-                debug_trace_call_pre_state(client_clone, tx_clone, BlockNumberOrTag::Latest, Some(call_opts_clone)).await
+                debug_trace_call_pre_state(client_clone, tx_clone, BlockNumberOrTag::Latest.into(), Some(call_opts_clone)).await
             })
             .await;
 

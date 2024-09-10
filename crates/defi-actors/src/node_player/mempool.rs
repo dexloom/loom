@@ -20,12 +20,12 @@ pub(crate) async fn replayer_mempool_task(
         let market_state_guard = market_state.write().await;
 
         for (tx_hash, mempool_tx) in mempool_guard.txs.iter_mut() {
-            if mempool_tx.mined == Some(header.number.unwrap_or_default()) {
+            if mempool_tx.mined == Some(header.number) {
                 let result_and_state = evm_call_tx_in_block(mempool_tx.tx.clone().unwrap(), &market_state_guard.state_db, &header)?;
                 let (logs, state_update) = convert_evm_result_to_rpc(
                     result_and_state,
                     *tx_hash,
-                    BlockNumHash { number: header.number.unwrap_or_default(), hash: header.hash.unwrap_or_default() },
+                    BlockNumHash { number: header.number, hash: header.hash },
                     header.timestamp,
                 )?;
                 info!("Updating state for mempool tx {} logs: {} state_updates : {}", tx_hash, logs.len(), state_update.len());

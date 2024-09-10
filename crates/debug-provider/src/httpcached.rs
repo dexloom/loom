@@ -120,7 +120,7 @@ impl HttpCachedTransport {
             if let ResponsePacket::Single(new_block_response) = new_block_packet {
                 let response: Block = serde_json::from_str(new_block_response.payload.as_success().unwrap().get())
                     .map_err(|e| TransportError::DeserError { err: e, text: "err".to_string() })?;
-                self.block_hashes.write().await.insert(next_block_number, response.header.hash.unwrap_or_default());
+                self.block_hashes.write().await.insert(next_block_number, response.header.hash);
                 self.set_block_number(next_block_number);
             }
         }
@@ -478,13 +478,12 @@ mod test {
             debug!("Total supply : {}", total_supply._0);
 
             let block_by_number = provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?.unwrap();
-            let block_by_hash =
-                provider.get_block_by_hash(block_by_number.header.hash.unwrap(), BlockTransactionsKind::Full).await?.unwrap();
+            let block_by_hash = provider.get_block_by_hash(block_by_number.header.hash, BlockTransactionsKind::Full).await?.unwrap();
             assert_eq!(block_by_hash.header, block_by_number.header);
 
-            let block_number = block_by_number.header.number.unwrap_or_default();
+            let block_number = block_by_number.header.number;
 
-            let trace_block_by_hash = provider.debug_trace_block_by_hash(block_by_number.header.hash.unwrap(), trace_opts.clone()).await?;
+            let trace_block_by_hash = provider.debug_trace_block_by_hash(block_by_number.header.hash, trace_opts.clone()).await?;
             let trace_block_by_number =
                 provider.debug_trace_block_by_number(BlockNumberOrTag::Number(block_number), trace_opts.clone()).await?;
             assert_eq!(trace_block_by_hash, trace_block_by_number);

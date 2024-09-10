@@ -72,8 +72,11 @@ impl RequiredStateReader {
         required_state: RequiredState,
         block_number: Option<BlockNumber>,
     ) -> Result<GethStateUpdate> {
-        let block_id =
-            if block_number.is_none() { BlockNumberOrTag::Latest } else { BlockNumberOrTag::Number(block_number.unwrap_or_default()) };
+        let block_id = if block_number.is_none() {
+            BlockId::Number(BlockNumberOrTag::Latest)
+        } else {
+            BlockId::Number(BlockNumberOrTag::Number(block_number.unwrap_or_default()))
+        };
 
         let mut ret: GethStateUpdate = GethStateUpdate::new();
         for req in required_state.calls.into_iter() {
@@ -98,7 +101,7 @@ impl RequiredStateReader {
             }
         }
         for (address, slot) in required_state.slots.into_iter() {
-            let value_result = client.get_storage_at(address, slot).block_id(BlockId::Number(block_id)).await;
+            let value_result = client.get_storage_at(address, slot).block_id(block_id).await;
             trace!("get_storage_at_result {} slot {} :  {:?}", address, slot, value_result);
             match value_result {
                 Ok(value) => {
