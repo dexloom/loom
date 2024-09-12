@@ -63,7 +63,6 @@ async fn main() -> Result<()> {
         .with_market_state_preloader_virtual(vec![])?
         .with_preloaded_state(vec![(POOL_ADDRESS, PoolClass::UniswapV3)], Some(required_state))?
         .with_block_history()?
-        .with_gas_station()?
         .with_swap_encoder(None)?
         .with_evm_estimator()?;
 
@@ -92,7 +91,8 @@ async fn main() -> Result<()> {
         select! {
             header = header_sub.recv() => {
                 match header{
-                    Ok(header)=>{
+                    Ok(message_header)=>{
+                        let header = message_header.inner.header;
                         info!("Block header received : {} {}", header.number, header.hash);
                         cur_header = header.clone();
 

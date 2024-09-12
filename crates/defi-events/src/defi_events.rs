@@ -6,8 +6,6 @@ pub enum MarketEvents {
     BlockTxUpdate { block_number: BlockNumber, block_hash: BlockHash },
     BlockLogsUpdate { block_number: BlockNumber, block_hash: BlockHash },
     BlockStateUpdate { block_hash: BlockHash },
-
-    GasUpdate { next_block_base_fee: u128 },
 }
 
 #[derive(Clone, Debug)]

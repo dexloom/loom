@@ -7,7 +7,7 @@ use alloy::hex;
 use alloy::network::Ethereum;
 use alloy::primitives::{Address, TxHash, U256};
 use alloy::providers::Provider;
-use alloy::rpc::types::{Block, BlockTransactions, BlockTransactionsKind, Header};
+use alloy::rpc::types::{Block, BlockTransactions, BlockTransactionsKind};
 use alloy::transports::Transport;
 use eyre::OptionExt;
 use futures_util::StreamExt;
@@ -25,8 +25,8 @@ use tokio::select;
 use debug_provider::DebugProviderExt;
 use defi_actors::BlockchainActors;
 use defi_blockchain::Blockchain;
-use defi_events::{BlockLogs, BlockStateUpdate, MessageMempoolDataUpdate, NodeMempoolDataUpdate};
-use defi_types::{GethStateUpdate, MempoolTx};
+use defi_events::{BlockHeader, BlockLogs, BlockStateUpdate, MessageBlockHeader, MessageMempoolDataUpdate, NodeMempoolDataUpdate};
+use defi_types::{ChainParameters, GethStateUpdate, MempoolTx};
 use loom_actors::Broadcaster;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use loom_utils::reth_types::append_all_matching_block_logs_sealed;
@@ -40,14 +40,17 @@ pub async fn init<Node: FullNodeComponents>(
 
 async fn process_chain(
     chain: Arc<Chain>,
-    block_header_channel: Broadcaster<Header>,
+    chain_parameters: ChainParameters,
+    block_header_channel: Broadcaster<MessageBlockHeader>,
     block_with_tx_channel: Broadcaster<Block>,
     logs_channel: Broadcaster<BlockLogs>,
     state_update_channel: Broadcaster<BlockStateUpdate>,
 ) -> eyre::Result<()> {
     for sealed_header in chain.headers() {
         let header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_header);
-        if let Err(e) = block_header_channel.send(header).await {
+        if let Err(e) =
+            block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(chain_parameters.clone(), header))).await
+        {
             error!(error=?e.to_string(), "block_header_channel.send")
         }
     }
@@ -136,6 +139,7 @@ async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc: Blo
                 info!(committed_chain = ?new.range(), "Received commit");
                 if let Err(e) = process_chain(
                     new.clone(),
+                    bc.chain_parameters(),
                     bc.new_block_headers_channel(),
                     bc.new_block_with_tx_channel(),
                     bc.new_block_logs_channel(),
@@ -151,6 +155,7 @@ async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc: Blo
                 info!(from_chain = ?old.range(), to_chain = ?new.range(), "Received reorg");
                 if let Err(e) = process_chain(
                     new.clone(),
+                    bc.chain_parameters(),
                     bc.new_block_headers_channel(),
                     bc.new_block_with_tx_channel(),
                     bc.new_block_logs_channel(),
@@ -240,7 +245,6 @@ where
         .mempool()?
         .initialize_signers_with_encrypted_key(private_key_encrypted)? // initialize signer with encrypted key
         .with_block_history()? // collect blocks
-        .with_gas_station()? // gas station - calculates next block basefee
         .with_price_station()? // calculate price fo tokens
         .with_health_monitor_pools()? // monitor pools health to disable empty
         .with_health_monitor_state()? // monitor state health

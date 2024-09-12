@@ -7,7 +7,7 @@ use alloy_consensus::TxEnvelope;
 use alloy_primitives::{Address, BlockHash, TxHash, U256};
 use alloy_provider::network::eip2718::Encodable2718;
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, BlockTransactionsKind, Header};
+use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, BlockTransactionsKind};
 use clap::Parser;
 use env_logger::Env as EnvLog;
 use eyre::{OptionExt, Result};
@@ -16,16 +16,16 @@ use log::{debug, error, info};
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
-    DiffPathMergerActor, EvmEstimatorActor, GasStationActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor,
-    NodeBlockActor, NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor,
-    SwapEncoderActor, TxSignersActor,
+    DiffPathMergerActor, EvmEstimatorActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, NodeBlockActor,
+    NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapEncoderActor,
+    TxSignersActor,
 };
-use defi_entities::{
-    AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners,
-};
+use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners};
 use loom_utils::NWETH;
 
-use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageTxCompose, TxCompose};
+use defi_events::{
+    BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageBlockHeader, MessageHealthEvent, MessageTxCompose, TxCompose,
+};
 use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
 use defi_types::{debug_trace_block, ChainParameters, Mempool};
@@ -135,7 +135,7 @@ async fn main() -> Result<()> {
     let mempool_instance = Mempool::new();
 
     info!("Creating channels");
-    let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
+    let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
     let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
     let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
     let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
@@ -151,7 +151,6 @@ async fn main() -> Result<()> {
     let market_state = SharedState::new(market_state_instance);
 
     let mempool_instance = SharedState::new(mempool_instance);
-    let gas_station_state = SharedState::new(GasStation::new());
 
     let block_history_state = SharedState::new(BlockHistory::fetch(client.clone(), market_state.inner(), 10).await?);
 
@@ -254,23 +253,6 @@ async fn main() -> Result<()> {
             panic!("Cannot initialize price actor");
         }
         _ => info!("Price actor has been initialized"),
-    }
-
-    info!("Starting gas station actor");
-    let mut gas_station_actor = GasStationActor::new();
-    match gas_station_actor
-        .access(gas_station_state.clone())
-        .access(block_history_state.clone())
-        .consume(market_events_channel.clone())
-        .produce(market_events_channel.clone())
-        .start()
-    {
-        Err(e) => {
-            error!("{}", e)
-        }
-        _ => {
-            info!("Gas station actor started successfully")
-        }
     }
 
     for (_pool_name, pool_config) in test_config.pools {
