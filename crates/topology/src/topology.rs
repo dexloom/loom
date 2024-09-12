@@ -13,8 +13,9 @@ use tokio::task::JoinHandle;
 
 use defi_actors::{
     BlockHistoryActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor,
-    InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeExExGrpcActor,
-    NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, TxSignersActor,
+    InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor,
+    NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor, PriceActor,
+    ProtocolPoolLoaderActor, TxSignersActor,
 };
 use defi_blockchain::Blockchain;
 use defi_entities::TxSigners;
@@ -268,7 +269,8 @@ impl Topology {
                 let client_config = topology.get_client_config(params.client.as_ref()).unwrap();
 
                 info!("Starting node actor {name}");
-                let mut node_block_actor = NodeBlockActor::new(client).with_reth_db(client_config.db_path);
+                let mut node_block_actor =
+                    NodeBlockActor::new(client, NodeBlockActorConfig::all_enabled()).with_reth_db(client_config.db_path);
                 match node_block_actor
                     .produce(blockchain.new_block_headers_channel())
                     .produce(blockchain.new_block_with_tx_channel())

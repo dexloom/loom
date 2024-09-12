@@ -1,4 +1,4 @@
-pub use node_block_actor::NodeBlockActor;
+pub use node_block_actor::{NodeBlockActor, NodeBlockActorConfig};
 pub use node_mempool_actor::NodeMempoolActor;
 
 mod node_block_actor;
