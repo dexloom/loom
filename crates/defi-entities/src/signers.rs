@@ -1,4 +1,3 @@
-use std::collections::HashMap;
 use std::fmt;
 
 use alloy_consensus::{SignableTransaction, TxEnvelope};
@@ -8,6 +7,7 @@ use alloy_primitives::{hex, Address, Bytes, TxHash, B256};
 use alloy_rpc_types::TransactionRequest;
 use alloy_signer_local::PrivateKeySigner;
 use eyre::{eyre, OptionExt, Result};
+use indexmap::IndexMap;
 use rand::prelude::IteratorRandom;
 
 #[derive(Clone)]
@@ -74,12 +74,12 @@ impl TxSigner {
 
 #[derive(Clone, Default)]
 pub struct TxSigners {
-    signers: HashMap<Address, TxSigner>,
+    signers: IndexMap<Address, TxSigner>,
 }
 
 impl TxSigners {
     pub fn new() -> TxSigners {
-        TxSigners { signers: HashMap::new() }
+        TxSigners { signers: IndexMap::new() }
     }
 
     pub fn len(&self) -> usize {
@@ -106,6 +106,12 @@ impl TxSigners {
         } else {
             let mut rng = rand::thread_rng();
             self.signers.values().choose(&mut rng).cloned()
+        }
+    }
+    pub fn get_signer_by_index(&self, index: usize) -> Result<TxSigner> {
+        match self.signers.get_index(index) {
+            Some((_, s)) => Ok(s.clone()),
+            None => Err(eyre!("SIGNER_NOT_FOUND")),
         }
     }
 
@@ -222,6 +228,17 @@ mod tests {
         let mut signers = TxSigners::new();
         signers.add_testkey();
         assert!(signers.get_randon_signer().is_some());
+    }
+
+    #[test]
+    fn test_get_signer_by_index() {
+        let mut signers = TxSigners::new();
+        let signer = signers.add_testkey();
+        let address = signer.address();
+        assert!(signers.get_signer_by_index(0).is_ok());
+        // test negative case
+        let unknown_address = Address::random();
+        assert!(signers.get_signer_by_index(1).is_err());
     }
 
     #[test]

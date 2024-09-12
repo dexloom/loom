@@ -2209,6 +2209,7 @@ dependencies = [
  "defi-types",
  "eyre",
  "hex",
+ "indexmap 2.5.0",
  "lazy_static",
  "log",
  "loom-revm-db",
