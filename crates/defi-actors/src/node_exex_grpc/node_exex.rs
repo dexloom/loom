@@ -1,9 +1,10 @@
 use std::any::type_name;
 
-use alloy_rpc_types::{Block, Header};
+use alloy_rpc_types::Block;
 
 use defi_blockchain::Blockchain;
-use defi_events::{BlockLogs, BlockStateUpdate, MessageMempoolDataUpdate};
+use defi_events::{BlockLogs, BlockStateUpdate, MessageBlockHeader, MessageMempoolDataUpdate};
+use defi_types::ChainParameters;
 use loom_actors::{Actor, ActorResult, Broadcaster, Producer};
 use loom_actors_macros::Producer;
 
@@ -11,9 +12,10 @@ use crate::node_exex_grpc::node_exex_worker::node_exex_grpc_worker;
 
 #[derive(Producer)]
 pub struct NodeExExGrpcActor {
+    chain_parameters: ChainParameters,
     url: String,
     #[producer]
-    block_header_channel: Option<Broadcaster<Header>>,
+    block_header_channel: Option<Broadcaster<MessageBlockHeader>>,
     #[producer]
     block_with_tx_channel: Option<Broadcaster<Block>>,
     #[producer]
@@ -27,6 +29,7 @@ pub struct NodeExExGrpcActor {
 impl NodeExExGrpcActor {
     pub fn new(url: String) -> NodeExExGrpcActor {
         NodeExExGrpcActor {
+            chain_parameters: ChainParameters::ethereum(),
             url,
             block_header_channel: None,
             block_with_tx_channel: None,
@@ -38,6 +41,7 @@ impl NodeExExGrpcActor {
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
+            chain_parameters: bc.chain_parameters(),
             block_header_channel: Some(bc.new_block_headers_channel()),
             block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
             block_logs_channel: Some(bc.new_block_logs_channel()),
@@ -51,6 +55,7 @@ impl NodeExExGrpcActor {
 impl Actor for NodeExExGrpcActor {
     fn start(&self) -> ActorResult {
         let handler = tokio::task::spawn(node_exex_grpc_worker(
+            self.chain_parameters.clone(),
             Some(self.url.clone()),
             self.block_header_channel.clone().unwrap(),
             self.block_with_tx_channel.clone().unwrap(),

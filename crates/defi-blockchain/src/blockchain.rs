@@ -1,11 +1,11 @@
 use alloy::{
     primitives::{Address, BlockHash},
-    rpc::types::{Block, Header},
+    rpc::types::Block,
 };
-use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Token};
+use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
 use defi_events::{
-    BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose,
-    StateUpdateEvent,
+    BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageBlockHeader, MessageHealthEvent, MessageMempoolDataUpdate,
+    MessageTxCompose, StateUpdateEvent,
 };
 use defi_types::{ChainParameters, Mempool};
 use loom_actors::{Broadcaster, SharedState};
@@ -17,12 +17,11 @@ pub struct Blockchain {
     market: SharedState<Market>,
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState>,
-    gas_station_state: SharedState<GasStation>,
     block_history_state: SharedState<BlockHistory>,
     mempool: SharedState<Mempool>,
     account_nonce_and_balance: SharedState<AccountNonceAndBalanceState>,
 
-    new_block_headers_channel: Broadcaster<Header>,
+    new_block_headers_channel: Broadcaster<MessageBlockHeader>,
     new_block_with_tx_channel: Broadcaster<Block>,
     new_block_state_update_channel: Broadcaster<BlockStateUpdate>,
     new_block_logs_channel: Broadcaster<BlockLogs>,
@@ -36,7 +35,7 @@ pub struct Blockchain {
 
 impl Blockchain {
     pub fn new(chain_id: i64) -> Blockchain {
-        let new_block_headers_channel: Broadcaster<Header> = Broadcaster::new(10);
+        let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
         let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
         let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
@@ -80,7 +79,6 @@ impl Blockchain {
             mempool: SharedState::new(Mempool::new()),
             latest_block: SharedState::new(LatestBlock::new(0, BlockHash::ZERO)),
             block_history_state: SharedState::new(BlockHistory::new(10)),
-            gas_station_state: SharedState::new(GasStation::new()),
             account_nonce_and_balance: SharedState::new(AccountNonceAndBalanceState::new()),
             new_block_headers_channel,
             new_block_with_tx_channel,
@@ -119,10 +117,6 @@ impl Blockchain {
         self.block_history_state.clone()
     }
 
-    pub fn gas_station(&self) -> SharedState<GasStation> {
-        self.gas_station_state.clone()
-    }
-
     pub fn mempool(&self) -> SharedState<Mempool> {
         self.mempool.clone()
     }
@@ -131,7 +125,7 @@ impl Blockchain {
         self.account_nonce_and_balance.clone()
     }
 
-    pub fn new_block_headers_channel(&self) -> Broadcaster<Header> {
+    pub fn new_block_headers_channel(&self) -> Broadcaster<MessageBlockHeader> {
         self.new_block_headers_channel.clone()
     }
 

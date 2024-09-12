@@ -12,14 +12,13 @@ use log::{error, info, warn};
 use tokio::task::JoinHandle;
 
 use defi_actors::{
-    BlockHistoryActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor, GethEstimatorActor, HistoryPoolLoaderActor,
+    BlockHistoryActor, EvmEstimatorActor, FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderActor,
     InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor,
     NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor, PriceActor,
     ProtocolPoolLoaderActor, TxSignersActor,
 };
 use defi_blockchain::Blockchain;
 use defi_entities::TxSigners;
-use defi_types::ChainParameters;
 use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, Consumer, Producer, SharedState, WorkerResult};
 use loom_multicaller::SwapStepEncoder;
@@ -100,8 +99,6 @@ impl Topology {
             }
         }
 
-        let chain_params = ChainParameters::ethereum();
-
         for (k, params) in config.blockchains.iter() {
             let blockchain = Blockchain::new(params.chain_id.unwrap_or(1));
 
@@ -128,36 +125,18 @@ impl Topology {
             }
 
             info!("Starting mempool actor {k}");
-            let mut mempool_actor = MempoolActor::new(chain_params.clone());
+            let mut mempool_actor = MempoolActor::new();
             match mempool_actor
                 .access(blockchain.mempool())
-                .access(blockchain.block_history())
                 .consume(blockchain.new_mempool_tx_channel())
-                .consume(blockchain.market_events_channel())
+                .consume(blockchain.new_block_headers_channel())
+                .consume(blockchain.new_block_with_tx_channel())
                 .produce(blockchain.mempool_events_channel())
                 .start()
             {
                 Ok(r) => {
                     tasks.extend(r);
                     info!("Mempool actor started successfully")
-                }
-                Err(e) => {
-                    panic!("{}", e)
-                }
-            }
-
-            info!("Starting gas station actor {k}");
-            let mut gas_station_actor = GasStationActor::new();
-            match gas_station_actor
-                .access(blockchain.gas_station())
-                .access(blockchain.block_history())
-                .consume(blockchain.market_events_channel())
-                .produce(blockchain.market_events_channel())
-                .start()
-            {
-                Ok(r) => {
-                    tasks.extend(r);
-                    info!("Gas station actor started successfully")
                 }
                 Err(e) => {
                     panic!("{}", e)

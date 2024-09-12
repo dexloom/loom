@@ -5,7 +5,7 @@ use alloy_eips::BlockNumHash;
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, BlockHash, B256};
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, BlockTransactions, Header, Log};
+use alloy_rpc_types::{Block, BlockTransactions, Log};
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use chrono::Utc;
@@ -18,14 +18,16 @@ use reth_primitives::{BlockHashOrNumber, BlockWithSenders};
 use reth_provider::providers::StaticFileProvider;
 use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider, StateProvider, StorageReader, TransactionVariant};
 
-use defi_events::{BlockLogs, BlockStateUpdate};
+use defi_events::{BlockHeader, BlockLogs, BlockStateUpdate, MessageBlockHeader};
+use defi_types::ChainParameters;
 use loom_actors::{ActorResult, Broadcaster, WorkerResult};
 use loom_utils::reth_types::append_all_matching_block_logs;
 
 pub async fn reth_node_worker<P, T>(
     client: P,
+    chain_parameters: ChainParameters,
     db_path: String,
-    new_block_headers_channel: Option<Broadcaster<Header>>,
+    new_block_headers_channel: Option<Broadcaster<MessageBlockHeader>>,
     new_block_with_tx_channel: Option<Broadcaster<Block>>,
     new_block_logs_channel: Option<Broadcaster<BlockLogs>>,
     new_block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
@@ -72,7 +74,7 @@ where
                             e.insert(Utc::now());
 
                             if let Some(block_headers_channel) = &new_block_headers_channel {
-                                if let Err(e) = block_headers_channel.send(block.header.clone()).await {
+                                if let Err(e) = block_headers_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(chain_parameters.clone(), block.header.clone()))).await {
                                     error!("Block header broadcaster error {}", e);
                                 }
                             };
@@ -230,8 +232,9 @@ where
 
 pub fn reth_node_worker_starter<P, T>(
     client: P,
+    chain_parameters: ChainParameters,
     db_path: String,
-    new_block_headers_channel: Option<Broadcaster<Header>>,
+    new_block_headers_channel: Option<Broadcaster<MessageBlockHeader>>,
     new_block_with_tx_channel: Option<Broadcaster<Block>>,
     new_block_logs_channel: Option<Broadcaster<BlockLogs>>,
     new_block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
@@ -242,6 +245,7 @@ where
 {
     let handler = tokio::task::spawn(reth_node_worker(
         client,
+        chain_parameters,
         db_path.clone(),
         new_block_headers_channel,
         new_block_with_tx_channel,

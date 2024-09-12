@@ -14,8 +14,8 @@ use revm::db::states::StorageSlot;
 use revm::db::{BundleAccount, StorageWithOriginalValues};
 use tokio::select;
 
-use defi_events::{BlockLogs, BlockStateUpdate, Message, MessageMempoolDataUpdate, NodeMempoolDataUpdate};
-use defi_types::{GethStateUpdate, MempoolTx};
+use defi_events::{BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlockHeader, MessageMempoolDataUpdate, NodeMempoolDataUpdate};
+use defi_types::{ChainParameters, GethStateUpdate, MempoolTx};
 use loom_actors::{Broadcaster, WorkerResult};
 use loom_utils::reth_types::append_all_matching_block_logs_sealed;
 
@@ -120,8 +120,9 @@ fn get_current_chain(notification: ExExNotification) -> Option<Arc<Chain>> {
 }
 
 pub async fn node_exex_grpc_worker(
+    chain_parameters: ChainParameters,
     url: Option<String>,
-    block_header_channel: Broadcaster<Header>,
+    block_header_channel: Broadcaster<MessageBlockHeader>,
     block_with_tx_channel: Broadcaster<Block>,
     logs_channel: Broadcaster<BlockLogs>,
     state_update_channel: Broadcaster<BlockStateUpdate>,
@@ -163,7 +164,7 @@ pub async fn node_exex_grpc_worker(
              */
             header = stream_header.next() => {
                 if let Some(header) = header {
-                    if let Err(e) = block_header_channel.send(header).await {
+                    if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(chain_parameters.clone(), header))).await {
                         error!("block_header_channel.send error : {}", e)
                     }
                 }

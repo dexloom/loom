@@ -3,7 +3,6 @@ pub use backrun::{PendingTxStateChangeProcessorActor, StateChangeArbActor, State
 pub use block_history::BlockHistoryActor;
 pub use blockchain_actors::BlockchainActors;
 pub use estimators::{EvmEstimatorActor, GethEstimatorActor, HardhatEstimatorActor};
-pub use gas::GasStationActor;
 pub use health_monitor::{PoolHealthMonitorActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 pub use market::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, HistoryPoolLoaderActor, NewPoolLoaderActor, ProtocolPoolLoaderActor,
@@ -26,7 +25,6 @@ mod node;
 
 mod accounts_monitor;
 mod block_history;
-mod gas;
 
 mod health_monitor;
 mod market_state;
