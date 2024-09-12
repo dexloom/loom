@@ -2,7 +2,7 @@ use alloy::{
     primitives::{Address, BlockHash},
     rpc::types::Block,
 };
-use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Token};
+use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
 use defi_events::{
     BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageBlockHeader, MessageHealthEvent, MessageMempoolDataUpdate,
     MessageTxCompose, StateUpdateEvent,
@@ -17,7 +17,6 @@ pub struct Blockchain {
     market: SharedState<Market>,
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState>,
-    gas_station_state: SharedState<GasStation>,
     block_history_state: SharedState<BlockHistory>,
     mempool: SharedState<Mempool>,
     account_nonce_and_balance: SharedState<AccountNonceAndBalanceState>,
@@ -80,7 +79,6 @@ impl Blockchain {
             mempool: SharedState::new(Mempool::new()),
             latest_block: SharedState::new(LatestBlock::new(0, BlockHash::ZERO)),
             block_history_state: SharedState::new(BlockHistory::new(10)),
-            gas_station_state: SharedState::new(GasStation::new()),
             account_nonce_and_balance: SharedState::new(AccountNonceAndBalanceState::new()),
             new_block_headers_channel,
             new_block_with_tx_channel,
@@ -117,10 +115,6 @@ impl Blockchain {
 
     pub fn block_history(&self) -> SharedState<BlockHistory> {
         self.block_history_state.clone()
-    }
-
-    pub fn gas_station(&self) -> SharedState<GasStation> {
-        self.gas_station_state.clone()
     }
 
     pub fn mempool(&self) -> SharedState<Mempool> {

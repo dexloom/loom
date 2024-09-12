@@ -8,7 +8,7 @@ use reth_primitives::U256;
 use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{GasStation, Swap};
+use defi_entities::Swap;
 use loom_utils::NWETH;
 
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
@@ -41,7 +41,7 @@ async fn estimator_task(
     let profit = estimate_request.swap.abs_profit();
 
     let gas_price = estimate_request.priority_gas_fee + estimate_request.gas_fee;
-    let gas_cost = GasStation::calc_gas_cost(100_000, gas_price);
+    let gas_cost = U256::from(100_000 * gas_price);
 
     // EXCHANGE SWAP
     let (tips_opcodes, call_value) = if matches!(estimate_request.swap, Swap::ExchangeSwapLine(_)) {
@@ -90,7 +90,7 @@ async fn estimator_task(
                     return Err(eyre!("TRANSACTION_ESTIMATED_INCORRECTLY"));
                 }
 
-                let gas_cost = GasStation::calc_gas_cost(gas_used as u128, gas_price);
+                let gas_cost = U256::from(gas_used as u128 * gas_price);
 
                 let mut tips_vec = vec![];
 

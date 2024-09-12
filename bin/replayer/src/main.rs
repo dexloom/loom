@@ -83,8 +83,6 @@ async fn main() -> Result<()> {
     let market = bc.market();
     let market_state = bc.market_state();
 
-    let gas_station = bc.gas_station();
-
     let mut cur_header: Header = Header::default();
 
     loop {
@@ -104,7 +102,7 @@ async fn main() -> Result<()> {
 
                             let tx_compose_encode_msg = MessageTxCompose::encode(
                                 TxComposeData{
-                                    gas_fee : gas_station.read().await.get_next_base_fee(),
+                                    gas_fee : message_header.inner.next_block_base_fee,
                                     poststate : Some(Arc::new(market_state.read().await.state_db.clone())),
                                     swap : Swap::ExchangeSwapLine(swap_line),
                                     ..TxComposeData::default()

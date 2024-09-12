@@ -10,7 +10,6 @@ use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 
 use debug_provider::DebugProviderExt;
-use defi_entities::GasStation;
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
@@ -67,7 +66,7 @@ async fn estimator_worker(
 
                             let gas_price = estimate_request.priority_gas_fee + estimate_request.gas_fee;
 
-                            if GasStation::calc_gas_cost( 300_000, gas_price) > profit_eth {
+                            if U256::from(300_000 * gas_price) > profit_eth {
                                 error!("Profit is too small");
                                 return Err(eyre!("TOO_SMALL_PROFIT"));
                             }
