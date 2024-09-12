@@ -2,17 +2,17 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use alloy_network::Ethereum;
-use alloy_primitives::BlockHash;
+use alloy_network::{BlockResponse, Ethereum, Network};
+use alloy_primitives::{BlockHash, BlockNumber};
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, Header, Log};
+use alloy_rpc_types::{Block, BlockId, BlockTransactionsKind, Filter, Header, Log};
 use alloy_transport::Transport;
-use eyre::{ErrReport, Result};
-use log::warn;
-use tokio::sync::RwLock;
-
+use debug_provider::DebugProviderExt;
 use defi_types::{debug_trace_block, GethStateUpdateVec};
+use eyre::{eyre, ErrReport, Result};
+use log::warn;
 use loom_revm_db::LoomInMemoryDB;
+use tokio::sync::RwLock;
 
 use crate::MarketState;
 
@@ -44,31 +44,28 @@ impl BlockHistoryEntry {
         self.state_update.is_some() && self.header.is_some() && self.block.is_some() && self.logs.is_some()
     }
 
-    pub async fn fetch<P, T, N>(&mut self, client: P) -> Result<()>
+    pub async fn fetch<P, T>(&mut self, client: P) -> Result<()>
     where
-        N: Network,
         T: Transport + Clone,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     {
         if let Some(header) = &self.header {
-            if let Some(block_hash) = header.hash {
-                if self.logs.is_none() {
-                    let filter = Filter::new().at_block_hash(block_hash);
-                    let logs = client.get_logs(&filter).await?;
-                    self.logs = Some(logs);
-                }
+            if self.logs.is_none() {
+                let filter = Filter::new().at_block_hash(header.hash);
+                let logs = client.get_logs(&filter).await?;
+                self.logs = Some(logs);
+            }
 
-                if self.block.is_none() {
-                    let block = client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await?;
-                    if let Some(block) = block {
-                        self.block = Some(block);
-                    }
+            if self.block.is_none() {
+                let block = client.get_block_by_hash(header.hash, BlockTransactionsKind::Full).await?;
+                if let Some(block) = block {
+                    self.block = Some(block);
                 }
+            }
 
-                if self.state_update.is_none() {
-                    let (_, state_update) = debug_trace_block(client.clone(), BlockId::Hash(block_hash.into()), true).await?;
-                    self.state_update = Some(state_update);
-                }
+            if self.state_update.is_none() {
+                let (_, state_update) = debug_trace_block(client.clone(), BlockId::Hash(header.hash.into()), true).await?;
+                self.state_update = Some(state_update);
             }
         }
         if self.is_fetched() {
@@ -112,17 +109,15 @@ impl BlockHistory {
 
         let block = client.get_block_by_number(latest_block_number.into(), true).await?;
         if let Some(block) = block {
-            let block_hash = block.header.hash.ok_or_eyre("NO_BLOCK_HASH")?;
-
             let market_state_guard = current_state.read().await;
 
             let block_entry = BlockHistoryEntry::new(None, None, None, None, Some(market_state_guard.state_db.clone()));
 
             let mut block_entries: HashMap<BlockHash, BlockHistoryEntry> = HashMap::new();
-            block_entries.insert(block_hash, block_entry);
+            block_entries.insert(block.header.hash, block_entry);
 
             let mut block_numbers: HashMap<u64, BlockHash> = HashMap::new();
-            block_numbers.insert(latest_block_number, block_hash);
+            block_numbers.insert(latest_block_number, block.header.hash);
 
             Ok(BlockHistory { depth, latest_block_number, block_entries, block_numbers })
         } else {
@@ -130,15 +125,14 @@ impl BlockHistory {
         }
     }
 
-    pub async fn fetch_entry<P, T, N>(client: P, block_hash: BlockHash) -> Result<BlockHistoryEntry>
+    pub async fn fetch_entry<P, T>(client: P, block_hash: BlockHash) -> Result<BlockHistoryEntry>
     where
-        N: Network,
         T: Transport + Clone,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     {
         let block = client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await?;
         if let Some(block) = block {
-            let header = block.header.clone();
+            let header = block.header().clone();
 
             let filter = Filter::new().at_block_hash(block_hash);
 
@@ -153,23 +147,17 @@ impl BlockHistory {
         }
     }
 
-    pub fn add_entry_by_hash<P,T, N>(&mut self, client:P, block_hash: BlockHash, ) -> Result<()>
+    pub async fn add_entry_by_hash<P, T>(&mut self, client: P, block_hash: BlockHash) -> Result<()>
     where
-        N: Network,
         T: Transport + Clone,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     {
         let entry = match self.get_entry(&block_hash) {
-            Some(entry)=>{
-                entry
-            }
-            None=>{
-                Self::fetch_entry(client, block_hash)?
-                self.
-            }
+            Some(entry) => entry,
+            None => Self::fetch_entry(client, block_hash).await?,
         };
-        let parent_entry = self.get_or_fetch_entry()
-
+        let parent_entry = self.get_or_fetch_entry();
+        Ok(())
     }
 
     pub fn len(&self) -> usize {
@@ -296,15 +284,14 @@ impl BlockHistory {
         }
     }
 
-    pub fn get_or_fetch_entry<P, T, N>(&mut self, client:  P, block_hash : BlockHash) -> Result<&BlockHistoryEntry>
+    pub fn get_or_fetch_entry<P, T>(&mut self, client: P, block_hash: BlockHash) -> Result<&BlockHistoryEntry>
     where
-        N: Network,
         T: Transport + Clone,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     {
         if let Some(entry) = self.get_entry(&block_hash) {
             Ok(entry)
-        }else{
+        } else {
             Ok(Self::fetch_entry(client, block_hash)?)
         }
     }
@@ -328,22 +315,18 @@ mod test {
     use alloy_primitives::U256;
 
     fn create_next_header(parent: &Header, child_id: u64) -> Header {
-        let number = parent.number.unwrap() + 1;
-        let hash: Option<BlockHash> = Some(
-            (U256::try_from(parent.hash.unwrap_or_default()).unwrap() * U256::from(256) + U256::from(number + child_id))
-                .try_into()
-                .unwrap(),
-        );
-        let number = Some(parent.number.unwrap_or_default() + 1);
+        let number = parent.number + 1;
+        let hash: BlockHash = (U256::try_from(parent.hash).unwrap() * U256::from(256) + U256::from(number + child_id)).try_into().unwrap();
+        let number = parent.number + 1;
 
-        Header { hash, parent_hash: parent.hash.unwrap_or_default(), number, ..Default::default() }
+        Header { hash, parent_hash: parent.hash, number, ..Default::default() }
     }
 
     #[test]
     fn test_add_block_header() {
         let mut block_history = BlockHistory::new(10);
 
-        let header_1_0 = Header { number: Some(1), hash: Some(U256::from(1).into()), ..Default::default() };
+        let header_1_0 = Header { number: 1, hash: U256::from(1).into(), ..Default::default() };
         let header_2_0 = create_next_header(&header_1_0, 0);
         let header_3_0 = create_next_header(&header_2_0, 0);
 
@@ -360,7 +343,7 @@ mod test {
     fn test_add_missed_header() {
         let mut block_history = BlockHistory::new(10);
 
-        let header_1_0 = Header { number: Some(1), hash: Some(U256::from(1).into()), ..Default::default() };
+        let header_1_0 = Header { number: 1, hash: U256::from(1).into(), ..Default::default() };
         let header_2_0 = create_next_header(&header_1_0, 0);
         let header_2_1 = create_next_header(&header_1_0, 1);
         let header_3_0 = create_next_header(&header_2_0, 0);
@@ -379,7 +362,7 @@ mod test {
     fn test_add_reorged_header() {
         let mut block_history = BlockHistory::new(10);
 
-        let header_1_0 = Header { number: Some(1), hash: Some(U256::from(1).into()), ..Default::default() };
+        let header_1_0 = Header { number: 1, hash: U256::from(1).into(), ..Default::default() };
         let header_2_0 = create_next_header(&header_1_0, 0);
         let header_2_1 = create_next_header(&header_1_0, 1);
         let header_3_0 = create_next_header(&header_2_0, 0);
