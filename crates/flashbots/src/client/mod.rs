@@ -9,7 +9,7 @@ pub use body::make_signed_body;
 pub use bundle::{BundleHash, BundleRequest, BundleTransaction, SimulatedBundle, SimulatedTransaction};
 pub use jsonrpc::SendBundleResponseType;
 pub use middleware::{FlashbotsMiddleware, FlashbotsMiddlewareError};
-pub use relay::{Relay, RelayError};
+pub use relay::{Relay, RelayConfig, RelayError};
 
 mod bundle;
 

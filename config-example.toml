@@ -1,0 +1,87 @@
+[node]
+mode = "ws"
+
+# Nodes.
+[clients]
+local = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ipc", db_path = "PATH_TO_RETH_DATA_FOLDER/db", node = "reth" }
+#another way to connect to WS
+#local = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ipc", db_path = "PATH_TO_RETH_DATA_FOLDER/db", node = "reth" }
+
+#remote node
+#remote = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ws",  node = "geth" }
+
+[blockchains]
+# Ethereum mainnet. chain id = 1
+mainnet = { }
+
+# Setup signer with encrypted private key
+[signers]
+env_signer = { type = "env", bc = "mainnet" }
+
+# Swapstep encoder with address of multicaller deployed
+[encoders]
+mainnet = { type = "swapstep", address = "0x0000000000000000000000000000000000000000" }
+
+# Preloaders for signers and encoders
+[preloaders]
+mainnet = { client = "local", bc = "mainnet", encoder = "mainnet", signers = "env_signer" }
+
+
+[actors]
+# Blocks managing actor
+[actors.node]
+mainnet_node = { client = "local", bc = "mainnet" }
+
+# Uncomment this and comment node actors for ExEx
+#[actors.node_exex]
+#mainnet_node = { url = "http://[::1]:10000", bc = "mainnet" }
+
+# Subscribe to mempool transactions
+[actors.mempool]
+mainnet = { client = "local", bc = "mainnet" }
+mainnet_remote = { client = "remote", bc = "mainnet" }
+
+# Nonce and balance monitor
+[actors.noncebalance]
+mainnet = { client = "local", bc = "mainnet" }
+
+
+# Pool loader : history, new and protocol loaders
+[actors.pools]
+mainnet = { client = "local", bc = "mainnet", history = true, new = true, protocol = true }
+
+# Price actor
+[actors.price]
+mainnet = { client = "local", bc = "mainnet" }
+
+# Broadcaster actor
+[actors.broadcaster]
+[actors.broadcaster.mainnet]
+type = "flashbots"
+client = "remote"
+bc = "mainnet"
+# optional custom relays, if not set default relays will be used
+relays = [
+    { id = 1, name = "flashbots", url = "https://relay.flashbots.net" },
+    { id = 2, name = "beaverbuild", url = "https://rpc.beaverbuild.org/", no_sign=true },
+    { id = 3, name = "titan", url = "https://rpc.titanbuilder.xyz" },
+    { id = 4, name = "rsync", url = "https://rsync-builde00r.xyz" },
+    { id = 5, name = "eden", url = "https://api.edennetwork.io/v1/bundle" },
+    { id = 6, name = "eth_builder", url = "https://eth-builder.com", no_sign=true },
+    { id = 7, name = "secureapi", url = "https://api.securerpc.com/v1", no_sign=true },
+    { id = 8, name = "buildai", url = "https://BuildAI.net", no_sign=true },
+    { id = 9, name = "payloadde", url = "https://rpc.payload.de", no_sign=true },
+    { id = 10, name = "fibio", url = "https://rpc.f1b.io" },
+    { id = 11, name = "loki", url = "https://rpc.lokibuilder.xyz" },
+    { id = 12, name = "ibuilder", url = "https://rpc.ibuilder.xyz" },
+    { id = 13, name = "jetbuilder", url = "https://rpc.jetbldr.xyz" },
+    { id = 14, name = "penguinbuilder", url = "https://rpc.penguinbuild.org" },
+    { id = 15, name = "gambitbuilder", url = "https://builder.gmbit.co/rpc"},
+]
+
+# Transaction estimators
+[actors.estimator]
+# EVM estimator
+mainnet = { type = "evm", bc = "mainnet", encoder = "mainnet" }
+# Node estimator. Geth estimator is ok for nodes supporting eth_callBundle method only
+#mainnet = { client = "local", bc = "mainnet", type = "geth", encoder = "mainnet" }

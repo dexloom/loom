@@ -28,7 +28,7 @@ use defi_blockchain::Blockchain;
 use defi_events::{BlockLogs, BlockStateUpdate, MessageMempoolDataUpdate, NodeMempoolDataUpdate};
 use defi_types::{GethStateUpdate, MempoolTx};
 use loom_actors::Broadcaster;
-use loom_topology::{EncoderConfig, TopologyConfig};
+use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use loom_utils::reth_types::append_all_matching_block_logs_sealed;
 
 pub async fn init<Node: FullNodeComponents>(
@@ -224,7 +224,18 @@ where
 
     info!(address=?multicaller_address, "Multicaller");
 
-    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
+    // Get flashbots relays from config
+    let relays = topology_config
+        .actors
+        .broadcaster
+        .as_ref()
+        .and_then(|b| b.get("flashbots"))
+        .map(|b| match b {
+            BroadcasterConfig::Flashbots(f) => f.relays(),
+        })
+        .unwrap_or_default();
+
+    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), relays);
     bc_actors
         .mempool()?
         .initialize_signers_with_encrypted_key(private_key_encrypted)? // initialize signer with encrypted key

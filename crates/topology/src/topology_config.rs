@@ -4,6 +4,7 @@ use std::fs;
 use alloy_provider::RootProvider;
 use alloy_transport::BoxTransport;
 use eyre::Result;
+use flashbots::client::RelayConfig;
 use serde::Deserialize;
 use strum_macros::Display;
 
@@ -121,19 +122,40 @@ pub struct ExExClientConfig {
     pub url: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
-pub struct FlashbotsBroadcasaterConfig {
+#[derive(Clone, Debug, Deserialize)]
+pub struct FlashbotsRelayConfig {
+    id: u16,
+    name: String,
+    url: String,
+    no_sign: Option<bool>,
+}
+
+impl From<FlashbotsRelayConfig> for RelayConfig {
+    fn from(config: FlashbotsRelayConfig) -> Self {
+        RelayConfig { id: config.id, name: config.name, url: config.url, no_sign: config.no_sign }
+    }
+}
+
+#[derive(Clone, Debug, Deserialize)]
+pub struct FlashbotsBroadcasterConfig {
     #[serde(rename = "bc")]
     pub blockchain: Option<String>,
     pub client: Option<String>,
     pub smart: Option<bool>,
+    pub relays: Option<Vec<FlashbotsRelayConfig>>,
+}
+
+impl FlashbotsBroadcasterConfig {
+    pub fn relays(&self) -> Vec<RelayConfig> {
+        self.relays.as_ref().map(|relays| relays.iter().map(|r| r.clone().into()).collect()).unwrap_or_default()
+    }
 }
 
 #[derive(Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum BroadcasterConfig {
     #[serde(rename = "flashbots")]
-    Flashbots(FlashbotsBroadcasaterConfig),
+    Flashbots(FlashbotsBroadcasterConfig),
 }
 
 #[derive(Debug, Deserialize)]

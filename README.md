@@ -34,76 +34,9 @@ Telegram chat : https://t.me/dexloom_com
 
 ### Setting up topology
 
-config.toml example
+Copy `config-example.toml` to `config.toml` and configure according to your setup.
 
-```toml
-[node]
-mode = "ws"
-
-# Nodes. 
-[clients]
-local = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ipc", db_path = "PATH_TO_RETH_DATA_FOLDER/db", node = "reth" }
-#another way to connect to WS
-#local = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ipc", db_path = "PATH_TO_RETH_DATA_FOLDER/db", node = "reth" }
-
-#remote node 
-#remote = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ws",  node = "geth" }
-
-[blockchains]
-# Ethereum mainnet. chain id = 1
-mainnet = { }
-
-# Setup signer with encrypted private key
-[signers]
-env_signer = { type = "env", bc = "mainnet" }
-
-# Swapstep encoder with address of multicaller deployed
-[encoders]
-mainnet = { type = "swapstep", address = "0x0000000000000000000000000000000000000000" }
-
-# Preloaders for signers and encoders
-[preloaders]
-mainnet = { client = "local", bc = "mainnet", encoder = "mainnet", signers = "env_signer" }
-
-
-[actors]
-# Blocks managing actor
-[actors.node]
-mainnet_node = { client = "local", bc = "mainnet" }
-
-# Uncomment this and comment node actors for ExEx
-#[actors.node_exex]
-#mainnet_node = { url = "http://[::1]:10000", bc = "mainnet" }
-
-# Subscribe to mempool transactions
-[actors.mempool]
-mainnet = { client = "local", bc = "mainnet" }
-mainnet_remote = { client = "remote", bc = "mainnet" }
-
-# Nonce and balance monitor
-[actors.noncebalance]
-mainnet = { client = "local", bc = "mainnet" }
-
-
-# Pool loader : history, new and protocol loaders
-[actors.pools]
-mainnet = { client = "local", bc = "mainnet", history = true, new = true, protocol = true }
-
-# Price actor 
-[actors.price]
-mainnet = { client = "local", bc = "mainnet" }
-
-# Broadcaster actor 
-[actors.broadcaster]
-mainnet = { type = "flashbots", client = "local", bc = "mainnet" }
-
-# Transaction estimators
-[actors.estimator]
-# EVM estimator 
-mainnet = { type = "evm", bc = "mainnet", encoder = "mainnet" }
-# Node estimator. Geth estimator is ok for nodes supporting eth_callBundle method only 
-#mainnet = { client = "local", bc = "mainnet", type = "geth", encoder = "mainnet" }
-```
+```sh
 
 ### Updating private key encryption password
 

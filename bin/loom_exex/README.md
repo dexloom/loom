@@ -7,7 +7,7 @@ Config file is still required for Multicaller address
 
 ```rust
 
-let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
+let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), vec![]);
     bc_actors
         .mempool().await?
 
