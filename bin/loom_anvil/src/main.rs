@@ -17,7 +17,8 @@ use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
     DiffPathMergerActor, EvmEstimatorActor, GasStationActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor,
-    NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapEncoderActor, TxSignersActor,
+    NodeBlockActor, NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor,
+    SwapEncoderActor, TxSignersActor,
 };
 use defi_entities::{
     AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners,
@@ -214,7 +215,7 @@ async fn main() -> Result<()> {
     //load_pools(client.clone(), market_instance.clone(), market_state.clone()).await?;
 
     info!("Starting node actor");
-    let mut node_block_actor = NodeBlockActor::new(client.clone());
+    let mut node_block_actor = NodeBlockActor::new(client.clone(), NodeBlockActorConfig::all_enabled());
     match node_block_actor
         .produce(new_block_headers_channel.clone())
         .produce(new_block_with_tx_channel.clone())

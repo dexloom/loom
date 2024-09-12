@@ -5,7 +5,7 @@ use crate::backrun::BlockStateChangeProcessorActor;
 use crate::{
     ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor,
     GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor,
-    NewPoolLoaderActor, NodeBlockActor, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
+    NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
     PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, RequiredPoolLoaderActor,
     SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
 };
@@ -200,13 +200,15 @@ where
 
     /// Starts receiving blocks events through RPC
     pub fn with_block_events(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(NodeBlockActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(NodeBlockActor::new(self.provider.clone(), NodeBlockActorConfig::all_enabled()).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Starts receiving blocks events through direct Reth DB access
     pub fn reth_node_with_blocks(&mut self, db_path: String) -> Result<&mut Self> {
-        self.actor_manager.start(NodeBlockActor::new(self.provider.clone()).on_bc(&self.bc).with_reth_db(Some(db_path)))?;
+        self.actor_manager.start(
+            NodeBlockActor::new(self.provider.clone(), NodeBlockActorConfig::all_enabled()).on_bc(&self.bc).with_reth_db(Some(db_path)),
+        )?;
         Ok(self)
     }
 
