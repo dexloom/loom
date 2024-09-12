@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use alloy_network::Network;
+use alloy_network::Ethereum;
 use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_pubsub::PubSubConnect;
@@ -41,15 +41,14 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
     }
 }
 
-pub async fn new_node_block_header_worker<P, T, N>(
+pub async fn new_node_block_header_worker<P, T>(
     client: P,
     block_hash_channel: Broadcaster<BlockHash>,
     block_header_channel: Broadcaster<Header>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
-    N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     info!("Starting node block hash worker");
     let sub = client.subscribe_blocks().await?;
@@ -62,7 +61,7 @@ where
             block_msg = stream.next() => {
                 if let Some(block_header) = block_msg {
                     let block : Block = block_header;
-                    let block_hash = block.header.hash.unwrap_or_default();
+                    let block_hash = block.header.hash;
                     info!("Block hash received: {:?}" , block_hash);
                     if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block_hash) {
                         e.insert(Utc::now());

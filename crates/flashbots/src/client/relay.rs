@@ -11,6 +11,15 @@ use serde::{de::DeserializeOwned, Serialize};
 use thiserror::Error;
 use url::Url;
 
+/// Configuration for a Flashbots relay.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub struct RelayConfig {
+    pub id: u16,
+    pub name: String,
+    pub url: String,
+    pub no_sign: Option<bool>,
+}
+
 /// A Flashbots relay client.
 ///
 /// The client automatically signs every request and sets the Flashbots

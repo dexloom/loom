@@ -3,7 +3,7 @@ use std::collections::BTreeMap;
 use alloy_primitives::{Address, TxHash};
 use alloy_provider::ext::DebugApi;
 use alloy_provider::{Network, Provider};
-use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionRequest};
+use alloy_rpc_types::{BlockId, TransactionRequest};
 use alloy_rpc_types_trace::common::TraceResult;
 use alloy_rpc_types_trace::geth::GethDebugBuiltInTracerType::PreStateTracer;
 use alloy_rpc_types_trace::geth::GethDebugTracerType::BuiltInTracer;
@@ -85,7 +85,7 @@ pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, 
 async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(
     client: C,
     req: TR,
-    block: BlockNumberOrTag,
+    block: BlockId,
     opts: Option<GethDebugTracingCallOptions>,
     diff_mode: bool,
 ) -> Result<(GethStateUpdate, GethStateUpdate)> {
@@ -125,7 +125,7 @@ pub async fn debug_trace_call_pre_state<
 >(
     client: C,
     req: TR,
-    block: BlockNumberOrTag,
+    block: BlockId,
     opts: Option<GethDebugTracingCallOptions>,
 ) -> eyre::Result<GethStateUpdate> {
     Ok(debug_trace_call(client, req, block, opts, false).await?.0)
@@ -139,7 +139,7 @@ pub async fn debug_trace_call_post_state<
 >(
     client: C,
     req: TR,
-    block: BlockNumberOrTag,
+    block: BlockId,
     opts: Option<GethDebugTracingCallOptions>,
 ) -> eyre::Result<GethStateUpdate> {
     Ok(debug_trace_call(client, req, block, opts, true).await?.1)
@@ -153,7 +153,7 @@ pub async fn debug_trace_call_diff<
 >(
     client: C,
     req: TR,
-    block: BlockNumberOrTag,
+    block: BlockId,
     call_opts: Option<GethDebugTracingCallOptions>,
 ) -> eyre::Result<(GethStateUpdate, GethStateUpdate)> {
     debug_trace_call(client, req, block, call_opts, true).await

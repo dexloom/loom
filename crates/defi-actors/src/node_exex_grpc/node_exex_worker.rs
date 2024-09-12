@@ -3,7 +3,8 @@ use std::sync::Arc;
 
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{Address, U256};
-use alloy_rpc_types::{Block, BlockTransactionsKind, Header};
+use alloy_rpc_types::serde_helpers::WithOtherFields;
+use alloy_rpc_types::{Block, BlockTransactionsKind, Header, Transaction};
 use chrono::Utc;
 use futures::{pin_mut, StreamExt};
 use log::{error, info};
@@ -22,7 +23,7 @@ use loom_utils::reth_types::append_all_matching_block_logs_sealed;
 async fn process_chain_task(
     chain: Arc<Chain>,
     block_header_channel: Broadcaster<Header>,
-    block_with_tx_channel: Broadcaster<Block>,
+    block_with_tx_channel: Broadcaster<Block<WithOtherFields<Transaction>>>,
     logs_channel: Broadcaster<BlockLogs>,
     state_update_channel: Broadcaster<BlockStateUpdate>,
 ) -> eyre::Result<()> {
@@ -204,7 +205,7 @@ pub async fn node_exex_grpc_worker(
                         source: "exex".to_string(),
                         tx_hash,
                         time: Utc::now(),
-                        tx: Some(tx),
+                        tx: Some(tx.inner),
                         logs: None,
                         mined: None,
                         failed: None,

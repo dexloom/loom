@@ -7,9 +7,10 @@ use alloy::hex;
 use alloy::network::Ethereum;
 use alloy::primitives::{Address, TxHash, U256};
 use alloy::providers::Provider;
-use alloy::rpc::types::{Block, BlockTransactionsKind, Header};
+use alloy::rpc::types::{Block, BlockTransactions, BlockTransactionsKind, Header};
 use alloy::transports::Transport;
 use eyre::OptionExt;
+use futures_util::StreamExt;
 use reth::primitives::BlockNumHash;
 use reth::revm::db::states::StorageSlot;
 use reth::revm::db::{BundleAccount, StorageWithOriginalValues};
@@ -27,7 +28,7 @@ use defi_blockchain::Blockchain;
 use defi_events::{BlockLogs, BlockStateUpdate, MessageMempoolDataUpdate, NodeMempoolDataUpdate};
 use defi_types::{GethStateUpdate, MempoolTx};
 use loom_actors::Broadcaster;
-use loom_topology::{EncoderConfig, TopologyConfig};
+use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use loom_utils::reth_types::append_all_matching_block_logs_sealed;
 
 pub async fn init<Node: FullNodeComponents>(
@@ -65,6 +66,14 @@ async fn process_chain(
             Some(sealed_block.hash()),
         ) {
             Ok(block) => {
+                let block: Block = Block {
+                    transactions: BlockTransactions::Full(block.transactions.into_transactions().map(|t| t.inner).collect()),
+                    header: block.header,
+                    uncles: block.uncles,
+                    size: block.size,
+                    withdrawals: block.withdrawals,
+                };
+
                 if let Err(e) = block_with_tx_channel.send(block).await {
                     error!(error=?e.to_string(), "block_with_tx_channel.send")
                 }
@@ -121,7 +130,7 @@ async fn process_chain(
 async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc: Blockchain) -> eyre::Result<()> {
     info!("Loom ExEx is started");
 
-    while let Some(exex_notification) = ctx.notifications.recv().await {
+    while let Some(exex_notification) = ctx.notifications.next().await {
         match &exex_notification {
             ExExNotification::ChainCommitted { new } => {
                 info!(committed_chain = ?new.range(), "Received commit");
@@ -182,7 +191,7 @@ where
                 if let Some(tx_notification) = tx_notification {
                     let recovered_tx = tx_notification.transaction.to_recovered_transaction();
                     let tx_hash: TxHash = recovered_tx.hash;
-                    let tx : alloy::rpc::types::eth::Transaction = reth_rpc_types_compat::transaction::from_recovered(recovered_tx);
+                    let tx : alloy::rpc::types::eth::Transaction = reth_rpc_types_compat::transaction::from_recovered(recovered_tx).inner;
                     let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, "exex".to_string());
                     if let Err(e) =  mempool_tx.send(update_msg).await {
                         error!(error=?e.to_string(), "mempool_tx.send");
@@ -215,7 +224,18 @@ where
 
     info!(address=?multicaller_address, "Multicaller");
 
-    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
+    // Get flashbots relays from config
+    let relays = topology_config
+        .actors
+        .broadcaster
+        .as_ref()
+        .and_then(|b| b.get("flashbots"))
+        .map(|b| match b {
+            BroadcasterConfig::Flashbots(f) => f.relays(),
+        })
+        .unwrap_or_default();
+
+    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), relays);
     bc_actors
         .mempool()?
         .initialize_signers_with_encrypted_key(private_key_encrypted)? // initialize signer with encrypted key

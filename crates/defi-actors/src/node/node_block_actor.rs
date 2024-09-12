@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use alloy_network::Network;
+use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header};
 use alloy_transport::Transport;
@@ -18,7 +18,7 @@ use crate::node::node_block_state_worker::new_node_block_state_worker;
 use crate::node::node_block_with_tx_worker::new_block_with_tx_worker;
 use crate::node::reth_worker::reth_node_worker_starter;
 
-pub fn new_node_block_starer<P, T, N>(
+pub fn new_node_block_starer<P, T>(
     client: P,
     new_block_headers_channel: Option<Broadcaster<Header>>,
     new_block_with_tx_channel: Option<Broadcaster<Block>>,
@@ -27,8 +27,7 @@ pub fn new_node_block_starer<P, T, N>(
 ) -> ActorResult
 where
     T: Transport + Clone,
-    N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     let new_block_hash_channel = Broadcaster::new(10);
     let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
@@ -52,9 +51,54 @@ where
     Ok(tasks)
 }
 
+#[derive(Debug, Clone)]
+pub struct NodeBlockActorConfig {
+    pub block_header: bool,
+    pub block_with_tx: bool,
+    pub block_logs: bool,
+    pub block_state_update: bool,
+}
+
+impl NodeBlockActorConfig {
+    pub fn new() -> Self {
+        Self { block_header: false, block_with_tx: false, block_logs: false, block_state_update: false }
+    }
+
+    pub fn all_enabled() -> Self {
+        Self { block_header: true, block_with_tx: true, block_logs: true, block_state_update: true }
+    }
+
+    pub fn with_block_header(mut self) -> Self {
+        self.block_header = true;
+        self
+    }
+
+    pub fn with_block_with_tx(mut self) -> Self {
+        self.block_with_tx = true;
+        self
+    }
+
+    pub fn with_block_logs(mut self) -> Self {
+        self.block_logs = true;
+        self
+    }
+
+    pub fn with_block_state_update(mut self) -> Self {
+        self.block_state_update = true;
+        self
+    }
+}
+
+impl Default for NodeBlockActorConfig {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Producer)]
-pub struct NodeBlockActor<P, T, N> {
+pub struct NodeBlockActor<P, T> {
     client: P,
+    config: NodeBlockActorConfig,
     reth_db_path: Option<String>,
     #[producer]
     block_header_channel: Option<Broadcaster<Header>>,
@@ -65,29 +109,27 @@ pub struct NodeBlockActor<P, T, N> {
     #[producer]
     block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
     _t: PhantomData<T>,
-    _n: PhantomData<N>,
 }
 
-impl<P, T, N> NodeBlockActor<P, T, N>
+impl<P, T> NodeBlockActor<P, T>
 where
     T: Transport + Clone,
-    N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     fn name(&self) -> &'static str {
         "NodeBlockActor"
     }
 
-    pub fn new(client: P) -> NodeBlockActor<P, T, N> {
+    pub fn new(client: P, config: NodeBlockActorConfig) -> NodeBlockActor<P, T> {
         NodeBlockActor {
             client,
+            config,
             reth_db_path: None,
             block_header_channel: None,
             block_with_tx_channel: None,
             block_logs_channel: None,
             block_state_update_channel: None,
             _t: PhantomData,
-            _n: PhantomData,
         }
     }
 
@@ -97,20 +139,19 @@ where
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
-            block_header_channel: Some(bc.new_block_headers_channel()),
-            block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
-            block_logs_channel: Some(bc.new_block_logs_channel()),
-            block_state_update_channel: Some(bc.new_block_state_update_channel()),
+            block_header_channel: if self.config.block_header { Some(bc.new_block_headers_channel()) } else { None },
+            block_with_tx_channel: if self.config.block_with_tx { Some(bc.new_block_with_tx_channel()) } else { None },
+            block_logs_channel: if self.config.block_logs { Some(bc.new_block_logs_channel()) } else { None },
+            block_state_update_channel: if self.config.block_state_update { Some(bc.new_block_state_update_channel()) } else { None },
             ..self
         }
     }
 }
 
-impl<P, T, N> Actor for NodeBlockActor<P, T, N>
+impl<P, T> Actor for NodeBlockActor<P, T>
 where
     T: Transport + Clone,
-    N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         match &self.reth_db_path {
@@ -146,11 +187,11 @@ mod test {
     use log::{debug, error, info};
     use tokio::select;
 
+    use crate::node::node_block_actor::NodeBlockActorConfig;
+    use crate::NodeBlockActor;
     use defi_events::{BlockLogs, BlockStateUpdate};
     use eyre::Result;
     use loom_actors::{Actor, Broadcaster, Producer};
-
-    use crate::NodeBlockActor;
 
     #[tokio::test]
     #[ignore]
@@ -171,7 +212,7 @@ mod test {
 
         let db_path = std::env::var("TEST_NODE_DB")?;
 
-        let mut node_block_actor = NodeBlockActor::new(client.clone()).with_reth_db(Some(db_path));
+        let mut node_block_actor = NodeBlockActor::new(client.clone(), NodeBlockActorConfig::all_enabled()).with_reth_db(Some(db_path));
         match node_block_actor
             .produce(new_block_headers_channel.clone())
             .produce(new_block_with_tx_channel.clone())

@@ -152,7 +152,7 @@ mod test {
         let anvil_provider = Arc::new(AnvilDebugProviderFactory::from_node_on_block(node_url, 19109956).await?);
 
         let block = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
-        debug!("Block number : {}", block.unwrap().header.number.unwrap_or_default());
+        debug!("Block number : {}", block.unwrap().header.number);
 
         let priv_key = anvil_provider.privkey()?;
 

@@ -103,7 +103,7 @@ async fn main() -> Result<()> {
 
     let mut env = Env::default();
 
-    env.block.number = U256::from(block_header.number.unwrap_or_default());
+    env.block.number = U256::from(block_header.number);
     env.block.timestamp = U256::from(block_header.timestamp);
     //env.block.basefee = U256::from(block_header.base_fee_per_gas.unwrap_or_default());
 

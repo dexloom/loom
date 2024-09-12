@@ -120,7 +120,8 @@ where
         return Err(eyre!("NON_AFFECTING_TX"));
     }
 
-    let diff_trace_result = debug_trace_call_diff(client.clone(), transaction_request, BlockNumberOrTag::Latest, Some(call_opts)).await;
+    let diff_trace_result =
+        debug_trace_call_diff(client.clone(), transaction_request, BlockNumberOrTag::Latest.into(), Some(call_opts)).await;
     match diff_trace_result {
         Ok((pre, post)) => {
             state_required_vec.push(pre.clone());
@@ -146,7 +147,7 @@ where
 
             //TODO : Fix Latest header is empty
             if let Some(latest_header) = latest_block.read().await.block_header.clone() {
-                let block_number = latest_header.number.unwrap().as_u64() + 1;
+                let block_number = latest_header.number.as_u64() + 1;
                 let block_timestamp = latest_header.timestamp.as_u64() + 12;
 
                 if !affected_pools.is_empty() {
@@ -190,7 +191,7 @@ where
                         debug!("Mempool code pools {} {} update len : {}", tx_hash, source, affected_pools.len());
 
                         if let Some(latest_header) = latest_block.read().await.block_header.clone() {
-                            let block_number = latest_header.number.unwrap().as_u64() + 1;
+                            let block_number = latest_header.number.as_u64() + 1;
                             let block_timestamp = latest_header.timestamp.as_u64() + 12;
 
                             if !affected_pools.is_empty() {

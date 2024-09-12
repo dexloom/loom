@@ -552,11 +552,11 @@ mod tests {
             debug!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.accounts_len(), market_state.storage_len());
 
             let block_header = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.unwrap().unwrap().header;
-            debug!("Block {} {}", block_header.number.unwrap(), block_header.timestamp);
+            debug!("Block {} {}", block_header.number, block_header.timestamp);
 
             let mut evm_env = revm::primitives::Env::default();
 
-            evm_env.block.number = U256::from(block_header.number.unwrap_or_default());
+            evm_env.block.number = U256::from(block_header.number);
 
             let timestamp = block_header.timestamp;
 

@@ -455,7 +455,7 @@ mod tests {
         let block_number = client.get_block_number().await?;
         let block = client.get_block_by_number(BlockNumberOrTag::Number(block_number), false).await?.unwrap();
 
-        let evm_env = env_for_block(block.header.number.unwrap(), block.header.timestamp);
+        let evm_env = env_for_block(block.header.number, block.header.timestamp);
 
         let amount = U256::from(pool.liquidity1 / U256::from(1000));
 

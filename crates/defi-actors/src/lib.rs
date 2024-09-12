@@ -12,7 +12,7 @@ pub use market::{
 pub use market_state::{preload_market_state, MarketStatePreloadedOneShotActor};
 pub use mempool::MempoolActor;
 pub use mergers::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
-pub use node::{NodeBlockActor, NodeMempoolActor};
+pub use node::{NodeBlockActor, NodeBlockActorConfig, NodeMempoolActor};
 pub use node_exex_grpc::NodeExExGrpcActor;
 pub use node_player::NodeBlockPlayerActor;
 pub use pathencoder::SwapEncoderActor;

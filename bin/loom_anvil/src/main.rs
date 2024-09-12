@@ -17,7 +17,8 @@ use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
     DiffPathMergerActor, EvmEstimatorActor, GasStationActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor,
-    NodeBlockActor, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapEncoderActor, TxSignersActor,
+    NodeBlockActor, NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor,
+    SwapEncoderActor, TxSignersActor,
 };
 use defi_entities::{
     AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners,
@@ -160,7 +161,7 @@ async fn main() -> Result<()> {
     let tx_signers = SharedState::new(tx_signers);
     let accounts_state = SharedState::new(accounts_state);
 
-    let block_hash: BlockHash = block_header.hash.unwrap_or_default();
+    let block_hash: BlockHash = block_header.hash;
 
     let latest_block = SharedState::new(LatestBlock::new(block_nr, block_hash));
 
@@ -214,7 +215,7 @@ async fn main() -> Result<()> {
     //load_pools(client.clone(), market_instance.clone(), market_state.clone()).await?;
 
     info!("Starting node actor");
-    let mut node_block_actor = NodeBlockActor::new(client.clone());
+    let mut node_block_actor = NodeBlockActor::new(client.clone(), NodeBlockActorConfig::all_enabled());
     match node_block_actor
         .produce(new_block_headers_channel.clone())
         .produce(new_block_with_tx_channel.clone())
@@ -470,8 +471,8 @@ async fn main() -> Result<()> {
     // Sending block header update message
     if let Err(e) = market_events_channel_clone
         .send(MarketEvents::BlockHeaderUpdate {
-            block_number: block_header.number.unwrap_or_default(),
-            block_hash: block_header.hash.unwrap_or_default(),
+            block_number: block_header.number,
+            block_hash: block_header.hash,
             timestamp: block_header.timestamp,
             base_fee: block_header.base_fee_per_gas.unwrap_or_default(),
             next_base_fee: next_block_base_fee,
@@ -482,9 +483,7 @@ async fn main() -> Result<()> {
     }
 
     // Sending block state update message
-    if let Err(e) =
-        market_events_channel_clone.send(MarketEvents::BlockStateUpdate { block_hash: block_header.hash.unwrap_or_default() }).await
-    {
+    if let Err(e) = market_events_channel_clone.send(MarketEvents::BlockStateUpdate { block_hash: block_header.hash }).await {
         error!("{}", e);
     }
 

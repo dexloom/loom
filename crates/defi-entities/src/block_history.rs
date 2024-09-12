@@ -2,13 +2,12 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::sync::Arc;
 
-use alloy_network::primitives::BlockTransactionsKind;
-use alloy_network::Network;
-use alloy_primitives::{BlockHash, BlockNumber};
+use alloy_network::Ethereum;
+use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, BlockId, Filter, Header, Log};
+use alloy_rpc_types::{Block, Header, Log};
 use alloy_transport::Transport;
-use eyre::{eyre, ErrReport, OptionExt, Result};
+use eyre::{ErrReport, Result};
 use log::warn;
 use tokio::sync::RwLock;
 
@@ -107,7 +106,7 @@ impl BlockHistory {
     where
         N: Network,
         T: Transport + Clone,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     {
         let latest_block_number = client.get_block_number().await?;
 
@@ -229,8 +228,8 @@ impl BlockHistory {
     }
 
     pub fn add_block_header(&mut self, block_header: Header) -> Result<()> {
-        let block_hash = block_header.hash.unwrap();
-        let block_number = block_header.number.unwrap();
+        let block_hash = block_header.hash;
+        let block_number = block_header.number;
 
         let market_history_entry = self.process_block_number_with_hash(block_number, block_hash);
 
@@ -255,8 +254,8 @@ impl BlockHistory {
     }
 
     pub fn add_block(&mut self, block: Block) -> Result<()> {
-        let block_hash = block.header.hash.unwrap();
-        let block_number = block.header.number.unwrap();
+        let block_hash = block.header.hash;
+        let block_number = block.header.number;
 
         let market_history_entry = self.process_block_number_with_hash(block_number, block_hash);
 

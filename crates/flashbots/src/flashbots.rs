@@ -1,5 +1,5 @@
 use crate::client::{
-    make_signed_body, BundleRequest, BundleTransaction, FlashbotsMiddleware, FlashbotsMiddlewareError, SendBundleResponseType,
+    make_signed_body, BundleRequest, BundleTransaction, FlashbotsMiddleware, FlashbotsMiddlewareError, RelayConfig, SendBundleResponseType,
     SimulatedBundle,
 };
 use alloy_network::Ethereum;
@@ -117,7 +117,7 @@ where
         let signer = signer.unwrap_or(PrivateKeySigner::random());
         let simulation_client = FlashbotsClient::new(provider.clone(), simulation_endpoint);
 
-        Flashbots { req_id: AtomicU64::new(0), signer, provider, clients: Vec::new(), simulation_client, _t: PhantomData }
+        Flashbots { req_id: AtomicU64::new(0), signer, provider, clients: vec![], simulation_client, _t: PhantomData }
     }
 
     pub fn with_default_relays(self) -> Self {
@@ -167,6 +167,20 @@ where
     pub fn with_relay(self, url: &str) -> Self {
         let mut clients = self.clients;
         clients.push(Arc::new(FlashbotsClient::new(self.provider.clone(), url)));
+        Self { clients, ..self }
+    }
+
+    pub fn with_relays(self, relays: Vec<RelayConfig>) -> Self {
+        let clients: Vec<Arc<FlashbotsClient<P, T>>> = relays
+            .into_iter()
+            .map(|relay| {
+                if relay.no_sign.unwrap_or(false) {
+                    Arc::new(FlashbotsClient::new_no_sign(self.provider.clone(), relay.url.as_str()))
+                } else {
+                    Arc::new(FlashbotsClient::new(self.provider.clone(), relay.url.as_str()))
+                }
+            })
+            .collect();
         Self { clients, ..self }
     }
 

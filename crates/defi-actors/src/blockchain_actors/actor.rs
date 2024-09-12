@@ -5,7 +5,7 @@ use crate::backrun::BlockStateChangeProcessorActor;
 use crate::{
     ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor,
     GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor,
-    NewPoolLoaderActor, NodeBlockActor, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
+    NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
     PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, RequiredPoolLoaderActor,
     SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
 };
@@ -18,6 +18,7 @@ use defi_blockchain::Blockchain;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{PoolClass, TxSigners};
 use eyre::{eyre, Result};
+use flashbots::client::RelayConfig;
 use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
 use loom_multicaller::MulticallerSwapEncoder;
@@ -34,6 +35,7 @@ pub struct BlockchainActors<P, T> {
     has_state_update: bool,
     has_signers: bool,
     mutlicaller_address: Option<Address>,
+    relays: Vec<RelayConfig>,
     _t: PhantomData<T>,
 }
 
@@ -42,7 +44,7 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(provider: P, bc: Blockchain) -> Self {
+    pub fn new(provider: P, bc: Blockchain, relays: Vec<RelayConfig>) -> Self {
         Self {
             provider,
             bc,
@@ -53,6 +55,7 @@ where
             has_state_update: false,
             has_signers: false,
             mutlicaller_address: None,
+            relays,
             _t: PhantomData,
         }
     }
@@ -200,13 +203,15 @@ where
 
     /// Starts receiving blocks events through RPC
     pub fn with_block_events(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(NodeBlockActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(NodeBlockActor::new(self.provider.clone(), NodeBlockActorConfig::all_enabled()).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Starts receiving blocks events through direct Reth DB access
     pub fn reth_node_with_blocks(&mut self, db_path: String) -> Result<&mut Self> {
-        self.actor_manager.start(NodeBlockActor::new(self.provider.clone()).on_bc(&self.bc).with_reth_db(Some(db_path)))?;
+        self.actor_manager.start(
+            NodeBlockActor::new(self.provider.clone(), NodeBlockActorConfig::all_enabled()).on_bc(&self.bc).with_reth_db(Some(db_path)),
+        )?;
         Ok(self)
     }
 
@@ -262,7 +267,11 @@ where
 
     /// Starts flashbots broadcaster
     pub fn with_flashbots_broadcaster(&mut self, smart: bool) -> Result<&mut Self> {
-        let flashbots = Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays();
+        let flashbots = match self.relays.is_empty() {
+            true => Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays(),
+            false => Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_relays(self.relays.clone()),
+        };
+
         self.actor_manager.start(FlashbotsBroadcastActor::new(flashbots, smart).on_bc(&self.bc))?;
         Ok(self)
     }

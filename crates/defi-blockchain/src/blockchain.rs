@@ -2,7 +2,6 @@ use alloy::{
     primitives::{Address, BlockHash},
     rpc::types::{Block, Header},
 };
-
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, GasStation, LatestBlock, Market, MarketState, Token};
 use defi_events::{
     BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageHealthEvent, MessageMempoolDataUpdate, MessageTxCompose,

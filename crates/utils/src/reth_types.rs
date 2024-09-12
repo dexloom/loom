@@ -1,11 +1,11 @@
 use alloy::primitives::Bytes;
 use alloy::rpc::types::Transaction;
+use alloy::serde::WithOtherFields;
 use alloy::{
     primitives::{B256, B64},
     rlp::Decodable,
     rpc::types::{Block as ABlock, BlockNumHash, BlockTransactions, Header as AHeader, Log as ALog},
 };
-
 use eyre::{OptionExt, Result};
 use reth_db::models::StoredBlockBodyIndices;
 use reth_primitives::{
@@ -19,7 +19,7 @@ pub trait Convert<T> {
 impl Convert<AHeader> for RHeader {
     fn convert(&self) -> AHeader {
         AHeader {
-            hash: Some(self.hash_slow()),
+            hash: self.hash_slow(),
             parent_hash: self.parent_hash,
             uncles_hash: B256::default(),
             miner: self.beneficiary,
@@ -28,7 +28,7 @@ impl Convert<AHeader> for RHeader {
             receipts_root: self.receipts_root,
             logs_bloom: self.logs_bloom,
             difficulty: self.difficulty,
-            number: Some(self.number),
+            number: self.number,
             gas_limit: self.gas_limit as u128,
             gas_used: self.gas_used as u128,
             timestamp: self.timestamp,
@@ -48,14 +48,7 @@ impl Convert<AHeader> for RHeader {
 
 impl Convert<ABlock> for RBlock {
     fn convert(&self) -> ABlock {
-        ABlock {
-            header: self.header.convert(),
-            uncles: vec![],
-            transactions: BlockTransactions::Uncle,
-            size: None,
-            withdrawals: None,
-            other: Default::default(),
-        }
+        ABlock { header: self.header.convert(), uncles: vec![], transactions: BlockTransactions::Uncle, size: None, withdrawals: None }
     }
 }
 //
@@ -139,7 +132,7 @@ pub fn append_all_matching_block_logs_sealed(
     Ok(())
 }
 
-pub fn decode_into_transaction(rlp_tx: &Bytes) -> Result<Transaction> {
+pub fn decode_into_transaction(rlp_tx: &Bytes) -> Result<WithOtherFields<Transaction>> {
     let raw_tx = rlp_tx.clone().to_vec();
     let mut raw_tx = raw_tx.as_slice();
     let transaction_recovered: TransactionSignedEcRecovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;

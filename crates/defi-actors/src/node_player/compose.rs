@@ -19,7 +19,7 @@ pub(crate) async fn replayer_compose_worker(mempool: SharedState<Mempool>, compo
                                 RlpState::Backrun( rlp_tx) | RlpState::Stuffing( rlp_tx)=>{
                                     match decode_into_transaction( &rlp_tx ) {
                                         Ok(new_tx)=>{
-                                            mempool.write().await.add_tx(new_tx);
+                                            mempool.write().await.add_tx(new_tx.inner);
                                         }
                                         Err(e)=>{
                                             error!("decode_into_transaction {}", e);

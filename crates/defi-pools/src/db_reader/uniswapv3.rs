@@ -1,7 +1,7 @@
 use std::ops::{BitAnd, Shl, Shr};
 
-use alloy_primitives::U256;
 use alloy_primitives::{Address, Signed, Uint, B256, I256};
+use alloy_primitives::{U160, U256};
 use eyre::Result;
 use lazy_static::lazy_static;
 use log::trace;
@@ -79,9 +79,11 @@ impl UniswapV3DBReader {
         let tick: Signed<24, 1> = Signed::<24, 1>::from_raw(tick);
         let tick: i32 = tick.as_i32();
 
+        let sqrt_price_x96: U160 = cell.bitand(*BITS160MASK).to();
+
         Ok(slot0Return {
-            sqrtPriceX96: cell.bitand(*BITS160MASK),
-            tick,
+            sqrtPriceX96: sqrt_price_x96,
+            tick: tick.try_into()?,
             observationIndex: ((Shr::<U256>::shr(cell, U256::from(160 + 24))) & *BITS16MASK).to(),
             observationCardinality: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16))) & *BITS16MASK).to(),
             observationCardinalityNext: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16))) & *BITS16MASK).to(),

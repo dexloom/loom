@@ -85,9 +85,11 @@ where
         self.provider.root()
     }
 
-    fn get_block_number(&self) -> RpcCall<T, (), U64, BlockNumber> {
-        let rpc_call: RpcCall<T, (), U64, BlockNumber, fn(U64) -> BlockNumber> =
-            RpcCall::new(Request::new("get_block_number", Id::None, ()), self.provider.client().transport().clone()).map_resp(|x| x.to());
+    #[allow(clippy::type_complexity)]
+    fn get_block_number(&self) -> RpcCall<T, [(); 0], U64, BlockNumber> {
+        let rpc_call: RpcCall<T, [(); 0], U64, BlockNumber, fn(U64) -> BlockNumber> =
+            RpcCall::new(Request::new("get_block_number", Id::None, [(); 0]), self.provider.client().transport().clone())
+                .map_resp(|x: U64| x.to());
         rpc_call
     }
 

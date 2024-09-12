@@ -103,10 +103,10 @@ impl UniswapV3PoolVirtual {
 
         // Initialize a mutable state state struct to hold the dynamic simulated state of the pool
         let mut current_state = CurrentState {
-            sqrt_price_x_96: slot0.sqrtPriceX96,                   //Active price on the pool
+            sqrt_price_x_96: slot0.sqrtPriceX96.to(),              //Active price on the pool
             amount_calculated: I256::ZERO,                         //Amount of token_out that has been calculated
             amount_specified_remaining: I256::from_raw(amount_in), //Amount of token_in that has not been swapped
-            tick: slot0.tick,                                      //Current i24 tick of the pool
+            tick: slot0.tick.as_i32(),                             //Current i24 tick of the pool
             liquidity,                                             //Current available liquidity in the tick range
         };
 
@@ -175,7 +175,7 @@ impl UniswapV3PoolVirtual {
             if current_state.sqrt_price_x_96 == step.sqrt_price_next_x96 {
                 if step.initialized {
                     let mut liquidity_net: i128 =
-                        if let Ok(liqnet) = UniswapV3DBReader::ticks_liquidity_net(db, pool_address, step.tick_next) { liqnet } else { 0 };
+                        UniswapV3DBReader::ticks_liquidity_net(db, pool_address, step.tick_next).unwrap_or_default();
 
                     // we are on a tick boundary, and the next tick is initialized, so we must charge a protocol fee
                     if zero_for_one {
@@ -229,10 +229,10 @@ impl UniswapV3PoolVirtual {
 
         // Initialize a mutable state state struct to hold the dynamic simulated state of the pool
         let mut current_state = CurrentState {
-            sqrt_price_x_96: slot0.sqrtPriceX96,                     //Active price on the pool
+            sqrt_price_x_96: slot0.sqrtPriceX96.to(),                //Active price on the pool
             amount_calculated: I256::ZERO,                           //Amount of token_out that has been calculated
             amount_specified_remaining: -I256::from_raw(amount_out), //Amount of token_in that has not been swapped
-            tick: slot0.tick,                                        //Current i24 tick of the pool
+            tick: slot0.tick.as_i32(),                               //Current i24 tick of the pool
             liquidity,                                               //Current available liquidity in the tick range
         };
 
@@ -300,7 +300,7 @@ impl UniswapV3PoolVirtual {
             if current_state.sqrt_price_x_96 == step.sqrt_price_next_x96 {
                 if step.initialized {
                     let mut liquidity_net: i128 =
-                        if let Ok(liqnet) = UniswapV3DBReader::ticks_liquidity_net(db, pool_address, step.tick_next) { liqnet } else { 0 };
+                        UniswapV3DBReader::ticks_liquidity_net(db, pool_address, step.tick_next).unwrap_or_default();
 
                     // we are on a tick boundary, and the next tick is initialized, so we must charge a protocol fee
                     if zero_for_one {
