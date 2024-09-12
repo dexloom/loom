@@ -18,6 +18,7 @@ use defi_blockchain::Blockchain;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{PoolClass, TxSigners};
 use eyre::{eyre, Result};
+use flashbots::client::RelayConfig;
 use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
 use loom_multicaller::MulticallerSwapEncoder;
@@ -34,6 +35,7 @@ pub struct BlockchainActors<P, T> {
     has_state_update: bool,
     has_signers: bool,
     mutlicaller_address: Option<Address>,
+    relays: Vec<RelayConfig>,
     _t: PhantomData<T>,
 }
 
@@ -42,7 +44,7 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(provider: P, bc: Blockchain) -> Self {
+    pub fn new(provider: P, bc: Blockchain, relays: Vec<RelayConfig>) -> Self {
         Self {
             provider,
             bc,
@@ -53,6 +55,7 @@ where
             has_state_update: false,
             has_signers: false,
             mutlicaller_address: None,
+            relays,
             _t: PhantomData,
         }
     }
@@ -264,7 +267,11 @@ where
 
     /// Starts flashbots broadcaster
     pub fn with_flashbots_broadcaster(&mut self, smart: bool) -> Result<&mut Self> {
-        let flashbots = Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays();
+        let flashbots = match self.relays.is_empty() {
+            true => Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays(),
+            false => Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_relays(self.relays.clone()),
+        };
+
         self.actor_manager.start(FlashbotsBroadcastActor::new(flashbots, smart).on_bc(&self.bc))?;
         Ok(self)
     }

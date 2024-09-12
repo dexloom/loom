@@ -56,7 +56,7 @@ async fn main() -> Result<()> {
     required_state.add_call(WETH_ADDRESS, EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS));
 
     // instead fo code above
-    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone());
+    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), vec![]);
     bc_actors
         .with_nonce_and_balance_monitor_only_events()?
         .initialize_signers_with_anvil()?

@@ -231,7 +231,7 @@ async fn collect_stat_task(
 ) -> Result<()> {
     let bc = Blockchain::new(1);
 
-    let mut bc_actors = BlockchainActors::new(provider, bc.clone());
+    let mut bc_actors = BlockchainActors::new(provider, bc.clone(), vec![]);
     if grps {
         bc_actors.with_exex_events()?;
     } else {
