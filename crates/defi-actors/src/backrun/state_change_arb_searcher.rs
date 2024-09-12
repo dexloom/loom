@@ -12,7 +12,7 @@ use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;
-use defi_entities::{GasStation, Market, PoolWrapper, Swap, SwapLine, SwapPath};
+use defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxComposeData};
 use defi_types::SwapError;
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
@@ -101,7 +101,7 @@ async fn state_change_arb_searcher_task(
                             if let Ok(profit) = mut_item.profit() {
                                 if profit.is_positive()
                                     && msg.gas_fee != 0
-                                    && mut_item.abs_profit_eth() > GasStation::calc_gas_cost(200000u128, msg.gas_fee)
+                                    && mut_item.abs_profit_eth() > U256::from(200000u128 * msg.gas_fee)
                                 {
                                     if let Err(e) = swap_path_tx.try_send(mut_item.clone()) {
                                         error!("try_send swap_path_tx  error : {e}")

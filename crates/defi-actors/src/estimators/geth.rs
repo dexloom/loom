@@ -13,7 +13,6 @@ use rand::random;
 use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;
-use defi_entities::GasStation;
 use loom_utils::NWETH;
 
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
@@ -63,7 +62,7 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
 
     let gas_price = estimate_request.priority_gas_fee + estimate_request.gas_fee;
 
-    if GasStation::calc_gas_cost(200_000, gas_price) > profit_eth {
+    if U256::from(200_000 * gas_price) > profit_eth {
         error!("Profit is too small");
         return Err(eyre!("TOO_SMALL_PROFIT"));
     }
@@ -110,7 +109,7 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
                     let swap = estimate_request.swap.clone();
 
                     tx_request.access_list = Some(access_list.clone());
-                    let gas_cost = GasStation::calc_gas_cost(gas, gas_price);
+                    let gas_cost = U256::from(gas * gas_price);
                     if gas_cost < profit_eth {
                         let rnd: u32 = random::<u32>() % 100;
                         let tips_pct = estimate_request.tips_pct.unwrap_or(8000);

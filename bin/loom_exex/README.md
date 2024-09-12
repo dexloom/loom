@@ -13,7 +13,6 @@ let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), vec![]);
 
         .initialize_signers_with_encrypted_key(private_key_encrypted).await? // initialize signer with encrypted key
         .with_block_history().await? // collect blocks
-        .with_gas_station().await? // gas station - calculates next block basefee
         .with_health_monitor_pools().await? // monitor pools health to disable empty
         .with_health_monitor_state().await? // monitor state health
         .with_health_monitor_stuffing_tx().await? // collect stuffing tx information

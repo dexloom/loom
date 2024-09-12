@@ -5,7 +5,6 @@ extern crate core;
 pub use account_nonce_balance::{AccountNonceAndBalanceState, AccountNonceAndBalances};
 pub use block_history::{BlockHistory, BlockHistoryEntry};
 pub use datafetcher::{DataFetcher, FetchState};
-pub use gas_station::GasStation;
 pub use keystore::KeyStore;
 pub use latest_block::LatestBlock;
 pub use market::Market;
@@ -29,7 +28,6 @@ mod swappath;
 mod token;
 
 pub mod account_nonce_balance;
-mod gas_station;
 pub mod required_state;
 mod swappath_builder;
 mod swapstep;

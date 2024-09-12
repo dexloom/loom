@@ -1,51 +1,46 @@
 use std::sync::Arc;
 
 use alloy_primitives::{Address, BlockHash, BlockNumber};
-use alloy_rpc_types::{Block, Header};
-use eyre::Result;
-use log::{debug, error, info, trace};
-use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
-
+use alloy_rpc_types::Block;
 use defi_blockchain::Blockchain;
 use defi_entities::{BlockHistory, LatestBlock, MarketState};
-use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents};
-use defi_types::ChainParameters;
-use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MessageBlockHeader};
+use eyre::Result;
+use log::{debug, error, info, trace};
+use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomInMemoryDB;
+use tokio::sync::broadcast::error::RecvError;
 
 #[allow(clippy::too_many_arguments)]
 pub async fn new_block_history_worker(
-    chain_parameters: ChainParameters,
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState>,
     block_history: SharedState<BlockHistory>,
-    block_header_update_rx: Broadcaster<Header>,
+    block_header_update_rx: Broadcaster<MessageBlockHeader>,
     block_update_rx: Broadcaster<Block>,
     log_update_rx: Broadcaster<BlockLogs>,
     state_update_rx: Broadcaster<BlockStateUpdate>,
     sender: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    let mut block_header_update_rx: Receiver<Header> = block_header_update_rx.subscribe().await;
-    let mut block_update_rx: Receiver<Block> = block_update_rx.subscribe().await;
-    let mut log_update_rx: Receiver<BlockLogs> = log_update_rx.subscribe().await;
-    let mut state_update_rx: Receiver<BlockStateUpdate> = state_update_rx.subscribe().await;
+    subscribe!(block_header_update_rx);
+    subscribe!(block_update_rx);
+    subscribe!(log_update_rx);
+    subscribe!(state_update_rx);
 
     loop {
         tokio::select! {
             msg = block_header_update_rx.recv() => {
                 debug!("Block Header Update");
-                let block_update : Result<Header, RecvError>  = msg;
+                let block_update : Result<MessageBlockHeader, RecvError>  = msg;
                 match block_update {
                     Ok(block_header)=>{
+                        let next_base_fee = block_header.inner.next_block_base_fee;
+                        let block_header = block_header.inner.header;
                         let block_hash : BlockHash = block_header.hash;
                         let block_number : BlockNumber = block_header.number;
                         let timestamp : u64 = block_header.timestamp;
                         let base_fee: u128 = block_header.base_fee_per_gas.unwrap_or_default();
-
-
-                        let next_base_fee : u128 = chain_parameters.calc_next_block_base_fee(block_header.gas_used, block_header.gas_limit, block_header.base_fee_per_gas.unwrap_or_default());
 
                         match block_history.write().await.add_block_header(block_header.clone()) {
                             Ok(_) => {
@@ -55,7 +50,7 @@ pub async fn new_block_history_worker(
                                     block_hash,
                                     timestamp,
                                     base_fee,
-                                    next_base_fee}).await.unwrap();
+                                    next_base_fee}).await?;
                             }
                             Err(e)=>{
                                 error!("block_header_update add_block error {} {} {} ", e, block_number, block_hash);
@@ -232,9 +227,8 @@ pub async fn new_block_history_worker(
     }
 }
 
-#[derive(Accessor, Consumer, Producer)]
+#[derive(Accessor, Consumer, Producer, Default)]
 pub struct BlockHistoryActor {
-    chain_parameters: ChainParameters,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[accessor]
@@ -242,7 +236,7 @@ pub struct BlockHistoryActor {
     #[accessor]
     block_history: Option<SharedState<BlockHistory>>,
     #[consumer]
-    block_header_update_rx: Option<Broadcaster<Header>>,
+    block_header_update_rx: Option<Broadcaster<MessageBlockHeader>>,
     #[consumer]
     block_update_rx: Option<Broadcaster<Block>>,
     #[consumer]
@@ -255,12 +249,11 @@ pub struct BlockHistoryActor {
 
 impl BlockHistoryActor {
     pub fn new() -> Self {
-        Self { chain_parameters: ChainParameters::ethereum(), ..Self::default() }
+        Self::default()
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
-            chain_parameters: bc.chain_parameters(),
             latest_block: Some(bc.latest_block()),
             market_state: Some(bc.market_state()),
             block_history: Some(bc.block_history()),
@@ -273,26 +266,9 @@ impl BlockHistoryActor {
     }
 }
 
-impl Default for BlockHistoryActor {
-    fn default() -> Self {
-        BlockHistoryActor {
-            chain_parameters: ChainParameters::ethereum(),
-            latest_block: None,
-            market_state: None,
-            block_history: None,
-            block_header_update_rx: None,
-            block_update_rx: None,
-            log_update_rx: None,
-            state_update_rx: None,
-            market_events_tx: None,
-        }
-    }
-}
-
 impl Actor for BlockHistoryActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_block_history_worker(
-            self.chain_parameters.clone(),
             self.latest_block.clone().unwrap(),
             self.market_state.clone().unwrap(),
             self.block_history.clone().unwrap(),

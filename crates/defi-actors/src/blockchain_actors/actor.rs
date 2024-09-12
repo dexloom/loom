@@ -3,9 +3,9 @@ use std::sync::Arc;
 
 use crate::backrun::BlockStateChangeProcessorActor;
 use crate::{
-    ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GasStationActor,
-    GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor,
-    NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
+    ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GethEstimatorActor,
+    HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor,
+    NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
     PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, RequiredPoolLoaderActor,
     SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
 };
@@ -189,12 +189,6 @@ where
         Ok(self)
     }
 
-    /// Starts gas station
-    pub fn with_gas_station(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(GasStationActor::new().on_bc(&self.bc))?;
-        Ok(self)
-    }
-
     /// Starts token price calculator
     pub fn with_price_station(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(PriceActor::new(self.provider.clone()).on_bc(&self.bc))?;
@@ -227,7 +221,7 @@ where
     pub fn mempool(&mut self) -> Result<&mut Self> {
         if !self.has_mempool {
             self.has_mempool = true;
-            self.actor_manager.start(MempoolActor::new(self.bc.chain_parameters()).on_bc(&self.bc))?;
+            self.actor_manager.start(MempoolActor::new().on_bc(&self.bc))?;
         }
         Ok(self)
     }

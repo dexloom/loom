@@ -63,7 +63,6 @@ async fn main() -> Result<()> {
         .with_market_state_preloader_virtual(vec![])?
         .with_preloaded_state(vec![(POOL_ADDRESS, PoolClass::UniswapV3)], Some(required_state))?
         .with_block_history()?
-        .with_gas_station()?
         .with_swap_encoder(None)?
         .with_evm_estimator()?;
 
@@ -84,15 +83,14 @@ async fn main() -> Result<()> {
     let market = bc.market();
     let market_state = bc.market_state();
 
-    let gas_station = bc.gas_station();
-
     let mut cur_header: Header = Header::default();
 
     loop {
         select! {
             header = header_sub.recv() => {
                 match header{
-                    Ok(header)=>{
+                    Ok(message_header)=>{
+                        let header = message_header.inner.header;
                         info!("Block header received : {} {}", header.number, header.hash);
                         cur_header = header.clone();
 
@@ -104,7 +102,7 @@ async fn main() -> Result<()> {
 
                             let tx_compose_encode_msg = MessageTxCompose::encode(
                                 TxComposeData{
-                                    gas_fee : gas_station.read().await.get_next_base_fee(),
+                                    gas_fee : message_header.inner.next_block_base_fee,
                                     poststate : Some(Arc::new(market_state.read().await.state_db.clone())),
                                     swap : Swap::ExchangeSwapLine(swap_line),
                                     ..TxComposeData::default()

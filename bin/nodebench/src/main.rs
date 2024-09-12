@@ -252,8 +252,8 @@ async fn collect_stat_task(
             header = block_header_subscription.recv() => {
                 match header {
                     Ok(header)=>{
-                        let block_number = header.number;
-                        let block_hash = header.hash;
+                        let block_number = header.inner.header.number;
+                        let block_hash = header.inner.header.hash;
                         stat.write().await.blocks.insert(block_hash, block_number);
 
                         blocks_counter += 1;
