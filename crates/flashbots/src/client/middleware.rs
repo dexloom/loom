@@ -39,6 +39,7 @@ pub enum FlashbotsMiddlewareError {
     MiddlewareError(#[from] RpcError<TransportErrorKind>),
 }
 
+#[derive(Clone)]
 pub struct FlashbotsMiddleware<P, T> {
     provider: P,
     relay: Relay,

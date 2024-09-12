@@ -100,7 +100,7 @@ impl Topology {
         }
 
         for (k, params) in config.blockchains.iter() {
-            let blockchain = Blockchain::new(params.chain_id.unwrap_or(1));
+            let blockchain = Blockchain::new(params.chain_id.unwrap_or(1) as u64);
 
             info!("Starting block history actor {k}");
             let mut block_history_actor = BlockHistoryActor::new();

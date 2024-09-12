@@ -10,9 +10,7 @@ fn main() -> eyre::Result<()> {
     reth::cli::Cli::parse_args().run(|builder, _| async move {
         let topology_config = TopologyConfig::load_from_file("config.toml".to_string())?;
 
-        let chain_id = builder.config().chain.chain.id();
-        let bc = Blockchain::new(chain_id as i64);
-
+        let bc = Blockchain::new(builder.config().chain.chain.id());
         let bc_clone = bc.clone();
 
         let handle = builder

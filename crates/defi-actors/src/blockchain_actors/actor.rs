@@ -28,7 +28,7 @@ use loom_utils::NWETH;
 pub struct BlockchainActors<P, T> {
     provider: P,
     bc: Blockchain,
-    signers: SharedState<TxSigners>,
+    pub signers: SharedState<TxSigners>,
     actor_manager: ActorsManager,
     encoder: Option<MulticallerSwapEncoder>,
     has_mempool: bool,
@@ -64,10 +64,18 @@ where
         self.actor_manager.wait().await
     }
 
-    /// Start an actor
-    pub fn start(&mut self, actor: impl Actor + 'static) -> Result<()> {
-        self.actor_manager.start(actor)
+    /// Start a custom actor
+    pub fn start(&mut self, actor: impl Actor + 'static) -> Result<&mut Self> {
+        self.actor_manager.start(actor)?;
+        Ok(self)
     }
+
+    /// Start a custom actor and wait for it to finish
+    pub fn start_and_wait(&mut self, actor: impl Actor + Send + Sync + 'static) -> Result<&mut Self> {
+        self.actor_manager.start_and_wait(actor)?;
+        Ok(self)
+    }
+
     /// Initialize signers with the default anvil Private Key
     pub fn initialize_signers_with_anvil(&mut self) -> Result<&mut Self> {
         let key: B256 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".parse()?;
@@ -84,6 +92,17 @@ where
         self.with_signers()?;
         Ok(self)
     }
+
+    /// Initialize signers with multiple private keys
+    pub fn initialize_signers_with_keys(&mut self, keys: Vec<Vec<u8>>) -> Result<&mut Self> {
+        for key in keys {
+            self.actor_manager
+                .start_and_wait(InitializeSignersOneShotActor::new(Some(key)).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        }
+        self.with_signers()?;
+        Ok(self)
+    }
+
     /// Initialize signers with encrypted private key
     pub fn initialize_signers_with_encrypted_key(&mut self, key: Vec<u8>) -> Result<&mut Self> {
         self.actor_manager.start_and_wait(
@@ -196,16 +215,14 @@ where
     }
 
     /// Starts receiving blocks events through RPC
-    pub fn with_block_events(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(NodeBlockActor::new(self.provider.clone(), NodeBlockActorConfig::all_enabled()).on_bc(&self.bc))?;
+    pub fn with_block_events(&mut self, config: NodeBlockActorConfig) -> Result<&mut Self> {
+        self.actor_manager.start(NodeBlockActor::new(self.provider.clone(), config).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Starts receiving blocks events through direct Reth DB access
-    pub fn reth_node_with_blocks(&mut self, db_path: String) -> Result<&mut Self> {
-        self.actor_manager.start(
-            NodeBlockActor::new(self.provider.clone(), NodeBlockActorConfig::all_enabled()).on_bc(&self.bc).with_reth_db(Some(db_path)),
-        )?;
+    pub fn reth_node_with_blocks(&mut self, db_path: String, config: NodeBlockActorConfig) -> Result<&mut Self> {
+        self.actor_manager.start(NodeBlockActor::new(self.provider.clone(), config).on_bc(&self.bc).with_reth_db(Some(db_path)))?;
         Ok(self)
     }
 

@@ -15,7 +15,7 @@ use eyre::{eyre, Result};
 use futures::future::join_all;
 use tokio::{select, sync::RwLock, task::JoinHandle};
 
-use defi_actors::BlockchainActors;
+use defi_actors::{BlockchainActors, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
 use defi_events::MempoolEvents;
 
@@ -235,7 +235,7 @@ async fn collect_stat_task(
     if grps {
         bc_actors.with_exex_events()?;
     } else {
-        bc_actors.with_block_events()?.with_local_mempool_events()?;
+        bc_actors.with_block_events(NodeBlockActorConfig::all_enabled())?.with_local_mempool_events()?;
     }
 
     let mut blocks_counter: usize = 0;
