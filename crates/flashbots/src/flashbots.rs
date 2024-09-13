@@ -14,6 +14,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use url::Url;
 
+#[derive(Clone)]
 pub struct FlashbotsClient<P, T> {
     pub flashbots_middleware: FlashbotsMiddleware<P, T>,
     pub name: String,

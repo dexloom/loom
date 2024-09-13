@@ -1,3 +1,4 @@
+use alloy::primitives::ChainId;
 use alloy::{
     primitives::{Address, BlockHash},
     rpc::types::Block,
@@ -12,7 +13,7 @@ use loom_actors::{Broadcaster, SharedState};
 
 #[derive(Clone)]
 pub struct Blockchain {
-    chain_id: i64,
+    chain_id: ChainId,
     chain_parameters: ChainParameters,
     market: SharedState<Market>,
     latest_block: SharedState<LatestBlock>,
@@ -34,7 +35,7 @@ pub struct Blockchain {
 }
 
 impl Blockchain {
-    pub fn new(chain_id: i64) -> Blockchain {
+    pub fn new(chain_id: ChainId) -> Blockchain {
         let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
         let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
@@ -93,7 +94,7 @@ impl Blockchain {
         }
     }
 
-    pub fn chain_id(&self) -> i64 {
+    pub fn chain_id(&self) -> u64 {
         self.chain_id
     }
 
