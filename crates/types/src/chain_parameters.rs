@@ -15,3 +15,12 @@ impl ChainParameters {
         self.base_fee_params.next_block_base_fee(gas_used, gas_limit, base_fee)
     }
 }
+
+impl From<u64> for ChainParameters {
+    fn from(chain_id: u64) -> Self {
+        match chain_id {
+            1 => ChainParameters::ethereum(),
+            _ => unimplemented!(),
+        }
+    }
+}

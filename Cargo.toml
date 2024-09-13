@@ -37,8 +37,6 @@ flashbots = { path = "crates/flashbots" }
 debug-provider = { path = "crates/debug-provider" }
 uniswap_v3_math = { path = "crates/uniswap-v3-math" }
 
-
-
 tokio = { version = "1.37.0", features = ["full"] }
 tokio-stream = "0.1.15"
 tonic = "0.12"
@@ -69,7 +67,6 @@ thiserror = "^1.0.61"
 colored = "2.0.4"
 indexmap = "2.5.0"
 
-
 revm = { version = "14.0.1", features = [
     "std",
     "secp256k1",
@@ -78,34 +75,24 @@ revm = { version = "14.0.1", features = [
 revm-primitives = { version = "9.0.1", features = [
     "std",
 ], default-features = false }
-revm-inspectors = "0.6.0"
-
-
+revm-inspectors = "0.7"
 
 alloy-core = "0.8.3"
-
-
 alloy-chains = "0.1.30"
 alloy-primitives = { version = "0.8.3", features = ["rand"] }
 alloy-dyn-abi = { version = "0.8.3", features = ["json", "std"] }
-alloy-sol-types-parser = { version = "0.8.3", features = ["json", "std"] }
 alloy-sol-types = { version = "0.8.3", features = ["json"] }
 alloy-sol-macro = { version = "0.8.3", features = ["json"] }
 
 alloy-rlp = "0.3.8"
-alloy-trie = "0.4.1"
-
+alloy-trie = "0.5"
 
 alloy = { version = "0.3.3", features = ["full", "serde", "consensus", "node-bindings", "rpc-types-anvil", "rpc-types-trace", "json-rpc", "rpc-types-json", "rand", "rlp"] }
 
 alloy-serde = "0.3.3"
-
 alloy-contract = "0.3.3"
 alloy-consensus = "0.3.3"
 alloy-eips = "0.3.3"
-
-
-
 alloy-provider = { version = "0.3.3", features = ["reqwest", "pubsub", "ws", "ipc", "debug-api", "anvil-node", "anvil-api"] }
 alloy-json-rpc = "0.3.3"
 alloy-network = "0.3.3"
@@ -148,12 +135,6 @@ reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth" }
 example-exex-remote = { git = "https://github.com/dexloom/reth-exex-grpc" }
 #example-exex-remote = { path = "../reth-exex-grpc" }
 
-
-
-tower = "0.4.13"
+tower = "0.5.1"
 
 criterion = { version = "0.5.1", features = ["async_tokio"] }
-
-
-[patch.crates-io]
-#alloy-node-bindings = { git = "https://github.com/alloy-rs/alloy", rev = "2be7dde" }
