@@ -48,3 +48,7 @@ serde.workspace = true
 [build-dependencies]
 rand.workspace = true
 hex.workspace = true
+
+[dev-dependencies]
+alloy-node-bindings.workspace = true
+alloy-rpc-client.workspace = true

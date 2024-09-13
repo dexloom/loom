@@ -99,9 +99,8 @@ impl BlockHistory {
         BlockHistory { depth, latest_block_number: 0, block_entries: HashMap::new(), block_numbers: HashMap::new() }
     }
 
-    pub async fn init<P, T, N>(client: P, current_state: Arc<RwLock<MarketState>>, depth: usize) -> Result<BlockHistory>
+    pub async fn init<P, T>(client: P, current_state: Arc<RwLock<MarketState>>, depth: usize) -> Result<BlockHistory>
     where
-        N: Network,
         T: Transport + Clone,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     {
@@ -154,9 +153,9 @@ impl BlockHistory {
     {
         let entry = match self.get_entry(&block_hash) {
             Some(entry) => entry,
-            None => Self::fetch_entry(client, block_hash).await?,
+            None => &Self::fetch_entry(client, block_hash).await?,
         };
-        let parent_entry = self.get_or_fetch_entry();
+        //let parent_entry = self.get_or_fetch_entry();
         Ok(())
     }
 
@@ -190,8 +189,6 @@ impl BlockHistory {
 
     fn check_reorg_at_block(&mut self, block_number: BlockNumber) -> Option<BlockHash> {
         if let Some(block_hash) = self.get_block_hash_for_block_number(block_number) {
-            let entry = self.get_or_insert_entry();
-
             None
         } else {
             None
@@ -284,15 +281,15 @@ impl BlockHistory {
         }
     }
 
-    pub fn get_or_fetch_entry<P, T>(&mut self, client: P, block_hash: BlockHash) -> Result<&BlockHistoryEntry>
+    pub async fn get_or_fetch_entry<P, T>(&mut self, client: P, block_hash: BlockHash) -> Result<BlockHistoryEntry>
     where
         T: Transport + Clone,
-        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+        P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     {
         if let Some(entry) = self.get_entry(&block_hash) {
-            Ok(entry)
+            Ok(entry.clone())
         } else {
-            Ok(Self::fetch_entry(client, block_hash)?)
+            Ok(Self::fetch_entry(client, block_hash).await?)
         }
     }
 
@@ -305,14 +302,21 @@ impl BlockHistory {
     }
 
     pub fn get_block_hash_for_block_number(&self, block_number: BlockNumber) -> Option<BlockHash> {
-        *self.block_numbers.get(&block_number)
+        self.block_numbers.get(&block_number).cloned()
     }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use alloy_node_bindings::{Anvil, AnvilInstance};
     use alloy_primitives::U256;
+    use alloy_provider::ext::AnvilApi;
+    use alloy_provider::layers::AnvilProvider;
+    use alloy_provider::ProviderBuilder;
+    use alloy_rpc_client::ClientBuilder;
+    use alloy_rpc_types::BlockNumberOrTag;
+    use debug_provider::AnvilProviderExt;
 
     fn create_next_header(parent: &Header, child_id: u64) -> Header {
         let number = parent.number + 1;
@@ -380,5 +384,49 @@ mod test {
         assert_eq!(block_history.latest_block_number, 4);
         assert_eq!(block_history.block_numbers[&3], BlockHash::from(U256::from(0x010304)));
         assert_eq!(block_history.block_numbers[&4], BlockHash::from(U256::from(0x01030404)));
+    }
+
+    #[tokio::test]
+    async fn test_with_anvil() -> Result<()> {
+        let anvil = Anvil::new().try_spawn()?;
+        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url()).boxed();
+
+        let provider = ProviderBuilder::new().on_client(client_anvil);
+
+        provider.anvil_set_auto_mine(false).await?;
+
+        let block_number_0 = provider.get_block_number().await?;
+
+        let block_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+
+        let market_state = Arc::new(RwLock::new(MarketState::new(LoomInMemoryDB::default())));
+
+        let mut block_history = BlockHistory::init(provider.clone(), market_state.clone(), 10).await?;
+
+        let snap = provider.anvil_snapshot().await?;
+
+        provider.anvil_mine(Some(U256::from(1)), None).await?;
+
+        let block_number_2 = provider.get_block_number().await?;
+        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+
+        assert_eq!(block_number_2, block_number_0 + 1);
+        assert_eq!(block_2.header.parent_hash, block_0.header.hash);
+
+        block_history.add_block_header(block_2.header.clone())?;
+
+        let mut entry_2 = block_history.get_or_fetch_entry(provider.clone(), block_2.header.hash).await?;
+        entry_2.fetch(provider.clone()).await?;
+
+        assert_eq!(entry_2.is_fetched(), true);
+
+        provider.revert(snap.to()).await?;
+        let block_number_2 = provider.get_block_number().await?;
+        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+
+        assert_eq!(block_number_2, block_number_0);
+        assert_eq!(block_2.header.hash, block_0.header.hash);
+
+        Ok(())
     }
 }
