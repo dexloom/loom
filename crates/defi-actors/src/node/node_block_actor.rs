@@ -35,24 +35,36 @@ where
     let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
 
     if let Some(channel) = new_block_with_tx_channel {
-        tasks.push(tokio::task::spawn(new_block_with_tx_worker(client.clone(), new_block_hash_channel.clone(), channel)));
+        tasks.push(tokio::task::Builder::new().name("NodeBlockWithTxWorker").spawn(new_block_with_tx_worker(
+            client.clone(),
+            new_block_hash_channel.clone(),
+            channel,
+        ))?);
     }
 
     if let Some(channel) = new_block_headers_channel {
-        tasks.push(tokio::task::spawn(new_node_block_header_worker(
+        tasks.push(tokio::task::Builder::new().name("NodeBlockHeaderWorker").spawn(new_node_block_header_worker(
             client.clone(),
             chain_parameters,
             new_block_hash_channel.clone(),
             channel,
-        )));
+        ))?);
     }
 
     if let Some(channel) = new_block_logs_channel {
-        tasks.push(tokio::task::spawn(new_node_block_logs_worker(client.clone(), new_block_hash_channel.clone(), channel)));
+        tasks.push(tokio::task::Builder::new().name("NodeBlockLogsWorker").spawn(new_node_block_logs_worker(
+            client.clone(),
+            new_block_hash_channel.clone(),
+            channel,
+        ))?);
     }
 
     if let Some(channel) = new_block_state_update_channel {
-        tasks.push(tokio::task::spawn(new_node_block_state_worker(client.clone(), new_block_hash_channel.clone(), channel)));
+        tasks.push(tokio::task::Builder::new().name("NodeBlockStateWorker").spawn(new_node_block_state_worker(
+            client.clone(),
+            new_block_hash_channel.clone(),
+            channel,
+        ))?);
     }
 
     Ok(tasks)

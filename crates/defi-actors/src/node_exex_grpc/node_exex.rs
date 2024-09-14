@@ -54,7 +54,7 @@ impl NodeExExGrpcActor {
 
 impl Actor for NodeExExGrpcActor {
     fn start(&self) -> ActorResult {
-        let handler = tokio::task::spawn(node_exex_grpc_worker(
+        let handler = tokio::task::Builder::new().name(self.name()).spawn(node_exex_grpc_worker(
             self.chain_parameters.clone(),
             Some(self.url.clone()),
             self.block_header_channel.clone().unwrap(),
@@ -62,7 +62,7 @@ impl Actor for NodeExExGrpcActor {
             self.block_logs_channel.clone().unwrap(),
             self.block_state_update_channel.clone().unwrap(),
             self.mempool_update_channel.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![handler])
     }
 

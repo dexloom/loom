@@ -370,7 +370,7 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(pending_tx_state_change_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(pending_tx_state_change_worker(
             self.client.clone(),
             self.market.clone().unwrap(),
             self.mempool.clone().unwrap(),
@@ -379,7 +379,7 @@ where
             self.mempool_events_rx.clone().unwrap(),
             self.market_events_rx.clone().unwrap(),
             self.state_updates_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

@@ -252,12 +252,12 @@ where
 
 impl<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P, T> {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(estimator_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(estimator_worker(
             self.client.clone(),
             self.encoder.clone(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

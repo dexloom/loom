@@ -113,7 +113,9 @@ where
     P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(anvil_broadcaster_worker(self.client.clone(), self.tx_compose_rx.clone().unwrap()));
+        let task = tokio::task::Builder::new()
+            .name(self.name())
+            .spawn(anvil_broadcaster_worker(self.client.clone(), self.tx_compose_rx.clone().unwrap()))?;
         Ok(vec![task])
     }
 

@@ -114,12 +114,12 @@ impl BlockStateChangeProcessorActor {
 
 impl Actor for BlockStateChangeProcessorActor {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(block_state_change_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(block_state_change_worker(
             self.market.clone().unwrap(),
             self.block_history.clone().unwrap(),
             self.market_events_rx.clone().unwrap(),
             self.state_updates_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

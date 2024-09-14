@@ -220,11 +220,11 @@ where
             }
         }
 
-        let monitor_task = tokio::task::spawn(nonce_and_balance_monitor_worker(
+        let monitor_task = tokio::task::Builder::new().name(self.name()).spawn(nonce_and_balance_monitor_worker(
             self.accounts_nonce_and_balance.clone().unwrap(),
             self.block_history.clone().unwrap(),
             self.market_events.clone().unwrap(),
-        ));
+        ))?;
         handles.push(monitor_task);
 
         Ok(handles)

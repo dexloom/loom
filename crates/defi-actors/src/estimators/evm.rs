@@ -244,11 +244,11 @@ impl EvmEstimatorActor {
 
 impl Actor for EvmEstimatorActor {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(estimator_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(estimator_worker(
             self.encoder.clone(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
     fn name(&self) -> &'static str {

@@ -112,8 +112,9 @@ impl TxSignersActor {
 
 impl Actor for TxSignersActor {
     fn start(&self) -> ActorResult {
-        let task =
-            tokio::task::spawn(request_listener_worker(self.compose_channel_rx.clone().unwrap(), self.compose_channel_tx.clone().unwrap()));
+        let task = tokio::task::Builder::new()
+            .name(self.name())
+            .spawn(request_listener_worker(self.compose_channel_rx.clone().unwrap(), self.compose_channel_tx.clone().unwrap()))?;
 
         Ok(vec![task])
     }

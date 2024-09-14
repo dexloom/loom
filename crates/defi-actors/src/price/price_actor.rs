@@ -147,7 +147,11 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(price_worker(self.client.clone(), self.market.clone().unwrap(), self.only_once));
+        let task = tokio::task::Builder::new().name(self.name()).spawn(price_worker(
+            self.client.clone(),
+            self.market.clone().unwrap(),
+            self.only_once,
+        ))?;
         Ok(vec![task])
     }
 

@@ -391,14 +391,14 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(same_path_merger_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(same_path_merger_worker(
             self.client.clone(),
             self.latest_block.clone().unwrap(),
             self.market_state.clone().unwrap(),
             self.market_events.clone().unwrap(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

@@ -105,13 +105,13 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(required_pools_loader_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(required_pools_loader_worker(
             self.client.clone(),
             self.pools.clone(),
             self.required_state.clone(),
             self.market.clone().unwrap(),
             self.market_state.clone().unwrap(),
-        ));
+        ))?;
 
         Ok(vec![task])
     }

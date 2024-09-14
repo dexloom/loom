@@ -78,8 +78,9 @@ impl PoolHealthMonitorActor {
 
 impl Actor for PoolHealthMonitorActor {
     fn start(&self) -> ActorResult {
-        let task =
-            tokio::task::spawn(pool_health_monitor_worker(self.market.clone().unwrap(), self.pool_health_update_rx.clone().unwrap()));
+        let task = tokio::task::Builder::new()
+            .name(self.name())
+            .spawn(pool_health_monitor_worker(self.market.clone().unwrap(), self.pool_health_update_rx.clone().unwrap()))?;
         Ok(vec![task])
     }
 

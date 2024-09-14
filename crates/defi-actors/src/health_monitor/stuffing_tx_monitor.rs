@@ -155,12 +155,12 @@ where
     P: Provider + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(stuffing_tx_monitor_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(stuffing_tx_monitor_worker(
             self.client.clone(),
             self.latest_block.clone().unwrap(),
             self.tx_compose_channel_rx.clone().unwrap(),
             self.market_events_rx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

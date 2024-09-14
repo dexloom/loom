@@ -257,13 +257,13 @@ impl StateChangeArbSearcherActor {
 
 impl Actor for StateChangeArbSearcherActor {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(state_change_arb_searcher_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(state_change_arb_searcher_worker(
             self.smart,
             self.market.clone().unwrap(),
             self.state_update_rx.clone().unwrap(),
             self.compose_tx.clone().unwrap(),
             self.pool_health_monitor_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

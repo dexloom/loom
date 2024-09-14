@@ -129,8 +129,11 @@ where
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task =
-            tokio::task::spawn(flashbots_broadcaster_worker(self.client.clone(), self.smart, self.tx_compose_channel_rx.clone().unwrap()));
+        let task = tokio::task::Builder::new().name(self.name()).spawn(flashbots_broadcaster_worker(
+            self.client.clone(),
+            self.smart,
+            self.tx_compose_channel_rx.clone().unwrap(),
+        ))?;
         Ok(vec![task])
     }
 

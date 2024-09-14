@@ -201,13 +201,13 @@ impl ArbSwapPathMergerActor {
 
 impl Actor for ArbSwapPathMergerActor {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(arb_swap_path_merger_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(arb_swap_path_merger_worker(
             self.encoder.clone(),
             self.latest_block.clone().unwrap(),
             self.market_events.clone().unwrap(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

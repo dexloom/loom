@@ -196,13 +196,13 @@ impl MempoolActor {
 
 impl Actor for MempoolActor {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(new_mempool_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(new_mempool_worker(
             self.mempool.clone().unwrap(),
             self.mempool_update_rx.clone().unwrap(),
             self.block_header_rx.clone().unwrap(),
             self.block_with_txs_rx.clone().unwrap(),
             self.mempool_events_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

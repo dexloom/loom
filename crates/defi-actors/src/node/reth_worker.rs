@@ -243,7 +243,7 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    let handler = tokio::task::spawn(reth_node_worker(
+    let handler = tokio::task::Builder::new().name("NodeBlockRethActor").spawn(reth_node_worker(
         client,
         chain_parameters,
         db_path.clone(),
@@ -251,6 +251,6 @@ where
         new_block_with_tx_channel,
         new_block_logs_channel,
         new_block_state_update_channel,
-    ));
+    ))?;
     Ok(vec![handler])
 }

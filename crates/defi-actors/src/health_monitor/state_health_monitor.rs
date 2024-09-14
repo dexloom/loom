@@ -152,12 +152,12 @@ where
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(state_health_monitor_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(state_health_monitor_worker(
             self.client.clone(),
             self.market_state.clone().unwrap(),
             self.tx_compose_channel_rx.clone().unwrap(),
             self.market_events_rx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

@@ -268,7 +268,7 @@ impl BlockHistoryActor {
 
 impl Actor for BlockHistoryActor {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(new_block_history_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(new_block_history_worker(
             self.latest_block.clone().unwrap(),
             self.market_state.clone().unwrap(),
             self.block_history.clone().unwrap(),
@@ -277,7 +277,7 @@ impl Actor for BlockHistoryActor {
             self.log_update_rx.clone().unwrap(),
             self.state_update_rx.clone().unwrap(),
             self.market_events_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

@@ -37,8 +37,8 @@ flashbots = { path = "crates/flashbots" }
 debug-provider = { path = "crates/debug-provider" }
 uniswap_v3_math = { path = "crates/uniswap-v3-math" }
 
-tokio = { version = "1.37.0", features = ["full"] }
-tokio-stream = "0.1.15"
+tokio = { version = "1.40.0", features = ["full", "tracing"] }
+tokio-stream = "0.1.16"
 tonic = "0.12"
 eyre = "0.6.12"
 env_logger = "0.11.1"
@@ -87,30 +87,30 @@ alloy-sol-macro = { version = "0.8.3", features = ["json"] }
 alloy-rlp = "0.3.8"
 alloy-trie = "0.5"
 
-alloy = { version = "0.3.3", features = ["full", "serde", "consensus", "node-bindings", "rpc-types-anvil", "rpc-types-trace", "json-rpc", "rpc-types-json", "rand", "rlp"] }
+alloy = { version = "0.3.5", features = ["full", "serde", "consensus", "node-bindings", "rpc-types-anvil", "rpc-types-trace", "json-rpc", "rpc-types-json", "rand", "rlp"] }
 
-alloy-serde = "0.3.3"
-alloy-contract = "0.3.3"
-alloy-consensus = "0.3.3"
-alloy-eips = "0.3.3"
-alloy-provider = { version = "0.3.3", features = ["reqwest", "pubsub", "ws", "ipc", "debug-api", "anvil-node", "anvil-api"] }
-alloy-json-rpc = "0.3.3"
-alloy-network = "0.3.3"
-alloy-node-bindings = "0.3.3"
-alloy-rpc-client = { version = "0.3.3", features = ["pubsub", "ipc", "ws", "reqwest"] }
-alloy-rpc-types = "0.3.3"
-alloy-rpc-types-eth = "0.3.3"
-alloy-rpc-types-anvil = "0.3.3"
-alloy-rpc-types-beacon = "0.3.3"
-alloy-rpc-types-trace = "0.3.3"
-alloy-rpc-types-engine = "0.3.3"
-alloy-transport = "0.3.3"
-alloy-transport-ipc = "0.3.3"
-alloy-transport-ws = "0.3.3"
-alloy-transport-http = "0.3.3"
-alloy-pubsub = "0.3.3"
-alloy-signer = "0.3.3"
-alloy-signer-local = "0.3.3"
+alloy-serde = "0.3.5"
+alloy-contract = "0.3.5"
+alloy-consensus = "0.3.5"
+alloy-eips = "0.3.5"
+alloy-provider = { version = "0.3.5", features = ["reqwest", "pubsub", "ws", "ipc", "debug-api", "anvil-node", "anvil-api"] }
+alloy-json-rpc = "0.3.5"
+alloy-network = "0.3.5"
+alloy-node-bindings = "0.3.5"
+alloy-rpc-client = { version = "0.3.5", features = ["pubsub", "ipc", "ws", "reqwest"] }
+alloy-rpc-types = "0.3.5"
+alloy-rpc-types-eth = "0.3.5"
+alloy-rpc-types-anvil = "0.3.5"
+alloy-rpc-types-beacon = "0.3.5"
+alloy-rpc-types-trace = "0.3.5"
+alloy-rpc-types-engine = "0.3.5"
+alloy-transport = "0.3.5"
+alloy-transport-ipc = "0.3.5"
+alloy-transport-ws = "0.3.5"
+alloy-transport-http = "0.3.5"
+alloy-pubsub = "0.3.5"
+alloy-signer = "0.3.5"
+alloy-signer-local = "0.3.5"
 
 reth = { git = "https://github.com/paradigmxyz/reth" }
 reth-db = { git = "https://github.com/paradigmxyz/reth" }

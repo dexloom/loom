@@ -163,11 +163,11 @@ impl DiffPathMergerActor {
 
 impl Actor for DiffPathMergerActor {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(diff_path_merger_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(diff_path_merger_worker(
             self.market_events.clone().unwrap(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 

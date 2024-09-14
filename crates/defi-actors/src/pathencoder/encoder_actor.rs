@@ -185,13 +185,13 @@ impl SwapEncoderActor {
 
 impl Actor for SwapEncoderActor {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(arb_swap_path_encoder_worker(
+        let task = tokio::task::Builder::new().name(self.name()).spawn(arb_swap_path_encoder_worker(
             self.encoder.clone(),
             self.signers.clone().unwrap(),
             self.account_nonce_balance.clone().unwrap(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
-        ));
+        ))?;
         Ok(vec![task])
     }
 
