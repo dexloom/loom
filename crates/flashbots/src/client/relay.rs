@@ -81,14 +81,13 @@ impl Relay {
         let body_hash = keccak256(body.clone()).to_string();
         trace!("Body hash : {} {}", body_hash, body);
 
-        let mut req = self.client.post(self.url.as_ref()).body(body);
+        let mut req = self.client.post(self.url.as_ref()).body(body).header("Content-Type", "application/json");
 
         if let Some(signer) = &self.signer {
             trace!("Signer on wallet  : {}", signer.address());
             let signature = signer.sign_message(body_hash.as_bytes()).await.map_err(RelayError::SignerError)?;
 
             req = req.header("X-Flashbots-Signature", format!("{}:0x{}", signer.address(), hex::encode(signature.as_bytes())));
-            req = req.header("Content-Type", "application/json");
         }
 
         let res = req.send().await?;
@@ -117,11 +116,10 @@ impl Relay {
     }
 
     pub async fn serialized_request<R: DeserializeOwned>(&self, body: String, signature: Option<String>) -> Result<R, RelayError> {
-        let mut req = self.client.post(self.url.as_ref()).body(body);
+        let mut req = self.client.post(self.url.as_ref()).body(body).header("Content-Type", "application/json");
 
         if let Some(signature) = signature {
             req = req.header("X-Flashbots-Signature", signature);
-            req = req.header("Content-Type", "application/json");
         }
 
         let res = req.send().await?;
