@@ -5,7 +5,7 @@ members = [
     "bin/loom_backrun", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex",
     "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools",
     "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "crates/defi-blockchain",
-    "crates/loom-revm-db", "bin/exex_grpc_loom", "crates/loom", "crates/uniswap-v3-math"]
+    "crates/loom-revm-db", "bin/exex_grpc_loom", "crates/loom", "crates/uniswap-v3-math", "crates/loom-metrics"]
 default-members = ["bin/loom_backrun", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex"]
 resolver = "2"
 
@@ -26,6 +26,7 @@ loom-utils = { path = "crates/utils" }
 loom-multicaller = { path = "crates/multicaller" }
 loom-topology = { path = "crates/topology" }
 loom-revm-db = { path = "crates/loom-revm-db" }
+loom-metrics = { path = "crates/loom-metrics" }
 defi-types = { path = "crates/types" }
 defi-actors = { path = "crates/defi-actors" }
 defi-entities = { path = "crates/defi-entities" }
@@ -66,6 +67,7 @@ k256 = "0.13.3"
 thiserror = "^1.0.61"
 colored = "2.0.4"
 indexmap = "2.5.0"
+influxdb = "0.7.2"
 
 revm = { version = "14.0.1", features = [
     "std",

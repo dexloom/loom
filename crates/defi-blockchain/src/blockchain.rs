@@ -3,6 +3,7 @@ use alloy::{
     primitives::{Address, BlockHash},
     rpc::types::Block,
 };
+use influxdb::WriteQuery;
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
 use defi_events::{
     BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageBlockHeader, MessageHealthEvent, MessageMempoolDataUpdate,
@@ -32,6 +33,7 @@ pub struct Blockchain {
     pool_health_monitor_channel: Broadcaster<MessageHealthEvent>,
     compose_channel: Broadcaster<MessageTxCompose>,
     state_update_channel: Broadcaster<StateUpdateEvent>,
+    influx_write_channel: Broadcaster<WriteQuery>,
 }
 
 impl Blockchain {
@@ -48,6 +50,7 @@ impl Blockchain {
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
         let compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
         let state_update_channel: Broadcaster<StateUpdateEvent> = Broadcaster::new(100);
+        let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
 
         let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
         let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
@@ -91,6 +94,7 @@ impl Blockchain {
             pool_health_monitor_channel,
             compose_channel,
             state_update_channel,
+            influx_write_channel,
         }
     }
 
@@ -163,5 +167,9 @@ impl Blockchain {
 
     pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent> {
         self.state_update_channel.clone()
+    }
+
+    pub fn influx_write_channel(&self) -> Broadcaster<WriteQuery> {
+        self.influx_write_channel.clone()
     }
 }
