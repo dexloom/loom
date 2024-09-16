@@ -71,6 +71,7 @@ revm = { version = "14.0.1", features = [
     "std",
     "secp256k1",
     "blst",
+    "alloydb",
 ], default-features = false }
 revm-primitives = { version = "9.0.1", features = [
     "std",

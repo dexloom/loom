@@ -56,7 +56,7 @@ impl UniswapV3QuoterEncoder {
 pub struct UniswapV3QuoterStateReader {}
 
 impl UniswapV3QuoterStateReader {
-    pub fn quote_exact_input<DB: DatabaseRef<Error = Infallible>>(
+    pub fn quote_exact_input<DB: DatabaseRef<Error = Error>, Error: std::fmt::Debug>(
         db: DB,
         env: Env,
         quoter_address: Address,

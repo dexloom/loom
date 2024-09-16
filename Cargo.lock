@@ -8122,6 +8122,9 @@ version = "14.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1f719e28cc6fdd086f8bc481429e587740d20ad89729cec3f5f5dd7b655474df"
 dependencies = [
+ "alloy-eips",
+ "alloy-provider",
+ "alloy-transport",
  "auto_impl",
  "cfg-if",
  "dyn-clone",
@@ -8129,6 +8132,7 @@ dependencies = [
  "revm-precompile",
  "serde",
  "serde_json",
+ "tokio",
 ]
 
 [[package]]

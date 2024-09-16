@@ -5,6 +5,7 @@ pub use maverickpool::MaverickPool;
 pub use pancakev3pool::PancakeV3Pool;
 pub use uniswapv2pool::UniswapV2Pool;
 pub use uniswapv3pool::UniswapV3Pool;
+pub use uniswapv3pool::QUOTER_ADDRESS;
 
 pub mod db_reader;
 mod maverickpool;

@@ -24,9 +24,10 @@ pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     env
 }
 
-pub fn evm_call<DB>(state_db: DB, env: Env, transact_to: Address, call_data_vec: Vec<u8>) -> Result<(Vec<u8>, u64)>
+pub fn evm_call<DB, Error>(state_db: DB, env: Env, transact_to: Address, call_data_vec: Vec<u8>) -> Result<(Vec<u8>, u64)>
 where
-    DB: DatabaseRef<Error = Infallible>,
+    DB: DatabaseRef<Error = Error>,
+    Error: std::fmt::Debug,
 {
     let mut env = env;
     env.tx.transact_to = TransactTo::Call(transact_to);
