@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -21,6 +22,7 @@ use eyre::{eyre, Result};
 use flashbots::client::RelayConfig;
 use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
+use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_multicaller::MulticallerSwapEncoder;
 use loom_utils::tokens::{ETH_NATIVE_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
@@ -395,5 +397,17 @@ where
     /// Start backrun for blocks and pending txs
     pub async fn with_backrun(&mut self) -> Result<&mut Self> {
         self.with_backrun_block()?.with_backrun_mempool()
+    }
+
+    /// Start influxdb writer
+    pub fn with_influxdb_writer(&mut self, url: String, db_name: String, tags: HashMap<String, String>) -> Result<&mut Self> {
+        self.actor_manager.start(InfluxDbWriterActor::new(url, db_name, tags).on_bc(&self.bc))?;
+        Ok(self)
+    }
+
+    /// Start block latency recorder
+    pub fn with_block_latency_recorder(&mut self) -> Result<&mut Self> {
+        self.actor_manager.start(BlockLatencyRecorderActor::new().on_bc(&self.bc))?;
+        Ok(self)
     }
 }

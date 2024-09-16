@@ -1,13 +1,13 @@
+use defi_blockchain::Blockchain;
 use defi_events::MessageBlockHeader;
 use eyre::eyre;
 use influxdb::{Timestamp, WriteQuery};
+use log::{error, info};
 use loom_actors::Consumer;
 use loom_actors::Producer;
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use tokio::sync::broadcast::error::RecvError;
-use log::{error, info};
-use defi_blockchain::Blockchain;
 
 async fn block_latency_worker(
     block_header_update_rx: Broadcaster<MessageBlockHeader>,
@@ -58,25 +58,25 @@ async fn block_latency_worker(
     }
 }
 
-#[derive(Accessor, Consumer, Producer)]
-pub struct BlockLatencyActor {
+#[derive(Accessor, Consumer, Producer, Default)]
+pub struct BlockLatencyRecorderActor {
     #[consumer]
     block_header_rx: Option<Broadcaster<MessageBlockHeader>>,
     #[producer]
     influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 }
 
-impl BlockLatencyActor {
+impl BlockLatencyRecorderActor {
     pub fn new() -> Self {
         Self { block_header_rx: None, influxdb_write_channel_tx: None }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self { block_header_rx: Some(bc.new_block_headers_channel()), influxdb_write_channel_tx: Some(bc.influx_write_channel()) }
+        Self { block_header_rx: Some(bc.new_block_headers_channel()), influxdb_write_channel_tx: Some(bc.influxdb_write_channel()) }
     }
 }
 
-impl Actor for BlockLatencyActor {
+impl Actor for BlockLatencyRecorderActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(block_latency_worker(
             self.block_header_rx.clone().unwrap(),
@@ -86,6 +86,6 @@ impl Actor for BlockLatencyActor {
     }
 
     fn name(&self) -> &'static str {
-        "BlockLatencyActor"
+        "BlockLatencyRecorderActor"
     }
 }

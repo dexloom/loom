@@ -1,5 +1,5 @@
-mod influxdb_actor;
 mod block_latency;
+mod influxdb_actor;
 
-pub use influxdb_actor::InfluxDbActor;
-pub use block_latency::BlockLatencyActor;
+pub use block_latency::BlockLatencyRecorderActor;
+pub use influxdb_actor::InfluxDbWriterActor;

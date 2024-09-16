@@ -3,13 +3,13 @@ use alloy::{
     primitives::{Address, BlockHash},
     rpc::types::Block,
 };
-use influxdb::WriteQuery;
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
 use defi_events::{
     BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageBlockHeader, MessageHealthEvent, MessageMempoolDataUpdate,
     MessageTxCompose, StateUpdateEvent,
 };
 use defi_types::{ChainParameters, Mempool};
+use influxdb::WriteQuery;
 use loom_actors::{Broadcaster, SharedState};
 
 #[derive(Clone)]
@@ -33,7 +33,7 @@ pub struct Blockchain {
     pool_health_monitor_channel: Broadcaster<MessageHealthEvent>,
     compose_channel: Broadcaster<MessageTxCompose>,
     state_update_channel: Broadcaster<StateUpdateEvent>,
-    influx_write_channel: Broadcaster<WriteQuery>,
+    influxdb_write_channel: Broadcaster<WriteQuery>,
 }
 
 impl Blockchain {
@@ -94,7 +94,7 @@ impl Blockchain {
             pool_health_monitor_channel,
             compose_channel,
             state_update_channel,
-            influx_write_channel,
+            influxdb_write_channel: influx_write_channel,
         }
     }
 
@@ -169,7 +169,7 @@ impl Blockchain {
         self.state_update_channel.clone()
     }
 
-    pub fn influx_write_channel(&self) -> Broadcaster<WriteQuery> {
-        self.influx_write_channel.clone()
+    pub fn influxdb_write_channel(&self) -> Broadcaster<WriteQuery> {
+        self.influxdb_write_channel.clone()
     }
 }

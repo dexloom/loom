@@ -264,6 +264,11 @@ where
         .with_backrun_block()? // load backrun searcher for incoming block
         .with_backrun_mempool()? // load backrun searcher for mempool txes
     ;
+    if let Some(influxdb_config) = topology_config.influxdb {
+        bc_actors
+            .with_influxdb_writer(influxdb_config.url, influxdb_config.db_name, influxdb_config.tags)?
+            .with_block_latency_recorder()?;
+    }
 
     bc_actors.wait().await;
 
