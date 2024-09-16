@@ -1,19 +1,24 @@
-use std::sync::Arc;
-
+use alloy_network::Ethereum;
 use alloy_primitives::{Address, BlockHash, BlockNumber};
+use alloy_provider::Provider;
 use alloy_rpc_types::Block;
+use alloy_transport::Transport;
+use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
-use defi_entities::{BlockHistory, LatestBlock, MarketState};
+use defi_entities::{BlockHistory, BlockHistoryManager, LatestBlock, MarketState};
 use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MessageBlockHeader};
 use eyre::Result;
 use log::{debug, error, info, trace};
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomInMemoryDB;
+use std::ops::Deref;
+use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;
 
 #[allow(clippy::too_many_arguments)]
-pub async fn new_block_history_worker(
+pub async fn new_block_history_worker<P, T>(
+    client: P,
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState>,
     block_history: SharedState<BlockHistory>,
@@ -22,11 +27,17 @@ pub async fn new_block_history_worker(
     log_update_rx: Broadcaster<BlockLogs>,
     state_update_rx: Broadcaster<BlockStateUpdate>,
     sender: Broadcaster<MarketEvents>,
-) -> WorkerResult {
+) -> WorkerResult
+where
+    T: Transport + Clone + Send + Sync + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+{
     subscribe!(block_header_update_rx);
     subscribe!(block_update_rx);
     subscribe!(log_update_rx);
     subscribe!(state_update_rx);
+
+    let block_history_manager = BlockHistoryManager::new(client);
 
     loop {
         tokio::select! {
@@ -133,71 +144,20 @@ pub async fn new_block_history_worker(
                             Ok(_) => {
                                 //todo : state diff latest block update
                                 //latest_block.write().await.update(block_number, None, None, logs.clone(), None );
-                                let block_history_len = block_history.read().await.len();
+                                let block_history_len = block_history.write().await;
                                 debug!("Block History len :{}", block_history_len);
 
-                                let mut new_market_state_db = market_state.read().await.state_db.clone();
-                                {
-                                    let market_state_read_guard= market_state.read().await;
-                                    let accounts_len = market_state_read_guard.accounts_len();
-                                    let accounts_db_len = market_state_read_guard.accounts_db_len();
-                                    let storage_len = market_state_read_guard.storage_len();
-                                    let storage_db_len = market_state_read_guard.storage_db_len();
-                                    trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
-                                }
+                                let market_state= market_state.read().await;
+
+                                let accounts_len = market_state.accounts_len();
+                                let accounts_db_len = market_state.accounts_db_len();
+                                let storage_len = market_state.storage_len();
+                                let storage_db_len = market_state.storage_db_len();
+                                trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
 
 
-                                //new_market_state_db.apply_geth_update_vec(msg.state_update.clone());
-                                //let merged_db = new_market_state_db.update_cells();
-                                //new_market_state_db = LoomInMemoryDB::new(Arc::new(merged_db));
+                                let db = block_history_manager.apply_state_update_on_parent_db(block_history.borrow_mut(), &market_state, msg.block_hash, ).await?;
 
-
-                                for state_diff in msg.state_update.iter(){
-                                    for (address, account_state) in state_diff.iter() {
-                                        let address : Address = *address;
-                                        if let Some(balance) = account_state.balance {
-                                            if market_state.read().await.is_account(&address)  {
-                                                match new_market_state_db.load_account(address) {
-                                                    Ok(x) => {
-                                                        x.info.balance = balance;
-                                                        //trace!("Balance updated {:#20x} {}", address, balance );
-                                                    }
-                                                    _=>{
-                                                        trace!("Balance updated for {:#20x} not found", address );
-                                                    }
-                                                };
-                                            }
-                                        }
-
-                                        if let Some(nonce) = account_state.nonce {
-                                            if market_state.read().await.is_account(&address)  {
-                                                match new_market_state_db.load_account(address) {
-                                                    Ok(x) => {
-                                                        x.info.nonce = nonce;
-                                                        trace!("Nonce updated {:#20x} {}", address, nonce );
-                                                    }
-                                                    _=>{
-                                                        trace!("Nonce updated for {:#20x} not found", address );
-                                                    }
-                                                };
-                                            }
-                                        }
-
-                                        for (slot, value) in account_state.storage.iter() {
-                                            if market_state.read().await.is_force_insert(&address ) {
-                                                trace!("Force slot updated {:#20x} {} {}", address, slot, value);
-                                                if let Err(e) = new_market_state_db.insert_account_storage(address, (*slot).into(), (*value).into()) {
-                                                    error!("{}", e)
-                                                }
-                                            }else if market_state.read().await.is_slot(&address, &(*slot).into() ) {
-                                                trace!("Slot updated {:#20x} {} {}", address, slot, value);
-                                                if let Err(e) = new_market_state_db.insert_account_storage(address, (*slot).into(), (*value).into()) {
-                                                    error!("{}", e)
-                                                }
-                                            }
-                                        }
-                                    }
-                                }
 
                                 let market_state_clone= market_state.clone();
                                 info!("market state updated ok records : update len: {} accounts: {} contracts: {}", msg.state_update.len(), new_market_state_db.accounts.len(),  new_market_state_db.contracts.len()  );
