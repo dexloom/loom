@@ -169,7 +169,7 @@ async fn main() -> Result<()> {
 
     // Recording InfluxDB metrics
     if let Some(influxdb_config) = influxdb_config {
-        let mut influxdb_writer_actor = InfluxDbWriterActor::new(influxdb_config.url, influxdb_config.db_name, influxdb_config.tags);
+        let mut influxdb_writer_actor = InfluxDbWriterActor::new(influxdb_config.url, influxdb_config.database, influxdb_config.tags);
         match influxdb_writer_actor.consume(blockchain.influxdb_write_channel()).start() {
             Err(e) => {
                 panic!("InfluxDB writer actor failed : {}", e)

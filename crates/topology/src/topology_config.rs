@@ -38,7 +38,7 @@ pub enum TransportType {
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct InfluxDbConfig {
     pub url: String,
-    pub db_name: String,
+    pub database: String,
     pub tags: HashMap<String, String>,
 }
 

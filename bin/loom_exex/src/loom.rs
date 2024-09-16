@@ -266,7 +266,7 @@ where
     ;
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors
-            .with_influxdb_writer(influxdb_config.url, influxdb_config.db_name, influxdb_config.tags)?
+            .with_influxdb_writer(influxdb_config.url, influxdb_config.database, influxdb_config.tags)?
             .with_block_latency_recorder()?;
     }
 

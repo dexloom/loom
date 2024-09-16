@@ -400,8 +400,8 @@ where
     }
 
     /// Start influxdb writer
-    pub fn with_influxdb_writer(&mut self, url: String, db_name: String, tags: HashMap<String, String>) -> Result<&mut Self> {
-        self.actor_manager.start(InfluxDbWriterActor::new(url, db_name, tags).on_bc(&self.bc))?;
+    pub fn with_influxdb_writer(&mut self, url: String, database: String, tags: HashMap<String, String>) -> Result<&mut Self> {
+        self.actor_manager.start(InfluxDbWriterActor::new(url, database, tags).on_bc(&self.bc))?;
         Ok(self)
     }
 
