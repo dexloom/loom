@@ -1,0 +1,32 @@
+[package]
+name = "uniswapx-actor-rs"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+exclude.workspace = true
+
+[dependencies]
+loom-actors.workspace = true
+loom-actors-macros.workspace = true
+uniswapx-client-rs.workspace = true
+defi-blockchain.workspace = true
+defi-events.workspace = true
+defi-abi.workspace = true
+
+log.workspace = true
+async-trait.workspace = true
+tokio.workspace = true
+lazy_static.workspace = true
+eyre.workspace = true
+
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-transport.workspace = true
+alloy-provider.workspace = true
+alloy-rpc-types-eth.workspace = true
+alloy-sol-types .workspace = true
+
+
+
+[lib]
+doctest = false

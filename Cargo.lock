@@ -2237,6 +2237,7 @@ dependencies = [
  "loom-revm-db",
  "loom-utils",
  "revm",
+ "uniswapx-client-rs",
 ]
 
 [[package]]
@@ -2344,6 +2345,37 @@ checksum = "67e77553c4162a157adbf834ebae5b415acbecbeafc7a74b0e886657506a7611"
 dependencies = [
  "proc-macro2",
  "quote",
+ "syn 2.0.77",
+]
+
+[[package]]
+name = "derive_builder"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "cd33f37ee6a119146a1781d3356a7c26028f83d779b2e04ecd45fdc75c76877b"
+dependencies = [
+ "derive_builder_macro",
+]
+
+[[package]]
+name = "derive_builder_core"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "7431fa049613920234f22c47fdc33e6cf3ee83067091ea4277a3f8c4587aae38"
+dependencies = [
+ "darling",
+ "proc-macro2",
+ "quote",
+ "syn 2.0.77",
+]
+
+[[package]]
+name = "derive_builder_macro"
+version = "0.20.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4abae7035bf79b9877b779505d8cf3749285b80c43941eda66604841889451dc"
+dependencies = [
+ "derive_builder_core",
  "syn 2.0.77",
 ]
 
@@ -8648,6 +8680,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "serde_url_params"
+version = "0.2.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2c43307d0640738af32fe8d01e47119bc0fc8a686be470a44a586caff76dfb34"
+dependencies = [
+ "serde",
+ "url",
+]
+
+[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9795,6 +9837,45 @@ dependencies = [
  "alloy",
  "eyre",
  "thiserror",
+]
+
+[[package]]
+name = "uniswapx-actor-rs"
+version = "0.1.0"
+dependencies = [
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types-eth",
+ "alloy-sol-types",
+ "alloy-transport",
+ "async-trait",
+ "defi-abi",
+ "defi-blockchain",
+ "defi-events",
+ "eyre",
+ "lazy_static",
+ "log",
+ "loom-actors",
+ "loom-actors-macros",
+ "tokio",
+ "uniswapx-client-rs",
+]
+
+[[package]]
+name = "uniswapx-client-rs"
+version = "0.1.0"
+source = "git+https://github.com/cakevm/uniswapx-client-rs?rev=29b2b2c#29b2b2c831bbe7a97db4d81e01432cddb312ca95"
+dependencies = [
+ "alloy-primitives",
+ "derive_builder",
+ "reqwest",
+ "serde",
+ "serde_json",
+ "serde_url_params",
+ "thiserror",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]

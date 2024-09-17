@@ -21,3 +21,4 @@ revm.workspace = true
 
 eyre.workspace = true
 chrono.workspace = true
+uniswapx-client-rs.workspace = true
