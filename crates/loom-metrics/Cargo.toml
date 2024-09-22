@@ -1,5 +1,5 @@
 [package]
-name = "defi-blockchain"
+name = "loom-metrics"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -9,12 +9,14 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
-defi-entities.workspace = true
-defi-types.workspace = true
-defi-events.workspace = true
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
+defi-blockchain.workspace = true
+defi-events.workspace = true
 
-revm.workspace = true
-alloy.workspace = true
+eyre.workspace = true
+tokio.workspace = true
+async-trait.workspace = true
+log.workspace = true
 influxdb.workspace = true
+chrono.workspace = true

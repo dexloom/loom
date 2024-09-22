@@ -1,6 +1,12 @@
 [node]
 mode = "ws"
 
+# Optional influxdb configuration
+[influxdb]
+url = "http://localhost:8086"
+database = "loom"
+tags = { bot_name = "loom" }
+
 # Nodes.
 [clients]
 local = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ipc", db_path = "PATH_TO_RETH_DATA_FOLDER/db", node = "reth" }
