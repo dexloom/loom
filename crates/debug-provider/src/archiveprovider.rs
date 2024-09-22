@@ -16,7 +16,7 @@ use alloy::{
     rpc::{
         client::{NoParams, RpcCall},
         json_rpc::{Id, Request, RpcReturn},
-        types::{Block, BlockNumberOrTag, FilterChanges, TransactionRequest},
+        types::{Block, BlockNumberOrTag, FilterChanges},
     },
     transports::{Transport, TransportResult},
 };

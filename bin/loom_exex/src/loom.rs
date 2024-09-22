@@ -14,6 +14,7 @@ use futures_util::StreamExt;
 use reth::primitives::BlockNumHash;
 use reth::revm::db::states::StorageSlot;
 use reth::revm::db::{BundleAccount, StorageWithOriginalValues};
+use reth::rpc::eth::EthTxBuilder;
 use reth::transaction_pool::{BlobStore, Pool, TransactionOrdering, TransactionPool, TransactionValidator};
 use reth_execution_types::Chain;
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
@@ -62,7 +63,7 @@ async fn process_chain(
         let block_hash_num = BlockNumHash { number, hash };
 
         info!(block_number=?block_hash_num.number, block_hash=?block_hash_num.hash, "Processing block");
-        match reth_rpc_types_compat::block::from_block(
+        match reth_rpc_types_compat::block::from_block::<EthTxBuilder>(
             sealed_block.clone().unseal(),
             sealed_block.difficulty,
             BlockTransactionsKind::Full,
@@ -196,7 +197,7 @@ where
                 if let Some(tx_notification) = tx_notification {
                     let recovered_tx = tx_notification.transaction.to_recovered_transaction();
                     let tx_hash: TxHash = recovered_tx.hash;
-                    let tx : alloy::rpc::types::eth::Transaction = reth_rpc_types_compat::transaction::from_recovered(recovered_tx).inner;
+                    let tx : alloy::rpc::types::eth::Transaction = reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(recovered_tx).inner;
                     let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, "exex".to_string());
                     if let Err(e) =  mempool_tx.send(update_msg).await {
                         error!(error=?e.to_string(), "mempool_tx.send");

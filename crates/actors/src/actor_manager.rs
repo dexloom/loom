@@ -53,7 +53,7 @@ impl ActorsManager {
                         info!("ActorWorker {_index} finished : {s}")
                     }
                     Err(e) => {
-                        error!("ActorWorker {_index} error : {e}")
+                        error!("ActorWorker {_index} finished with error : {e}")
                     }
                 },
                 Err(e) => {

@@ -187,24 +187,11 @@ impl BlockHistory {
 
         if !self.contains_block(&block_hash) {
             let market_history_entry = self.get_or_insert_entry_with_header(block_header.clone());
-            let mut parent_block_hash = block_header.parent_hash;
+            let parent_block_hash = block_header.parent_hash;
 
             if block_number >= self.latest_block_number {
                 is_new = true;
             }
-
-            /*if is_new {
-                while let Some(entry) = self.get_entry(&parent_block_hash).cloned() {
-                    if self.block_numbers[&entry.number()] == entry.hash() {
-                        break;
-                    } else {
-                        self.block_numbers.insert(entry.number(), entry.hash());
-                        parent_block_hash = entry.parent_hash();
-                    }
-                }
-            }
-
-             */
 
             if block_number == self.latest_block_number + 1 {
                 self.latest_block_number = block_number;

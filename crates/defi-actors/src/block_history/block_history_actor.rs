@@ -44,16 +44,18 @@ where
     loop {
         tokio::select! {
             msg = block_header_update_rx.recv() => {
-                debug!("Block Header Update");
                 let block_update : Result<MessageBlockHeader, RecvError>  = msg;
                 match block_update {
                     Ok(block_header)=>{
+
                         let next_base_fee = block_header.inner.next_block_base_fee;
                         let block_header = block_header.inner.header;
                         let block_hash : BlockHash = block_header.hash;
                         let block_number : BlockNumber = block_header.number;
                         let timestamp : u64 = block_header.timestamp;
                         let base_fee: u128 = block_header.base_fee_per_gas.unwrap_or_default();
+
+                        debug!("Block Header Update {} {}", block_number, block_hash);
 
                         let mut block_history_guard = block_history.write().await;
 
@@ -88,13 +90,12 @@ where
             }
 
             msg = block_update_rx.recv() => {
-                debug!("Block Update");
                 let block_update : Result<Block, RecvError>  = msg;
                 match block_update {
                     Ok(block)=>{
-
                         let block_hash : BlockHash = block.header.hash;
                         let block_number : BlockNumber = block.header.number;
+                        debug!("Block Update {} {}", block_number, block_hash);
 
 
                         match block_history.write().await.add_block(block.clone()) {
@@ -115,12 +116,13 @@ where
                 }
             }
             msg = log_update_rx.recv() => {
-                debug!("Log update");
-
                 let log_update : Result<BlockLogs, RecvError>  = msg;
                 match log_update {
                     Ok(msg) =>{
                         let block_hash : BlockHash = msg.block_hash;
+                        debug!("Log update {}", block_hash);
+
+
                         match block_history.write().await.add_logs(block_hash, msg.logs.clone()) {
                             Ok(_) => {
                                 let (latest_number, latest_hash) = latest_block.read().await.number_and_hash();
@@ -142,11 +144,13 @@ where
             }
             msg = state_update_rx.recv() => {
                 // todo(Make getting market state from previous block)
-                debug!("Block State update");
                 let state_update_msg : Result<BlockStateUpdate, RecvError> = msg;
                 match state_update_msg {
                     Ok(msg) => {
                         let msg_block_hash : BlockHash = msg.block_hash;
+                        debug!("Block State update {}", msg_block_hash);
+
+
                         let latest_block_guard = latest_block.read().await;
                         let (latest_block_number, latest_block_hash) = latest_block_guard.number_and_hash();
                         let latest_block_parent_hash = latest_block_guard.parent_hash().unwrap_or_default();
