@@ -36,6 +36,13 @@ pub enum TransportType {
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
+pub struct InfluxDbConfig {
+    pub url: String,
+    pub database: String,
+    pub tags: HashMap<String, String>,
+}
+
+#[derive(Clone, Debug, Default, Deserialize)]
 pub struct ClientConfigParams {
     pub url: String,
     pub node: NodeType,
@@ -206,6 +213,7 @@ pub struct ActorConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct TopologyConfig {
+    pub influxdb: Option<InfluxDbConfig>,
     pub clients: HashMap<String, ClientConfig>,
     pub blockchains: HashMap<String, BlockchainConfig>,
     pub actors: ActorConfig,

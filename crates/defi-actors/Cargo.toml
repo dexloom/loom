@@ -13,6 +13,7 @@ repository.workspace = true
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
 loom-multicaller.workspace = true
+loom-metrics.workspace = true
 defi-types.workspace = true
 defi-entities.workspace = true
 defi-events.workspace = true

@@ -8,6 +8,7 @@ use defi_actors::{
 };
 use defi_events::MarketEvents;
 use loom_actors::{Accessor, Actor, Consumer, Producer};
+use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_topology::{Topology, TopologyConfig};
 
 #[tokio::main]
@@ -19,6 +20,7 @@ async fn main() -> Result<()> {
     .init();
 
     let topology_config = TopologyConfig::load_from_file("config.toml".to_string())?;
+    let influxdb_config = topology_config.influxdb.clone();
     let (topology, mut worker_task_vec) = Topology::from(topology_config).await?;
 
     let client = topology.get_client(Some("local".to_string()).as_ref())?;
@@ -162,6 +164,35 @@ async fn main() -> Result<()> {
         Ok(r) => {
             worker_task_vec.extend(r);
             info!("Stuffing txs monitor actor started successfully")
+        }
+    }
+
+    // Recording InfluxDB metrics
+    if let Some(influxdb_config) = influxdb_config {
+        let mut influxdb_writer_actor = InfluxDbWriterActor::new(influxdb_config.url, influxdb_config.database, influxdb_config.tags);
+        match influxdb_writer_actor.consume(blockchain.influxdb_write_channel()).start() {
+            Err(e) => {
+                panic!("InfluxDB writer actor failed : {}", e)
+            }
+            Ok(r) => {
+                worker_task_vec.extend(r);
+                info!("InfluxDB writer actor started successfully")
+            }
+        }
+
+        let mut block_latency_recorder_actor = BlockLatencyRecorderActor::new();
+        match block_latency_recorder_actor
+            .consume(blockchain.new_block_headers_channel())
+            .produce(blockchain.influxdb_write_channel())
+            .start()
+        {
+            Err(e) => {
+                panic!("Block latency recorder actor failed : {}", e)
+            }
+            Ok(r) => {
+                worker_task_vec.extend(r);
+                info!("Block latency recorder actor started successfully")
+            }
         }
     }
 

@@ -89,7 +89,7 @@ where
     pub async fn send_signed_body(&self, body: String, signature: String) -> Result<()> {
         match self.flashbots_middleware.relay().serialized_request::<SendBundleResponseType>(body, Some(signature)).await {
             Ok(_resp) => {
-                info!("Bundle sent to : {}", self.name);
+                debug!("Bundle sent to : {}", self.name);
                 Ok(())
             }
             Err(error) => {
