@@ -6,9 +6,9 @@ use alloy::{
     network::Ethereum,
     node_bindings::{Anvil, AnvilInstance},
     primitives::{BlockHash, BlockNumber, U64},
-    providers::{ext::DebugApi, Network, Provider, ProviderBuilder, RootProvider},
+    providers::{ext::DebugApi, Network, Provider, ProviderBuilder, ProviderCall, RootProvider},
     rpc::{
-        client::{RpcCall, WsConnect},
+        client::{NoParams, WsConnect},
         types::trace::geth::{GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, TraceResult},
         types::{BlockNumberOrTag, TransactionRequest},
     },
@@ -156,8 +156,9 @@ where
         self._anvil.root()
     }
 
-    fn get_block_number(&self) -> RpcCall<TA, [(); 0], U64, u64> {
-        self._anvil.get_block_number().map_resp(|x| x.to())
+    #[allow(clippy::type_complexity)]
+    fn get_block_number(&self) -> ProviderCall<TA, NoParams, U64, BlockNumber> {
+        self._anvil.get_block_number()
     }
 }
 

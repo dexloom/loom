@@ -11,6 +11,7 @@ use reth_db::models::StoredBlockBodyIndices;
 use reth_primitives::{
     Block as RBlock, BlockWithSenders, Header as RHeader, Receipt, SealedBlockWithSenders, TransactionSignedEcRecovered,
 };
+use reth_rpc::eth::EthTxBuilder;
 
 pub trait Convert<T> {
     fn convert(&self) -> T;
@@ -137,5 +138,5 @@ pub fn decode_into_transaction(rlp_tx: &Bytes) -> Result<WithOtherFields<Transac
     let mut raw_tx = raw_tx.as_slice();
     let transaction_recovered: TransactionSignedEcRecovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;
 
-    Ok(reth_rpc_types_compat::transaction::from_recovered(transaction_recovered))
+    Ok(reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(transaction_recovered))
 }

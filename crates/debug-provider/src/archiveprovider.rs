@@ -5,14 +5,16 @@ use std::pin::Pin;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 
+use crate::anvilprovider::convert_u64;
+use crate::httpcached::HttpCachedTransport;
 use alloy::eips::BlockId;
 use alloy::primitives::{Address, StorageValue};
 use alloy::{
     network::Ethereum,
     primitives::{BlockNumber, Bytes, U256, U64},
-    providers::{EthCall, Provider, RootProvider, RpcWithBlock},
+    providers::{EthCall, Network, Provider, ProviderCall, RootProvider, RpcWithBlock},
     rpc::{
-        client::RpcCall,
+        client::{NoParams, RpcCall},
         json_rpc::{Id, Request, RpcReturn},
         types::{Block, BlockNumberOrTag, FilterChanges, TransactionRequest},
     },
@@ -20,8 +22,6 @@ use alloy::{
 };
 use log::debug;
 use tokio::sync::RwLock;
-
-use crate::httpcached::HttpCachedTransport;
 
 #[derive(Clone)]
 pub struct ArchiveHistoryProvider<P, T> {
@@ -86,14 +86,15 @@ where
     }
 
     #[allow(clippy::type_complexity)]
-    fn get_block_number(&self) -> RpcCall<T, [(); 0], U64, BlockNumber> {
-        let rpc_call: RpcCall<T, [(); 0], U64, BlockNumber, fn(U64) -> BlockNumber> =
+    fn get_block_number(&self) -> ProviderCall<T, NoParams, U64, BlockNumber> {
+        let provider_call = ProviderCall::RpcCall(
             RpcCall::new(Request::new("get_block_number", Id::None, [(); 0]), self.provider.client().transport().clone())
-                .map_resp(|x: U64| x.to());
-        rpc_call
+                .map_resp(convert_u64 as fn(U64) -> u64),
+        );
+        provider_call
     }
 
-    fn call<'req, 'state>(&self, tx: &'req TransactionRequest) -> EthCall<'req, 'state, T, Ethereum, Bytes> {
+    fn call<'req>(&self, tx: &'req <Ethereum as Network>::TransactionRequest) -> EthCall<'req, T, Ethereum, Bytes> {
         let call = EthCall::new(self.weak_client(), tx).block(self.block_id());
         debug!("call {:?}", self.block_id());
         call
@@ -101,7 +102,8 @@ where
 
     fn get_storage_at(&self, address: Address, key: U256) -> RpcWithBlock<T, (Address, U256), StorageValue> {
         debug!("get_storage_at {:?}", self.block_id());
-        RpcWithBlock::new(self.weak_client(), "eth_getStorageAt", (address, key)).block_id(self.block_id())
+        let rpc_call = RpcWithBlock::from(self.provider.client().request("eth_getStorageAt", (address, key)));
+        rpc_call.block_id(self.block_id())
     }
 
     fn get_block_by_number<'life0, 'async_trait>(

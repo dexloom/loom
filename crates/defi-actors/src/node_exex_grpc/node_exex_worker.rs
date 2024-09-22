@@ -10,6 +10,7 @@ use futures::{pin_mut, StreamExt};
 use log::{error, info};
 use reth_exex::ExExNotification;
 use reth_provider::Chain;
+use reth_rpc::eth::EthTxBuilder;
 use revm::db::states::StorageSlot;
 use revm::db::{BundleAccount, StorageWithOriginalValues};
 use tokio::select;
@@ -41,7 +42,7 @@ async fn process_chain_task(
         let block_hash_num = BlockNumHash { number, hash };
 
         info!("Processing block block_number={} block_hash={}", block_hash_num.number, block_hash_num.hash);
-        match reth_rpc_types_compat::block::from_block(
+        match reth_rpc_types_compat::block::from_block::<EthTxBuilder>(
             sealed_block.clone().unseal(),
             sealed_block.difficulty,
             BlockTransactionsKind::Full,
