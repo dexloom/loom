@@ -19,6 +19,10 @@ impl LatestBlock {
     pub fn hash(&self) -> BlockHash {
         self.block_hash
     }
+
+    pub fn parent_hash(&self) -> Option<BlockHash> {
+        self.block_header.as_ref().map(|x| x.parent_hash)
+    }
     pub fn number(&self) -> BlockNumber {
         self.block_number
     }

@@ -19,16 +19,67 @@ use crate::MarketState;
 
 #[derive(Clone, Debug, Default)]
 pub struct BlockHistoryEntry {
-    pub header: Option<Header>,
+    pub header: Header,
     pub block: Option<Block>,
     pub logs: Option<Vec<Log>>,
     pub state_update: Option<GethStateUpdateVec>,
     pub state_db: Option<LoomInMemoryDB>,
 }
 
+pub fn apply_state_update(db: LoomInMemoryDB, state_update: GethStateUpdateVec, market_state: &MarketState) -> LoomInMemoryDB {
+    let mut db = db;
+    for state_diff in state_update.into_iter() {
+        for (address, account_state) in state_diff.into_iter() {
+            let address: Address = address;
+            if let Some(balance) = account_state.balance {
+                if market_state.is_account(&address) {
+                    match db.load_account(address) {
+                        Ok(x) => {
+                            x.info.balance = balance;
+                            //trace!("Balance updated {:#20x} {}", address, balance );
+                        }
+                        _ => {
+                            trace!("Balance updated for {:#20x} not found", address);
+                        }
+                    };
+                }
+            }
+
+            if let Some(nonce) = account_state.nonce {
+                if market_state.is_account(&address) {
+                    match db.load_account(address) {
+                        Ok(x) => {
+                            x.info.nonce = nonce;
+                            trace!("Nonce updated {:#20x} {}", address, nonce);
+                        }
+                        _ => {
+                            trace!("Nonce updated for {:#20x} not found", address);
+                        }
+                    };
+                }
+            }
+
+            for (slot, value) in account_state.storage.iter() {
+                if market_state.is_force_insert(&address) {
+                    trace!("Force slot updated {:#20x} {} {}", address, slot, value);
+                    if let Err(e) = db.insert_account_storage(address, (*slot).into(), (*value).into()) {
+                        error!("{}", e)
+                    }
+                } else if market_state.is_slot(&address, &(*slot).into()) {
+                    trace!("Slot updated {:#20x} {} {}", address, slot, value);
+                    if let Err(e) = db.insert_account_storage(address, (*slot).into(), (*value).into()) {
+                        error!("{}", e)
+                    }
+                }
+            }
+        }
+    }
+    db
+}
+
 impl BlockHistoryEntry {
     pub fn new(
-        header: Option<Header>,
+        header: Header,
         block: Option<Block>,
         logs: Option<Vec<Log>>,
         state_update: Option<GethStateUpdateVec>,
@@ -42,19 +93,23 @@ impl BlockHistoryEntry {
     }
 
     pub fn is_fetched(&self) -> bool {
-        self.state_update.is_some() && self.header.is_some() && self.block.is_some() && self.logs.is_some()
+        self.state_update.is_some() && self.block.is_some() && self.logs.is_some()
     }
 
-    pub fn hash(&self) -> Option<BlockHash> {
-        self.header.as_ref().map(|h| h.hash)
+    pub fn hash(&self) -> BlockHash {
+        self.header.hash
     }
 
-    pub fn parent_hash(&self) -> Option<BlockHash> {
-        self.header.as_ref().map(|h| h.parent_hash)
+    pub fn parent_hash(&self) -> BlockHash {
+        self.header.parent_hash
     }
 
-    pub fn number(&self) -> Option<BlockNumber> {
-        self.header.as_ref().map(|h| h.number)
+    pub fn number(&self) -> BlockNumber {
+        self.header.number
+    }
+
+    pub fn timestamp(&self) -> BlockNumber {
+        self.header.timestamp
     }
 
     pub async fn add_parent_entry(&mut self, parent: &BlockHistoryEntry) {
@@ -89,9 +144,12 @@ impl BlockHistory {
         self.block_entries.is_empty()
     }
 
-    fn process_block_number_with_hash(&mut self, block_number: u64, block_hash: BlockHash) -> &mut BlockHistoryEntry {
+    fn get_or_insert_entry_with_header(&mut self, header: Header) -> &mut BlockHistoryEntry {
+        let block_number = header.number;
+        let block_hash = header.hash;
+
         //todo: process reorg
-        if self.latest_block_number < block_number {
+        if self.latest_block_number <= block_number {
             self.latest_block_number = block_number;
             self.block_numbers.insert(block_number, block_hash);
         }
@@ -102,7 +160,7 @@ impl BlockHistory {
             self.block_entries.retain(|key, _| actual_hashes.contains(key));
         }
 
-        self.block_entries.entry(block_hash).or_default()
+        self.block_entries.entry(block_hash).or_insert(BlockHistoryEntry::new(header, None, None, None, None))
     }
 
     fn get_or_insert_entry_mut(&mut self, block_hash: BlockHash) -> &mut BlockHistoryEntry {
@@ -110,12 +168,8 @@ impl BlockHistory {
     }
 
     fn set_entry(&mut self, entry: BlockHistoryEntry) {
-        if let Some(block_hash) = entry.hash() {
-            if let Some(block_number) = entry.number() {
-                self.block_numbers.insert(block_number, block_hash);
-                self.block_entries.insert(block_hash, entry);
-            }
-        }
+        self.block_numbers.insert(entry.number(), entry.hash());
+        self.block_entries.insert(entry.hash(), entry);
     }
 
     fn check_reorg_at_block(&mut self, block_number: BlockNumber) -> Option<BlockHash> {
@@ -126,77 +180,75 @@ impl BlockHistory {
         }
     }
 
-    fn process_reorg(&mut self) -> Option<BlockNumber> {
-        let current_block_number = self.latest_block_number;
-        let current_block_hash = self.block_numbers.get(&current_block_number);
-        let prev_block_hash = self.block_numbers.get(&(current_block_number - 1)).unwrap_or_default().clone();
+    pub fn add_block_header(&mut self, block_header: Header) -> Result<bool> {
+        let block_hash = block_header.hash;
+        let block_number = block_header.number;
+        let mut is_new = false;
 
-        if let Some(current_block_hash) = current_block_hash {
-            if let Some(current_block_entry) = self.block_entries.get(current_block_hash) {
-                if let Some(current_block_header) = current_block_entry.header.clone() {
-                    if current_block_header.parent_hash != prev_block_hash {
-                        // reorg detected
+        if !self.contains_block(&block_hash) {
+            let market_history_entry = self.get_or_insert_entry_with_header(block_header.clone());
+            let mut parent_block_hash = block_header.parent_hash;
+
+            if block_number >= self.latest_block_number {
+                is_new = true;
+            }
+
+            /*if is_new {
+                while let Some(entry) = self.get_entry(&parent_block_hash).cloned() {
+                    if self.block_numbers[&entry.number()] == entry.hash() {
+                        break;
+                    } else {
+                        self.block_numbers.insert(entry.number(), entry.hash());
+                        parent_block_hash = entry.parent_hash();
                     }
                 }
             }
+
+             */
+
+            if block_number == self.latest_block_number + 1 {
+                self.latest_block_number = block_number;
+            }
+            Ok(is_new)
+        } else {
+            if let Some(market_history_entry) = self.get_entry(&block_hash) {
+                warn!(
+                    "Block is already processed header: {} block : {} state_update : {} logs : {}",
+                    market_history_entry.header.hash,
+                    market_history_entry.block.is_some(),
+                    market_history_entry.state_update.is_some(),
+                    market_history_entry.logs.is_some(),
+                );
+            }
+            Err(eyre!("BLOCK_IS_ALREADY_PROCESSED"))
         }
-        None
-    }
-
-    pub fn add_block_header(&mut self, block_header: Header) -> Result<()> {
-        let block_hash = block_header.hash;
-        let block_number = block_header.number;
-
-        let market_history_entry = self.process_block_number_with_hash(block_number, block_hash);
-
-        if market_history_entry.header.is_some() {
-            warn!(
-                "Block is already processed header: {} block : {} state_update : {} logs : {}",
-                market_history_entry.header.is_some(),
-                market_history_entry.block.is_some(),
-                market_history_entry.state_update.is_some(),
-                market_history_entry.logs.is_some(),
-            );
-            return Err(ErrReport::msg("BLOCK_IS_ALREADY_PROCESSED"));
-        }
-
-        market_history_entry.header = Some(block_header);
-
-        if block_number == self.latest_block_number + 1 {
-            self.latest_block_number = block_number;
-        }
-
-        Ok(())
     }
 
     pub fn add_block(&mut self, block: Block) -> Result<()> {
         let block_hash = block.header.hash;
         let block_number = block.header.number;
 
-        let market_history_entry = self.process_block_number_with_hash(block_number, block_hash);
+        let market_history_entry = self.get_or_insert_entry_with_header(block.header.clone());
 
         if market_history_entry.block.is_some() {
             return Err(ErrReport::msg("BLOCK_IS_ALREADY_PROCESSED"));
         }
 
-        if market_history_entry.header.is_none() {
-            market_history_entry.header = Some(block.header.clone());
-        }
-
         market_history_entry.block = Some(block);
-
-        if block_number == self.latest_block_number + 1 {
-            self.latest_block_number = block_number;
-        }
 
         Ok(())
     }
 
-    pub fn add_state_diff(&mut self, block_hash: BlockHash, state_db: LoomInMemoryDB, state_diff: GethStateUpdateVec) -> Result<()> {
+    pub fn add_state_diff(
+        &mut self,
+        block_hash: BlockHash,
+        state_db: Option<LoomInMemoryDB>,
+        state_diff: GethStateUpdateVec,
+    ) -> Result<()> {
         let market_history_entry = self.get_or_insert_entry_mut(block_hash);
 
         if market_history_entry.state_db.is_none() {
-            market_history_entry.state_db = Some(state_db);
+            market_history_entry.state_db = state_db;
             market_history_entry.state_update = Some(state_diff);
 
             Ok(())
@@ -216,8 +268,18 @@ impl BlockHistory {
         }
     }
 
+    pub fn add_db(&mut self, block_hash: BlockHash, db: LoomInMemoryDB) -> Result<()> {
+        let market_history_entry = self.get_entry_mut(&block_hash).ok_or_eyre("ENTRY_NOT_FOUND")?;
+        market_history_entry.state_db = Some(db);
+        Ok(())
+    }
+
     pub fn get_entry(&self, block_hash: &BlockHash) -> Option<&BlockHistoryEntry> {
         self.block_entries.get(block_hash)
+    }
+
+    pub fn get_entry_mut(&mut self, block_hash: &BlockHash) -> Option<&mut BlockHistoryEntry> {
+        self.block_entries.get_mut(block_hash)
     }
 
     pub fn get_block_by_hash(&self, block_hash: &BlockHash) -> Option<Block> {
@@ -226,6 +288,14 @@ impl BlockHistory {
 
     pub fn get_block_hash_for_block_number(&self, block_number: BlockNumber) -> Option<BlockHash> {
         self.block_numbers.get(&block_number).cloned()
+    }
+
+    pub fn get_first_block_number(&self) -> Option<BlockNumber> {
+        self.block_entries.values().map(|x| x.header.number).min()
+    }
+
+    pub fn contains_block(&self, block_hash: &BlockHash) -> bool {
+        self.block_entries.contains_key(block_hash)
     }
 }
 
@@ -248,15 +318,18 @@ where
 
         let block = self.client.get_block_by_number(latest_block_number.into(), true).await?;
         if let Some(block) = block {
+            let block_hash = block.header.hash;
+
             let market_state_guard = current_state.read().await;
 
-            let block_entry = BlockHistoryEntry::new(None, None, None, None, Some(market_state_guard.state_db.clone()));
+            let block_entry =
+                BlockHistoryEntry::new(block.header.clone(), Some(block), None, None, Some(market_state_guard.state_db.clone()));
 
             let mut block_entries: HashMap<BlockHash, BlockHistoryEntry> = HashMap::new();
-            block_entries.insert(block.header.hash, block_entry);
-
             let mut block_numbers: HashMap<u64, BlockHash> = HashMap::new();
-            block_numbers.insert(latest_block_number, block.header.hash);
+
+            block_numbers.insert(latest_block_number, block_hash);
+            block_entries.insert(block_hash, block_entry);
 
             Ok(BlockHistory { depth, latest_block_number, block_entries, block_numbers })
         } else {
@@ -268,7 +341,7 @@ where
         Self { client, _t: PhantomData }
     }
 
-    pub async fn fetch_entry_by_hash(&self, block_history: &mut BlockHistory, block_hash: BlockHash) -> Result<BlockHistoryEntry> {
+    pub async fn fetch_entry_by_hash(&self, block_hash: BlockHash) -> Result<BlockHistoryEntry> {
         let block = self.client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await?;
         if let Some(block) = block {
             let header = block.header().clone();
@@ -277,26 +350,18 @@ where
 
             let logs = self.client.get_logs(&filter).await?;
 
-            let (_, state_update) = debug_trace_block(self.client.clone(), BlockId::Hash(block_hash.into()), true).await?;
+            let state_update = match debug_trace_block(self.client.clone(), BlockId::Hash(block_hash.into()), true).await {
+                Ok((_, state_update)) => state_update,
+                Err(_) => {
+                    vec![]
+                }
+            };
 
-            let block_entry = BlockHistoryEntry::new(Some(header), Some(block), Some(logs), Some(state_update), None);
+            let block_entry = BlockHistoryEntry::new(header, Some(block), Some(logs), Some(state_update), None);
             Ok(block_entry)
         } else {
             Err(eyre!("BLOCK_IS_EMPTY"))
         }
-    }
-
-    pub async fn add_entry_by_hash(&self, block_history: &mut BlockHistory, block_hash: BlockHash) -> Result<()>
-    where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-    {
-        let entry = match block_history.get_entry(&block_hash) {
-            Some(entry) => entry,
-            None => &self.fetch_entry_by_hash(block_history, block_hash).await?,
-        };
-        //let parent_entry = self.get_or_fetch_entry();
-        Ok(())
     }
 
     pub async fn fetch_entry_data(&self, entry: &mut BlockHistoryEntry) -> Result<()>
@@ -304,40 +369,81 @@ where
         T: Transport + Clone,
         P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     {
-        if let Some(header) = &entry.header {
-            if entry.logs.is_none() {
-                let filter = Filter::new().at_block_hash(header.hash);
-                let logs = self.client.get_logs(&filter).await?;
-                entry.logs = Some(logs);
-            }
+        if entry.logs.is_none() {
+            let filter = Filter::new().at_block_hash(entry.hash());
+            let logs = self.client.get_logs(&filter).await?;
+            entry.logs = Some(logs);
+        }
 
-            if entry.block.is_none() {
-                let block = self.client.get_block_by_hash(header.hash, BlockTransactionsKind::Full).await?;
-                if let Some(block) = block {
-                    entry.block = Some(block);
-                }
-            }
-
-            if entry.state_update.is_none() {
-                if let Ok((_, state_update)) = debug_trace_block(self.client.clone(), BlockId::Hash(header.hash.into()), true).await {
-                    entry.state_update = Some(state_update);
-                } else {
-                    error!("ERROR_FETCHING_STATE_UPDATE")
-                }
+        if entry.block.is_none() {
+            let block = self.client.get_block_by_hash(entry.hash(), BlockTransactionsKind::Full).await?;
+            if let Some(block) = block {
+                entry.block = Some(block);
             }
         }
+
+        if entry.state_update.is_none() {
+            if let Ok((_, state_update)) = debug_trace_block(self.client.clone(), BlockId::Hash(entry.hash().into()), true).await {
+                entry.state_update = Some(state_update);
+            } else {
+                error!("ERROR_FETCHING_STATE_UPDATE");
+                entry.state_update = Some(vec![]);
+            }
+        }
+
         if entry.is_fetched() {
             Ok(())
         } else {
             Err(eyre!("BLOCK_DATA_NOT_FETCHED"))
         }
     }
-    pub async fn get_or_fetch_entry(&self, block_history: &mut BlockHistory, block_hash: BlockHash) -> Result<BlockHistoryEntry> {
+    pub async fn get_or_fetch_entry_cloned(&self, block_history: &mut BlockHistory, block_hash: BlockHash) -> Result<BlockHistoryEntry> {
         if let Some(entry) = block_history.get_entry(&block_hash) {
             Ok(entry.clone())
         } else {
-            Ok(self.fetch_entry_by_hash(block_history, block_hash).await?)
+            let entry = self.fetch_entry_by_hash(block_hash).await?;
+            block_history.set_entry(entry.clone());
+            Ok(entry)
         }
+    }
+
+    pub async fn set_chain_head(&self, block_history: &mut BlockHistory, header: Header) -> Result<usize> {
+        let mut reorg_depth = 0;
+        let parent_hash = header.parent_hash;
+        let first_block_number = block_history.get_first_block_number();
+
+        if let Ok(is_new) = block_history.add_block_header(header) {
+            if let Some(min_block) = first_block_number {
+                let mut parent_block_hash: BlockHash = parent_hash;
+
+                if is_new {
+                    loop {
+                        match block_history.get_entry(&parent_block_hash).cloned() {
+                            Some(entry) => {
+                                if block_history.get_block_hash_for_block_number(entry.number()).unwrap_or_default() == entry.hash() {
+                                    break;
+                                } else {
+                                    block_history.block_numbers.insert(entry.number(), entry.hash());
+                                    reorg_depth += 1;
+                                    parent_block_hash = entry.parent_hash();
+                                }
+                            }
+                            None => {
+                                let entry = self.fetch_entry_by_hash(parent_block_hash).await?;
+                                if entry.number() < min_block {
+                                    break;
+                                }
+                                block_history.set_entry(entry.clone());
+                                parent_block_hash = entry.parent_hash();
+                                reorg_depth += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(reorg_depth)
     }
 
     pub async fn get_or_fetch_parent_db(
@@ -346,71 +452,91 @@ where
         market_state: &MarketState,
         parent_hash: BlockHash,
     ) -> Result<LoomInMemoryDB> {
-        let mut parent_entry = self.get_or_fetch_entry(block_history, parent_hash).await?;
+        let mut parent_hash = parent_hash;
+        let mut parent_db: Option<LoomInMemoryDB> = None;
+        let mut missed_blocks: Vec<BlockHash> = vec![];
+        let first_block_number = block_history.get_first_block_number();
+        loop {
+            let parent_entry = self.get_or_fetch_entry_cloned(block_history, parent_hash).await?;
+            if let Some(first_block_number) = first_block_number {
+                if parent_entry.number() < first_block_number {
+                    break;
+                }
+                match parent_entry.state_db {
+                    Some(db) => {
+                        parent_db = Some(db);
+                        break;
+                    }
+                    None => {
+                        missed_blocks.push(parent_entry.hash());
+                        parent_hash = parent_entry.parent_hash();
+                    }
+                }
+            }
+        }
 
-        match &parent_entry.state_db {
-            Some(db) => Ok(db.clone()),
-            None => {
-                let db = self
-                    .get_or_fetch_parent_db(block_history, market_state, parent_entry.hash().ok_or_eyre("NO_PARENT_BLOCK_HASH")?)
-                    .await?;
-                let db = Self::apply_state_update(db, parent_entry.state_update.clone().unwrap_or_default(), market_state);
-                parent_entry.state_db = Some(db.clone());
-                block_history.set_entry(parent_entry);
+        match parent_db {
+            Some(db) => {
+                let mut db = db;
+                missed_blocks.reverse();
+                for missed_block_hash in missed_blocks.into_iter() {
+                    let missed_entry = block_history.get_or_insert_entry_mut(missed_block_hash);
+                    if let Some(state_update) = missed_entry.state_update.clone() {
+                        db = apply_state_update(db, state_update, market_state);
+                        block_history.get_or_insert_entry_mut(missed_block_hash).state_db = Some(db.clone())
+                    }
+                }
                 Ok(db)
             }
+            None => Err(eyre!("PARENT_DB_NOT_FOUND")),
         }
     }
 
-    pub fn apply_state_update(db: LoomInMemoryDB, state_update: GethStateUpdateVec, market_state: &MarketState) -> LoomInMemoryDB {
-        let mut db = db;
-        for state_diff in state_update.into_iter() {
-            for (address, account_state) in state_diff.into_iter() {
-                let address: Address = address;
-                if let Some(balance) = account_state.balance {
-                    if market_state.is_account(&address) {
-                        match db.load_account(address) {
-                            Ok(x) => {
-                                x.info.balance = balance;
-                                //trace!("Balance updated {:#20x} {}", address, balance );
-                            }
-                            _ => {
-                                trace!("Balance updated for {:#20x} not found", address);
-                            }
-                        };
-                    }
-                }
+    pub async fn get_parent_db(
+        &self,
+        block_history: &mut BlockHistory,
+        market_state: &MarketState,
+        parent_hash: BlockHash,
+    ) -> Result<LoomInMemoryDB> {
+        let mut parent_hash = parent_hash;
+        let mut parent_db: Option<LoomInMemoryDB> = None;
+        let mut missed_blocks: Vec<BlockHash> = vec![];
+        let first_block_number = block_history.get_first_block_number();
 
-                if let Some(nonce) = account_state.nonce {
-                    if market_state.is_account(&address) {
-                        match db.load_account(address) {
-                            Ok(x) => {
-                                x.info.nonce = nonce;
-                                trace!("Nonce updated {:#20x} {}", address, nonce);
-                            }
-                            _ => {
-                                trace!("Nonce updated for {:#20x} not found", address);
-                            }
-                        };
-                    }
+        loop {
+            let parent_entry = block_history.get_entry(&parent_hash).ok_or_eyre("PARENT_ENTRY_NOT_FOUND")?;
+            if let Some(first_block_number) = first_block_number {
+                if parent_entry.number() < first_block_number {
+                    break;
                 }
-
-                for (slot, value) in account_state.storage.iter() {
-                    if market_state.is_force_insert(&address) {
-                        trace!("Force slot updated {:#20x} {} {}", address, slot, value);
-                        if let Err(e) = db.insert_account_storage(address, (*slot).into(), (*value).into()) {
-                            error!("{}", e)
-                        }
-                    } else if market_state.is_slot(&address, &(*slot).into()) {
-                        trace!("Slot updated {:#20x} {} {}", address, slot, value);
-                        if let Err(e) = db.insert_account_storage(address, (*slot).into(), (*value).into()) {
-                            error!("{}", e)
-                        }
+                match &parent_entry.state_db {
+                    Some(db) => {
+                        parent_db = Some(db.clone());
+                        break;
+                    }
+                    None => {
+                        missed_blocks.push(parent_entry.hash());
+                        parent_hash = parent_entry.parent_hash();
                     }
                 }
             }
         }
-        db
+
+        match parent_db {
+            Some(db) => {
+                let mut db = db;
+                missed_blocks.reverse();
+                for missed_block_hash in missed_blocks.into_iter() {
+                    let missed_entry = block_history.get_entry_mut(&missed_block_hash).ok_or_eyre("ENTRY_NOT_FOUND")?;
+                    if let Some(state_update) = missed_entry.state_update.clone() {
+                        db = apply_state_update(db, state_update, market_state);
+                        missed_entry.state_db = Some(db.clone());
+                    }
+                }
+                Ok(db)
+            }
+            None => Err(eyre!("PARENT_DB_NOT_FOUND")),
+        }
     }
 
     pub async fn apply_state_update_on_parent_db(
@@ -419,16 +545,14 @@ where
         market_state: &MarketState,
         block_hash: BlockHash,
     ) -> Result<LoomInMemoryDB> {
-        let mut entry = block_history.get_or_insert_entry_mut(block_hash);
+        let mut entry = block_history.get_or_insert_entry_mut(block_hash).clone();
         if !entry.is_fetched() {
             self.fetch_entry_data(&mut entry).await?;
         }
 
-        let entry = entry.clone();
+        let parent_db = self.get_parent_db(block_history, market_state, entry.parent_hash()).await?;
 
-        let parent_db = self.get_or_fetch_parent_db(block_history, market_state, entry.parent_hash().ok_or_eyre("NO_PARENT_HASH")?).await?;
-
-        let db = Self::apply_state_update(parent_db, entry.state_update.clone().unwrap_or_default(), market_state);
+        let db = apply_state_update(parent_db, entry.state_update.clone().unwrap_or_default(), market_state);
 
         Ok(db)
     }
@@ -446,6 +570,7 @@ mod test {
     use alloy_rpc_types_trace::geth::AccountState;
     use debug_provider::AnvilProviderExt;
     use defi_types::GethStateUpdate;
+    use loom_utils::geth_state_update::*;
 
     fn create_next_header(parent: &Header, child_id: u64) -> Header {
         let number = parent.number + 1;
@@ -453,21 +578,6 @@ mod test {
         let number = parent.number + 1;
 
         Header { hash, parent_hash: parent.hash, number, ..Default::default() }
-    }
-
-    fn account_state_with_nonce_and_balance(nonce: u64, balance: U256) -> AccountState {
-        AccountState { balance: Some(balance), code: None, nonce: Some(nonce), storage: Default::default() }
-    }
-    fn account_state_add_storage(account_state: AccountState, key: B256, value: B256) -> AccountState {
-        let mut account_state = account_state;
-        account_state.storage.insert(key, value);
-        account_state
-    }
-
-    fn geth_state_update_add_account(update: GethStateUpdate, address: Address, account_state: AccountState) -> GethStateUpdate {
-        let mut update = update;
-        update.insert(address, account_state);
-        update
     }
 
     #[test]
@@ -521,13 +631,13 @@ mod test {
         block_history.add_block_header(header_2_0).unwrap();
         block_history.add_block_header(header_3_0).unwrap();
         block_history.add_block_header(header_2_1).unwrap();
-        //block_history.add_block_header(header_3_1).unwrap();
-        block_history.add_block_header(header_4_1).unwrap();
+        block_history.add_block_header(header_3_1.clone()).unwrap();
+        block_history.add_block_header(header_4_1.clone()).unwrap();
 
-        assert_eq!(block_history.block_entries.len(), 5);
+        assert_eq!(block_history.block_entries.len(), 6);
         assert_eq!(block_history.latest_block_number, 4);
-        assert_eq!(block_history.block_numbers[&3], BlockHash::from(U256::from(0x010304)));
-        assert_eq!(block_history.block_numbers[&4], BlockHash::from(U256::from(0x01030404)));
+        assert_eq!(block_history.block_numbers[&3], header_3_1.hash);
+        assert_eq!(block_history.block_numbers[&4], header_4_1.hash);
     }
 
     #[tokio::test]
@@ -561,7 +671,7 @@ mod test {
 
         block_history.add_block_header(block_2.header.clone())?;
 
-        let mut entry_2 = block_history_manager.get_or_fetch_entry(&mut block_history, block_2.header.hash).await?;
+        let mut entry_2 = block_history_manager.get_or_fetch_entry_cloned(&mut block_history, block_2.header.hash).await?;
         block_history_manager.fetch_entry_data(&mut entry_2).await;
         entry_2.state_update = Some(vec![geth_state_update_add_account(
             GethStateUpdate::default(),

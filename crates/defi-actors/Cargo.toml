@@ -64,6 +64,6 @@ example-exex-remote.workspace = true
 
 
 [dev-dependencies]
-alloy-rpc-client.workspace = true
 env_logger.workspace = true
-
+alloy-node-bindings.workspace = true
+alloy-rpc-client.workspace = true

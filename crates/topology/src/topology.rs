@@ -103,7 +103,7 @@ impl Topology {
             let blockchain = Blockchain::new(params.chain_id.unwrap_or(1) as u64);
 
             info!("Starting block history actor {k}");
-            let mut block_history_actor = BlockHistoryActor::new();
+            let mut block_history_actor = BlockHistoryActor::new(topology.get_client(None)?);
             match block_history_actor
                 .access(blockchain.latest_block())
                 .access(blockchain.market_state())

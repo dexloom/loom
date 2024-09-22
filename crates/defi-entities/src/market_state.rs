@@ -1,6 +1,6 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use alloy_primitives::{Address, U256};
+use alloy_primitives::{Address, BlockHash, BlockNumber, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag};
 use alloy_rpc_types_trace::geth::AccountState;
@@ -16,6 +16,8 @@ use loom_revm_db::LoomInMemoryDB;
 
 #[derive(Clone)]
 pub struct MarketState {
+    pub block_number: BlockNumber,
+    pub block_hash: BlockHash,
     pub state_db: LoomInMemoryDB,
     force_insert_accounts: HashMap<Address, bool>,
     pub read_only_cells: HashMap<Address, HashSet<U256>>,
@@ -23,7 +25,24 @@ pub struct MarketState {
 
 impl MarketState {
     pub fn new(db: LoomInMemoryDB) -> MarketState {
-        MarketState { state_db: db, force_insert_accounts: HashMap::new(), read_only_cells: HashMap::new() }
+        MarketState {
+            block_number: Default::default(),
+            block_hash: Default::default(),
+            state_db: db,
+            force_insert_accounts: HashMap::new(),
+            read_only_cells: HashMap::new(),
+        }
+    }
+
+    pub fn hash(&self) -> BlockHash {
+        self.block_hash
+    }
+    pub fn number(&self) -> BlockNumber {
+        self.block_number
+    }
+
+    pub fn number_and_hash(&self) -> (BlockNumber, BlockHash) {
+        (self.block_number, self.block_hash)
     }
 
     pub fn accounts_len(&self) -> usize {

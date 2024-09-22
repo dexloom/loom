@@ -204,7 +204,7 @@ where
 
     /// Starts block history actor
     pub fn with_block_history(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(BlockHistoryActor::new().on_bc(&self.bc))?;
+        self.actor_manager.start(BlockHistoryActor::new(self.provider.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 

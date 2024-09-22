@@ -152,7 +152,7 @@ async fn main() -> Result<()> {
 
     let mempool_instance = SharedState::new(mempool_instance);
 
-    let block_history_state = SharedState::new(BlockHistory::init(client.clone(), market_state.inner(), 10).await?);
+    let block_history_state = SharedState::new(BlockHistory::new(10));
 
     let tx_signers = TxSigners::new();
     let accounts_state = AccountNonceAndBalanceState::new();
@@ -286,7 +286,7 @@ async fn main() -> Result<()> {
     }
 
     info!("Starting block history actor");
-    let mut block_history_actor = BlockHistoryActor::new();
+    let mut block_history_actor = BlockHistoryActor::new(client.clone());
     match block_history_actor
         .access(latest_block.clone())
         .access(market_state.clone())

@@ -35,43 +35,39 @@ pub async fn block_state_change_worker(
                             }
 
 
-
-
                             MarketEvents::BlockStateUpdate{ block_hash } => {
-                                if let Some(block_history_update) = block_history.read().await.get_entry(&block_hash).cloned() {
-                                    if let Some(state_update) = block_history_update.state_update {
-                                        if let Some(block_header) = block_history_update.header {
+                                if let Some(block_history_entry) = block_history.read().await.get_entry(&block_hash).cloned() {
+                                    if let Some(state_update) = block_history_entry.state_update.clone() {
                                             let affected_pools = get_affected_pools(market.clone(), &state_update).await?;
 
-                                            let cur_state = block_history_update.state_db.unwrap().clone();
+                                            if let Some(cur_state) = block_history_entry.state_db.as_ref().cloned() {
+                                                let block = block_history_entry.number() + 1;
+
+                                                let block_timestamp = block_history_entry.timestamp() + 12;
+                                                let next_base_fee= next_block_base_fee;
 
 
-                                            let block = block_header.number + 1;
-
-                                            let block_timestamp = block_header.timestamp + 12;
-                                            let next_base_fee= next_block_base_fee;
-                                            //let next_base_fee : U256 = block_header.next_block_base_fee().unwrap_or_default().convert();
-
-
-                                            let request = StateUpdateEvent::new(
-                                                block,
-                                                block_timestamp,
-                                                next_base_fee,
-                                                cur_state,
-                                                state_update,
-                                                None,
-                                                affected_pools,
-                                                Vec::new(),
-                                                Vec::new(),
-                                                "block_searcher".to_string(),
-                                                9000
-                                            );
-                                            if let Err(e) = state_updates_broadcaster.send(request).await {
-                                                error!("{}", e)
+                                                let request = StateUpdateEvent::new(
+                                                    block,
+                                                    block_timestamp,
+                                                    next_base_fee,
+                                                    cur_state,
+                                                    state_update,
+                                                    None,
+                                                    affected_pools,
+                                                    Vec::new(),
+                                                    Vec::new(),
+                                                    "block_searcher".to_string(),
+                                                    9000
+                                                );
+                                                if let Err(e) = state_updates_broadcaster.send(request).await {
+                                                    error!("{}", e)
+                                                }
                                             }
+
+
                                         }
                                     }
-                                }
                             }
                             _=>{}
                         }

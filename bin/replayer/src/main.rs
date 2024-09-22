@@ -27,7 +27,7 @@ use loom_utils::NWETH;
 async fn main() -> Result<()> {
     let start_block_number = 20179184;
     env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(
-        "debug,alloy_rpc_client=off,debug_provider=debug,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace",
+        "debug,alloy_rpc_client=off,debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace",
     ))
     .format_timestamp_micros()
     .init();

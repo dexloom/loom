@@ -27,13 +27,11 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
         tokio::select! {
             block = stream.next() => {
                 if let Some(block) = block {
-                    if let Some(block_hash) = block.header.hash {
-                        info!("Block hash received: {:?}" , block_hash );
-                        if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block_hash) {
-                            e.insert(Utc::now());
-                            run_async!(sender.send(block_hash));
-                            block_processed = block_processed.iter().filter(|(k,v)| **v > Utc::now() - chrono::TimeDelta::minutes(10) ).collect();
-                        }
+                    info!("Block hash received: {:?}" , block.header.hash );
+                    if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block.header.hash) {
+                        e.insert(Utc::now());
+                        run_async!(sender.send(block.header.hash));
+                        block_processed.retain(|_, &mut v| v > Utc::now() - chrono::TimeDelta::minutes(10) );
                     }
                 }
 

@@ -1,18 +1,20 @@
 use alloy_network::Ethereum;
-use alloy_primitives::{Address, BlockHash, BlockNumber};
+use alloy_primitives::{BlockHash, BlockNumber};
 use alloy_provider::Provider;
 use alloy_rpc_types::Block;
 use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
-use defi_entities::{BlockHistory, BlockHistoryManager, LatestBlock, MarketState};
+use defi_entities::{apply_state_update, BlockHistory, BlockHistoryManager, LatestBlock, MarketState};
 use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MessageBlockHeader};
 use eyre::Result;
 use log::{debug, error, info, trace};
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomInMemoryDB;
-use std::ops::Deref;
+use std::borrow::BorrowMut;
+use std::marker::PhantomData;
+use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;
 
@@ -26,7 +28,7 @@ pub async fn new_block_history_worker<P, T>(
     block_update_rx: Broadcaster<Block>,
     log_update_rx: Broadcaster<BlockLogs>,
     state_update_rx: Broadcaster<BlockStateUpdate>,
-    sender: Broadcaster<MarketEvents>,
+    market_events_tx: Broadcaster<MarketEvents>,
 ) -> WorkerResult
 where
     T: Transport + Clone + Send + Sync + 'static,
@@ -53,20 +55,31 @@ where
                         let timestamp : u64 = block_header.timestamp;
                         let base_fee: u128 = block_header.base_fee_per_gas.unwrap_or_default();
 
-                        match block_history.write().await.add_block_header(block_header.clone()) {
-                            Ok(_) => {
+                        let mut block_history_guard = block_history.write().await;
+
+                        match block_history_manager.set_chain_head(block_history_guard.borrow_mut(), block_header.clone()).await {
+                            Ok(reorg_depth) => {
+                                if reorg_depth > 0 {
+                                    debug!("Re-org detected. Block {} Depth {} New hash {}", block_number, reorg_depth, block_hash);
+                                }
+
                                 latest_block.write().await.update(block_number, block_hash, Some(block_header.clone()), None, None, None );
-                                sender.send(MarketEvents::BlockHeaderUpdate{
+                                if let Err(e) = market_events_tx.send(MarketEvents::BlockHeaderUpdate{
                                     block_number,
                                     block_hash,
                                     timestamp,
                                     base_fee,
-                                    next_base_fee}).await?;
+                                    next_base_fee}).await
+                                {
+                                    error!("market_events_tx.send : {}", e);
+                                }
+
                             }
                             Err(e)=>{
-                                error!("block_header_update add_block error {} {} {} ", e, block_number, block_hash);
+                                error!("block_history_manager.set_chain_head error at {} hash {} error : {} ", block_number, block_hash, e);
                             }
                         }
+                        drop(block_history_guard);
                     }
                     Err(e)=>{
                         error!("block_update error {}", e)
@@ -87,10 +100,12 @@ where
                         match block_history.write().await.add_block(block.clone()) {
                             Ok(_) => {
                                 latest_block.write().await.update(block_number, block_hash, None, Some(block.clone()), None, None );
-                                sender.send(MarketEvents::BlockTxUpdate{ block_number, block_hash}).await.unwrap();
+                                if let Err(e) = market_events_tx.send(MarketEvents::BlockTxUpdate{ block_number, block_hash}).await {
+                                    error!("market_events_tx.send : {}", e)
+                                }
                             }
                             Err(e)=>{
-                                error!("block_update add_block error {} {} {} ", e, block_number, block_hash);
+                                error!("block_update add_block error at block {} with hash {} : {}", block_number, block_hash, e);
                             }
                         }
                     }
@@ -111,7 +126,7 @@ where
                                 let (latest_number, latest_hash) = latest_block.read().await.number_and_hash();
                                 if latest_hash == block_hash {
                                     latest_block.write().await.update(latest_number, block_hash, None, None, Some(msg.logs), None );
-                                    sender.send(MarketEvents::BlockLogsUpdate{ block_number: latest_number,  block_hash } ).await.unwrap();
+                                    market_events_tx.send(MarketEvents::BlockLogsUpdate{ block_number: latest_number,  block_hash } ).await.unwrap();
                                 }
                             }
                             Err(e)=>{
@@ -131,50 +146,70 @@ where
                 let state_update_msg : Result<BlockStateUpdate, RecvError> = msg;
                 match state_update_msg {
                     Ok(msg) => {
-                        let block_hash : BlockHash = msg.block_hash;
-                        let (latest_number, _) = latest_block.read().await.number_and_hash();
+                        let msg_block_hash : BlockHash = msg.block_hash;
+                        let latest_block_guard = latest_block.read().await;
+                        let (latest_block_number, latest_block_hash) = latest_block_guard.number_and_hash();
+                        let latest_block_parent_hash = latest_block_guard.parent_hash().unwrap_or_default();
+                        drop(latest_block_guard);
 
-                        latest_block.write().await.update(latest_number, block_hash, None, None, None, Some(msg.state_update.clone()) );
-
-                        let new_market_state_db = market_state.read().await.state_db.clone();
-
-                        let add_state_diff_result= block_history.write().await.add_state_diff(block_hash, new_market_state_db, msg.state_update.clone());
-
-                        match add_state_diff_result {
-                            Ok(_) => {
-                                //todo : state diff latest block update
-                                //latest_block.write().await.update(block_number, None, None, logs.clone(), None );
-                                let block_history_len = block_history.write().await;
-                                debug!("Block History len :{}", block_history_len);
-
-                                let market_state= market_state.read().await;
-
-                                let accounts_len = market_state.accounts_len();
-                                let accounts_db_len = market_state.accounts_db_len();
-                                let storage_len = market_state.storage_len();
-                                let storage_db_len = market_state.storage_db_len();
-                                trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
-
-
-                                let db = block_history_manager.apply_state_update_on_parent_db(block_history.borrow_mut(), &market_state, msg.block_hash, ).await?;
-
-
-                                let market_state_clone= market_state.clone();
-                                info!("market state updated ok records : update len: {} accounts: {} contracts: {}", msg.state_update.len(), new_market_state_db.accounts.len(),  new_market_state_db.contracts.len()  );
-                                market_state.write().await.state_db = new_market_state_db.clone();
-
-                                sender.send(MarketEvents::BlockStateUpdate{ block_hash} ).await.unwrap();
-
-                                // TODO : Fix
-                                //Merging DB in background and update market state
-                                tokio::task::spawn( async move{
-                                    let merged_db = LoomInMemoryDB::new( Arc::new(new_market_state_db.merge()));
-                                    market_state_clone.write().await.state_db = merged_db;
-                                });
-
+                        if latest_block_hash != msg_block_hash {
+                            error!("State update for block that is not latest {} need {}", msg_block_hash, latest_block_hash);
+                            if let Err(e) = block_history.write().await.add_state_diff(msg_block_hash, None, msg.state_update.clone()) {
+                                error!("block_history.add_state_diff {}", e)
                             }
-                            Err(e)=>{
-                                error!("block_state_update add_block error {} {}", e, block_hash);
+
+                        } else{
+                            latest_block.write().await.update(latest_block_number, msg_block_hash, None, None, None, Some(msg.state_update.clone()) );
+
+                            let market_state_guard= market_state.read().await;
+
+                            let new_market_state_db = if market_state_guard.block_hash.is_zero() || market_state_guard.block_hash == latest_block_parent_hash {
+                                let db = market_state.read().await.state_db.clone();
+                                apply_state_update(db, msg.state_update.clone(), &market_state_guard)
+                            }else{
+                                let mut block_history = block_history.write().await;
+                                block_history_manager.apply_state_update_on_parent_db(block_history.deref_mut(), &market_state_guard, msg.block_hash ).await?
+                            };
+
+                            drop(market_state_guard);
+
+
+                            let add_state_diff_result= block_history.write().await.add_state_diff(msg_block_hash, Some(new_market_state_db.clone()), msg.state_update.clone());
+
+                            match add_state_diff_result {
+                                Ok(_) => {
+                                    //todo : state diff latest block update
+                                    let block_history = block_history.read().await;
+                                    debug!("Block History len :{}", block_history.len());
+
+                                    let mut market_state_guard= market_state.write().await;
+
+                                    let accounts_len = market_state_guard.accounts_len();
+                                    let accounts_db_len = market_state_guard.accounts_db_len();
+                                    let storage_len = market_state_guard.storage_len();
+                                    let storage_db_len = market_state_guard.storage_db_len();
+                                    trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
+
+                                    market_state_guard.state_db = new_market_state_db.clone();
+                                    market_state_guard.block_hash = msg_block_hash;
+                                    market_state_guard.block_number = latest_block_number;
+                                    drop(market_state_guard);
+
+                                    info!("market state updated ok records : update len: {} accounts: {} contracts: {}", msg.state_update.len(), new_market_state_db.accounts.len(),  new_market_state_db.contracts.len()  );
+
+                                    market_events_tx.send(MarketEvents::BlockStateUpdate{ block_hash : msg_block_hash} ).await.unwrap();
+
+                                    //Merging DB in background and update market state
+                                    let market_state_clone= market_state.clone();
+
+                                    tokio::task::spawn( async move{
+                                        let mut market_state_guard = market_state_clone.write().await;
+                                        market_state_guard.state_db = LoomInMemoryDB::new( Arc::new(new_market_state_db.merge()));
+                                    });
+                                }
+                                Err(e)=>{
+                                    error!("block_state_update add_block error {} {}", e, msg_block_hash);
+                                }
                             }
                         }
                     }
@@ -182,13 +217,17 @@ where
                         error!("block state update message error : {}", e);
                     }
                 }
+                debug!("Block State update finished");
+
             }
         }
     }
 }
 
-#[derive(Accessor, Consumer, Producer, Default)]
-pub struct BlockHistoryActor {
+#[derive(Accessor, Consumer, Producer)]
+pub struct BlockHistoryActor<P, T> {
+    client: P,
+    _t: PhantomData<T>,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[accessor]
@@ -207,9 +246,24 @@ pub struct BlockHistoryActor {
     market_events_tx: Option<Broadcaster<MarketEvents>>,
 }
 
-impl BlockHistoryActor {
-    pub fn new() -> Self {
-        Self::default()
+impl<P, T> BlockHistoryActor<P, T>
+where
+    T: Transport + Sync + Send + Clone + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Sync + Send + Clone + 'static,
+{
+    pub fn new(client: P) -> Self {
+        Self {
+            client,
+            _t: PhantomData,
+            latest_block: None,
+            market_state: None,
+            block_history: None,
+            block_header_update_rx: None,
+            block_update_rx: None,
+            log_update_rx: None,
+            state_update_rx: None,
+            market_events_tx: None,
+        }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -222,13 +276,19 @@ impl BlockHistoryActor {
             log_update_rx: Some(bc.new_block_logs_channel()),
             state_update_rx: Some(bc.new_block_state_update_channel()),
             market_events_tx: Some(bc.market_events_channel()),
+            ..self
         }
     }
 }
 
-impl Actor for BlockHistoryActor {
+impl<P, T> Actor for BlockHistoryActor<P, T>
+where
+    T: Transport + Sync + Send + Clone + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Sync + Send + Clone + 'static,
+{
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_block_history_worker(
+            self.client.clone(),
             self.latest_block.clone().unwrap(),
             self.market_state.clone().unwrap(),
             self.block_history.clone().unwrap(),

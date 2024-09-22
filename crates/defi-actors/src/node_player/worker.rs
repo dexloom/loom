@@ -78,20 +78,12 @@ where
 
                                 if !guard.is_empty() {
                                     guard.filter_on_block(curblock_number).into_iter().flat_map(|x| x.tx.clone()).collect()
-                                    // guard
-                                    //     .txs
-                                    //     .values()
-                                    //     .filter(|x| x.state_update.is_some() && x.logs.is_some() && x.mined.is_none())
-                                    //     .flat_map(|x| x.tx.clone())
-                                    //     .collect()
                                 } else {
                                     vec![]
                                 }
                             } else {
                                 vec![]
                             };
-
-                            //let mut txs = Vec::new();
 
                             if txs.is_empty() {
                                 if let Err(e) = block_with_tx_channel.send(block).await {
@@ -179,7 +171,7 @@ where
             }
         }
 
-        tokio::time::sleep(Duration::from_millis(500)).await;
+        tokio::time::sleep(Duration::from_millis(1000)).await;
     }
 
     Ok("Node block player worker finished".to_string())
