@@ -2,62 +2,17 @@ use alloy::primitives::Bytes;
 use alloy::rpc::types::Transaction;
 use alloy::serde::WithOtherFields;
 use alloy::{
-    primitives::{B256, B64},
     rlp::Decodable,
-    rpc::types::{Block as ABlock, BlockNumHash, BlockTransactions, Header as AHeader, Log as ALog},
+    rpc::types::{BlockNumHash, Log as ALog},
 };
 use eyre::{OptionExt, Result};
 use reth_db::models::StoredBlockBodyIndices;
-use reth_primitives::{
-    Block as RBlock, BlockWithSenders, Header as RHeader, Receipt, SealedBlockWithSenders, TransactionSignedEcRecovered,
-};
+use reth_primitives::{BlockWithSenders, Receipt, SealedBlockWithSenders, TransactionSignedEcRecovered};
 use reth_rpc::eth::EthTxBuilder;
 
 pub trait Convert<T> {
     fn convert(&self) -> T;
 }
-
-impl Convert<AHeader> for RHeader {
-    fn convert(&self) -> AHeader {
-        AHeader {
-            hash: self.hash_slow(),
-            parent_hash: self.parent_hash,
-            uncles_hash: B256::default(),
-            miner: self.beneficiary,
-            state_root: self.state_root,
-            transactions_root: self.transactions_root,
-            receipts_root: self.receipts_root,
-            logs_bloom: self.logs_bloom,
-            difficulty: self.difficulty,
-            number: self.number,
-            gas_limit: self.gas_limit as u128,
-            gas_used: self.gas_used as u128,
-            timestamp: self.timestamp,
-            total_difficulty: None,
-            extra_data: self.extra_data.clone(),
-            mix_hash: Some(self.mix_hash),
-            nonce: Some(B64::from(self.nonce)),
-            base_fee_per_gas: self.base_fee_per_gas.map(|x| x as u128),
-            withdrawals_root: self.withdrawals_root,
-            blob_gas_used: self.blob_gas_used.map(|x| x as u128),
-            excess_blob_gas: self.excess_blob_gas.map(|x| x as u128),
-            parent_beacon_block_root: self.parent_beacon_block_root,
-            requests_root: self.requests_root,
-        }
-    }
-}
-
-impl Convert<ABlock> for RBlock {
-    fn convert(&self) -> ABlock {
-        ABlock { header: self.header.convert(), uncles: vec![], transactions: BlockTransactions::Uncle, size: None, withdrawals: None }
-    }
-}
-//
-// impl Convert<ATransaction> for RTransactionSigned {
-//     fn convert(&self) -> ATransaction {
-//         reth_rpc_types_compat::transaction::from_recovered(TransactionSignedEcRecovered::from_signed_transaction(self.clone(), Address::ZERO))
-//     }
-// }
 
 /// Appends all matching logs of a block's receipts.
 /// If the log matches, look up the corresponding transaction hash.

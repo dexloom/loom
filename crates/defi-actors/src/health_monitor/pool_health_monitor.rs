@@ -30,7 +30,7 @@ pub async fn pool_health_monitor_worker(
                             debug!("Pool health_monitor message update: {:?} {} {} ", swap_error.pool, swap_error.msg, swap_error.amount);
                             let entry = pool_errors_map.entry(swap_error.pool).or_insert(0);
                             *entry += 1;
-                            if *entry == 100 {
+                            if *entry == 10 {
                                 let mut market_guard = market.write().await;
                                 market_guard.set_pool_ok(swap_error.pool, false);
                                 match market_guard.get_pool(&swap_error.pool) {
@@ -43,7 +43,7 @@ pub async fn pool_health_monitor_worker(
                                 }
                             }
 
-                            if *entry > 100  {
+                            if *entry > 10  {
                                 error!("Pool disabled : {:?} {} {}", swap_error.pool, swap_error.msg, swap_error.amount);
                             }
                         }

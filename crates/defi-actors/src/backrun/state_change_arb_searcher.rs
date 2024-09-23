@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
@@ -13,7 +13,7 @@ use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
-use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxComposeData};
+use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData};
 use defi_types::SwapError;
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -79,53 +79,47 @@ async fn state_change_arb_searcher_task(
         //let pool = ThreadPoolBuilder::new().num_threads(20).build().unwrap();
 
         thread_pool.install(|| {
-            swap_path_vec.into_par_iter().for_each_with(
-                (&swap_path_tx, &market_state_clone, &env, &pool_health_monitor_tx),
-                |req, item| {
-                    let mut mut_item: SwapLine = SwapLine { path: item, ..Default::default() };
-                    #[cfg(not(debug_assertions))]
-                    let start_time = chrono::Local::now();
-                    let calc_result = Calculator::calculate(&mut mut_item, req.1, req.2.clone());
-                    #[cfg(not(debug_assertions))]
-                    let took_time = chrono::Local::now() - start_time;
+            swap_path_vec.into_par_iter().for_each_with((&swap_path_tx, &market_state_clone, &env), |req, item| {
+                let mut mut_item: SwapLine = SwapLine { path: item, ..Default::default() };
+                #[cfg(not(debug_assertions))]
+                let start_time = chrono::Local::now();
+                let calc_result = Calculator::calculate(&mut mut_item, req.1, req.2.clone());
+                #[cfg(not(debug_assertions))]
+                let took_time = chrono::Local::now() - start_time;
 
-                    match calc_result {
-                        Ok(_) => {
-                            #[cfg(not(debug_assertions))]
-                            {
-                                if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
-                                    warn!("Took longer than expected {} {}", took_time, mut_item.clone())
-                                }
-                            }
-
-                            if let Ok(profit) = mut_item.profit() {
-                                if profit.is_positive()
-                                    && msg.gas_fee != 0
-                                    && mut_item.abs_profit_eth() > U256::from(200000u128 * msg.gas_fee)
-                                {
-                                    if let Err(e) = swap_path_tx.try_send(mut_item.clone()) {
-                                        error!("try_send swap_path_tx  error : {e}")
-                                    }
-                                }
+                match calc_result {
+                    Ok(_) => {
+                        #[cfg(not(debug_assertions))]
+                        {
+                            if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                                warn!("Took longer than expected {} {}", took_time, mut_item.clone())
                             }
                         }
-                        Err(e) => {
-                            #[cfg(not(debug_assertions))]
-                            {
-                                if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
-                                    warn!("Took longer than expected {:?} {}", e, mut_item.clone())
-                                }
-                            }
-                            error!("Swap error: {:?}", e);
 
-                            let pool_health_tx = req.3;
-                            if let Err(e) = pool_health_tx.try_send(Message::new(HealthEvent::PoolSwapError(e.clone()))) {
-                                error!("try_send to pool_health_monitor error : {:?}", e)
+                        if let Ok(profit) = mut_item.profit() {
+                            if profit.is_positive() && msg.gas_fee != 0 && mut_item.abs_profit_eth() > U256::from(200000u128 * msg.gas_fee)
+                            {
+                                if let Err(e) = swap_path_tx.try_send(Ok(mut_item)) {
+                                    error!("try_send ok swap_path_tx  error : {e}")
+                                }
                             }
                         }
                     }
-                },
-            );
+                    Err(e) => {
+                        #[cfg(not(debug_assertions))]
+                        {
+                            if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                                warn!("Took longer than expected {:?} {}", e, mut_item.clone())
+                            }
+                        }
+                        error!("Swap error: {:?}", e);
+
+                        if let Err(e) = swap_path_tx.try_send(Err(e)) {
+                            error!("try_send error to swap_path_tx error : {e}")
+                        }
+                    }
+                }
+            });
         });
         debug!("Calculation iteration finished {}", chrono::Local::now() - start_time);
     });
@@ -133,33 +127,46 @@ async fn state_change_arb_searcher_task(
     debug!("Calculation results receiver started {}", chrono::Local::now() - start_time);
 
     let swap_request_tx_clone = swap_request_tx.clone();
+    let pool_health_monitor_tx_clone = pool_health_monitor_tx.clone();
+
     let arc_db = Arc::new(db);
 
     let mut answers = 0;
 
     let mut best_answers = BestTxCompose::new_with_pct(U256::from(9000));
 
-    while let Some(swap_line) = swap_line_rx.recv().await {
-        //let msg  = MessageSwapPathEncodeRequest::new(result.clone(), msg.stuffing_txs(), msg.state_update().clone(), msg.state_required().clone());
+    let mut failed_pools: HashSet<SwapError> = HashSet::new();
 
-        let encode_request = MessageTxCompose::encode(TxComposeData {
-            block: msg.block,
-            block_timestamp: msg.block_timestamp,
-            gas_fee: msg.gas_fee,
-            gas: swap_line.gas_used.unwrap_or(300000) as u128,
-            stuffing_txs: msg.stuffing_txs.clone(),
-            stuffing_txs_hashes: msg.stuffing_txs_hashes.clone(),
-            swap: Swap::BackrunSwapLine(swap_line),
-            origin: Some(msg.origin.clone()),
-            tips_pct: Some(msg.tips_pct),
-            poststate: Some(arc_db.clone()),
-            poststate_update: Some(msg.state_update().clone()),
-            ..TxComposeData::default()
-        });
+    while let Some(swap_line_result) = swap_line_rx.recv().await {
+        match swap_line_result {
+            Ok(swap_line) => {
+                let encode_request = TxCompose::Encode(TxComposeData {
+                    block: msg.block,
+                    block_timestamp: msg.block_timestamp,
+                    gas_fee: msg.gas_fee,
+                    gas: swap_line.gas_used.unwrap_or(300000) as u128,
+                    stuffing_txs: msg.stuffing_txs.clone(),
+                    stuffing_txs_hashes: msg.stuffing_txs_hashes.clone(),
+                    swap: Swap::BackrunSwapLine(swap_line),
+                    origin: Some(msg.origin.clone()),
+                    tips_pct: Some(msg.tips_pct),
+                    poststate: Some(arc_db.clone()),
+                    poststate_update: Some(msg.state_update().clone()),
+                    ..TxComposeData::default()
+                });
 
-        if !smart || best_answers.check(&encode_request) {
-            if let Err(e) = swap_request_tx_clone.send(encode_request).await {
-                error!("{}", e)
+                if !smart || best_answers.check(&encode_request) {
+                    if let Err(e) = swap_request_tx_clone.send(Message::new(encode_request)).await {
+                        error!("swap_request_tx_clone.send {}", e)
+                    }
+                }
+            }
+            Err(swap_error) => {
+                if failed_pools.insert(swap_error.clone()) {
+                    if let Err(e) = pool_health_monitor_tx_clone.send(Message::new(HealthEvent::PoolSwapError(swap_error))).await {
+                        error!("try_send to pool_health_monitor error : {:?}", e)
+                    }
+                }
             }
         }
 
