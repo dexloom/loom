@@ -10,12 +10,19 @@ use crate::build_swap_path_vec;
 use crate::{EmptyPool, Pool, PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
 
+/// The market struct contains all the pools and tokens.
+/// It keeps track if a pool is disabled or not and the swap paths.
 #[derive(Default, Clone)]
 pub struct Market {
+    // pool_address -> pool
     pools: HashMap<Address, PoolWrapper>,
+    // pool_address -> is_disabled
     pools_disabled: HashMap<Address, bool>,
+    // token_address -> token
     tokens: HashMap<Address, Arc<Token>>,
+    // token_from -> token_to
     token_tokens: HashMap<Address, Vec<Address>>,
+    // token_from -> token_to -> pool_addresses
     token_pools: HashMap<Address, HashMap<Address, Vec<Address>>>,
     swap_paths: SwapPaths,
 }
@@ -25,12 +32,14 @@ lazy_static! {
 }
 
 impl Market {
+    /// Add a [`Token`](crate::Token) reference to the market.
     pub fn add_token<T: Into<Arc<Token>>>(&mut self, token: T) -> Result<()> {
         let arc_token: Arc<Token> = token.into();
         self.tokens.insert(arc_token.get_address(), arc_token);
         Ok(())
     }
 
+    /// Check if the token is a basic token.
     pub fn is_basic_token(&self, address: &Address) -> bool {
         if let Some(token) = self.tokens.get(address) {
             token.is_basic()
@@ -39,16 +48,19 @@ impl Market {
         }
     }
 
+    /// Check if the given address is the WETH address.
     pub fn is_weth(address: &Address) -> bool {
         *address == *WETH_ADDRESS
     }
 
+    /// Add a new empty pool to the market for the given pool address.
     pub fn add_empty_pool(&mut self, address: &Address) -> Result<()> {
         let pool_contract = EmptyPool::new(*address);
         self.pools.insert(pool_contract.get_address(), pool_contract.into());
         Ok(())
     }
 
+    /// Add a new pool to the market.
     pub fn add_pool<T: Into<PoolWrapper>>(&mut self, pool: T) -> Result<()> {
         let pool_contract = pool.into();
 
@@ -88,61 +100,54 @@ impl Market {
         Ok(())
     }
 
+    /// Add a swap path to the market.
     pub fn add_paths<T: Into<SwapPath> + Clone>(&mut self, paths: Vec<T>) {
         for path in paths.into_iter() {
             self.swap_paths.add(path);
         }
     }
 
+    /// Get all swap paths from the market by the pool address.
     pub fn get_pool_paths(&self, pool_address: &Address) -> Option<Vec<SwapPath>> {
         self.swap_paths.get_pool_paths_vec(pool_address)
     }
 
+    /// Get a pool reference by the pool address.
     pub fn get_pool(&self, address: &Address) -> Option<&PoolWrapper> {
         self.pools.get(address).filter(|&pool_wrapper| pool_wrapper.get_class() != PoolClass::Unknown)
     }
 
+    /// Check if the pool exists in the market.
     pub fn is_pool(&self, address: &Address) -> bool {
         self.pools.contains_key(address)
     }
 
+    /// Get a reference to the pools map in the market.
     pub fn pools(&self) -> &HashMap<Address, PoolWrapper> {
         &self.pools
     }
 
-    /*pub fn add_error(&mut self, address: Address) {
-        match self.pool_errors_map.entry(address) {
-            Entry::Vacant(e)=>{
-                e.insert(1);
-            }
-            Entry::Occupied(mut e)=>{
-                e.insert(*e.get() + 1);
-            }
-        }
-    }
-
-     */
+    /// Set the pool status to ok or not ok.
     pub fn set_pool_ok(&mut self, address: Address, ok: bool) {
         *self.pools_disabled.entry(address).or_insert(false) = ok
     }
 
+    /// Check if the pool is ok.
     pub fn is_pool_ok(&self, address: &Address) -> bool {
         self.pools_disabled.get(address).cloned().unwrap_or(true)
     }
 
+    /// Get a [`Token`](crate::Token) reference from the market by the address of the token or create a new one.
     pub fn get_token_or_default(&self, address: &Address) -> Arc<Token> {
         self.tokens.get(address).map_or(Arc::new(Token::new(*address)), |t| t.clone())
     }
 
+    /// Get a [`Token`](crate::Token) reference from the market by the address of the token.
     pub fn get_token(&self, address: &Address) -> Option<Arc<Token>> {
         self.tokens.get(address).cloned()
     }
 
-    /*pub fn get_token_mut(&mut self, address : &Address) -> Option<&mut Token> {
-        self.tokens.get_mut(address)
-    }
-     */
-
+    /// Get all pool addresses that allow to swap from `token_from_address` to `token_to_address`.
     pub fn get_token_token_pools(&self, token_from_address: &Address, token_to_address: &Address) -> Option<Vec<Address>> {
         if let Some(token_from_map) = self.token_pools.get(token_from_address) {
             if let Some(pool_address_vec) = token_from_map.get(token_to_address) {
@@ -152,6 +157,7 @@ impl Market {
         None
     }
 
+    /// Get all pool addresses as reference that allow to swap from `token_from_address` to `token_to_address`.
     pub fn get_token_token_pools_ptr(&self, token_from_address: &Address, token_to_address: &Address) -> Option<&Vec<Address>> {
         if let Some(token_from_map) = self.token_pools.get(token_from_address) {
             if let Some(pool_address_vec) = token_from_map.get(token_to_address) {
@@ -161,6 +167,7 @@ impl Market {
         None
     }
 
+    /// Get all token addresses that allow to swap from `token_from_address`.
     pub fn get_token_tokens(&self, token_from_address: &Address) -> Option<Vec<Address>> {
         if let Some(token_vec) = self.token_tokens.get(token_from_address) {
             return Some(token_vec.clone());
@@ -168,6 +175,7 @@ impl Market {
         None
     }
 
+    /// Get all token addresses as reference that allow to swap from `token_from_address`.
     pub fn get_token_tokens_ptr(&self, token_from_address: &Address) -> Option<&Vec<Address>> {
         if let Some(token_vec) = self.token_tokens.get(token_from_address) {
             return Some(token_vec);
@@ -175,10 +183,12 @@ impl Market {
         None
     }
 
+    /// Build a list of swap paths from the given directions.
     pub fn build_swap_path_vec(&self, directions: &BTreeMap<PoolWrapper, Vec<(Address, Address)>>) -> Result<Vec<SwapPath>> {
         build_swap_path_vec(self, directions)
     }
 
+    /// get a [`SwapPath`](crate::SwapPath) from the given token and pool addresses.
     pub fn swap_path(&self, token_address_vec: Vec<Address>, pool_address_vec: Vec<Address>) -> Result<SwapPath> {
         let mut tokens: Vec<Arc<Token>> = Vec::new();
         let mut pools: Vec<PoolWrapper> = Vec::new();
