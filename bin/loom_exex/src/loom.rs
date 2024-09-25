@@ -19,7 +19,6 @@ use reth::transaction_pool::{BlobStore, Pool, TransactionOrdering, TransactionPo
 use reth_execution_types::Chain;
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
-use reth_primitives::IntoRecoveredTransaction;
 use reth_tracing::tracing::{error, info};
 use tokio::select;
 

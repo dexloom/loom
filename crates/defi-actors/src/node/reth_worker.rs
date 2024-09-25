@@ -86,7 +86,7 @@ where
                                         block_with_senders.clone_from(&block_with_senders_reth);
 
                                         if let Some(block_with_senders_reth) = block_with_senders_reth {
-                                            debug!("block_with_senders_reth : txs {}", block_with_senders_reth.body.len());
+                                            debug!("block_with_senders_reth : txs {}", block_with_senders_reth.body.transactions.len());
 
                                             //convert RETH->RPCx
                                             let block_with_senders_rpc = reth_rpc_types_compat::block::from_block_with_tx_hashes::<Transaction>(block_with_senders_reth, block.header.total_difficulty.unwrap_or_default(), Some(block.header.hash));

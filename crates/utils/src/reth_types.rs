@@ -29,7 +29,7 @@ pub fn append_all_matching_block_logs(
     // re-querying the block body indices.
     let loaded_first_tx_num = block_body_indices.first_tx_num;
 
-    let mut tx_iter = block.transactions();
+    let mut tx_iter = block.body.transactions.iter();
 
     // Iterate over receipts and append matching logs.
     for (log_index, (receipt_idx, receipt)) in (0_u64..).zip(receipts.iter().enumerate()) {
@@ -63,7 +63,7 @@ pub fn append_all_matching_block_logs_sealed(
     removed: bool,
     block: &SealedBlockWithSenders,
 ) -> Result<()> {
-    let mut tx_iter = block.body.iter();
+    let mut tx_iter = block.body.transactions.iter();
 
     // Iterate over receipts and append matching logs.
     for (log_index, (receipt_idx, receipt)) in (0_u64..).zip(receipts.iter().enumerate()) {
