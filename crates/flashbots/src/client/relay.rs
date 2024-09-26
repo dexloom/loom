@@ -107,7 +107,7 @@ impl Relay {
             }
             Ok(_) => {
                 let text = res.text().await?;
-                debug!("Flashbots repsonse: {}", text);
+                debug!("Flashbots response: {}", text);
                 let res: Response<R> = serde_json::from_str(&text).map_err(|err| RelayError::ResponseSerdeJson { err, text })?;
 
                 Ok(res.data.into_result()?)
@@ -139,7 +139,7 @@ impl Relay {
             }
             Ok(_) => {
                 let text = res.text().await?;
-                debug!("Flashbots repsonse: {}", text);
+                debug!("Flashbots response: {}", text);
                 let res: Response<R> = serde_json::from_str(&text).map_err(|err| RelayError::ResponseSerdeJson { err, text })?;
 
                 Ok(res.data.into_result()?)

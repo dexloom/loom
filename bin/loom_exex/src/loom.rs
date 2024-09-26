@@ -1,11 +1,10 @@
-use std::collections::HashMap;
 use std::env;
 use std::future::Future;
 use std::sync::Arc;
 
 use alloy::hex;
 use alloy::network::Ethereum;
-use alloy::primitives::{Address, TxHash, U256};
+use alloy::primitives::{map::HashMap, Address, TxHash, U256};
 use alloy::providers::Provider;
 use alloy::rpc::types::{Block, BlockTransactions, BlockTransactionsKind};
 use alloy::transports::Transport;

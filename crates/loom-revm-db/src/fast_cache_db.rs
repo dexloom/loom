@@ -1,8 +1,8 @@
-use std::collections::hash_map::Entry;
-use std::collections::{BTreeMap, HashMap};
+use std::collections::BTreeMap;
 use std::sync::Arc;
 use std::vec::Vec;
 
+use alloy::primitives::map::{Entry, HashMap};
 use alloy::primitives::BlockNumber;
 use alloy::{
     consensus::constants::KECCAK_EMPTY,
@@ -171,7 +171,7 @@ impl<ExtDB> FastCacheDB<ExtDB> {
         let mut contracts = HashMap::with_hasher(SimpleBuildHasher::default());
         contracts.insert(KECCAK_EMPTY, Bytecode::default());
         contracts.insert(B256::ZERO, Bytecode::default());
-        Self { accounts: HashMap::new(), contracts, logs: Vec::default(), block_hashes: HashMap::new(), db }
+        Self { accounts: HashMap::default(), contracts, logs: Vec::default(), block_hashes: HashMap::default(), db }
     }
 
     /// Inserts the account's code into the cache.
