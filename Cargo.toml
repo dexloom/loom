@@ -69,19 +69,18 @@ colored = "2.0.4"
 indexmap = "2.5.0"
 influxdb = "0.7.2"
 
-revm = { version = "14.0.2", features = [
+revm = { version = "14.0.3", features = [
     "std",
     "secp256k1",
     "blst",
 ], default-features = false }
-revm-primitives = { version = "9.0.2", features = [
+revm-primitives = { version = "10.0.0", features = [
     "std",
 ], default-features = false }
-revm-inspectors = "0.7.4"
+revm-inspectors = "0.7.6"
 
-alloy-core = "0.8.3"
-alloy-chains = "0.1.30"
-alloy-primitives = { version = "0.8.3", features = ["rand"] }
+alloy-chains = "0.1.32"
+alloy-primitives = { version = "0.8.4", features = ["rand"] }
 alloy-dyn-abi = { version = "0.8.3", features = ["json", "std"] }
 alloy-sol-types = { version = "0.8.3", features = ["json"] }
 alloy-sol-macro = { version = "0.8.3", features = ["json"] }

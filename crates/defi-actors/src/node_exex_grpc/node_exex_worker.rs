@@ -1,8 +1,7 @@
-use std::collections::HashMap;
 use std::sync::Arc;
 
 use alloy_eips::BlockNumHash;
-use alloy_primitives::{Address, U256};
+use alloy_primitives::{map::HashMap, Address, U256};
 use alloy_rpc_types::serde_helpers::WithOtherFields;
 use alloy_rpc_types::{Block, BlockTransactionsKind, Header, Transaction};
 use chrono::Utc;
