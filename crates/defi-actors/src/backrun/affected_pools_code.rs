@@ -152,6 +152,7 @@ where
     }
 }
 
+/// Check if the state update code contains code for a UniswapV2 pair or UniswapV3 pool by looking for method signatures.
 pub fn is_pool_code(state_update: &GethStateUpdateVec) -> bool {
     for state_update_record in state_update.iter() {
         for (_address, state_update_entry) in state_update_record.iter() {

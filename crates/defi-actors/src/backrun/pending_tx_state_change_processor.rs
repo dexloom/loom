@@ -33,6 +33,7 @@ lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
+/// Process a pending tx from the mempool
 #[allow(clippy::too_many_arguments)]
 pub async fn pending_tx_state_change_task<P, T, N>(
     client: P,
