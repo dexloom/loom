@@ -9,7 +9,7 @@ use defi_entities::MarketState;
 use defi_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
 };
-use defi_types::{debug_trace_block, ChainParameters, Mempool};
+use defi_types::{debug_trace_block, Mempool};
 use log::{debug, error};
 use loom_actors::{Broadcaster, SharedState, WorkerResult};
 use loom_revm_db::LoomInMemoryDB;
@@ -20,7 +20,6 @@ use std::time::Duration;
 #[allow(clippy::too_many_arguments)]
 pub async fn node_player_worker<P>(
     provider: P,
-    chain_parameters: ChainParameters,
     start_block: BlockNumber,
     end_block: BlockNumber,
     mempool: Option<SharedState<Mempool>>,
@@ -65,8 +64,7 @@ where
             };
 
             if let Some(block_headers_channel) = &new_block_headers_channel {
-                if let Err(e) = block_headers_channel.send(Message::new_with_time(BlockHeader::new(&chain_parameters, block.header))).await
-                {
+                if let Err(e) = block_headers_channel.send(Message::new_with_time(BlockHeader::new(block.header))).await {
                     error!("new_block_headers_channel.send error: {e}");
                 }
             }

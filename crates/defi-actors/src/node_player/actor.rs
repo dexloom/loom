@@ -11,7 +11,7 @@ use debug_provider::{DebugProviderExt, HttpCachedTransport};
 use defi_blockchain::Blockchain;
 use defi_entities::MarketState;
 use defi_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageTxCompose};
-use defi_types::{ChainParameters, Mempool};
+use defi_types::Mempool;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use tokio::task::JoinHandle;
@@ -19,7 +19,6 @@ use tokio::task::JoinHandle;
 #[derive(Producer, Consumer, Accessor)]
 pub struct NodeBlockPlayerActor<P, T, N> {
     client: P,
-    chain_parameters: ChainParameters,
     start_block: BlockNumber,
     end_block: BlockNumber,
     #[accessor]
@@ -49,7 +48,6 @@ where
     pub fn new(client: P, start_block: BlockNumber, end_block: BlockNumber) -> NodeBlockPlayerActor<P, T, N> {
         NodeBlockPlayerActor {
             client,
-            chain_parameters: ChainParameters::ethereum(),
             start_block,
             end_block,
             mempool: None,
@@ -66,7 +64,6 @@ where
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
-            chain_parameters: bc.chain_parameters(),
             mempool: Some(bc.mempool()),
             market_state: Some(bc.market_state()),
             compose_channel: Some(bc.compose_channel()),
@@ -96,7 +93,6 @@ where
 
         let handle = tokio::task::spawn(node_player_worker(
             self.client.clone(),
-            self.chain_parameters.clone(),
             self.start_block,
             self.end_block,
             self.mempool.clone(),

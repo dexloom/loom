@@ -8,7 +8,6 @@ use tokio::task::JoinHandle;
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
 use defi_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
-use defi_types::ChainParameters;
 use loom_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_actors_macros::Producer;
 
@@ -20,7 +19,6 @@ use crate::node::reth_worker::reth_node_worker_starter;
 
 pub fn new_node_block_workers_starter<P, T>(
     client: P,
-    chain_parameters: ChainParameters,
     new_block_headers_channel: Option<Broadcaster<MessageBlockHeader>>,
     new_block_with_tx_channel: Option<Broadcaster<MessageBlock>>,
     new_block_logs_channel: Option<Broadcaster<MessageBlockLogs>>,
@@ -38,12 +36,7 @@ where
     }
 
     if let Some(channel) = new_block_headers_channel {
-        tasks.push(tokio::task::spawn(new_node_block_header_worker(
-            client.clone(),
-            chain_parameters,
-            new_header_internal_channel.clone(),
-            channel,
-        )));
+        tasks.push(tokio::task::spawn(new_node_block_header_worker(client.clone(), new_header_internal_channel.clone(), channel)));
     }
 
     if let Some(channel) = new_block_logs_channel {
@@ -104,7 +97,6 @@ impl Default for NodeBlockActorConfig {
 #[derive(Producer)]
 pub struct NodeBlockActor<P, T> {
     client: P,
-    chain_parameters: ChainParameters,
     config: NodeBlockActorConfig,
     reth_db_path: Option<String>,
     #[producer]
@@ -130,7 +122,6 @@ where
     pub fn new(client: P, config: NodeBlockActorConfig) -> NodeBlockActor<P, T> {
         NodeBlockActor {
             client,
-            chain_parameters: ChainParameters::ethereum(),
             config,
             reth_db_path: None,
             block_header_channel: None,
@@ -147,7 +138,6 @@ where
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
-            chain_parameters: bc.chain_parameters(),
             block_header_channel: if self.config.block_header { Some(bc.new_block_headers_channel()) } else { None },
             block_with_tx_channel: if self.config.block_with_tx { Some(bc.new_block_with_tx_channel()) } else { None },
             block_logs_channel: if self.config.block_logs { Some(bc.new_block_logs_channel()) } else { None },
@@ -167,7 +157,6 @@ where
             //RETH DB
             Some(db_path) => reth_node_worker_starter(
                 self.client.clone(),
-                self.chain_parameters.clone(),
                 db_path.clone(),
                 self.block_header_channel.clone(),
                 self.block_with_tx_channel.clone(),
@@ -177,7 +166,6 @@ where
             //RPC
             None => new_node_block_workers_starter(
                 self.client.clone(),
-                self.chain_parameters.clone(),
                 self.block_header_channel.clone(),
                 self.block_with_tx_channel.clone(),
                 self.block_logs_channel.clone(),

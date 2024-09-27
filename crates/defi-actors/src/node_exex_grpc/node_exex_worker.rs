@@ -18,7 +18,7 @@ use defi_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
     MessageMempoolDataUpdate, NodeMempoolDataUpdate,
 };
-use defi_types::{ChainParameters, GethStateUpdate, MempoolTx};
+use defi_types::{GethStateUpdate, MempoolTx};
 use loom_actors::{Broadcaster, WorkerResult};
 use loom_utils::reth_types::append_all_matching_block_logs_sealed;
 
@@ -124,7 +124,6 @@ fn get_current_chain(notification: ExExNotification) -> Option<Arc<Chain>> {
 }
 
 pub async fn node_exex_grpc_worker(
-    chain_parameters: ChainParameters,
     url: Option<String>,
     block_header_channel: Broadcaster<MessageBlockHeader>,
     block_with_tx_channel: Broadcaster<MessageBlock>,
@@ -169,7 +168,7 @@ pub async fn node_exex_grpc_worker(
             header = stream_header.next() => {
                 if let Some(header) = header {
                     if let Err(e) = block_header_channel.send(
-                            MessageBlockHeader::new_with_time(BlockHeader::new(&chain_parameters, header))).await
+                            MessageBlockHeader::new_with_time(BlockHeader::new( header))).await
                     {
                         error!("block_header_channel.send error : {}", e)
                     }

@@ -394,12 +394,14 @@ where
         }
     }
 
-    pub async fn set_chain_head(&self, block_history: &mut BlockHistory, header: Header) -> Result<usize> {
+    pub async fn set_chain_head(&self, block_history: &mut BlockHistory, header: Header) -> Result<(bool, usize)> {
         let mut reorg_depth = 0;
+        let mut is_new_block = false;
         let parent_hash = header.parent_hash;
         let first_block_number = block_history.get_first_block_number();
 
         if let Ok(is_new) = block_history.add_block_header(header) {
+            is_new_block = is_new;
             if let Some(min_block) = first_block_number {
                 let mut parent_block_hash: BlockHash = parent_hash;
 
@@ -430,7 +432,7 @@ where
             }
         }
 
-        Ok(reorg_depth)
+        Ok((is_new_block, reorg_depth))
     }
 
     pub async fn get_or_fetch_parent_db(

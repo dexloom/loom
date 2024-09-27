@@ -7,11 +7,12 @@ use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;
 use defi_events::{MempoolEvents, MessageBlock, MessageBlockHeader, MessageMempoolDataUpdate};
-use defi_types::{Mempool, MempoolTx};
+use defi_types::{ChainParameters, Mempool, MempoolTx};
 use loom_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
 pub async fn new_mempool_worker(
+    chain_parameters: ChainParameters,
     mempool: SharedState<Mempool>,
     mempool_update_rx: Broadcaster<MessageMempoolDataUpdate>,
     block_header_rx: Broadcaster<MessageBlockHeader>,
@@ -99,8 +100,10 @@ pub async fn new_mempool_worker(
 
 
                     let mempool_read_guard = mempool.read().await;
-                    let ok_txes = mempool_read_guard.filter_ok_by_gas_price(block_header.next_block_base_fee);
-                    debug!("Mempool gas update {} {}", block_header.next_block_base_fee, ok_txes.len());
+                    let next_base_fee = chain_parameters.calc_next_block_base_fee_from_header(&block_header.header);
+
+                    let ok_txes = mempool_read_guard.filter_ok_by_gas_price(next_base_fee);
+                    debug!("Mempool gas update {} {}", next_base_fee, ok_txes.len());
                     for mempool_tx in ok_txes {
                         let tx  = mempool_tx.tx.clone().unwrap();
                         if tx.gas  < 50000 {
@@ -166,6 +169,7 @@ pub async fn new_mempool_worker(
 
 #[derive(Accessor, Consumer, Producer, Default)]
 pub struct MempoolActor {
+    chain_parameters: ChainParameters,
     #[accessor]
     mempool: Option<SharedState<Mempool>>,
     #[consumer]
@@ -185,6 +189,7 @@ impl MempoolActor {
 
     pub fn on_bc(self, bc: &Blockchain) -> MempoolActor {
         Self {
+            chain_parameters: bc.chain_parameters(),
             mempool: Some(bc.mempool()),
             mempool_update_rx: Some(bc.new_mempool_tx_channel()),
             block_header_rx: Some(bc.new_block_headers_channel()),
@@ -197,6 +202,7 @@ impl MempoolActor {
 impl Actor for MempoolActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_mempool_worker(
+            self.chain_parameters.clone(),
             self.mempool.clone().unwrap(),
             self.mempool_update_rx.clone().unwrap(),
             self.block_header_rx.clone().unwrap(),

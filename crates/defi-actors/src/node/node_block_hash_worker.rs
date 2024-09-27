@@ -8,7 +8,6 @@ use alloy_rpc_types::{Block, Header};
 use alloy_transport::Transport;
 use chrono::Utc;
 use defi_events::{BlockHeader, MessageBlockHeader};
-use defi_types::ChainParameters;
 use eyre::Result;
 use futures::StreamExt;
 use log::{error, info};
@@ -42,7 +41,6 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
 
 pub async fn new_node_block_header_worker<P, T>(
     client: P,
-    chain_parameters: ChainParameters,
     new_block_header_channel: Broadcaster<Header>,
     block_header_channel: Broadcaster<MessageBlockHeader>,
 ) -> WorkerResult
@@ -68,7 +66,7 @@ where
                         if let Err(e) =  new_block_header_channel.send(block.header.clone()).await {
                             error!("Block hash broadcaster error  {}", e);
                         }
-                        if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(&chain_parameters, block.header))).await {
+                        if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(block.header))).await {
                             error!("Block header broadcaster error {}", e);
                         }
                     }
