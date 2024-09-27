@@ -36,7 +36,7 @@ num_cpus.workspace = true
 
 rand = "0.8.5"
 
-
+alloy.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-rpc-types.workspace = true
@@ -60,6 +60,9 @@ reth-rpc.workspace = true
 reth-rpc-types-compat.workspace = true
 reth-provider.workspace = true
 reth-primitives.workspace = true
+reth-node-api.workspace = true
+reth-transaction-pool.workspace = true
+reth-tracing.workspace = true
 
 example-exex-remote.workspace = true
 

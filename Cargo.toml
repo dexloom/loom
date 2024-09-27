@@ -132,7 +132,7 @@ reth-testing-utils = { git = "https://github.com/paradigmxyz/reth" }
 reth-codecs = { git = "https://github.com/paradigmxyz/reth" }
 reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth" }
 reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth" }
-
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth" }
 
 example-exex-remote = { git = "https://github.com/dexloom/reth-exex-grpc" }
 #example-exex-remote = { path = "../reth-exex-grpc" }
