@@ -9,7 +9,7 @@ use defi_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
     MessageMempoolDataUpdate, NodeMempoolDataUpdate,
 };
-use defi_types::{ChainParameters, GethStateUpdate, MempoolTx};
+use defi_types::{GethStateUpdate, MempoolTx};
 use futures::StreamExt;
 use loom_actors::Broadcaster;
 use loom_utils::reth_types::append_all_matching_block_logs_sealed;
@@ -26,7 +26,6 @@ use tokio::select;
 
 async fn process_chain(
     chain: Arc<Chain>,
-    chain_parameters: ChainParameters,
     block_header_channel: Broadcaster<MessageBlockHeader>,
     block_with_tx_channel: Broadcaster<MessageBlock>,
     logs_channel: Broadcaster<MessageBlockLogs>,
@@ -36,8 +35,7 @@ async fn process_chain(
     if config.block_header {
         for sealed_header in chain.headers() {
             let header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_header);
-            if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(&chain_parameters, header))).await
-            {
+            if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(header))).await {
                 error!(error=?e.to_string(), "block_header_channel.send")
             }
         }
@@ -143,7 +141,6 @@ pub async fn loom_exex<Node: FullNodeComponents>(
                 info!(committed_chain = ?new.range(), "Received commit");
                 if let Err(e) = process_chain(
                     new.clone(),
-                    bc.chain_parameters(),
                     bc.new_block_headers_channel(),
                     bc.new_block_with_tx_channel(),
                     bc.new_block_logs_channel(),
@@ -160,7 +157,6 @@ pub async fn loom_exex<Node: FullNodeComponents>(
                 info!(from_chain = ?old.range(), to_chain = ?new.range(), "Received reorg");
                 if let Err(e) = process_chain(
                     new.clone(),
-                    bc.chain_parameters(),
                     bc.new_block_headers_channel(),
                     bc.new_block_with_tx_channel(),
                     bc.new_block_logs_channel(),
