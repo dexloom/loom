@@ -4,7 +4,7 @@ use reth::args::utils::DefaultChainSpecParser;
 use reth_node_ethereum::EthereumNode;
 
 use crate::arguments::{AppArgs, Command, LoomArgs};
-use defi_actors::mempool_worker;
+use defi_actors::{mempool_worker, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
 use loom_topology::TopologyConfig;
 
@@ -21,8 +21,11 @@ fn main() -> eyre::Result<()> {
             let bc = Blockchain::new(builder.config().chain.chain.id());
             let bc_clone = bc.clone();
 
-            let handle =
-                builder.node(EthereumNode::default()).install_exex("loom-exex", |node_ctx| loom::init(node_ctx, bc_clone)).launch().await?;
+            let handle = builder
+                .node(EthereumNode::default())
+                .install_exex("loom-exex", |node_ctx| loom::init(node_ctx, bc_clone, NodeBlockActorConfig::default()))
+                .launch()
+                .await?;
 
             let mempool = handle.node.pool.clone();
             let ipc_provider = ProviderBuilder::new().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;

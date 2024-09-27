@@ -1,23 +1,24 @@
-use std::future::Future;
 use alloy::network::Ethereum;
-use alloy::primitives::{Address};
+use alloy::primitives::Address;
 use alloy::providers::Provider;
 use alloy::transports::Transport;
 use eyre::OptionExt;
-use reth_exex::{ExExContext};
+use reth_exex::ExExContext;
 use reth_node_api::FullNodeComponents;
-use reth_tracing::tracing::{info};
+use reth_tracing::tracing::info;
+use std::future::Future;
 
 use debug_provider::DebugProviderExt;
-use defi_actors::{loom_exex, BlockchainActors};
+use defi_actors::{loom_exex, BlockchainActors, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 
 pub async fn init<Node: FullNodeComponents>(
     ctx: ExExContext<Node>,
     bc: Blockchain,
+    config: NodeBlockActorConfig,
 ) -> eyre::Result<impl Future<Output = eyre::Result<()>>> {
-    Ok(loom_exex(ctx, bc))
+    Ok(loom_exex(ctx, bc, config.clone()))
 }
 
 pub async fn start_loom<P, T>(provider: P, bc: Blockchain, topology_config: TopologyConfig) -> eyre::Result<()>

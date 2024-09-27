@@ -1,3 +1,4 @@
+use crate::NodeBlockActorConfig;
 use alloy_eips::BlockNumHash;
 use alloy_network::primitives::{BlockTransactions, BlockTransactionsKind};
 use alloy_primitives::map::HashMap;
@@ -30,11 +31,15 @@ async fn process_chain(
     block_with_tx_channel: Broadcaster<MessageBlock>,
     logs_channel: Broadcaster<MessageBlockLogs>,
     state_update_channel: Broadcaster<MessageBlockStateUpdate>,
+    config: &NodeBlockActorConfig,
 ) -> eyre::Result<()> {
-    for sealed_header in chain.headers() {
-        let header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_header);
-        if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(&chain_parameters, header))).await {
-            error!(error=?e.to_string(), "block_header_channel.send")
+    if config.block_header {
+        for sealed_header in chain.headers() {
+            let header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_header);
+            if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(&chain_parameters, header))).await
+            {
+                error!(error=?e.to_string(), "block_header_channel.send")
+            }
         }
     }
 
@@ -44,70 +49,80 @@ async fn process_chain(
 
         let block_hash_num = BlockNumHash { number, hash };
 
-        info!(block_number=?block_hash_num.number, block_hash=?block_hash_num.hash, "Processing block");
-        match reth_rpc_types_compat::block::from_block::<EthTxBuilder>(
-            sealed_block.clone().unseal(),
-            sealed_block.difficulty,
-            BlockTransactionsKind::Full,
-            Some(sealed_block.hash()),
-        ) {
-            Ok(block) => {
-                let block: Block = Block {
-                    transactions: BlockTransactions::Full(block.transactions.into_transactions().map(|t| t.inner).collect()),
-                    header: block.header,
-                    uncles: block.uncles,
-                    size: block.size,
-                    withdrawals: block.withdrawals,
-                };
+        // Block with tx
+        if config.block_with_tx {
+            info!(block_number=?block_hash_num.number, block_hash=?block_hash_num.hash, "Processing block");
+            match reth_rpc_types_compat::block::from_block::<EthTxBuilder>(
+                sealed_block.clone().unseal(),
+                sealed_block.difficulty,
+                BlockTransactionsKind::Full,
+                Some(sealed_block.hash()),
+            ) {
+                Ok(block) => {
+                    let block: Block = Block {
+                        transactions: BlockTransactions::Full(block.transactions.into_transactions().map(|t| t.inner).collect()),
+                        header: block.header,
+                        uncles: block.uncles,
+                        size: block.size,
+                        withdrawals: block.withdrawals,
+                    };
 
-                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block)).await {
+                    if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block)).await {
+                        error!(error=?e.to_string(), "block_with_tx_channel.send")
+                    }
+                }
+                Err(e) => {
+                    error!(error = ?e, "from_block")
+                }
+            }
+        }
+
+        // Block logs
+        if config.block_logs {
+            let mut logs: Vec<alloy::rpc::types::Log> = Vec::new();
+
+            let receipts = receipts.iter().filter_map(|r| r.clone()).collect();
+
+            append_all_matching_block_logs_sealed(&mut logs, block_hash_num, receipts, false, sealed_block)?;
+
+            let block_header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_block.header.clone());
+
+            let log_update = BlockLogs { block_header: block_header.clone(), logs };
+
+            if let Err(e) = logs_channel.send(Message::new_with_time(log_update)).await {
+                error!(error=?e.to_string(), "logs_channel.send")
+            }
+        }
+
+        // Block state update
+        if config.block_state_update {
+            if let Some(execution_outcome) = chain.execution_outcome_at_block(block_hash_num.number) {
+                let mut state_update = GethStateUpdate::new();
+
+                let state_ref: &HashMap<Address, BundleAccount> = execution_outcome.bundle.state();
+
+                for (address, accounts) in state_ref.iter() {
+                    let account_state = state_update.entry(*address).or_default();
+                    if let Some(account_info) = accounts.info.clone() {
+                        account_state.code = account_info.code.map(|c| c.bytecode().clone());
+                        account_state.balance = Some(account_info.balance);
+                        account_state.nonce = Some(account_info.nonce);
+                    }
+
+                    let storage: &StorageWithOriginalValues = &accounts.storage;
+
+                    for (key, storage_slot) in storage.iter() {
+                        let (key, storage_slot): (&U256, &StorageSlot) = (key, storage_slot);
+                        account_state.storage.insert((*key).into(), storage_slot.present_value.into());
+                    }
+                }
+                let block_header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_block.header.clone());
+
+                let block_state_update = BlockStateUpdate { block_header: block_header.clone(), state_update: vec![state_update] };
+
+                if let Err(e) = state_update_channel.send(Message::new_with_time(block_state_update)).await {
                     error!(error=?e.to_string(), "block_with_tx_channel.send")
                 }
-            }
-            Err(e) => {
-                error!(error = ?e, "from_block")
-            }
-        }
-
-        let mut logs: Vec<alloy::rpc::types::Log> = Vec::new();
-
-        let receipts = receipts.iter().filter_map(|r| r.clone()).collect();
-
-        append_all_matching_block_logs_sealed(&mut logs, block_hash_num, receipts, false, sealed_block)?;
-
-        let block_header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_block.header.clone());
-
-        let log_update = BlockLogs { block_header: block_header.clone(), logs };
-
-        if let Err(e) = logs_channel.send(Message::new_with_time(log_update)).await {
-            error!(error=?e.to_string(), "logs_channel.send")
-        }
-
-        if let Some(execution_outcome) = chain.execution_outcome_at_block(block_hash_num.number) {
-            let mut state_update = GethStateUpdate::new();
-
-            let state_ref: &HashMap<Address, BundleAccount> = execution_outcome.bundle.state();
-
-            for (address, accounts) in state_ref.iter() {
-                let account_state = state_update.entry(*address).or_default();
-                if let Some(account_info) = accounts.info.clone() {
-                    account_state.code = account_info.code.map(|c| c.bytecode().clone());
-                    account_state.balance = Some(account_info.balance);
-                    account_state.nonce = Some(account_info.nonce);
-                }
-
-                let storage: &StorageWithOriginalValues = &accounts.storage;
-
-                for (key, storage_slot) in storage.iter() {
-                    let (key, storage_slot): (&U256, &StorageSlot) = (key, storage_slot);
-                    account_state.storage.insert((*key).into(), storage_slot.present_value.into());
-                }
-            }
-
-            let block_state_update = BlockStateUpdate { block_header: block_header.clone(), state_update: vec![state_update] };
-
-            if let Err(e) = state_update_channel.send(Message::new_with_time(block_state_update)).await {
-                error!(error=?e.to_string(), "block_with_tx_channel.send")
             }
         }
     }
@@ -115,7 +130,11 @@ async fn process_chain(
     Ok(())
 }
 
-pub async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc: Blockchain) -> eyre::Result<()> {
+pub async fn loom_exex<Node: FullNodeComponents>(
+    mut ctx: ExExContext<Node>,
+    bc: Blockchain,
+    config: NodeBlockActorConfig,
+) -> eyre::Result<()> {
     info!("Loom ExEx is started");
 
     while let Some(exex_notification) = ctx.notifications.next().await {
@@ -129,6 +148,7 @@ pub async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc:
                     bc.new_block_with_tx_channel(),
                     bc.new_block_logs_channel(),
                     bc.new_block_state_update_channel(),
+                    &config,
                 )
                 .await
                 {
@@ -145,6 +165,7 @@ pub async fn loom_exex<Node: FullNodeComponents>(mut ctx: ExExContext<Node>, bc:
                     bc.new_block_with_tx_channel(),
                     bc.new_block_logs_channel(),
                     bc.new_block_state_update_channel(),
+                    &config,
                 )
                 .await
                 {
