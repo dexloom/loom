@@ -1,12 +1,12 @@
 use alloy_primitives::BlockNumber;
-use alloy_rpc_types::{Block, BlockTransactions};
+use alloy_rpc_types::BlockTransactions;
 use chrono::{Duration, Utc};
 use eyre::eyre;
 use log::{debug, error, info, trace};
 use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;
-use defi_events::{MempoolEvents, MessageBlockHeader, MessageMempoolDataUpdate};
+use defi_events::{MempoolEvents, MessageBlock, MessageBlockHeader, MessageMempoolDataUpdate};
 use defi_types::{Mempool, MempoolTx};
 use loom_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -15,7 +15,7 @@ pub async fn new_mempool_worker(
     mempool: SharedState<Mempool>,
     mempool_update_rx: Broadcaster<MessageMempoolDataUpdate>,
     block_header_rx: Broadcaster<MessageBlockHeader>,
-    block_with_txs_rx: Broadcaster<Block>,
+    block_with_txs_rx: Broadcaster<MessageBlock>,
     broadcaster: Broadcaster<MempoolEvents>,
 ) -> WorkerResult {
     subscribe!(mempool_update_rx);
@@ -135,7 +135,7 @@ pub async fn new_mempool_worker(
                 },
                 msg = block_with_txs_rx.recv() => {
                     let block_with_txs = match msg {
-                        Ok(block_with_txs) => block_with_txs,
+                        Ok(block_with_txs) => block_with_txs.inner,
                         Err(e) => {
                             match e {
                                 RecvError::Closed => {
@@ -173,7 +173,7 @@ pub struct MempoolActor {
     #[consumer]
     block_header_rx: Option<Broadcaster<MessageBlockHeader>>,
     #[consumer]
-    block_with_txs_rx: Option<Broadcaster<Block>>,
+    block_with_txs_rx: Option<Broadcaster<MessageBlock>>,
     #[producer]
     mempool_events_tx: Option<Broadcaster<MempoolEvents>>,
 }

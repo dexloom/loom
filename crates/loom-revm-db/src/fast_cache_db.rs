@@ -419,6 +419,7 @@ impl From<AccountInfo> for FastDbAccount {
 
 #[cfg(test)]
 mod tests {
+    use alloy::primitives::map::HashMap;
     use std::collections::BTreeMap;
     use std::sync::Arc;
 
@@ -471,7 +472,10 @@ mod tests {
 
         let mut new_state = FastInMemoryDB::new(Arc::new(init_state));
         assert_eq!(new_state.accounts.len(), 0);
-        new_state.replace_account_storage(account, [(key1, value1)].into()).unwrap();
+        let mut hm: HashMap<U256, U256> = Default::default();
+        hm.insert(key1, value1);
+
+        new_state.replace_account_storage(account, hm).unwrap();
 
         let mut new_state = new_state.merge();
 

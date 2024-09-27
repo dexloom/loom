@@ -6,12 +6,11 @@ use crate::node_player::worker::node_player_worker;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
-use alloy_rpc_types::Block;
 use alloy_transport::Transport;
 use debug_provider::{DebugProviderExt, HttpCachedTransport};
 use defi_blockchain::Blockchain;
 use defi_entities::MarketState;
-use defi_events::{BlockLogs, BlockStateUpdate, MessageBlockHeader, MessageTxCompose};
+use defi_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageTxCompose};
 use defi_types::{ChainParameters, Mempool};
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
@@ -32,11 +31,11 @@ pub struct NodeBlockPlayerActor<P, T, N> {
     #[producer]
     block_header_channel: Option<Broadcaster<MessageBlockHeader>>,
     #[producer]
-    block_with_tx_channel: Option<Broadcaster<Block>>,
+    block_with_tx_channel: Option<Broadcaster<MessageBlock>>,
     #[producer]
-    block_logs_channel: Option<Broadcaster<BlockLogs>>,
+    block_logs_channel: Option<Broadcaster<MessageBlockLogs>>,
     #[producer]
-    block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
+    block_state_update_channel: Option<Broadcaster<MessageBlockStateUpdate>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }

@@ -127,7 +127,7 @@ async fn main() -> Result<()> {
             logs = logs_sub.recv() => {
                 match logs{
                     Ok(logs_update)=>{
-                        info!("Block logs received : {} log records : {}", logs_update.block_hash, logs_update.logs.len());
+                        info!("Block logs received : {} log records : {}", logs_update.block_header.hash, logs_update.logs.len());
 
                     }
                     Err(e)=>{
@@ -150,7 +150,9 @@ async fn main() -> Result<()> {
             state_udpate = state_update_sub.recv() => {
                 match state_udpate {
                     Ok(state_update)=>{
-                        info!("Block state update received : {} update records : {}", state_update.block_hash, state_update.state_update.len() );
+                        let state_update = state_update.inner;
+
+                        info!("Block state update received : {} update records : {}", state_update.block_header.hash, state_update.state_update.len() );
                         let mut state_db = market_state.read().await.state_db.clone();
                         state_db.apply_geth_update_vec(state_update.state_update);
 

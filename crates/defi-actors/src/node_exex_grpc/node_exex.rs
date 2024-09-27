@@ -1,9 +1,7 @@
 use std::any::type_name;
 
-use alloy_rpc_types::Block;
-
 use defi_blockchain::Blockchain;
-use defi_events::{BlockLogs, BlockStateUpdate, MessageBlockHeader, MessageMempoolDataUpdate};
+use defi_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageMempoolDataUpdate};
 use defi_types::ChainParameters;
 use loom_actors::{Actor, ActorResult, Broadcaster, Producer};
 use loom_actors_macros::Producer;
@@ -17,11 +15,11 @@ pub struct NodeExExGrpcActor {
     #[producer]
     block_header_channel: Option<Broadcaster<MessageBlockHeader>>,
     #[producer]
-    block_with_tx_channel: Option<Broadcaster<Block>>,
+    block_with_tx_channel: Option<Broadcaster<MessageBlock>>,
     #[producer]
-    block_logs_channel: Option<Broadcaster<BlockLogs>>,
+    block_logs_channel: Option<Broadcaster<MessageBlockLogs>>,
     #[producer]
-    block_state_update_channel: Option<Broadcaster<BlockStateUpdate>>,
+    block_state_update_channel: Option<Broadcaster<MessageBlockStateUpdate>>,
     #[producer]
     mempool_update_channel: Option<Broadcaster<MessageMempoolDataUpdate>>,
 }

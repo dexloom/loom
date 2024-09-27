@@ -1,12 +1,11 @@
 use alloy_network::Ethereum;
 use alloy_primitives::{BlockHash, BlockNumber};
 use alloy_provider::Provider;
-use alloy_rpc_types::Block;
 use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
 use defi_entities::{apply_state_update, BlockHistory, BlockHistoryManager, LatestBlock, MarketState};
-use defi_events::{BlockLogs, BlockStateUpdate, MarketEvents, MessageBlockHeader};
+use defi_events::{MarketEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 use eyre::Result;
 use log::{debug, error, info, trace};
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
@@ -25,9 +24,9 @@ pub async fn new_block_history_worker<P, T>(
     market_state: SharedState<MarketState>,
     block_history: SharedState<BlockHistory>,
     block_header_update_rx: Broadcaster<MessageBlockHeader>,
-    block_update_rx: Broadcaster<Block>,
-    log_update_rx: Broadcaster<BlockLogs>,
-    state_update_rx: Broadcaster<BlockStateUpdate>,
+    block_update_rx: Broadcaster<MessageBlock>,
+    log_update_rx: Broadcaster<MessageBlockLogs>,
+    state_update_rx: Broadcaster<MessageBlockStateUpdate>,
     market_events_tx: Broadcaster<MarketEvents>,
 ) -> WorkerResult
 where
@@ -90,9 +89,10 @@ where
             }
 
             msg = block_update_rx.recv() => {
-                let block_update : Result<Block, RecvError>  = msg;
+                let block_update : Result<MessageBlock, RecvError>  = msg;
                 match block_update {
                     Ok(block)=>{
+                        let block = block.inner;
                         let block_hash : BlockHash = block.header.hash;
                         let block_number : BlockNumber = block.header.number;
                         debug!("Block Update {} {}", block_number, block_hash);
@@ -116,10 +116,12 @@ where
                 }
             }
             msg = log_update_rx.recv() => {
-                let log_update : Result<BlockLogs, RecvError>  = msg;
+                let log_update : Result<MessageBlockLogs, RecvError>  = msg;
                 match log_update {
                     Ok(msg) =>{
-                        let block_hash : BlockHash = msg.block_hash;
+                        let msg = msg.inner;
+
+                        let block_hash : BlockHash = msg.block_header.hash;
                         debug!("Log update {}", block_hash);
 
 
@@ -144,10 +146,11 @@ where
             }
             msg = state_update_rx.recv() => {
                 // todo(Make getting market state from previous block)
-                let state_update_msg : Result<BlockStateUpdate, RecvError> = msg;
+                let state_update_msg : Result<MessageBlockStateUpdate, RecvError> = msg;
                 match state_update_msg {
                     Ok(msg) => {
-                        let msg_block_hash : BlockHash = msg.block_hash;
+                        let msg = msg.inner;
+                        let msg_block_hash : BlockHash = msg.block_header.hash;
                         debug!("Block State update {}", msg_block_hash);
 
 
@@ -172,7 +175,7 @@ where
                                 apply_state_update(db, msg.state_update.clone(), &market_state_guard)
                             }else{
                                 let mut block_history = block_history.write().await;
-                                block_history_manager.apply_state_update_on_parent_db(block_history.deref_mut(), &market_state_guard, msg.block_hash ).await?
+                                block_history_manager.apply_state_update_on_parent_db(block_history.deref_mut(), &market_state_guard, msg.block_header.hash ).await?
                             };
 
                             drop(market_state_guard);
@@ -241,11 +244,11 @@ pub struct BlockHistoryActor<P, T> {
     #[consumer]
     block_header_update_rx: Option<Broadcaster<MessageBlockHeader>>,
     #[consumer]
-    block_update_rx: Option<Broadcaster<Block>>,
+    block_update_rx: Option<Broadcaster<MessageBlock>>,
     #[consumer]
-    log_update_rx: Option<Broadcaster<BlockLogs>>,
+    log_update_rx: Option<Broadcaster<MessageBlockLogs>>,
     #[consumer]
-    state_update_rx: Option<Broadcaster<BlockStateUpdate>>,
+    state_update_rx: Option<Broadcaster<MessageBlockStateUpdate>>,
     #[producer]
     market_events_tx: Option<Broadcaster<MarketEvents>>,
 }

@@ -1,12 +1,9 @@
 use alloy::primitives::ChainId;
-use alloy::{
-    primitives::{Address, BlockHash},
-    rpc::types::Block,
-};
+use alloy::primitives::{Address, BlockHash};
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
 use defi_events::{
-    BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageBlockHeader, MessageHealthEvent, MessageMempoolDataUpdate,
-    MessageTxCompose, StateUpdateEvent,
+    MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
+    MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent,
 };
 use defi_types::{ChainParameters, Mempool};
 use influxdb::WriteQuery;
@@ -24,9 +21,9 @@ pub struct Blockchain {
     account_nonce_and_balance: SharedState<AccountNonceAndBalanceState>,
 
     new_block_headers_channel: Broadcaster<MessageBlockHeader>,
-    new_block_with_tx_channel: Broadcaster<Block>,
-    new_block_state_update_channel: Broadcaster<BlockStateUpdate>,
-    new_block_logs_channel: Broadcaster<BlockLogs>,
+    new_block_with_tx_channel: Broadcaster<MessageBlock>,
+    new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate>,
+    new_block_logs_channel: Broadcaster<MessageBlockLogs>,
     new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate>,
     market_events_channel: Broadcaster<MarketEvents>,
     mempool_events_channel: Broadcaster<MempoolEvents>,
@@ -39,9 +36,9 @@ pub struct Blockchain {
 impl Blockchain {
     pub fn new(chain_id: ChainId) -> Blockchain {
         let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
-        let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
-        let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
-        let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
+        let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
+        let new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate> = Broadcaster::new(10);
+        let new_block_logs_channel: Broadcaster<MessageBlockLogs> = Broadcaster::new(10);
 
         let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(5000);
 
@@ -134,15 +131,15 @@ impl Blockchain {
         self.new_block_headers_channel.clone()
     }
 
-    pub fn new_block_with_tx_channel(&self) -> Broadcaster<Block> {
+    pub fn new_block_with_tx_channel(&self) -> Broadcaster<MessageBlock> {
         self.new_block_with_tx_channel.clone()
     }
 
-    pub fn new_block_state_update_channel(&self) -> Broadcaster<BlockStateUpdate> {
+    pub fn new_block_state_update_channel(&self) -> Broadcaster<MessageBlockStateUpdate> {
         self.new_block_state_update_channel.clone()
     }
 
-    pub fn new_block_logs_channel(&self) -> Broadcaster<BlockLogs> {
+    pub fn new_block_logs_channel(&self) -> Broadcaster<MessageBlockLogs> {
         self.new_block_logs_channel.clone()
     }
 

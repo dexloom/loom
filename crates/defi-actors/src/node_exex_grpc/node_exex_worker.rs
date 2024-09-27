@@ -14,7 +14,10 @@ use revm::db::states::StorageSlot;
 use revm::db::{BundleAccount, StorageWithOriginalValues};
 use tokio::select;
 
-use defi_events::{BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlockHeader, MessageMempoolDataUpdate, NodeMempoolDataUpdate};
+use defi_events::{
+    BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
+    MessageMempoolDataUpdate, NodeMempoolDataUpdate,
+};
 use defi_types::{ChainParameters, GethStateUpdate, MempoolTx};
 use loom_actors::{Broadcaster, WorkerResult};
 use loom_utils::reth_types::append_all_matching_block_logs_sealed;
@@ -39,6 +42,7 @@ async fn process_chain_task(
         let hash = sealed_block.hash();
 
         let block_hash_num = BlockNumHash { number, hash };
+        let block_header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_block.header.clone());
 
         info!("Processing block block_number={} block_hash={}", block_hash_num.number, block_hash_num.hash);
         match reth_rpc_types_compat::block::from_block::<EthTxBuilder>(
@@ -63,7 +67,7 @@ async fn process_chain_task(
 
         append_all_matching_block_logs_sealed(&mut logs, block_hash_num, receipts, false, sealed_block)?;
 
-        let log_update = BlockLogs { block_hash: sealed_block.hash(), logs };
+        let log_update = BlockLogs { block_header: block_header.clone(), logs };
 
         if let Err(e) = logs_channel.send(log_update).await {
             error!("logs_channel.send error : {}", e)
@@ -90,7 +94,7 @@ async fn process_chain_task(
                 }
             }
 
-            let block_state_update = BlockStateUpdate { block_hash: block_hash_num.hash, state_update: vec![state_update] };
+            let block_state_update = BlockStateUpdate { block_header: block_header.clone(), state_update: vec![state_update] };
 
             if let Err(e) = state_update_channel.send(block_state_update).await {
                 error!("state_update_channel.send error : {}", e)
@@ -123,9 +127,9 @@ pub async fn node_exex_grpc_worker(
     chain_parameters: ChainParameters,
     url: Option<String>,
     block_header_channel: Broadcaster<MessageBlockHeader>,
-    block_with_tx_channel: Broadcaster<Block>,
-    logs_channel: Broadcaster<BlockLogs>,
-    state_update_channel: Broadcaster<BlockStateUpdate>,
+    block_with_tx_channel: Broadcaster<MessageBlock>,
+    logs_channel: Broadcaster<MessageBlockLogs>,
+    state_update_channel: Broadcaster<MessageBlockStateUpdate>,
     mempool_channel: Broadcaster<MessageMempoolDataUpdate>,
 ) -> WorkerResult {
     let client = example_exex_remote::ExExClient::connect(url.unwrap_or("http://[::1]:10000".to_string())).await?;
@@ -164,7 +168,9 @@ pub async fn node_exex_grpc_worker(
              */
             header = stream_header.next() => {
                 if let Some(header) = header {
-                    if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(chain_parameters.clone(), header))).await {
+                    if let Err(e) = block_header_channel.send(
+                            MessageBlockHeader::new_with_time(BlockHeader::new(&chain_parameters, header))).await
+                    {
                         error!("block_header_channel.send error : {}", e)
                     }
                 }
@@ -172,28 +178,34 @@ pub async fn node_exex_grpc_worker(
 
             block = stream_block.next() => {
                 if let Some(block) = block {
-                    if let Err(e) = block_with_tx_channel.send(block).await {
+                    if let Err(e) = block_with_tx_channel.send(
+                        Message::new_with_time(block)
+                    ).await {
                         error!("block_with_tx_channel.send error : {}", e)
                     }
                 }
             }
 
             logs = stream_logs.next() => {
-                if let Some((block_hash, logs)) = logs {
-                    let block_logs = BlockLogs {block_hash, logs};
-                    if let Err(e) = logs_channel.send(block_logs).await {
+                if let Some((block_header, logs)) = logs {
+                    let block_logs = BlockLogs {block_header, logs};
+                    if let Err(e) = logs_channel.send(
+                        Message::new_with_time(block_logs)
+                    ).await {
                         error!("block_with_tx_channel.send error : {}", e)
                     }
                 }
             }
 
             state_update = stream_state.next() => {
-                if let Some((block_hash, state_update)) = state_update {
+                if let Some((block_header, state_update)) = state_update {
                     let block_state_update = BlockStateUpdate{
-                        block_hash,
+                        block_header,
                         state_update : vec![state_update],
                     };
-                    if let Err(e) = state_update_channel.send(block_state_update).await {
+                    if let Err(e) = state_update_channel.send(
+                        Message::new_with_time(block_state_update)
+                    ).await {
                         error!("block_with_tx_channel.send error : {}", e)
                     }
                 }

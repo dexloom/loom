@@ -80,10 +80,10 @@ revm-primitives = { version = "10.0.0", features = [
 revm-inspectors = "0.7.6"
 
 alloy-chains = "0.1.32"
-alloy-primitives = { version = "0.8.4", features = ["rand"] }
-alloy-dyn-abi = { version = "0.8.3", features = ["json", "std"] }
-alloy-sol-types = { version = "0.8.3", features = ["json"] }
-alloy-sol-macro = { version = "0.8.3", features = ["json"] }
+alloy-primitives = { version = "0.8.5", features = ["rand"] }
+alloy-dyn-abi = { version = "0.8.5", features = ["json", "std"] }
+alloy-sol-types = { version = "0.8.5", features = ["json"] }
+alloy-sol-macro = { version = "0.8.5", features = ["json"] }
 
 alloy-rlp = "0.3.8"
 alloy-trie = "0.5.3"

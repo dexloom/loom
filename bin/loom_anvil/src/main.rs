@@ -7,7 +7,7 @@ use alloy_consensus::TxEnvelope;
 use alloy_primitives::{Address, BlockHash, TxHash, U256};
 use alloy_provider::network::eip2718::Encodable2718;
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, BlockId, BlockNumberOrTag, BlockTransactionsKind};
+use alloy_rpc_types::{BlockId, BlockNumberOrTag, BlockTransactionsKind};
 use clap::Parser;
 use env_logger::Env as EnvLog;
 use eyre::{OptionExt, Result};
@@ -24,7 +24,8 @@ use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Mark
 use loom_utils::NWETH;
 
 use defi_events::{
-    BlockLogs, BlockStateUpdate, MarketEvents, MempoolEvents, MessageBlockHeader, MessageHealthEvent, MessageTxCompose, TxCompose,
+    MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
+    MessageTxCompose, TxCompose,
 };
 use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
@@ -136,9 +137,9 @@ async fn main() -> Result<()> {
 
     info!("Creating channels");
     let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
-    let new_block_with_tx_channel: Broadcaster<Block> = Broadcaster::new(10);
-    let new_block_state_update_channel: Broadcaster<BlockStateUpdate> = Broadcaster::new(10);
-    let new_block_logs_channel: Broadcaster<BlockLogs> = Broadcaster::new(10);
+    let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
+    let new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate> = Broadcaster::new(10);
+    let new_block_logs_channel: Broadcaster<MessageBlockLogs> = Broadcaster::new(10);
 
     //let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(500);
 

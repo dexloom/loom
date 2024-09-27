@@ -4,7 +4,7 @@ use alloy_network::Ethereum;
 use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_pubsub::PubSubConnect;
-use alloy_rpc_types::Block;
+use alloy_rpc_types::{Block, Header};
 use alloy_transport::Transport;
 use chrono::Utc;
 use defi_events::{BlockHeader, MessageBlockHeader};
@@ -15,7 +15,7 @@ use log::{error, info};
 use loom_actors::{run_async, Broadcaster, WorkerResult};
 
 #[allow(dead_code)]
-pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, sender: Broadcaster<BlockHash>) -> Result<()> {
+pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, sender: Broadcaster<Header>) -> Result<()> {
     info!("Starting node block hash worker");
     let sub = client.subscribe_blocks().await?;
 
@@ -30,7 +30,7 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
                     info!("Block hash received: {:?}" , block.header.hash );
                     if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block.header.hash) {
                         e.insert(Utc::now());
-                        run_async!(sender.send(block.header.hash));
+                        run_async!(sender.send(block.header));
                         block_processed.retain(|_, &mut v| v > Utc::now() - chrono::TimeDelta::minutes(10) );
                     }
                 }
@@ -43,14 +43,14 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
 pub async fn new_node_block_header_worker<P, T>(
     client: P,
     chain_parameters: ChainParameters,
-    block_hash_channel: Broadcaster<BlockHash>,
+    new_block_header_channel: Broadcaster<Header>,
     block_header_channel: Broadcaster<MessageBlockHeader>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    info!("Starting node block hash worker");
+    info!("Starting node block header worker");
     let sub = client.subscribe_blocks().await?;
     let mut stream = sub.into_stream();
 
@@ -65,10 +65,10 @@ where
                     info!("Block hash received: {:?}" , block_hash);
                     if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block_hash) {
                         e.insert(Utc::now());
-                        if let Err(e) =  block_hash_channel.send(block_hash).await {
+                        if let Err(e) =  new_block_header_channel.send(block.header.clone()).await {
                             error!("Block hash broadcaster error  {}", e);
                         }
-                        if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(chain_parameters.clone(), block.header))).await {
+                        if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(&chain_parameters, block.header))).await {
                             error!("Block header broadcaster error {}", e);
                         }
                     }

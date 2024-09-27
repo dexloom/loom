@@ -294,13 +294,13 @@ async fn collect_stat_task(
             logs = block_logs_subscription.recv() => {
                 match logs {
                     Ok(logs)=>{
-                        let block_number = stat.read().await.blocks.get(&logs.block_hash).cloned().unwrap_or_default();
+                        let block_number = stat.read().await.blocks.get(&logs.block_header.hash).cloned().unwrap_or_default();
 
                         if blocks_counter >= warn_up_blocks {
                             let recv_time = stat.write().await.block_logs.entry(block_number).or_default().add_now(id);
-                            println!("{id} : {} block logs received {} {}", block_number, logs.block_hash, recv_time - ping_time);
+                            println!("{id} : {} block logs received {} {}", block_number, logs.block_header.hash, recv_time - ping_time);
                         }else{
-                            println!("Warming up {id} : {} block logs received {}", block_number, logs.block_hash);
+                            println!("Warming up {id} : {} block logs received {}", block_number, logs.block_header.hash);
                         }
                     }
                     Err(e)=>{
@@ -313,8 +313,8 @@ async fn collect_stat_task(
             state_update = block_state_subscription.recv() => {
                 match state_update  {
                     Ok(state_update)=>{
-                        let block_number = stat.read().await.blocks.get(&state_update.block_hash).cloned().unwrap_or_default();
-                        let block_hash = state_update.block_hash;
+                        let block_number = stat.read().await.blocks.get(&state_update.block_header.hash).cloned().unwrap_or_default();
+                        let block_hash = state_update.block_header.hash;
 
                         if blocks_counter >= warn_up_blocks {
                             let recv_time = stat.write().await.block_state.entry(block_number).or_default().add_now(id);

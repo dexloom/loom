@@ -549,12 +549,11 @@ where
 mod test {
     use super::*;
     use alloy_node_bindings::Anvil;
-    use alloy_primitives::{Address, B256, U256};
+    use alloy_primitives::{Address, U256};
     use alloy_provider::ext::AnvilApi;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use alloy_rpc_types::BlockNumberOrTag;
-    use alloy_rpc_types_trace::geth::AccountState;
     use debug_provider::AnvilProviderExt;
     use defi_types::GethStateUpdate;
     use loom_utils::geth_state_update::*;
