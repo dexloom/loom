@@ -10,9 +10,18 @@ pub enum MarketEvents {
 
 #[derive(Clone, Debug)]
 pub enum MempoolEvents {
-    MempoolActualTxUpdate { tx_hash: TxHash },
-    MempoolTxUpdate { tx_hash: TxHash },
-    MempoolTraceUpdate { tx_hash: TxHash },
-    MempoolStateUpdate { tx_hash: TxHash },
-    MempoolLogUpdate { tx_hash: TxHash },
+    /// The transaction has a valid nonce and provides enough gas to pay for the base fee of the next block.
+    MempoolActualTxUpdate {
+        tx_hash: TxHash,
+    },
+    /// The transaction has been added to the mempool without any validation.
+    MempoolTxUpdate {
+        tx_hash: TxHash,
+    },
+    MempoolStateUpdate {
+        tx_hash: TxHash,
+    },
+    MempoolLogUpdate {
+        tx_hash: TxHash,
+    },
 }
