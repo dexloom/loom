@@ -36,8 +36,6 @@ Telegram chat : https://t.me/dexloom_com
 
 Copy `config-example.toml` to `config.toml` and configure according to your setup.
 
-```sh
-
 ### Updating private key encryption password
 
 Private key encryption password is individual secret key that is generated automatically but can be replaced
