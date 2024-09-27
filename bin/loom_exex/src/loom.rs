@@ -2,16 +2,16 @@ use alloy::network::Ethereum;
 use alloy::primitives::Address;
 use alloy::providers::Provider;
 use alloy::transports::Transport;
-use eyre::OptionExt;
-use reth_exex::ExExContext;
-use reth_node_api::FullNodeComponents;
-use reth_tracing::tracing::info;
-use std::future::Future;
-
 use debug_provider::DebugProviderExt;
 use defi_actors::{loom_exex, BlockchainActors, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
+use defi_entities::NodeWrapper;
+use eyre::OptionExt;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
+use reth_exex::ExExContext;
+use reth_node_api::{FullNodeComponents, NodeAddOns};
+use reth_tracing::tracing::info;
+use std::future::Future;
 
 pub async fn init<Node: FullNodeComponents>(
     ctx: ExExContext<Node>,
@@ -21,10 +21,17 @@ pub async fn init<Node: FullNodeComponents>(
     Ok(loom_exex(ctx, bc, config.clone()))
 }
 
-pub async fn start_loom<P, T>(provider: P, bc: Blockchain, topology_config: TopologyConfig) -> eyre::Result<()>
+pub async fn start_loom<P, T, Node, AddOns>(
+    provider: P,
+    bc: Blockchain,
+    topology_config: TopologyConfig,
+    node_wrapper: NodeWrapper<Node, AddOns>,
+) -> eyre::Result<()>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    Node: FullNodeComponents + Clone,
+    AddOns: NodeAddOns<Node> + Clone,
 {
     let chain_id = provider.get_chain_id().await?;
 
@@ -75,6 +82,7 @@ where
         .with_same_path_merger()? // load merger for same swap paths with different stuffing txes
         .with_backrun_block()? // load backrun searcher for incoming block
         .with_backrun_mempool()? // load backrun searcher for mempool txes
+        .with_pool_db_loader(node_wrapper)? // load pools directly from db
     ;
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors

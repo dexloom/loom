@@ -26,6 +26,10 @@ alloy-rlp.workspace = true
 
 revm.workspace = true
 
+reth-revm.workspace = true
+reth-provider.workspace = true
+reth-node-builder.workspace = true
+
 tokio.workspace = true
 eyre.workspace = true
 log.workspace = true
