@@ -19,5 +19,5 @@ pub struct LoomArgsNode {}
 #[derive(Parser, Debug)]
 pub struct LoomArgs {
     #[arg(long, default_value = "config.toml")]
-    pub config: String,
+    pub loom_config: String,
 }
