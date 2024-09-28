@@ -112,7 +112,7 @@ async fn state_change_arb_searcher_task(
                                 warn!("Took longer than expected {:?} {}", e, mut_item.clone())
                             }
                         }
-                        error!("Swap error: {:?}", e);
+                        //error!("Swap error: {:?}", e);
 
                         if let Err(e) = swap_path_tx.try_send(Err(e)) {
                             error!("try_send error to swap_path_tx error : {e}")

@@ -227,6 +227,8 @@ where
 
                         let mut block_history_guard = block_history.write().await;
                         let mut latest_block_guard = latest_block.write().await;
+                        let mut market_state_guard = market_state.write().await;
+
 
                         match set_chain_head(
                             &block_history_manager,
@@ -242,21 +244,21 @@ where
 
                                 if latest_block_hash != msg_block_hash {
                                     error!("State update for block that is not latest {} need {}", msg_block_hash, latest_block_hash);
-                                    if let Err(e) = block_history.write().await.add_state_diff(msg_block_hash, None, msg.state_update.clone()) {
+                                    if let Err(e) = block_history_guard.add_state_diff(msg_block_hash, None, msg.state_update.clone()) {
                                         error!("block_history.add_state_diff {}", e)
                                     }
 
                                 } else{
                                     latest_block_guard.update(msg_block_number, msg_block_hash, None, None, None, Some(msg.state_update.clone()) );
-                                    let market_state_guard= market_state.read().await;
+
+
                                     let new_market_state_db = if market_state_guard.block_hash.is_zero() || market_state_guard.block_hash == latest_block_parent_hash {
-                                        let db = market_state.read().await.state_db.clone();
+                                        let db = market_state_guard.state_db.clone();
                                         apply_state_update(db, msg.state_update.clone(), &market_state_guard)
                                     }else{
-                                        let mut block_history = block_history.write().await;
-                                        block_history_manager.apply_state_update_on_parent_db(block_history.deref_mut(), &market_state_guard, msg_block_hash ).await?
+                                        block_history_manager.apply_state_update_on_parent_db(block_history_guard.deref_mut(), &market_state_guard, msg_block_hash ).await?
                                     };
-                                    drop(market_state_guard);
+
 
                                     let add_state_diff_result= block_history_guard.add_state_diff(msg_block_hash, Some(new_market_state_db.clone()), msg.state_update.clone());
 
@@ -264,18 +266,16 @@ where
                                         Ok(_) => {
                                             debug!("Block History len :{}", block_history_guard.len());
 
-                                            let mut market_state_guard= market_state.write().await;
-
                                             let accounts_len = market_state_guard.accounts_len();
                                             let accounts_db_len = market_state_guard.accounts_db_len();
                                             let storage_len = market_state_guard.storage_len();
                                             let storage_db_len = market_state_guard.storage_db_len();
                                             trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
 
+
                                             market_state_guard.state_db = new_market_state_db.clone();
                                             market_state_guard.block_hash = msg_block_hash;
                                             market_state_guard.block_number = latest_block_number;
-                                            drop(market_state_guard);
 
                                             info!("market state updated ok records : update len: {} accounts: {} contracts: {}", msg.state_update.len(), new_market_state_db.accounts.len(),  new_market_state_db.contracts.len()  );
 

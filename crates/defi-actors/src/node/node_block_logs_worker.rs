@@ -1,9 +1,11 @@
 use alloy_network::{HeaderResponse, Network};
+use std::time::Duration;
 
 use alloy_provider::Provider;
 use alloy_rpc_types::{Filter, Header};
 use alloy_transport::Transport;
-use log::error;
+use eyre::eyre;
+use log::{debug, error};
 use tokio::sync::broadcast::Receiver;
 
 use defi_events::{BlockLogs, Message, MessageBlockLogs};
@@ -18,12 +20,29 @@ pub async fn new_node_block_logs_worker<T: Transport + Clone, N: Network, P: Pro
 
     loop {
         if let Ok(block_header) = block_header_receiver.recv().await {
+            let (block_number, block_hash) = (block_header.number, block_header.hash);
+            debug!("BlockLogs header received {} {}", block_number, block_hash);
             let filter = Filter::new().at_block_hash(block_header.hash());
 
-            let logs = client.get_logs(&filter).await?;
-            if let Err(e) = sender.send(Message::new_with_time(BlockLogs { block_header, logs })).await {
-                error!("Broadcaster error {}", e);
+            let mut err_counter = 0;
+
+            while err_counter < 3 {
+                match client.get_logs(&filter).await {
+                    Ok(logs) => {
+                        if let Err(e) = sender.send(Message::new_with_time(BlockLogs { block_header, logs })).await {
+                            error!("Broadcaster error {}", e);
+                        }
+                        break;
+                    }
+                    Err(e) => {
+                        error!("client.get_logs error: {}", e);
+                        err_counter += 1;
+                        tokio::time::sleep(Duration::from_millis(100)).await;
+                    }
+                }
             }
+
+            debug!("BlockLogs processing finished {} {}", block_number, block_hash);
         }
     }
 }

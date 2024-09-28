@@ -3,7 +3,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{BlockTransactionsKind, Header};
 use alloy_transport::Transport;
 use defi_events::{Message, MessageBlock};
-use log::error;
+use log::{debug, error};
 use loom_actors::{subscribe, Broadcaster, WorkerResult};
 
 pub async fn new_block_with_tx_worker<P, T>(
@@ -19,11 +19,30 @@ where
 
     loop {
         if let Ok(block_header) = block_header_receiver.recv().await {
-            if let Ok(Some(block_with_txes)) = client.get_block_by_hash(block_header.hash(), BlockTransactionsKind::Full).await {
-                if let Err(e) = sender.send(Message::new_with_time(block_with_txes)).await {
-                    error!("Broadcaster error {}", e);
+            let (block_number, block_hash) = (block_header.number, block_header.hash);
+            debug!("BlockWithTx header received {} {}", block_number, block_hash);
+
+            let mut err_counter = 0;
+
+            while err_counter < 3 {
+                match client.get_block_by_hash(block_header.hash(), BlockTransactionsKind::Full).await {
+                    Ok(block_with_tx) => {
+                        if let Some(block_with_txes) = block_with_tx {
+                            if let Err(e) = sender.send(Message::new_with_time(block_with_txes)).await {
+                                error!("Broadcaster error {}", e);
+                            }
+                        } else {
+                            error!("BlockWithTx is empty");
+                        }
+                        break;
+                    }
+                    Err(e) => {
+                        error!("client.get_block_by_hash {e}");
+                    }
                 }
             }
+
+            debug!("BlockWithTx processing finished {} {}", block_number, block_hash);
         }
     }
 }

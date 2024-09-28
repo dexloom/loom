@@ -3,7 +3,7 @@ use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, Header};
 use alloy_transport::Transport;
-use log::error;
+use log::{debug, error};
 
 use debug_provider::DebugProviderExt;
 use defi_events::{BlockStateUpdate, Message, MessageBlockStateUpdate};
@@ -24,8 +24,10 @@ where
 
     loop {
         if let Ok(block_header) = block_header_receiver.recv().await {
-            let trace_result = debug_trace_block(client.clone(), BlockId::Hash(block_header.hash.into()), true).await;
-            match trace_result {
+            let (block_number, block_hash) = (block_header.number, block_header.hash);
+            debug!("BlockState header received {} {}", block_number, block_hash);
+
+            match debug_trace_block(client.clone(), BlockId::Hash(block_header.hash.into()), true).await {
                 Ok((_, post)) => {
                     if let Err(e) = sender.send(Message::new_with_time(BlockStateUpdate { block_header, state_update: post })).await {
                         error!("Broadcaster error {}", e)
@@ -35,6 +37,7 @@ where
                     error!("debug_trace_block error : {e}")
                 }
             }
+            debug!("BlockState processing finished {} {}", block_number, block_hash);
         }
     }
 }
