@@ -1,41 +1,16 @@
 use std::ops::{BitAnd, Shl, Shr};
 
-use crate::protocols::get_uniswap3pool_address;
-use alloy_primitives::aliases::{U176, U24, U80};
-use alloy_primitives::{address, b256, keccak256, Address, Signed, Uint, B256, I256};
+use alloy_primitives::{Address, Signed, Uint, B256, I256};
 use alloy_primitives::{U160, U256};
-use alloy_sol_types::SolValue;
-use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
-use eyre::{eyre, Result};
+use eyre::Result;
 use lazy_static::lazy_static;
-use log::{debug, trace};
+use log::trace;
+
+use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use loom_revm_db::LoomInMemoryDB;
 use loom_utils::remv_db_direct_access::{try_read_cell, try_read_hashmap_cell};
-use reth_storage_api::StateProvider;
-
-#[derive(Debug)]
-pub struct Pool {
-    address: Address,
-    token0: Address,
-    token1: Address,
-    fee: U24,
-}
-
-#[derive(Debug)]
-pub struct PoolKey {
-    token0: Address,
-    token1: Address,
-    fee: U24,
-}
 
 pub struct UniswapV3DBReader {}
-
-const POOL_INIT_CODE_HASH: B256 = b256!("e34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54");
-const NEXT_POOL_ID: B256 = b256!("000000000000000000000000000000000000000000000000000000000000000d");
-const POOL_ID_TO_POOL_KEY: B256 = b256!("000000000000000000000000000000000000000000000000000000000000000b");
-
-const UNIV3_POSITION_MNG: Address = address!("c36442b4a4522e871399cd717abdd847ab11fe88");
-const UNIV3_FACTORY: Address = address!("1F98431c8aD98523631AE4a59f267346ea31F984");
 
 lazy_static! {
     static ref BITS160MASK: U256 = U256::from(1).shl(160) - U256::from(1);
@@ -115,54 +90,6 @@ impl UniswapV3DBReader {
             feeProtocol: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16 + 16))) & *BITS8MASK).to(),
             unlocked: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16 + 16 + 8))) & *BITS1MASK).to(),
         })
-    }
-
-    pub fn read_univ3_position_pools<T: StateProvider>(provider: T) -> Result<Vec<Pool>> {
-        let (next_pool_id, next_position_id) = match provider.storage(UNIV3_POSITION_MNG, NEXT_POOL_ID)? {
-            None => return Err(eyre!("Invalid pair length")),
-            Some(value) => {
-                let bytes = value.to_be_bytes_vec();
-                let next_pool_id = U80::from_be_slice(&bytes[0..10]);
-                let next_position_id = U176::from_be_slice(&bytes[10..32]);
-                (next_pool_id, next_position_id)
-            }
-        };
-        debug!("Next pool id: {}, Next position id: {}", next_pool_id, next_position_id);
-
-        let mut pool_addresses = vec![];
-
-        for pool_id in 1..next_pool_id.to::<u64>() {
-            // mapping(uint80 => PoolAddress.PoolKey)
-            let storage_key0 = keccak256((U80::from(pool_id), POOL_ID_TO_POOL_KEY).abi_encode());
-            let storage_key1 = B256::from(U256::from_be_slice(storage_key0.0.as_slice()) + U256::from(1));
-
-            let pool_key = match provider.storage(UNIV3_POSITION_MNG, storage_key0)? {
-                None => return Err(eyre!("Invalid pool id")),
-                Some(value) => {
-                    let bytes = value.to_be_bytes_vec();
-                    let token0 = Address::from_slice(&bytes[12..32]);
-
-                    // read second slot
-                    let (fee, token1) = match provider.storage(UNIV3_POSITION_MNG, storage_key1)? {
-                        None => return Err(eyre!("Invalid pool id second slot")),
-                        Some(value) => {
-                            let bytes = value.to_be_bytes_vec();
-                            let fee = U24::from_be_slice(&bytes[9..12]);
-                            let token1 = Address::from_slice(&bytes[12..32]);
-                            (fee, token1)
-                        }
-                    };
-
-                    PoolKey { token0, token1, fee }
-                }
-            };
-
-            let pool_address =
-                get_uniswap3pool_address(pool_key.token0, pool_key.token1, pool_key.fee.to::<u32>(), UNIV3_FACTORY, POOL_INIT_CODE_HASH);
-            pool_addresses.push(Pool { address: pool_address, token0: pool_key.token0, token1: pool_key.token1, fee: pool_key.fee });
-        }
-
-        Ok(pool_addresses)
     }
 }
 

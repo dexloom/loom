@@ -9,7 +9,6 @@ pub use keystore::KeyStore;
 pub use latest_block::LatestBlock;
 pub use market::Market;
 pub use market_state::MarketState;
-pub use node_wrapper::NodeWrapper;
 pub use pool::{AbiSwapEncoder, EmptyPool, Pool, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
 pub use signers::{TxSigner, TxSigners};
 pub use swap::Swap;
@@ -40,5 +39,4 @@ mod keystore;
 pub mod private;
 
 mod datafetcher;
-mod node_wrapper;
 mod swap;

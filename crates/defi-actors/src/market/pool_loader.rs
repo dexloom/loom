@@ -7,7 +7,7 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info};
+use log::{error, info};
 
 use debug_provider::DebugProviderExt;
 use defi_entities::required_state::RequiredStateReader;
@@ -67,7 +67,7 @@ where
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    debug!("Fetching pool {:#20x}", pool_address);
+    info!("Fetching pool {:#20x}", pool_address);
 
     match pool_class {
         PoolClass::UniswapV2 => {
