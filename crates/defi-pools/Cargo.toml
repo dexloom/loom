@@ -25,6 +25,7 @@ alloy-rpc-types.workspace = true
 alloy-rpc-types-trace.workspace = true
 alloy-transport.workspace = true
 
+reth-storage-api.workspace = true
 revm.workspace = true
 
 eyre.workspace = true
