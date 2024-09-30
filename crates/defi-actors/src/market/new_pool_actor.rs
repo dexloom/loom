@@ -11,6 +11,7 @@ use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, MarketState};
 use defi_events::MessageBlockLogs;
+use defi_pools::PoolsConfig;
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
@@ -21,6 +22,7 @@ pub async fn new_pool_worker<P, T, N>(
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
     log_update_rx: Broadcaster<MessageBlockLogs>,
+    pools_config: PoolsConfig,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -42,6 +44,7 @@ where
                                 market.clone(),
                                 market_state.clone(),
                                 log_update_msg.inner.logs,
+                                &pools_config
                         ).await {
                             info!("Pools added : {:?}", pool_address_vec)
                         }
@@ -65,6 +68,7 @@ pub struct NewPoolLoaderActor<P, T, N> {
     market_state: Option<SharedState<MarketState>>,
     #[consumer]
     log_update_rx: Option<Broadcaster<MessageBlockLogs>>,
+    pools_config: PoolsConfig,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -75,8 +79,8 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P) -> Self {
-        NewPoolLoaderActor { client, market: None, market_state: None, log_update_rx: None, _t: PhantomData, _n: PhantomData }
+    pub fn new(client: P, pools_config: PoolsConfig) -> Self {
+        NewPoolLoaderActor { client, market: None, market_state: None, log_update_rx: None, pools_config, _t: PhantomData, _n: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -96,6 +100,7 @@ where
             self.market.clone().unwrap(),
             self.market_state.clone().unwrap(),
             self.log_update_rx.clone().unwrap(),
+            self.pools_config.clone(),
         ));
         Ok(vec![task])
     }

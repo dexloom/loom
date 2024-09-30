@@ -14,6 +14,7 @@ use defi_abi::maverick::IMaverickPool::IMaverickPoolEvents;
 use defi_abi::uniswap2::IUniswapV2Pair::IUniswapV2PairEvents;
 use defi_abi::uniswap3::IUniswapV3Pool::IUniswapV3PoolEvents;
 use defi_entities::{Market, MarketState, PoolClass};
+use defi_pools::PoolsConfig;
 use loom_actors::SharedState;
 
 use super::pool_loader::fetch_and_add_pool_by_address;
@@ -65,6 +66,7 @@ pub async fn process_log_entries<P, T, N>(
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
     log_entries: Vec<Log>,
+    pools_config: &PoolsConfig,
 ) -> Result<Vec<Address>>
 where
     T: Transport + Clone,
@@ -76,6 +78,10 @@ where
 
     for log_entry in log_entries.into_iter() {
         if let Some(pool_class) = determine_pool_class(log_entry.clone()) {
+            if !pools_config.is_enabled(pool_class) {
+                continue;
+            }
+
             let mut market_guard = market.write().await;
             let market_pool = market_guard.is_pool(&log_entry.address());
             if !market_pool {

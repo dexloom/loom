@@ -1,10 +1,9 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Bytes, TxKind};
+use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use eyre::{eyre, Result};
 use log::{debug, error, info};
-use reth_primitives::U256;
 use tokio::sync::broadcast::error::RecvError;
 
 use defi_blockchain::Blockchain;

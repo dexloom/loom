@@ -65,7 +65,8 @@ reth-transaction-pool.workspace = true
 reth-tracing.workspace = true
 
 example-exex-remote.workspace = true
-
+reth-direct-db-uniswap-storage.workspace = true
+#pool-sync.workspace = true
 
 
 [dev-dependencies]

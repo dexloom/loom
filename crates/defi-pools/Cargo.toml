@@ -26,11 +26,14 @@ alloy-rpc-types-trace.workspace = true
 alloy-transport.workspace = true
 
 revm.workspace = true
+reth-storage-api.workspace = true
 
 eyre.workspace = true
 log.workspace = true
+strum.workspace = true
 
 uniswap_v3_math.workspace = true
+
 
 [dev-dependencies]
 tokio.workspace = true

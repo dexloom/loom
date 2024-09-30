@@ -11,20 +11,20 @@ use eyre::{eyre, OptionExt, Result};
 use log::{error, info, warn};
 use tokio::task::JoinHandle;
 
+use crate::topology_config::TransportType;
+use crate::topology_config::{BroadcasterConfig, ClientConfigParams, EncoderConfig, EstimatorConfig, SignersConfig, TopologyConfig};
 use defi_actors::{
-    BlockHistoryActor, EvmEstimatorActor, FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderActor,
-    InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor,
-    NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor, PriceActor,
-    ProtocolPoolLoaderActor, TxSignersActor,
+    BlockHistoryActor, CurveProtocolPoolLoaderActor, EvmEstimatorActor, FlashbotsBroadcastActor, GethEstimatorActor,
+    HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor,
+    NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor,
+    PriceActor, TxSignersActor,
 };
 use defi_blockchain::Blockchain;
 use defi_entities::TxSigners;
+use defi_pools::PoolsConfig;
 use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, Consumer, Producer, SharedState, WorkerResult};
 use loom_multicaller::SwapStepEncoder;
-
-use crate::topology_config::TransportType;
-use crate::topology_config::{BroadcasterConfig, ClientConfigParams, EncoderConfig, EstimatorConfig, SignersConfig, TopologyConfig};
 
 pub struct Topology {
     clients: HashMap<String, ClientConfigParams>,
@@ -370,7 +370,7 @@ impl Topology {
                 if params.history {
                     info!("Starting history pools loader {name}");
 
-                    let mut history_pools_loader_actor = HistoryPoolLoaderActor::new(client.clone());
+                    let mut history_pools_loader_actor = HistoryPoolLoaderActor::new(client.clone(), PoolsConfig::new());
                     match history_pools_loader_actor.access(blockchain.market()).access(blockchain.market_state()).start() {
                         Ok(r) => {
                             tasks.extend(r);
@@ -384,7 +384,7 @@ impl Topology {
                 if params.protocol {
                     info!("Starting protocols pools loader {name}");
 
-                    let mut protocol_pools_loader_actor = ProtocolPoolLoaderActor::new(client.clone());
+                    let mut protocol_pools_loader_actor = CurveProtocolPoolLoaderActor::new(client.clone());
                     match protocol_pools_loader_actor.access(blockchain.market()).access(blockchain.market_state()).start() {
                         Err(e) => {
                             panic!("ProtocolPoolLoaderActor : {}", e)
@@ -398,7 +398,7 @@ impl Topology {
 
                 if params.new {
                     info!("Starting new pool loader actor {name}");
-                    let mut new_pool_actor = NewPoolLoaderActor::new(client.clone());
+                    let mut new_pool_actor = NewPoolLoaderActor::new(client.clone(), PoolsConfig::new());
                     match new_pool_actor
                         .access(blockchain.market())
                         .access(blockchain.market_state())

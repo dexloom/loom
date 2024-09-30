@@ -13,6 +13,7 @@ defi-entities.workspace = true
 defi-actors.workspace = true
 defi-types.workspace = true
 defi-events.workspace = true
+defi-pools.workspace = true
 loom-multicaller.workspace = true
 flashbots.workspace = true
 loom-actors.workspace = true

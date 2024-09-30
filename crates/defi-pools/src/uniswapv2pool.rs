@@ -51,6 +51,28 @@ impl UniswapV2Pool {
         }
     }
 
+    pub fn new_with_data(
+        address: Address,
+        token0: Address,
+        token1: Address,
+        factory: Address,
+        liquidity0: U256,
+        liquidity1: U256,
+    ) -> UniswapV2Pool {
+        UniswapV2Pool {
+            address,
+            token0,
+            token1,
+            factory,
+            protocol: PoolProtocol::UniswapV2Like,
+            fee: U256::from(9970),
+            encoder: UniswapV2AbiSwapEncoder::new(address),
+            reserves_cell: None,
+            liquidity0,
+            liquidity1,
+        }
+    }
+
     pub fn set_fee(self, fee: U256) -> Self {
         Self { fee, ..self }
     }
@@ -174,13 +196,6 @@ impl Pool for UniswapV2Pool {
     fn get_address(&self) -> Address {
         self.address
     }
-
-    /*
-    fn clone_box(&self) -> Box<dyn Pool> {
-        Box::new(self.clone())
-    }
-
-     */
 
     fn get_fee(&self) -> U256 {
         self.fee

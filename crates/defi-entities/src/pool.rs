@@ -8,13 +8,13 @@ use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
 use revm::primitives::Env;
 use serde::{Deserialize, Serialize};
-use strum_macros::{Display, EnumString, VariantNames};
+use strum_macros::{Display, EnumIter, EnumString, VariantNames};
 
 use loom_revm_db::LoomInMemoryDB;
 
 use crate::required_state::RequiredState;
 
-#[derive(Copy, Clone, Debug, PartialEq, EnumString, VariantNames, Display, Default, Deserialize, Serialize)]
+#[derive(Copy, Clone, Debug, PartialEq, Hash, Eq, EnumString, VariantNames, Display, Default, Deserialize, Serialize, EnumIter)]
 #[strum(ascii_case_insensitive, serialize_all = "lowercase")]
 pub enum PoolClass {
     #[default]

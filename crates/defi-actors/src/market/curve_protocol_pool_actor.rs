@@ -4,7 +4,7 @@ use std::sync::Arc;
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use log::{error, info};
+use log::{debug, error};
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
@@ -35,7 +35,7 @@ where
                     error!("Curve pool loading error : {}", e)
                 }
                 Ok(_) => {
-                    info!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
+                    debug!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
                 }
             }
         }
@@ -67,7 +67,7 @@ where
                                             error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
                                         }
                                         Ok(_) => {
-                                            info!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
+                                            debug!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
                                         }
                                     }
                                 }
@@ -86,7 +86,7 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct ProtocolPoolLoaderActor<P, T, N> {
+pub struct CurveProtocolPoolLoaderActor<P, T, N> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
@@ -96,7 +96,7 @@ pub struct ProtocolPoolLoaderActor<P, T, N> {
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> ProtocolPoolLoaderActor<P, T, N>
+impl<P, T, N> CurveProtocolPoolLoaderActor<P, T, N>
 where
     N: Network,
     T: Transport + Clone,
@@ -111,7 +111,7 @@ where
     }
 }
 
-impl<P, T, N> Actor for ProtocolPoolLoaderActor<P, T, N>
+impl<P, T, N> Actor for CurveProtocolPoolLoaderActor<P, T, N>
 where
     T: Transport + Clone,
     N: Network,

@@ -1,12 +1,12 @@
+use std::collections::hash_map::Entry;
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use alloy_primitives::Address;
+use alloy_primitives::{address, Address};
 use eyre::{OptionExt, Result};
-use lazy_static::lazy_static;
 use log::debug;
 
-use crate::build_swap_path_vec;
+use crate::{build_swap_path_vec, PoolProtocol};
 use crate::{EmptyPool, Pool, PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
 
@@ -22,14 +22,17 @@ pub struct Market {
     tokens: HashMap<Address, Arc<Token>>,
     // token_from -> token_to
     token_tokens: HashMap<Address, Vec<Address>>,
+    // Shadow to token_tokens for fast lookup token -> token
+    token_tokens_lookup: HashMap<Address, HashMap<Address, bool>>,
     // token_from -> token_to -> pool_addresses
     token_pools: HashMap<Address, HashMap<Address, Vec<Address>>>,
+    // Shadow to token_pools for fast lookup token_from -> token_to -> pool_addresses
+    token_pools_lookup: HashMap<Address, HashMap<Address, HashMap<Address, bool>>>,
+    // swap_paths
     swap_paths: SwapPaths,
 }
 
-lazy_static! {
-    static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-}
+const WETH_ADDRESS: Address = address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 
 impl Market {
     /// Add a [`Token`](crate::Token) reference to the market.
@@ -50,7 +53,7 @@ impl Market {
 
     /// Check if the given address is the WETH address.
     pub fn is_weth(address: &Address) -> bool {
-        *address == *WETH_ADDRESS
+        address.eq(&WETH_ADDRESS)
     }
 
     /// Add a new empty pool to the market for the given pool address.
@@ -67,37 +70,40 @@ impl Market {
         debug!("Adding pool {:?}", pool_contract.get_address());
 
         let pool_address = pool_contract.get_address();
+        let swap_directions = pool_contract.get_swap_directions();
+        let pool_protocol = pool_contract.get_protocol();
 
-        let mut token_from_entry_len = 0;
-        let mut token_to_entry_len = 0;
-        let mut token_from_len = 0;
-        let mut token_to_len = 0;
+        self.add_token_token_paths(pool_address, swap_directions.clone(), pool_protocol);
 
-        for (token_address_from, token_address_to) in pool_contract.get_swap_directions().iter() {
-            let token_from_entry = self.token_pools.entry(*token_address_from).or_default();
-            let token_to_entry = token_from_entry.entry(*token_address_to).or_default();
-            if !token_to_entry.contains(&pool_address) {
-                token_to_entry.push(pool_address);
-            }
-            token_to_entry_len = token_to_entry.len();
-            token_from_entry_len = token_from_entry.len();
-
-            let token_token_entry = self.token_tokens.entry(*token_address_from).or_default();
-            if !token_token_entry.contains(token_address_to) {
-                token_token_entry.push(*token_address_to);
-            }
-            token_from_len = token_token_entry.len();
-            let token_token_entry = self.token_tokens.entry(*token_address_to).or_default();
-            if !token_token_entry.contains(token_address_from) {
-                token_token_entry.push(*token_address_from);
-            }
-            token_to_len = token_token_entry.len();
-        }
-
-        debug!("Added pool {:?} {} TokenFromPools {token_from_entry_len} TokenToPools {token_to_entry_len} TokenFromToken {token_from_len} TokenToToken {token_to_len}", pool_contract.get_address(), pool_contract.get_protocol());
         self.pools.insert(pool_address, pool_contract);
 
         Ok(())
+    }
+
+    /// Add a new token to token_tokens mapping if it does not exist. A lookup map is maintained for faster inserts.
+    fn insert_token_tokens(&mut self, token_from: Address, token_to: Address) {
+        if let Entry::Vacant(e) = self.token_tokens_lookup.entry(token_from).or_default().entry(token_to) {
+            e.insert(true);
+            self.token_tokens.entry(token_from).or_default().push(token_to);
+        }
+    }
+
+    /// Add a new token to token_tokens mapping if it does not exist. A lookup map is maintained for faster inserts.
+    fn insert_token_pools(&mut self, token_from: Address, token_to: Address) {
+        if let Entry::Vacant(e) = self.token_pools_lookup.entry(token_from).or_default().entry(token_to).or_default().entry(token_to) {
+            e.insert(true);
+            self.token_pools.entry(token_from).or_default().entry(token_to).or_default().push(token_to);
+        }
+    }
+
+    /// Add token->token, token->token->pool paths to the market.
+    fn add_token_token_paths(&mut self, pool_address: Address, swap_directions: Vec<(Address, Address)>, pool_protocol: PoolProtocol) {
+        for (token_address_from, token_address_to) in swap_directions.iter() {
+            self.insert_token_pools(*token_address_from, *token_address_to);
+
+            self.insert_token_tokens(*token_address_from, *token_address_to);
+            self.insert_token_tokens(*token_address_to, *token_address_from);
+        }
     }
 
     /// Add a swap path to the market.
