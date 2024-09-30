@@ -3,11 +3,12 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::backrun::BlockStateChangeProcessorActor;
+use crate::market::DbPoolLoaderOneShotActor;
 use crate::{
-    ArbSwapPathMergerActor, BlockHistoryActor, DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, GethEstimatorActor,
-    HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor,
-    NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
-    PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, ProtocolPoolLoaderActor, RequiredPoolLoaderActor,
+    ArbSwapPathMergerActor, BlockHistoryActor, CurveProtocolPoolLoaderActor, DiffPathMergerActor, EvmEstimatorActor,
+    FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor,
+    MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor,
+    NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, RequiredPoolLoaderActor,
     SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
 };
 use alloy_network::Ethereum;
@@ -17,7 +18,8 @@ use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
 use defi_entities::required_state::RequiredState;
-use defi_entities::{PoolClass, TxSigners};
+use defi_entities::{PoolClass, RethAdapter, TxSigners};
+use defi_pools::PoolsConfig;
 use eyre::{eyre, Result};
 use flashbots::client::RelayConfig;
 use flashbots::Flashbots;
@@ -26,6 +28,7 @@ use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_multicaller::MulticallerSwapEncoder;
 use loom_utils::tokens::{ETH_NATIVE_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
+use reth_node_api::{FullNodeComponents, NodeAddOns};
 
 pub struct BlockchainActors<P, T> {
     provider: P,
@@ -312,26 +315,32 @@ where
     }
 
     /// Start pool loader from new block events
-    pub fn with_new_pool_loader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(NewPoolLoaderActor::new(self.provider.clone()).on_bc(&self.bc))?;
+    pub fn with_new_pool_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
+        self.actor_manager.start(NewPoolLoaderActor::new(self.provider.clone(), pools_config).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start pool loader for last 10000 blocks
-    pub fn with_pool_history_loader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(HistoryPoolLoaderActor::new(self.provider.clone()).on_bc(&self.bc))?;
+    pub fn with_pool_history_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
+        self.actor_manager.start(HistoryPoolLoaderActor::new(self.provider.clone(), pools_config).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start pool loader for curve + steth + wsteth
-    pub fn with_pool_protocol_loader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(ProtocolPoolLoaderActor::new(self.provider.clone()).on_bc(&self.bc))?;
+    pub fn with_curve_pool_protocol_loader(&mut self) -> Result<&mut Self> {
+        self.actor_manager.start(CurveProtocolPoolLoaderActor::new(self.provider.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start all pool loaders
-    pub fn with_pool_loaders(&mut self) -> Result<&mut Self> {
-        self.with_new_pool_loader()?.with_pool_history_loader()?.with_pool_protocol_loader()
+    pub fn with_pool_loaders(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
+        if pools_config.is_enabled(PoolClass::Curve) {
+            self.with_new_pool_loader(pools_config.clone())?
+                .with_pool_history_loader(pools_config.clone())?
+                .with_curve_pool_protocol_loader()
+        } else {
+            self.with_new_pool_loader(pools_config.clone())?.with_pool_history_loader(pools_config.clone())
+        }
     }
 
     pub fn with_preloaded_state(&mut self, pools: Vec<(Address, PoolClass)>, state_required: Option<RequiredState>) -> Result<&mut Self> {
@@ -384,7 +393,6 @@ where
     }
 
     /// Start backrun for pending txs
-
     pub fn with_backrun_mempool(&mut self) -> Result<&mut Self> {
         if !self.has_state_update {
             self.actor_manager.start(StateChangeArbSearcherActor::new(true).on_bc(&self.bc))?;
@@ -408,6 +416,19 @@ where
     /// Start block latency recorder
     pub fn with_block_latency_recorder(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(BlockLatencyRecorderActor::new().on_bc(&self.bc))?;
+        Ok(self)
+    }
+
+    pub fn with_pool_db_loader<Node, AddOns>(
+        &mut self,
+        reth_adapter: RethAdapter<Node, AddOns>,
+        pools_config: PoolsConfig,
+    ) -> Result<&mut Self>
+    where
+        Node: FullNodeComponents + Clone,
+        AddOns: NodeAddOns<Node> + Clone,
+    {
+        self.actor_manager.start_and_wait(DbPoolLoaderOneShotActor::new(reth_adapter, pools_config).on_bc(&self.bc))?;
         Ok(self)
     }
 }

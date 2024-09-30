@@ -38,6 +38,7 @@ where
                     }
                     Err(e) => {
                         error!("client.get_block_by_hash {e}");
+                        err_counter += 1;
                     }
                 }
             }

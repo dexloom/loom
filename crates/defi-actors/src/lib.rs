@@ -5,8 +5,8 @@ pub use blockchain_actors::BlockchainActors;
 pub use estimators::{EvmEstimatorActor, GethEstimatorActor, HardhatEstimatorActor};
 pub use health_monitor::{PoolHealthMonitorActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 pub use market::{
-    fetch_and_add_pool_by_address, fetch_state_and_add_pool, HistoryPoolLoaderActor, NewPoolLoaderActor, ProtocolPoolLoaderActor,
-    RequiredPoolLoaderActor,
+    fetch_and_add_pool_by_address, fetch_state_and_add_pool, CurveProtocolPoolLoaderActor, DbPoolLoaderOneShotActor,
+    HistoryPoolLoaderActor, NewPoolLoaderActor, RequiredPoolLoaderActor,
 };
 pub use market_state::{preload_market_state, MarketStatePreloadedOneShotActor};
 pub use mempool::MempoolActor;

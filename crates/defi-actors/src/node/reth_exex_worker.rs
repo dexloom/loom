@@ -17,7 +17,7 @@ use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
 use reth_provider::Chain;
 use reth_rpc::eth::EthTxBuilder;
-use reth_tracing::tracing::{error, info};
+use reth_tracing::tracing::{debug, error, info};
 use reth_transaction_pool::{BlobStore, Pool, TransactionOrdering, TransactionPool, TransactionValidator};
 use revm::db::states::StorageSlot;
 use revm::db::{BundleAccount, StorageWithOriginalValues};
@@ -173,7 +173,7 @@ pub async fn loom_exex<Node: FullNodeComponents>(
             }
         };
         if let Some(committed_chain) = exex_notification.committed_chain() {
-            ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().number))?;
+            ctx.events.send(ExExEvent::FinishedHeight(committed_chain.tip().num_hash()))?;
         }
     }
 
@@ -203,7 +203,7 @@ where
                     if let Err(e) =  mempool_tx.send(update_msg).await {
                         error!(error=?e.to_string(), "mempool_tx.send");
                     }else{
-                        info!(hash = ?tx_notification.transaction.hash(), "Received pool tx");
+                        debug!(hash = ?tx_notification.transaction.hash(), "Received pool tx");
                     }
                 }
             }

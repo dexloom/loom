@@ -1,12 +1,12 @@
+use crate::arguments::{AppArgs, Command, LoomArgs};
 use alloy::providers::ProviderBuilder;
 use clap::{CommandFactory, FromArgMatches, Parser};
-use reth::args::utils::DefaultChainSpecParser;
-use reth_node_ethereum::EthereumNode;
-
-use crate::arguments::{AppArgs, Command, LoomArgs};
 use defi_actors::{mempool_worker, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
+use defi_entities::RethAdapter;
 use loom_topology::TopologyConfig;
+use reth::args::utils::DefaultChainSpecParser;
+use reth_node_ethereum::EthereumNode;
 
 mod arguments;
 mod loom;
@@ -27,15 +27,13 @@ fn main() -> eyre::Result<()> {
                 .launch()
                 .await?;
 
+            let reth_adapter = RethAdapter::new_with_node(handle.node.clone());
+
             let mempool = handle.node.pool.clone();
             let ipc_provider = ProviderBuilder::new().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;
 
             tokio::task::spawn(mempool_worker(mempool, bc.clone()));
-            tokio::task::spawn(async move {
-                if let Err(e) = loom::start_loom(ipc_provider, bc, topology_config).await {
-                    panic!("{}", e)
-                }
-            });
+            tokio::task::spawn(loom::start_loom(ipc_provider, bc, topology_config, reth_adapter));
 
             handle.wait_for_node_exit().await
         }),

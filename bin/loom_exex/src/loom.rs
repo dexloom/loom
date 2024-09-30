@@ -2,16 +2,17 @@ use alloy::network::Ethereum;
 use alloy::primitives::Address;
 use alloy::providers::Provider;
 use alloy::transports::Transport;
-use eyre::OptionExt;
-use reth_exex::ExExContext;
-use reth_node_api::FullNodeComponents;
-use reth_tracing::tracing::info;
-use std::future::Future;
-
 use debug_provider::DebugProviderExt;
 use defi_actors::{loom_exex, BlockchainActors, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
+use defi_entities::{PoolClass, RethAdapter};
+use defi_pools::PoolsConfig;
+use eyre::OptionExt;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
+use reth_exex::ExExContext;
+use reth_node_api::{FullNodeComponents, NodeAddOns};
+use reth_tracing::tracing::info;
+use std::future::Future;
 
 pub async fn init<Node: FullNodeComponents>(
     ctx: ExExContext<Node>,
@@ -21,10 +22,17 @@ pub async fn init<Node: FullNodeComponents>(
     Ok(loom_exex(ctx, bc, config.clone()))
 }
 
-pub async fn start_loom<P, T>(provider: P, bc: Blockchain, topology_config: TopologyConfig) -> eyre::Result<()>
+pub async fn start_loom<P, T, Node, AddOns>(
+    provider: P,
+    bc: Blockchain,
+    topology_config: TopologyConfig,
+    reth_adapter: RethAdapter<Node, AddOns>,
+) -> eyre::Result<()>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    Node: FullNodeComponents + Clone,
+    AddOns: NodeAddOns<Node> + Clone,
 {
     let chain_id = provider.get_chain_id().await?;
 
@@ -52,6 +60,8 @@ where
         })
         .unwrap_or_default();
 
+    let pools_config = PoolsConfig::disable_all().enable(PoolClass::UniswapV2).enable(PoolClass::UniswapV3);
+
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), relays);
     bc_actors
         .mempool()?
@@ -67,14 +77,15 @@ where
         .with_flashbots_broadcaster(true)? // broadcast signed txes to flashbots
         .with_market_state_preloader()? // preload contracts to market state
         .with_nonce_and_balance_monitor()? // start monitoring balances of
-        .with_pool_history_loader()? // load pools used in latest 10000 blocks
-        .with_pool_protocol_loader()? // load curve + steth + wsteth
-        .with_new_pool_loader()? // load new pools
+        .with_pool_history_loader(pools_config.clone())? // load pools used in latest 10000 blocks
+        //.with_curve_pool_protocol_loader()? // load curve + steth + wsteth
+        .with_new_pool_loader(pools_config.clone())? // load new pools
         .with_swap_path_merger()? // load merger for multiple swap paths
         .with_diff_path_merger()? // load merger for different swap paths
         .with_same_path_merger()? // load merger for same swap paths with different stuffing txes
         .with_backrun_block()? // load backrun searcher for incoming block
         .with_backrun_mempool()? // load backrun searcher for mempool txes
+        .with_pool_db_loader(reth_adapter, pools_config.clone())? // load pools directly from db
     ;
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors

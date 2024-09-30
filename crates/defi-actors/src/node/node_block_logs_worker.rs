@@ -4,7 +4,6 @@ use std::time::Duration;
 use alloy_provider::Provider;
 use alloy_rpc_types::{Filter, Header};
 use alloy_transport::Transport;
-use eyre::eyre;
 use log::{debug, error};
 use tokio::sync::broadcast::Receiver;
 
