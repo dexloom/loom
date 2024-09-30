@@ -137,12 +137,12 @@ reth-node-builder = { git = "https://github.com/paradigmxyz/reth" }
 reth-revm = { git = "https://github.com/paradigmxyz/reth" }
 reth-storage-api = { git = "https://github.com/paradigmxyz/reth" }
 
-#example-exex-remote = { git = "https://github.com/dexloom/reth-exex-grpc" }
-example-exex-remote = { path = "../reth-exex-grpc" }
+example-exex-remote = { git = "https://github.com/dexloom/reth-exex-grpc" }
+#example-exex-remote = { path = "../reth-exex-grpc" }
 
 
 tower = "0.5.1"
 
 criterion = { version = "0.5.1", features = ["async_tokio"] }
-reth-direct-db-uniswap-storage = { git = "https://github.com/cakevm/reth-direct-db-uniswap-storage", rev = "a755a8f" }
+reth-direct-db-uniswap-storage = { git = "https://github.com/cakevm/reth-direct-db-uniswap-storage", rev = "42e6023" }
 #reth-direct-db-uniswap-storage = { path = "../reth-direct-db-uniswap-storage" }

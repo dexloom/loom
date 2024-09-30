@@ -19,12 +19,11 @@ where
     Node: FullNodeComponents + Clone,
     AddOns: NodeAddOns<Node> + Clone,
 {
-    let now = Instant::now();
     if pools_config.is_enabled(PoolClass::UniswapV2) {
         let now = Instant::now();
         let univ2_factory = UniV2Factory::load_pairs(reth_adapter.latest()?, UNI_V2_FACTORY)?;
         let elapsed = now.elapsed();
-        info!("UniswapV2 pools loaded in {:.2?} sec", elapsed);
+        info!("UniswapV2 {} pools loaded in {:.2?} sec", univ2_factory.pairs.len(), elapsed);
         let mut market_read_guard = market.write().await;
 
         let now = Instant::now();
@@ -47,18 +46,20 @@ where
         let now = Instant::now();
         let position_manager = UniV3PositionManager::load_pools(reth_adapter.latest()?, UNI_V3_POSITION_MANAGER)?;
         let elapsed = now.elapsed();
-        info!("Loaded {} univ3 pools in {:.2?} sec", position_manager.pools.len(), elapsed);
+        info!("UniswapV3 {} pools loaded in {:.2?} sec", position_manager.pools.len(), elapsed);
 
+        let now = Instant::now();
         let mut market_state_read_guard = market.write().await;
         for pool in position_manager.pools {
-            // TODO: Load real pool
+            // TODO: Load pool ticks, etc
             market_state_read_guard.add_empty_pool(&pool.address)?;
         }
         drop(market_state_read_guard);
+        let elapsed = now.elapsed();
+        info!("UniswapV3 pools added in {:.2?} sec", elapsed);
     }
 
-    let elapsed = now.elapsed();
-    Ok(format!("Pools loaded in {:.2?} sec", elapsed))
+    Ok("DbPoolLoaderOneShotActor finished".to_string())
 }
 
 /// The one-shot actor reads all existing uniswap v2 pairs and v3 pools.
