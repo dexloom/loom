@@ -6,7 +6,7 @@ pub use estimators::{EvmEstimatorActor, GethEstimatorActor, HardhatEstimatorActo
 pub use health_monitor::{PoolHealthMonitorActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 pub use market::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, CurveProtocolPoolLoaderActor, DbPoolLoaderOneShotActor,
-    HistoryPoolLoaderActor, NewPoolLoaderActor, PoolSyncLoaderOneShotActor, RequiredPoolLoaderActor,
+    HistoryPoolLoaderActor, NewPoolLoaderActor, RequiredPoolLoaderActor,
 };
 pub use market_state::{preload_market_state, MarketStatePreloadedOneShotActor};
 pub use mempool::MempoolActor;

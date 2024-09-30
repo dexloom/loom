@@ -6999,6 +6999,7 @@ dependencies = [
 [[package]]
 name = "reth-direct-db-uniswap-storage"
 version = "0.0.0"
+source = "git+https://github.com/cakevm/reth-direct-db-uniswap-storage?rev=a755a8f#a755a8faaa7c5f2681ef160b3f3658e36f0bcb01"
 dependencies = [
  "alloy",
  "alloy-sol-types",

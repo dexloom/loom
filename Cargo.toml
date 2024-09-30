@@ -146,4 +146,3 @@ tower = "0.5.1"
 criterion = { version = "0.5.1", features = ["async_tokio"] }
 reth-direct-db-uniswap-storage = { git = "https://github.com/cakevm/reth-direct-db-uniswap-storage", rev = "a755a8f" }
 #reth-direct-db-uniswap-storage = { path = "../reth-direct-db-uniswap-storage" }
-#pool-sync = { git = "https://github.com/Zacholme7/PoolSync", rev = "8a78c3e" }

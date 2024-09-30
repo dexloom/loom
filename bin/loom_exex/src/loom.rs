@@ -86,8 +86,6 @@ where
         .with_backrun_block()? // load backrun searcher for incoming block
         .with_backrun_mempool()? // load backrun searcher for mempool txes
         .with_pool_db_loader(reth_adapter, pools_config.clone())? // load pools directly from db
-        // alternative use pool sync instead of pool db loader
-        //.with_pool_sync_loader(pools_config.clone())? // load pools using pool sync
     ;
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors

@@ -8,8 +8,8 @@ use crate::{
     ArbSwapPathMergerActor, BlockHistoryActor, CurveProtocolPoolLoaderActor, DiffPathMergerActor, EvmEstimatorActor,
     FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor,
     MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor,
-    NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PoolSyncLoaderOneShotActor, PriceActor,
-    RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
+    NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, RequiredPoolLoaderActor,
+    SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
 };
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, B256, U256};
@@ -429,12 +429,6 @@ where
         AddOns: NodeAddOns<Node> + Clone,
     {
         self.actor_manager.start_and_wait(DbPoolLoaderOneShotActor::new(reth_adapter, pools_config).on_bc(&self.bc))?;
-        Ok(self)
-    }
-
-    /// Start pool sync loader
-    pub fn with_pool_sync_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
-        self.actor_manager.start(PoolSyncLoaderOneShotActor::new(self.provider.clone(), pools_config).on_bc(&self.bc))?;
         Ok(self)
     }
 }
