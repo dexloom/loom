@@ -59,12 +59,12 @@ async fn estimator_worker(
                                 value: Some(U256::from(1000)),
                                 input: TransactionInput::new(calldata),
                                 nonce: Some(estimate_request.nonce ),
-                                max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee),
-                                max_fee_per_gas: Some(estimate_request.gas_fee),
+                                max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
+                                max_fee_per_gas: Some(estimate_request.base_fee as u128), // TODO: Why not prio + base fee?
                                 ..TransactionRequest::default()
                             };
 
-                            let gas_price = estimate_request.priority_gas_fee + estimate_request.gas_fee;
+                            let gas_price = estimate_request.priority_gas_fee + estimate_request.base_fee;
 
                             if U256::from(300_000 * gas_price) > profit_eth {
                                 error!("Profit is too small");

@@ -77,7 +77,7 @@ revm = { version = "14.0.3", features = [
 revm-primitives = { version = "10.0.0", features = [
     "std",
 ], default-features = false }
-revm-inspectors = "0.7.6"
+revm-inspectors = "0.8.1"
 
 alloy-chains = "0.1.32"
 alloy-primitives = { version = "0.8.5", features = ["rand"] }
@@ -86,32 +86,32 @@ alloy-sol-types = { version = "0.8.5", features = ["json"] }
 alloy-sol-macro = { version = "0.8.5", features = ["json"] }
 
 alloy-rlp = "0.3.8"
-alloy-trie = "0.5.3"
+alloy-trie = "0.6"
 
-alloy = { version = "0.3.6", features = ["full", "serde", "consensus", "node-bindings", "rpc-types-anvil", "rpc-types-trace", "json-rpc", "rpc-types-json", "rand", "rlp"] }
+alloy = { version = "0.4.0", features = ["full", "serde", "consensus", "node-bindings", "rpc-types-anvil", "rpc-types-trace", "json-rpc", "rpc-types-json", "rand", "rlp"] }
 
-alloy-serde = "0.3.6"
-alloy-contract = "0.3.6"
-alloy-consensus = "0.3.6"
-alloy-eips = "0.3.6"
-alloy-provider = { version = "0.3.6", features = ["reqwest", "pubsub", "ws", "ipc", "debug-api", "anvil-node", "anvil-api"] }
-alloy-json-rpc = "0.3.6"
-alloy-network = "0.3.6"
-alloy-node-bindings = "0.3.6"
-alloy-rpc-client = { version = "0.3.6", features = ["pubsub", "ipc", "ws", "reqwest"] }
-alloy-rpc-types = "0.3.6"
-alloy-rpc-types-eth = "0.3.6"
-alloy-rpc-types-anvil = "0.3.6"
-alloy-rpc-types-beacon = "0.3.6"
-alloy-rpc-types-trace = "0.3.6"
-alloy-rpc-types-engine = "0.3.6"
-alloy-transport = "0.3.6"
-alloy-transport-ipc = "0.3.6"
-alloy-transport-ws = "0.3.6"
-alloy-transport-http = "0.3.6"
-alloy-pubsub = "0.3.6"
-alloy-signer = "0.3.6"
-alloy-signer-local = "0.3.6"
+alloy-serde = "0.4.0"
+alloy-contract = "0.4.0"
+alloy-consensus = "0.4.0"
+alloy-eips = "0.4.0"
+alloy-provider = { version = "0.4.0", features = ["reqwest", "pubsub", "ws", "ipc", "debug-api", "anvil-node", "anvil-api"] }
+alloy-json-rpc = "0.4.0"
+alloy-network = "0.4.0"
+alloy-node-bindings = "0.4.0"
+alloy-rpc-client = { version = "0.4.0", features = ["pubsub", "ipc", "ws", "reqwest"] }
+alloy-rpc-types = "0.4.0"
+alloy-rpc-types-eth = "0.4.0"
+alloy-rpc-types-anvil = "0.4.0"
+alloy-rpc-types-beacon = "0.4.0"
+alloy-rpc-types-trace = "0.4.0"
+alloy-rpc-types-engine = "0.4.0"
+alloy-transport = "0.4.0"
+alloy-transport-ipc = "0.4.0"
+alloy-transport-ws = "0.4.0"
+alloy-transport-http = "0.4.0"
+alloy-pubsub = "0.4.0"
+alloy-signer = "0.4.0"
+alloy-signer-local = "0.4.0"
 
 reth = { git = "https://github.com/paradigmxyz/reth" }
 reth-db = { git = "https://github.com/paradigmxyz/reth" }
@@ -144,5 +144,5 @@ example-exex-remote = { git = "https://github.com/dexloom/reth-exex-grpc" }
 tower = "0.5.1"
 
 criterion = { version = "0.5.1", features = ["async_tokio"] }
-reth-direct-db-uniswap-storage = { git = "https://github.com/cakevm/reth-direct-db-uniswap-storage", rev = "42e6023" }
+reth-direct-db-uniswap-storage = { git = "https://github.com/cakevm/reth-direct-db-uniswap-storage", rev = "bd33071" }
 #reth-direct-db-uniswap-storage = { path = "../reth-direct-db-uniswap-storage" }

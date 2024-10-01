@@ -182,9 +182,8 @@ pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provid
 
 #[cfg(test)]
 mod test {
-    use std::collections::HashMap;
-
     use super::*;
+    use alloy_primitives::map::B256HashMap;
     use alloy_primitives::{B256, U256};
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::{ClientBuilder, WsConnect};
@@ -214,10 +213,10 @@ mod test {
 
     #[test]
     fn test_encode_override() {
-        let mut state_override: StateOverride = StateOverride::new();
+        let mut state_override: StateOverride = StateOverride::default();
         let address = Address::default();
         let mut account_override: AccountOverride = AccountOverride::default();
-        let mut state_update_hashmap: HashMap<B256, B256> = HashMap::new();
+        let mut state_update_hashmap: B256HashMap<B256> = B256HashMap::default();
         state_update_hashmap.insert(B256::from(U256::from(1)), B256::from(U256::from(3)));
         account_override.state_diff = Some(state_update_hashmap);
 

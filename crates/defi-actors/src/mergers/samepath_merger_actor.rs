@@ -241,7 +241,7 @@ async fn same_path_merger_worker<
 
     //let mut affecting_tx: HashMap<TxHash, bool> = HashMap::new();
     //let mut cur_base_fee: u128 = 0;
-    let mut cur_next_base_fee: u128 = 0;
+    let mut cur_next_base_fee: u64 = 0;
     let mut cur_block_number: Option<alloy_primitives::BlockNumber> = None;
     let mut cur_block_time: Option<u64> = None;
     let mut cur_state_override: StateOverride = StateOverride::default();

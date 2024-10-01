@@ -24,9 +24,9 @@ async fn estimator_task(
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
     debug!(
-        "EVM estimation. Gas limit: {} price: {} cost: {} stuffing txs: {}",
+        "EVM estimation. Gas limit: {} base fee: {} total fee: {} stuffing txs: {}",
         estimate_request.gas,
-        NWETH::to_float_gwei(estimate_request.gas_fee),
+        NWETH::to_float_gwei(estimate_request.base_fee as u128),
         NWETH::to_float_wei(estimate_request.gas_cost()),
         estimate_request.stuffing_txs_hashes.len()
     );
@@ -39,7 +39,7 @@ async fn estimator_task(
 
     let profit = estimate_request.swap.abs_profit();
 
-    let gas_price = estimate_request.priority_gas_fee + estimate_request.gas_fee;
+    let gas_price = estimate_request.priority_gas_fee + estimate_request.base_fee;
     let gas_cost = U256::from(100_000 * gas_price);
 
     // EXCHANGE SWAP
@@ -73,8 +73,8 @@ async fn estimator_task(
         value: Some(call_value),
         input: TransactionInput::new(calldata.clone()),
         nonce: Some(estimate_request.nonce),
-        max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee),
-        max_fee_per_gas: Some(estimate_request.gas_fee),
+        max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
+        max_fee_per_gas: Some(estimate_request.base_fee as u128), // Why not prio + base fee?
         ..TransactionRequest::default()
     };
 
@@ -89,7 +89,7 @@ async fn estimator_task(
                     return Err(eyre!("TRANSACTION_ESTIMATED_INCORRECTLY"));
                 }
 
-                let gas_cost = U256::from(gas_used as u128 * gas_price);
+                let gas_cost = U256::from(gas_used as u128 * gas_price as u128);
 
                 let mut tips_vec = vec![];
 
@@ -127,13 +127,13 @@ async fn estimator_task(
                     chain_id: Some(1),
                     from: Some(tx_signer.address()),
                     to: Some(TxKind::Call(to)),
-                    gas: Some((gas_used as u128 * 1200) / 1000),
+                    gas: Some((gas_used * 1200) / 1000),
                     value: call_value,
                     input: TransactionInput::new(calldata),
                     nonce: Some(estimate_request.nonce),
                     access_list: Some(access_list),
-                    max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee),
-                    max_fee_per_gas: Some(estimate_request.gas_fee),
+                    max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
+                    max_fee_per_gas: Some(estimate_request.base_fee as u128), // TODO: Why not prio + base fee?
                     ..TransactionRequest::default()
                 };
 

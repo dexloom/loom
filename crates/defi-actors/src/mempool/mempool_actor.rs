@@ -92,7 +92,7 @@ pub async fn new_mempool_worker(
                         }
                     };
 
-                    current_gas_price = block_header.header.base_fee_per_gas;
+                    current_gas_price = block_header.header.base_fee_per_gas.map(|x| x as u128);
                     let block_number = block_header.header.number;
 
                     let mempool_len = mempool.read().await.len();
@@ -102,7 +102,7 @@ pub async fn new_mempool_worker(
                     let mempool_read_guard = mempool.read().await;
                     let next_base_fee = chain_parameters.calc_next_block_base_fee_from_header(&block_header.header);
 
-                    let ok_txes = mempool_read_guard.filter_ok_by_gas_price(next_base_fee);
+                    let ok_txes = mempool_read_guard.filter_ok_by_gas_price(next_base_fee as u128);
                     debug!("Mempool gas update {} {}", next_base_fee, ok_txes.len());
                     for mempool_tx in ok_txes {
                         let tx  = mempool_tx.tx.clone().unwrap();

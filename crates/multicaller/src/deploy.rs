@@ -82,7 +82,7 @@ impl MulticallerDeployer {
         let mut tx_request = TransactionRequest::default()
             .gas_limit(3_000_000)
             .transaction_type(2)
-            .max_fee_per_gas(next_base_fee)
+            .max_fee_per_gas(next_base_fee as u128)
             .max_priority_fee_per_gas(1)
             .input(TransactionInput::new(self.code.clone()))
             //.to(Address::ZERO)

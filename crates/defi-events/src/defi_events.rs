@@ -2,7 +2,7 @@ use alloy_primitives::{BlockHash, BlockNumber, TxHash};
 
 #[derive(Clone, Debug)]
 pub enum MarketEvents {
-    BlockHeaderUpdate { block_number: BlockNumber, block_hash: BlockHash, timestamp: u64, base_fee: u128, next_base_fee: u128 },
+    BlockHeaderUpdate { block_number: BlockNumber, block_hash: BlockHash, timestamp: u64, base_fee: u64, next_base_fee: u64 },
     BlockTxUpdate { block_number: BlockNumber, block_hash: BlockHash },
     BlockLogsUpdate { block_number: BlockNumber, block_hash: BlockHash },
     BlockStateUpdate { block_hash: BlockHash },
