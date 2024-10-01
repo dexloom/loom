@@ -32,6 +32,8 @@ jobs:
 
       - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
       - run: make test
+      - run: make swap-test-all
+
   fmt:
     if: github.repository == 'dexloom/loom'
     name: make fmt-check
