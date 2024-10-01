@@ -46,10 +46,6 @@ pre-release:
 fmt:
 	cargo +stable fmt --all
 
-.PHONY: fmt-check
-fmt-check:
-	cargo +stable fmt --all --check
-
 # replayer test
 .PHONY: replayer
 replayer:
