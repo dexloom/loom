@@ -11,13 +11,13 @@ mod test {
 
     use alloy_eips::BlockNumberOrTag;
     use alloy_node_bindings::Anvil;
-    use alloy_primitives::{Address, BlockHash, B256, U256};
+    use alloy_primitives::{Address, B256, U256};
     use alloy_provider::ext::AnvilApi;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use alloy_rpc_types::{Block, Filter, Header, Log};
     use defi_events::{BlockHeader, Message};
-    use defi_types::{ChainParameters, GethStateUpdate, GethStateUpdateVec};
+    use defi_types::{GethStateUpdate, GethStateUpdateVec};
     use eyre::eyre;
     use log::info;
     use loom_actors::Actor;
@@ -32,9 +32,7 @@ mod test {
         logs: Option<Vec<Log>>,
         state_update: Option<GethStateUpdateVec>,
     ) -> eyre::Result<()> {
-        let chain_params = ChainParameters::ethereum();
-
-        let header_msg: MessageBlockHeader = Message::new(BlockHeader::new(&chain_params, header.clone()));
+        let header_msg: MessageBlockHeader = Message::new(BlockHeader::new(header.clone()));
         if let Err(e) = bc.new_block_headers_channel().send(header_msg).await {
             error!("bc.new_block_headers_channel().send : {}", e)
         }

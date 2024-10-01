@@ -8,18 +8,17 @@ homepage.workspace = true
 repository.workspace = true
 exclude.workspace = true
 
-[features]
-std = []
-serde = []
-serde-json = []
-
 [dependencies]
 log.workspace = true
-
-
 revm.workspace = true
 rand.workspace = true
 alloy.workspace = true
+serde = { workspace = true, optional = true}
+serde_json = { workspace = true, optional = true}
+
+[features]
+serde = ["dep:serde"]
+serde-json = ["dep:serde_json"]
 
 
 [dev-dependencies]

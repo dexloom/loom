@@ -12,7 +12,7 @@ release:
 # Target to run all tests
 .PHONY: test
 test:
-	cargo test --all
+	cargo test --all --all-features
 
 # Target to run all benchmarks
 .PHONY: clean
@@ -45,6 +45,10 @@ pre-release:
 .PHONY: fmt
 fmt:
 	cargo +stable fmt --all
+
+.PHONY: fmt-check
+fmt-check:
+	cargo +stable fmt --all --check
 
 # replayer test
 .PHONY: replayer
