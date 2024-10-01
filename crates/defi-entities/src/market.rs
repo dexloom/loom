@@ -6,7 +6,7 @@ use alloy_primitives::{address, Address};
 use eyre::{OptionExt, Result};
 use log::debug;
 
-use crate::{build_swap_path_vec, PoolProtocol};
+use crate::{build_swap_path_vec};
 use crate::{EmptyPool, Pool, PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
 
@@ -71,9 +71,8 @@ impl Market {
 
         let pool_address = pool_contract.get_address();
         let swap_directions = pool_contract.get_swap_directions();
-        let pool_protocol = pool_contract.get_protocol();
 
-        self.add_token_token_paths(pool_address, swap_directions.clone(), pool_protocol);
+        self.add_token_token_paths(pool_address, swap_directions.clone());
 
         self.pools.insert(pool_address, pool_contract);
 
@@ -89,17 +88,17 @@ impl Market {
     }
 
     /// Add a new token to token_tokens mapping if it does not exist. A lookup map is maintained for faster inserts.
-    fn insert_token_pools(&mut self, token_from: Address, token_to: Address) {
-        if let Entry::Vacant(e) = self.token_pools_lookup.entry(token_from).or_default().entry(token_to).or_default().entry(token_to) {
+    fn insert_token_pools(&mut self, token_from: Address, token_to: Address, pool_address: Address) {
+        if let Entry::Vacant(e) = self.token_pools_lookup.entry(token_from).or_default().entry(token_to).or_default().entry(pool_address) {
             e.insert(true);
-            self.token_pools.entry(token_from).or_default().entry(token_to).or_default().push(token_to);
+            self.token_pools.entry(token_from).or_default().entry(token_to).or_default().push(pool_address);
         }
     }
 
     /// Add token->token, token->token->pool paths to the market.
-    fn add_token_token_paths(&mut self, pool_address: Address, swap_directions: Vec<(Address, Address)>, pool_protocol: PoolProtocol) {
+    fn add_token_token_paths(&mut self, pool_address: Address, swap_directions: Vec<(Address, Address)>) {
         for (token_address_from, token_address_to) in swap_directions.iter() {
-            self.insert_token_pools(*token_address_from, *token_address_to);
+            self.insert_token_pools(*token_address_from, *token_address_to, pool_address);
 
             self.insert_token_tokens(*token_address_from, *token_address_to);
             self.insert_token_tokens(*token_address_to, *token_address_from);
@@ -207,5 +206,102 @@ impl Market {
         }
 
         Ok(SwapPath { tokens, pools })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::required_state::RequiredState;
+    use crate::{AbiSwapEncoder, PoolProtocol};
+    use alloy_primitives::{Address, U256};
+    use eyre::ErrReport;
+    use loom_revm_db::LoomInMemoryDB;
+    use reth_revm::primitives::Env;
+
+    #[derive(Clone)]
+    struct MockPool {
+        token0: Address,
+        token1: Address,
+        address: Address,
+    }
+
+    impl Pool for MockPool {
+        fn get_protocol(&self) -> PoolProtocol {
+            PoolProtocol::UniswapV2
+        }
+
+        fn get_address(&self) -> Address {
+            self.address
+        }
+
+        fn get_tokens(&self) -> Vec<Address> {
+            vec![self.token0, self.token1]
+        }
+
+        fn get_swap_directions(&self) -> Vec<(Address, Address)> {
+            vec![(self.token0, self.token1), (self.token1, self.token0)]
+        }
+
+        fn calculate_out_amount(
+            &self,
+            state: &LoomInMemoryDB,
+            env: Env,
+            token_address_from: &Address,
+            token_address_to: &Address,
+            in_amount: U256,
+        ) -> Result<(U256, u64), ErrReport> {
+            panic!("Not implemented")
+        }
+
+        fn calculate_in_amount(
+            &self,
+            state: &LoomInMemoryDB,
+            env: Env,
+            token_address_from: &Address,
+            token_address_to: &Address,
+            out_amount: U256,
+        ) -> Result<(U256, u64), ErrReport> {
+            panic!("Not implemented")
+        }
+
+        fn can_flash_swap(&self) -> bool {
+            panic!("Not implemented")
+        }
+
+        fn get_encoder(&self) -> &dyn AbiSwapEncoder {
+            panic!("Not implemented")
+        }
+
+        fn get_state_required(&self) -> Result<RequiredState> {
+            panic!("Not implemented")
+        }
+    }
+
+    #[test]
+    fn test_add_pool() {
+        let mut market = Market::default();
+        let pool_address = Address::random();
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPool { address: pool_address, token0, token1 };
+
+        let result = market.add_pool(mock_pool);
+
+        assert!(result.is_ok());
+        assert!(market.pools.contains_key(&pool_address));
+        assert_eq!(market.pools.get(&pool_address).unwrap().get_address(), pool_address);
+
+        assert!(market.token_pools.get(&token0).unwrap().get(&token1).unwrap().contains(&pool_address));
+        assert!(market.token_pools.get(&token1).unwrap().get(&token0).unwrap().contains(&pool_address));
+
+        assert!(market.token_pools_lookup.contains_key(&token0));
+        assert!(market.token_pools_lookup.contains_key(&token1));
+
+        assert!(market.token_tokens.get(&token0).unwrap().contains(&token1));
+        assert!(market.token_tokens.get(&token1).unwrap().contains(&token0));
+
+        assert!(market.token_tokens_lookup.get(&token0).unwrap().get(&token1).unwrap());
+        assert!(market.token_tokens_lookup.get(&token1).unwrap().get(&token0).unwrap());
     }
 }
