@@ -80,7 +80,7 @@ pub async fn nonce_and_balance_monitor_worker(
                                             let tx_from : Address = tx.from;
                                             if accounts_lock.is_monitored(&tx_from) {
                                                 if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&tx_from) {
-                                                    let spent = (tx.max_fee_per_gas.unwrap() + tx.max_priority_fee_per_gas.unwrap()) * tx.gas + tx.value.to::<u128>();
+                                                    let spent = (tx.max_fee_per_gas.unwrap() + tx.max_priority_fee_per_gas.unwrap()) * tx.gas as u128 + tx.value.to::<u128>();
                                                     let value = U256::from(spent);
                                                     account.sub_balance(Address::ZERO, value).set_nonce(tx.nonce+1);
                                                     debug!("Account {} : sub ETH balance {} -> {} nonce {}", tx_from, value, account.get_eth_balance(), tx.nonce+1);

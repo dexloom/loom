@@ -41,7 +41,7 @@ where
             }
 
             if is_new_block {
-                let base_fee: u128 = header.base_fee_per_gas.unwrap_or_default();
+                let base_fee = header.base_fee_per_gas.unwrap_or_default();
                 let next_base_fee = chain_parameters.calc_next_block_base_fee(header.gas_used, header.gas_limit, base_fee);
 
                 let timestamp: u64 = header.timestamp;

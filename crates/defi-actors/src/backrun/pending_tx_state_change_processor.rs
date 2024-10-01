@@ -45,7 +45,7 @@ pub async fn pending_tx_state_change_task<P, T, N>(
     affecting_tx: Arc<RwLock<HashMap<TxHash, bool>>>,
     cur_block_number: BlockNumber,
     cur_block_time: u64,
-    cur_next_base_fee: u128,
+    cur_next_base_fee: u64,
     cur_state_override: StateOverride,
     state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
 ) -> Result<()>
@@ -76,8 +76,8 @@ where
     if transaction_request.transaction_type.unwrap_or_default() == 0 {
         match transaction_request.gas_price {
             Some(g) => {
-                if g < cur_next_base_fee {
-                    transaction_request.set_gas_price(cur_next_base_fee);
+                if g < cur_next_base_fee as u128 {
+                    transaction_request.set_gas_price(cur_next_base_fee as u128);
                 }
             }
             None => {
@@ -91,8 +91,8 @@ where
     } else {
         match transaction_request.max_fee_per_gas {
             Some(g) => {
-                if g < cur_next_base_fee {
-                    transaction_request.set_max_fee_per_gas(cur_next_base_fee);
+                if g < cur_next_base_fee as u128 {
+                    transaction_request.set_max_fee_per_gas(cur_next_base_fee as u128);
                 }
             }
             None => {
@@ -148,14 +148,14 @@ where
 
             //TODO : Fix Latest header is empty
             if let Some(latest_header) = latest_block.read().await.block_header.clone() {
-                let block_number = latest_header.number.as_u64() + 1;
-                let block_timestamp = latest_header.timestamp.as_u64() + 12;
+                let next_block_number = latest_header.number.as_u64() + 1;
+                let next_block_timestamp = latest_header.timestamp.as_u64() + 12;
 
                 if !affected_pools.is_empty() {
                     let cur_state_db = market_state.read().await.state_db.clone();
                     let request = StateUpdateEvent::new(
-                        block_number,
-                        block_timestamp,
+                        next_block_number,
+                        next_block_timestamp,
                         cur_next_base_fee,
                         cur_state_db,
                         state_update_vec,
@@ -253,7 +253,7 @@ where
     subscribe!(market_events_rx);
 
     let affecting_tx: Arc<RwLock<HashMap<TxHash, bool>>> = Arc::new(RwLock::new(HashMap::new()));
-    let mut cur_next_base_fee: u128 = 0;
+    let mut cur_next_base_fee = 0;
     let mut cur_block_number: Option<BlockNumber> = None;
     let mut cur_block_time: Option<u64> = None;
     let mut cur_state_override: StateOverride = StateOverride::default();

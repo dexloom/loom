@@ -102,7 +102,7 @@ async fn main() -> Result<()> {
 
                             let tx_compose_encode_msg = MessageTxCompose::encode(
                                 TxComposeData{
-                                    gas_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
+                                    base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
                                     poststate : Some(Arc::new(market_state.read().await.state_db.clone())),
                                     swap : Swap::ExchangeSwapLine(swap_line),
                                     ..TxComposeData::default()

@@ -87,9 +87,9 @@ pub struct TxComposeData {
     pub nonce: u64,
     pub eth_balance: U256,
     pub value: U256,
-    pub gas: u128,
-    pub gas_fee: u128,
-    pub priority_gas_fee: u128,
+    pub gas: u64,
+    pub base_fee: u64,
+    pub priority_gas_fee: u64,
     pub stuffing_txs_hashes: Vec<TxHash>,
     pub stuffing_txs: Vec<Transaction>,
     pub block: BlockNumber,
@@ -144,7 +144,7 @@ impl TxComposeData {
     }
 
     pub fn gas_cost(&self) -> u128 {
-        self.gas * (self.gas_fee + self.priority_gas_fee)
+        self.gas as u128 * (self.base_fee as u128 + self.priority_gas_fee as u128)
     }
 }
 
@@ -154,7 +154,7 @@ impl Default for TxComposeData {
             signer: None,
             nonce: Default::default(),
             eth_balance: Default::default(),
-            gas_fee: Default::default(),
+            base_fee: Default::default(),
             value: Default::default(),
             gas: Default::default(),
             priority_gas_fee: Default::default(),

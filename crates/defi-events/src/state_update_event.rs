@@ -12,9 +12,9 @@ use loom_utils::evm::env_for_block;
 
 #[derive(Clone, Debug)]
 pub struct StateUpdateEvent {
-    pub block: u64,
-    pub block_timestamp: u64,
-    pub gas_fee: u128,
+    pub next_block: u64,
+    pub next_block_timestamp: u64,
+    pub next_base_fee: u64,
     market_state: LoomInMemoryDB,
     state_update: GethStateUpdateVec,
     state_required: Option<GethStateUpdateVec>,
@@ -28,9 +28,9 @@ pub struct StateUpdateEvent {
 #[allow(clippy::too_many_arguments)]
 impl StateUpdateEvent {
     pub fn new(
-        block: u64,
-        block_timestamp: u64,
-        gas_fee: u128,
+        next_block: u64,
+        next_block_timestamp: u64,
+        next_base_fee: u64,
         market_state: LoomInMemoryDB,
         state_update: GethStateUpdateVec,
         state_required: Option<GethStateUpdateVec>,
@@ -41,9 +41,9 @@ impl StateUpdateEvent {
         tips_pct: u32,
     ) -> StateUpdateEvent {
         StateUpdateEvent {
-            block,
-            block_timestamp,
-            gas_fee,
+            next_block,
+            next_block_timestamp,
+            next_base_fee,
             state_update,
             state_required,
             market_state,
@@ -56,7 +56,7 @@ impl StateUpdateEvent {
     }
 
     pub fn evm_env(&self) -> Env {
-        env_for_block(self.block, self.block_timestamp)
+        env_for_block(self.next_block, self.next_block_timestamp)
     }
 
     pub fn directions(&self) -> &BTreeMap<PoolWrapper, Vec<(Address, Address)>> {

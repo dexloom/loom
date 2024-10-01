@@ -65,7 +65,7 @@ where
     env.tx.value = tx.value;
     env.tx.caller = tx.from;
     env.tx.gas_price = U256::from(tx.max_fee_per_gas.unwrap_or(tx.gas_price.unwrap_or_default()));
-    env.tx.gas_limit = tx.gas as u64;
+    env.tx.gas_limit = tx.gas;
     env.tx.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas.unwrap_or_default()));
 
     match evm.transact_commit() {
@@ -111,7 +111,7 @@ where
     env.tx.value = tx.value.unwrap_or_default();
     env.tx.caller = tx.from.unwrap_or_default();
     env.tx.gas_price = U256::from(tx.max_fee_per_gas.unwrap_or(tx.gas_price.unwrap_or_default()));
-    env.tx.gas_limit = tx.gas.unwrap_or_default() as u64;
+    env.tx.gas_limit = tx.gas.unwrap_or_default();
     env.tx.gas_priority_fee = Some(U256::from(tx.max_priority_fee_per_gas.unwrap_or_default()));
 
     env.block.coinbase = *COINBASE;
@@ -176,7 +176,7 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> En
         },
         tx: TxEnv {
             caller: tx.from,
-            gas_limit: tx.gas as u64,
+            gas_limit: tx.gas,
             gas_price: U256::from(tx.gas_price.unwrap_or_default()),
             transact_to: TransactTo::Call(tx.to.unwrap_or_default()),
             value: tx.value,

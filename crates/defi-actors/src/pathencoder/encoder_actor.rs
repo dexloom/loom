@@ -12,7 +12,7 @@ use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer,
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 
-const PRIORITY_GAS_FEE: u128 = 10_u128.pow(9);
+const PRIORITY_GAS_FEE: u64 = 10_u64.pow(9);
 
 /// encoder task performs encode for request
 async fn encoder_task(
@@ -73,22 +73,22 @@ async fn encoder_task(
             let nonce = account_monitor.read().await.get_account(&signer.address()).unwrap().get_nonce();
             let eth_balance = account_monitor.read().await.get_account(&signer.address()).unwrap().get_eth_balance();
 
-            let gas_fee: u128 = encode_request.gas_fee;
+            let base_fee: u64 = encode_request.base_fee;
 
-            if gas_fee == 0 {
+            if base_fee == 0 {
                 error!("Block base fee is not set");
                 Err(eyre!("NO_BLOCK_GAS_FEE"))
             } else {
-                let gas = (encode_request.swap.pre_estimate_gas() as u128) * 2;
+                let gas = (encode_request.swap.pre_estimate_gas()) * 2;
                 let value = U256::ZERO;
-                let priority_gas_fee: u128 = if gas_fee > PRIORITY_GAS_FEE { PRIORITY_GAS_FEE } else { gas_fee };
+                let priority_gas_fee: u64 = if base_fee > PRIORITY_GAS_FEE { PRIORITY_GAS_FEE } else { base_fee };
 
                 let estimate_request = TxComposeData {
                     signer: Some(signer),
                     nonce,
                     eth_balance,
                     gas,
-                    gas_fee,
+                    base_fee,
                     priority_gas_fee,
                     value,
                     opcodes: Some(swap_opcodes),

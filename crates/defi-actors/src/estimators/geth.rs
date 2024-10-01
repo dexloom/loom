@@ -54,13 +54,13 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
         gas: Some(estimate_request.gas),
         value: Some(U256::from(1000)),
         nonce: Some(estimate_request.nonce),
-        max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee),
-        max_fee_per_gas: Some(estimate_request.gas_fee),
+        max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
+        max_fee_per_gas: Some(estimate_request.base_fee as u128),
         input: TransactionInput::new(calldata),
         ..TransactionRequest::default()
     };
 
-    let gas_price = estimate_request.priority_gas_fee + estimate_request.gas_fee;
+    let gas_price = estimate_request.priority_gas_fee + estimate_request.base_fee;
 
     if U256::from(200_000 * gas_price) > profit_eth {
         error!("Profit is too small");
@@ -103,7 +103,7 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
                     return Err(eyre!("TX_SIMULATION_REVERT"));
                 }
 
-                let gas: u128 = tx_sim_result.gas_used.to();
+                let gas = tx_sim_result.gas_used.to();
 
                 if let Some(access_list) = tx_sim_result.access_list.clone() {
                     let swap = estimate_request.swap.clone();
@@ -137,8 +137,8 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
                             input: TransactionInput::new(calldata),
                             nonce: Some(estimate_request.nonce),
                             access_list: Some(access_list),
-                            max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee),
-                            max_fee_per_gas: Some(estimate_request.gas_fee),
+                            max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
+                            max_fee_per_gas: Some(estimate_request.base_fee as u128), // TODO: Why not prio + base fee?
                             ..TransactionRequest::default()
                         };
 

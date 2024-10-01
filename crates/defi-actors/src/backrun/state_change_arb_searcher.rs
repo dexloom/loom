@@ -97,7 +97,9 @@ async fn state_change_arb_searcher_task(
                         }
 
                         if let Ok(profit) = mut_item.profit() {
-                            if profit.is_positive() && msg.gas_fee != 0 && mut_item.abs_profit_eth() > U256::from(200000u128 * msg.gas_fee)
+                            if profit.is_positive()
+                                && msg.next_base_fee != 0
+                                && mut_item.abs_profit_eth() > U256::from(200000 * msg.next_base_fee)
                             {
                                 if let Err(e) = swap_path_tx.try_send(Ok(mut_item)) {
                                     error!("try_send ok swap_path_tx  error : {e}")
@@ -141,10 +143,10 @@ async fn state_change_arb_searcher_task(
         match swap_line_result {
             Ok(swap_line) => {
                 let encode_request = TxCompose::Encode(TxComposeData {
-                    block: msg.block,
-                    block_timestamp: msg.block_timestamp,
-                    gas_fee: msg.gas_fee,
-                    gas: swap_line.gas_used.unwrap_or(300000) as u128,
+                    block: msg.next_block,
+                    block_timestamp: msg.next_block_timestamp,
+                    base_fee: msg.next_base_fee,
+                    gas: swap_line.gas_used.unwrap_or(300000),
                     stuffing_txs: msg.stuffing_txs.clone(),
                     stuffing_txs_hashes: msg.stuffing_txs_hashes.clone(),
                     swap: Swap::BackrunSwapLine(swap_line),

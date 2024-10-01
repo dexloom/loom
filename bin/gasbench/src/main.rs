@@ -48,7 +48,7 @@ async fn main() -> Result<()> {
 
     println!("Hello, block {block_number}!");
 
-    let node_url = env::var("MAINNET_WS").unwrap();
+    let node_url = env::var("MAINNET_WS")?;
 
     let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(block_number)).await?;
 
@@ -145,7 +145,7 @@ async fn main() -> Result<()> {
         let gas_used = match client.estimate_gas(&tx_request).await {
             Ok(gas_needed) => {
                 //info!("Gas required:  {gas_needed}");
-                gas_needed as u64
+                gas_needed
             }
             Err(e) => {
                 error!("Gas estimation error : {e}");
