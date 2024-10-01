@@ -6,7 +6,7 @@ use alloy_primitives::{address, Address};
 use eyre::{OptionExt, Result};
 use log::debug;
 
-use crate::{build_swap_path_vec};
+use crate::build_swap_path_vec;
 use crate::{EmptyPool, Pool, PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
 
