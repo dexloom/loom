@@ -144,5 +144,5 @@ reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev="35895
 tower = "0.5.1"
 
 criterion = { version = "0.5.1", features = ["async_tokio"] }
-rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "1bc1866" }
+rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "65d5b45" }
 #rethdb-dexsync = { path = "../rethdb-dexsync" }

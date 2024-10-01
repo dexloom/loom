@@ -5,7 +5,7 @@ pub use curvepool::CurvePool;
 pub use maverickpool::MaverickPool;
 pub use pancakev3pool::PancakeV3Pool;
 pub use uniswapv2pool::UniswapV2Pool;
-pub use uniswapv3pool::UniswapV3Pool;
+pub use uniswapv3pool::{Slot0, UniswapV3Pool};
 
 pub mod db_reader;
 mod maverickpool;

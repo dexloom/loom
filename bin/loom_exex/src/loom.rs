@@ -86,7 +86,7 @@ where
         .with_backrun_block()? // load backrun searcher for incoming block
         .with_backrun_mempool()? // load backrun searcher for mempool txes
         // EXPERIMENTAL pool loader feature
-        .with_pool_db_loader(reth_adapter, PoolsConfig::disable_all().enable(PoolClass::UniswapV2))? // load pools directly from db
+        .with_pool_db_loader(reth_adapter, PoolsConfig::new())? // load pools directly from db
     ;
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors

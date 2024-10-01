@@ -92,6 +92,30 @@ impl UniswapV3Pool {
         }
     }
 
+    pub fn new_with_data(
+        address: Address,
+        token0: Address,
+        token1: Address,
+        liquidity: u128,
+        fee: u32,
+        slot0: Option<Slot0>,
+        factory: Address,
+    ) -> Self {
+        UniswapV3Pool {
+            address,
+            token0,
+            token1,
+            liquidity,
+            liquidity0: U256::ZERO,
+            liquidity1: U256::ZERO,
+            fee,
+            slot0,
+            factory,
+            protocol: PoolProtocol::UniswapV3Like,
+            encoder: UniswapV3AbiSwapEncoder::new(address),
+        }
+    }
+
     pub fn tick_spacing(&self) -> u32 {
         Self::get_price_step(self.fee)
     }
