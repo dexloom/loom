@@ -18,8 +18,8 @@ jobs:
     name: make test
     runs-on: ubuntu-latest
     env:
-      MAINNET_HTTP: ${{ secrets.SECRET_NODE_HTTP }}
-      MAINNET_WS: ${{ secrets.SECRET_NODE_WS }}
+      MAINNET_HTTP: ${{ secrets.MAINNET_HTTP }}
+      MAINNET_WS: ${{ secrets.MAINNET_WS }}
       RUST_LOG: info
     steps:
       - uses: actions/checkout@v4
