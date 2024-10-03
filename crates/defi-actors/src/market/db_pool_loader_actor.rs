@@ -5,8 +5,9 @@ use eyre::eyre;
 use log::info;
 use loom_actors::{Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
-use reth_direct_db_uniswap_storage::{UniV2Factory, UniV3PositionManager, UNI_V2_FACTORY, UNI_V3_POSITION_MANAGER};
 use reth_node_api::{FullNodeComponents, NodeAddOns};
+use rethdb_dexsync::univ2::{UniV2Factory, UNI_V2_FACTORY};
+use rethdb_dexsync::univ3::{UniV3PositionManager, UNI_V3_POSITION_MANAGER};
 use std::time::Instant;
 
 async fn pool_loader_one_shot_worker<Node, AddOns>(
@@ -50,7 +51,7 @@ where
 
         let now = Instant::now();
         let mut market_state_read_guard = market.write().await;
-        for pool in position_manager.pools {
+        for (pool, _) in position_manager.pools {
             // TODO: Load pool ticks, etc
             market_state_read_guard.add_empty_pool(&pool.address)?;
         }

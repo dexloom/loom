@@ -57,3 +57,15 @@ jobs:
 
       - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
       - run: make clippy
+
+  deny:
+    if: github.repository == 'dexloom/loom'
+    name: cargo deny check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          log-level: warn
+          command: check
+          arguments: --all-features

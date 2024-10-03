@@ -1,0 +1,43 @@
+[licenses]
+allow = [
+    # permissive licenses
+    "0BSD",
+    "Apache-2.0",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "MIT",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "Unlicense",
+    "Zlib",
+    # permissive license with unclear patent grant
+    "CC0-1.0",
+    # weak/limited copyleft licenses
+    "MPL-2.0",
+    "OpenSSL" # https://en.wikipedia.org/wiki/OpenSSL#Licensing
+]
+
+# Clearify licence: https://github.com/briansmith/ring/issues/902
+# Plan to remove OpenSSL: https://github.com/briansmith/ring/issues/1827
+[[licenses.clarify]]
+name = "ring"
+expression = "ISC AND MIT AND OpenSSL"
+license-files = [{ path = "LICENSE", hash = 0xbd0eed23 }]
+
+[advisories]
+yanked = "warn"
+ignore = [
+    # proc-macro-error 1.0.4 is unmaintained see: https://rustsec.org/advisories/RUSTSEC-2024-0370
+    "RUSTSEC-2024-0370"
+]
+
+[bans]
+multiple-versions = "allow"
+
+[sources]
+allow-git = [
+    "https://github.com/cakevm/rethdb-dexsync",
+    "https://github.com/dexloom/reth-exex-grpc",
+    "https://github.com/paradigmxyz/reth",
+]
