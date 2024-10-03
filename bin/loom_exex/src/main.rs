@@ -5,7 +5,7 @@ use defi_actors::{mempool_worker, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
 use defi_entities::RethAdapter;
 use loom_topology::TopologyConfig;
-use reth::args::utils::DefaultChainSpecParser;
+use reth_node_core::args::utils::EthereumChainSpecParser;
 use reth_node_ethereum::EthereumNode;
 
 mod arguments;
@@ -15,7 +15,7 @@ fn main() -> eyre::Result<()> {
     // ignore arguments used by reth
     let app_args = AppArgs::from_arg_matches_mut(&mut AppArgs::command().ignore_errors(true).get_matches())?;
     match app_args.command {
-        Command::Node(_) => reth::cli::Cli::<DefaultChainSpecParser, LoomArgs>::parse().run(|builder, loom_args: LoomArgs| async move {
+        Command::Node(_) => reth::cli::Cli::<EthereumChainSpecParser, LoomArgs>::parse().run(|builder, loom_args: LoomArgs| async move {
             let topology_config = TopologyConfig::load_from_file(loom_args.loom_config)?;
 
             let bc = Blockchain::new(builder.config().chain.chain.id());
