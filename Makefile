@@ -34,6 +34,12 @@ clippy:
 fmt-check:
 	cargo +stable fmt --all --check
 
+# check licences
+.PHONY: deny-check
+deny-check:
+	cargo deny --all-features check
+
+
 # check files format with fmt and clippy
 .PHONY: pre-release
 pre-release:
