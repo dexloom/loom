@@ -137,8 +137,8 @@ reth-node-builder = { git = "https://github.com/paradigmxyz/reth" }
 reth-revm = { git = "https://github.com/paradigmxyz/reth" }
 reth-storage-api = { git = "https://github.com/paradigmxyz/reth" }
 
-#example-exex-remote = { git = "https://github.com/dexloom/reth-exex-grpc" }
-example-exex-remote = { path = "../reth-exex-grpc" }
+example-exex-remote = { git = "https://github.com/dexloom/reth-exex-grpc" }
+#example-exex-remote = { path = "../reth-exex-grpc" }
 
 
 tower = "0.5.1"
