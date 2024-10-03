@@ -2355,7 +2355,6 @@ dependencies = [
  "rayon",
  "reth-chainspec",
  "reth-db",
- "reth-direct-db-uniswap-storage",
  "reth-exex",
  "reth-node-api",
  "reth-node-ethereum",
@@ -2366,6 +2365,7 @@ dependencies = [
  "reth-rpc-types-compat",
  "reth-tracing",
  "reth-transaction-pool",
+ "rethdb-dexsync",
  "revm",
  "tokio",
 ]
@@ -7018,30 +7018,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "reth-direct-db-uniswap-storage"
-version = "0.0.0"
-source = "git+https://github.com/cakevm/reth-direct-db-uniswap-storage?rev=bd33071#bd3307186a12b21f13e57686c7a3359bd71058fe"
-dependencies = [
- "alloy",
- "alloy-sol-types",
- "eyre",
- "lazy_static",
- "reth-blockchain-tree",
- "reth-chainspec",
- "reth-db",
- "reth-node-ethereum",
- "reth-node-types",
- "reth-primitives",
- "reth-provider",
- "reth-rpc",
- "reth-rpc-eth-types",
- "reth-rpc-types",
- "rkyv",
- "thiserror",
- "tracing",
-]
-
-[[package]]
 name = "reth-discv4"
 version = "1.0.7"
 source = "git+https://github.com/paradigmxyz/reth#d8b9f5db54d7937c2e315438b429258b983a97ac"
@@ -8879,6 +8855,29 @@ dependencies = [
  "reth-provider",
  "reth-trie",
  "reth-trie-db",
+ "thiserror",
+ "tracing",
+]
+
+[[package]]
+name = "rethdb-dexsync"
+version = "0.1.0"
+source = "git+https://github.com/cakevm/rethdb-dexsync?rev=35377b1#35377b194e702d1e24379315a5350275bd724656"
+dependencies = [
+ "alloy",
+ "alloy-sol-types",
+ "eyre",
+ "lazy_static",
+ "reth-blockchain-tree",
+ "reth-chainspec",
+ "reth-db",
+ "reth-node-ethereum",
+ "reth-node-types",
+ "reth-primitives",
+ "reth-provider",
+ "reth-rpc",
+ "reth-rpc-eth-types",
+ "rkyv",
  "thiserror",
  "tracing",
 ]

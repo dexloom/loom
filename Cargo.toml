@@ -144,5 +144,5 @@ example-exex-remote = { git = "https://github.com/dexloom/reth-exex-grpc" }
 tower = "0.5.1"
 
 criterion = { version = "0.5.1", features = ["async_tokio"] }
-reth-direct-db-uniswap-storage = { git = "https://github.com/cakevm/reth-direct-db-uniswap-storage", rev = "bd33071" }
-#reth-direct-db-uniswap-storage = { path = "../reth-direct-db-uniswap-storage" }
+rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "35377b1" }
+#rethdb-dexsync = { path = "../rethdb-dexsync" }
