@@ -85,7 +85,8 @@ where
         .with_same_path_merger()? // load merger for same swap paths with different stuffing txes
         .with_backrun_block()? // load backrun searcher for incoming block
         .with_backrun_mempool()? // load backrun searcher for mempool txes
-        .with_pool_db_loader(reth_adapter, pools_config.clone())? // load pools directly from db
+        // EXPERIMENTAL pool loader feature
+        .with_pool_db_loader(reth_adapter, PoolsConfig::disable_all().enable(PoolClass::UniswapV2))? // load pools directly from db
     ;
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors

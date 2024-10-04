@@ -99,9 +99,7 @@ impl Market {
     fn add_token_token_paths(&mut self, pool_address: Address, swap_directions: Vec<(Address, Address)>) {
         for (token_address_from, token_address_to) in swap_directions.iter() {
             self.insert_token_pools(*token_address_from, *token_address_to, pool_address);
-
             self.insert_token_tokens(*token_address_from, *token_address_to);
-            self.insert_token_tokens(*token_address_to, *token_address_from);
         }
     }
 

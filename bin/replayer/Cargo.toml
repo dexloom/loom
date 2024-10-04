@@ -20,7 +20,6 @@ toml.workspace = true
 
 debug-provider.workspace = true
 
-loom-topology.workspace = true
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
 defi-entities.workspace = true

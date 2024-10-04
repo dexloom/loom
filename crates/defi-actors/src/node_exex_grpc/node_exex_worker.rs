@@ -131,7 +131,7 @@ pub async fn node_exex_grpc_worker(
     state_update_channel: Broadcaster<MessageBlockStateUpdate>,
     mempool_channel: Broadcaster<MessageMempoolDataUpdate>,
 ) -> WorkerResult {
-    let client = example_exex_remote::ExExClient::connect(url.unwrap_or("http://[::1]:10000".to_string())).await?;
+    let client = reth_exex_grpc::ExExClient::connect(url.unwrap_or("http://[::1]:10000".to_string())).await?;
 
     let stream_header = client.subscribe_header().await?;
     pin_mut!(stream_header);

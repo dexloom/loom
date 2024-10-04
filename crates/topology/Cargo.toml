@@ -19,7 +19,7 @@ flashbots.workspace = true
 loom-actors.workspace = true
 defi-blockchain.workspace = true
 
-example-exex-remote.workspace = true
+reth-exex-grpc.workspace = true
 
 alloy-primitives.workspace = true
 alloy-rpc-client.workspace = true
