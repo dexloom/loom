@@ -113,36 +113,36 @@ alloy-pubsub = "0.4.2"
 alloy-signer = "0.4.2"
 alloy-signer-local = "0.4.2"
 
-reth = { git = "https://github.com/paradigmxyz/reth" }
-reth-db = { git = "https://github.com/paradigmxyz/reth" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth" }
-reth-rpc = { git = "https://github.com/paradigmxyz/reth" }
-reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", features = ["serde"] }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth" }
-reth-tracing = { git = "https://github.com/paradigmxyz/reth" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth" }
-reth-node-core = { git = "https://github.com/paradigmxyz/reth" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth" }
-reth-node-types = { git = "https://github.com/paradigmxyz/reth" }
-reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth" }
-reth-testing-utils = { git = "https://github.com/paradigmxyz/reth" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth" }
-reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth" }
-reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth" }
-reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth" }
-reth-node-builder = { git = "https://github.com/paradigmxyz/reth" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth" }
-reth-storage-api = { git = "https://github.com/paradigmxyz/reth" }
+reth = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-rpc = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8", features = ["serde"] }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-node-core = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-node-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth-storage-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
 
-example-exex-remote = { git = "https://github.com/dexloom/reth-exex-grpc" }
-#example-exex-remote = { path = "../reth-exex-grpc" }
+reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev="3589545" }
+#reth-exex-grpc = { path = "../reth-exex-grpc" }
 
 
 tower = "0.5.1"
 
 criterion = { version = "0.5.1", features = ["async_tokio"] }
-rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "a5e5db5" }
+rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "1bc1866" }
 #rethdb-dexsync = { path = "../rethdb-dexsync" }

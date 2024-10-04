@@ -39,13 +39,11 @@ fmt-check:
 deny-check:
 	cargo deny --all-features check
 
-
 # check files format with fmt and clippy
 .PHONY: pre-release
 pre-release:
 	cargo +stable fmt --all --check
 	cargo clippy --all-targets --all-features -- -D warnings
-
 
 # format loom
 .PHONY: fmt

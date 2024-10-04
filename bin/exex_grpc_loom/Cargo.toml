@@ -17,5 +17,5 @@ tonic.workspace = true
 reth-exex.workspace = true
 reth-tracing.workspace = true
 
-example-exex-remote.workspace = true
+reth-exex-grpc.workspace = true
 

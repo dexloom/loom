@@ -22,7 +22,6 @@ toml.workspace = true
 debug-provider.workspace = true
 flashbots.workspace = true
 
-loom-topology.workspace = true
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
 loom-revm-db.workspace = true
