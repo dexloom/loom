@@ -2,12 +2,8 @@ name: Loom
 
 on:
   push:
-    branches:
-      - main
-  pull_request_target:
-    types: [opened,synchronize,reopened]
-    branches:
-      - main
+    branches: [main]
+  pull_request:
 
 env:
   CARGO_TERM_COLOR: always
