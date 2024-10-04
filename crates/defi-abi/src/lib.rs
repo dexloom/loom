@@ -14,4 +14,5 @@ pub mod uniswap4;
 pub mod uniswap_periphery;
 mod weth;
 
+pub mod elastic_vault;
 pub mod pancake;

@@ -43,4 +43,5 @@ mod backrun;
 mod node_player;
 
 mod blockchain_actors;
+mod elastic_vault;
 mod node_exex_grpc;
