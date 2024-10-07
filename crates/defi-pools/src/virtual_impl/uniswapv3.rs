@@ -227,7 +227,7 @@ impl UniswapV3PoolVirtual {
         let tick_spacing = pool.tick_spacing();
         let fee = pool.fee;
 
-        // Initialize a mutable state state struct to hold the dynamic simulated state of the pool
+        // Initialize a mutable state struct to hold the dynamic simulated state of the pool
         let mut current_state = CurrentState {
             sqrt_price_x_96: slot0.sqrtPriceX96.to(),                //Active price on the pool
             amount_calculated: I256::ZERO,                           //Amount of token_out that has been calculated

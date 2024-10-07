@@ -1,14 +1,16 @@
+use alloy_eips::BlockNumberOrTag;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, MarketState, PoolClass, RethAdapter};
-use defi_pools::{PoolsConfig, UniswapV2Pool};
-use eyre::eyre;
-use log::info;
+use defi_pools::{PoolsConfig, Slot0, UniswapV2Pool, UniswapV3Pool};
+use log::{error, info};
 use loom_actors::{Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 use reth_node_api::{FullNodeComponents, NodeAddOns};
+use reth_provider::StateProviderFactory;
 use rethdb_dexsync::univ2::{UniV2Factory, UNI_V2_FACTORY};
-use rethdb_dexsync::univ3::{UniV3PositionManager, UNI_V3_POSITION_MANAGER};
+use rethdb_dexsync::univ3::{UniV3PositionManager, UNI_V3_FACTORY, UNI_V3_POSITION_MANAGER};
 use std::time::Instant;
+use tokio::sync::oneshot;
 
 async fn pool_loader_one_shot_worker<Node, AddOns>(
     reth_adapter: RethAdapter<Node, AddOns>,
@@ -22,7 +24,22 @@ where
 {
     if pools_config.is_enabled(PoolClass::UniswapV2) {
         let now = Instant::now();
-        let univ2_factory = UniV2Factory::load_pairs(reth_adapter.latest()?, UNI_V2_FACTORY)?;
+
+        let (tx, rx) = oneshot::channel();
+        let node = reth_adapter.node.clone().unwrap();
+        node.task_executor.spawn_blocking(Box::pin(async move {
+            let univ2_factory = match UniV2Factory::load_pairs(&&node.provider, &BlockNumberOrTag::Latest, UNI_V2_FACTORY, None) {
+                Ok(univ2_factory) => univ2_factory,
+                Err(e) => {
+                    error!("Failed to load UniswapV2 pairs: {:?}", e);
+                    tx.send(Err(e)).unwrap();
+                    return;
+                }
+            };
+            tx.send(Ok(univ2_factory)).unwrap();
+        }));
+
+        let univ2_factory = rx.await??;
         let elapsed = now.elapsed();
         info!("UniswapV2 {} pools loaded in {:.2?} sec", univ2_factory.pairs.len(), elapsed);
         let mut market_read_guard = market.write().await;
@@ -45,15 +62,46 @@ where
 
     if pools_config.is_enabled(PoolClass::UniswapV3) {
         let now = Instant::now();
-        let position_manager = UniV3PositionManager::load_pools(reth_adapter.latest()?, UNI_V3_POSITION_MANAGER)?;
+
+        let (tx, rx) = oneshot::channel();
+        let node = reth_adapter.node.clone().unwrap();
+        node.task_executor.spawn_blocking(Box::pin(async move {
+            let position_manager = match UniV3PositionManager::load_pools(node.provider.latest().unwrap(), UNI_V3_POSITION_MANAGER) {
+                Ok(position_manager) => position_manager,
+                Err(e) => {
+                    error!("Failed to load UniswapV3 pools: {:?}", e);
+                    tx.send(Err(e)).unwrap();
+                    return;
+                }
+            };
+            tx.send(Ok(position_manager)).unwrap();
+        }));
+        let position_manager = rx.await??;
         let elapsed = now.elapsed();
         info!("UniswapV3 {} pools loaded in {:.2?} sec", position_manager.pools.len(), elapsed);
 
         let now = Instant::now();
         let mut market_state_read_guard = market.write().await;
-        for (pool, _) in position_manager.pools {
-            // TODO: Load pool ticks, etc
-            market_state_read_guard.add_empty_pool(&pool.address)?;
+        for (pool, slot0, liquidity) in position_manager.pools {
+            let slot0 = Slot0 {
+                sqrt_price_x96: slot0.sqrt_price_x96.to(),
+                tick: slot0.tick.as_i32(),
+                observation_index: slot0.observation_index.to(),
+                observation_cardinality: slot0.observation_cardinality.to(),
+                observation_cardinality_next: slot0.observation_cardinality_next.to(),
+                fee_protocol: slot0.fee_protocol,
+                unlocked: slot0.unlocked,
+            };
+
+            market_state_read_guard.add_pool(UniswapV3Pool::new_with_data(
+                pool.address,
+                pool.token0,
+                pool.token1,
+                liquidity.to::<u128>(),
+                pool.fee.to::<u32>(),
+                Some(slot0),
+                UNI_V3_FACTORY,
+            ))?;
         }
         drop(market_state_read_guard);
         let elapsed = now.elapsed();
@@ -95,21 +143,15 @@ where
     Node: FullNodeComponents + Clone,
     AddOns: NodeAddOns<Node> + Clone,
 {
-    fn start_and_wait(&self) -> eyre::Result<()> {
-        let rt = tokio::runtime::Runtime::new()?; // we need a different runtime to wait for the result
-        let reth_adapter = self.reth_adapter.clone();
-        let market = self.market.clone().unwrap();
-        let market_state = self.market_state.clone().unwrap();
-        let pools_config = self.pools_config.clone();
-        let handle = rt.spawn(async { pool_loader_one_shot_worker(reth_adapter, market, market_state, pools_config).await });
-
-        self.wait(Ok(vec![handle]))?;
-        rt.shutdown_background();
-
-        Ok(())
-    }
     fn start(&self) -> ActorResult {
-        Err(eyre!("NEED_TO_BE_WAITED"))
+        let task = tokio::task::spawn(pool_loader_one_shot_worker(
+            self.reth_adapter.clone(),
+            self.market.clone().unwrap(),
+            self.market_state.clone().unwrap(),
+            self.pools_config.clone(),
+        ));
+
+        Ok(vec![task])
     }
 
     fn name(&self) -> &'static str {

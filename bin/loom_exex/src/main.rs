@@ -32,8 +32,8 @@ fn main() -> eyre::Result<()> {
             let mempool = handle.node.pool.clone();
             let ipc_provider = ProviderBuilder::new().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;
 
-            tokio::task::spawn(mempool_worker(mempool, bc.clone()));
-            tokio::task::spawn(loom::start_loom(ipc_provider, bc, topology_config, reth_adapter));
+            tokio::task::spawn(loom::start_loom(ipc_provider, bc.clone(), topology_config, reth_adapter));
+            tokio::task::spawn(mempool_worker(mempool, bc));
 
             handle.wait_for_node_exit().await
         }),

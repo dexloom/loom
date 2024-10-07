@@ -428,7 +428,7 @@ where
         Node: FullNodeComponents + Clone,
         AddOns: NodeAddOns<Node> + Clone,
     {
-        self.actor_manager.start_and_wait(DbPoolLoaderOneShotActor::new(reth_adapter, pools_config).on_bc(&self.bc))?;
+        self.actor_manager.start(DbPoolLoaderOneShotActor::new(reth_adapter, pools_config).on_bc(&self.bc))?;
         Ok(self)
     }
 }
