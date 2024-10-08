@@ -5,8 +5,8 @@ use std::sync::Arc;
 use alloy_primitives::{Address, I256, U256};
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::debug;
 use revm::primitives::Env;
+use tracing::debug;
 
 use defi_types::SwapError;
 use loom_revm_db::LoomInMemoryDB;

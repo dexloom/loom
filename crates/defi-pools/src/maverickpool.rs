@@ -4,8 +4,8 @@ use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::error;
 use revm::primitives::Env;
+use tracing::error;
 
 use defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaverickPoolInstance};
 use defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuoterCalls};
@@ -426,9 +426,9 @@ mod tests {
     use defi_abi::maverick::IMaverickQuoter::IMaverickQuoterInstance;
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::MarketState;
-    use log::debug;
     use loom_utils::evm::env_for_block;
     use std::env;
+    use tracing::debug;
 
     use super::*;
 

@@ -3,8 +3,8 @@ use std::marker::PhantomData;
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use log::info;
 use tokio::task::JoinHandle;
+use tracing::info;
 
 use debug_provider::DebugProviderExt;
 use defi_entities::{BlockHistory, LatestBlock, Market, MarketState};

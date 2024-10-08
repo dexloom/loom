@@ -1,5 +1,5 @@
 use alloy_primitives::{Address, Bytes, U256};
-use log::debug;
+use tracing::debug;
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub enum CallType {

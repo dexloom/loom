@@ -1,6 +1,6 @@
 use alloy_primitives::Address;
 use alloy_provider::Provider;
-use log::{error, info};
+use tracing::{error, info};
 
 use debug_provider::DebugProviderExt;
 use defi_actors::{fetch_and_add_pool_by_address, fetch_state_and_add_pool};

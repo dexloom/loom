@@ -2,8 +2,8 @@ use std::collections::HashMap;
 
 use alloy_primitives::Address;
 use eyre::Result;
-use log::{debug, error};
 use tokio::sync::broadcast::error::RecvError;
+use tracing::{debug, error};
 
 use defi_blockchain::Blockchain;
 use defi_entities::Market;

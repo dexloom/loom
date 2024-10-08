@@ -147,10 +147,10 @@ mod test {
     use crate::{AbiSwapEncoder, Pool};
     use alloy_primitives::U256;
     use eyre::{eyre, ErrReport};
-    use log::error;
     use loom_revm_db::LoomInMemoryDB;
     use revm::primitives::Env;
     use tokio::task::JoinHandle;
+    use tracing::error;
 
     #[derive(Clone)]
     pub struct EmptyPool {

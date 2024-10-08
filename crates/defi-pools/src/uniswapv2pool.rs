@@ -5,9 +5,9 @@ use alloy_sol_types::SolInterface;
 use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, Result};
 use lazy_static::lazy_static;
-use log::debug;
 use revm::primitives::Env;
 use revm::DatabaseRef;
+use tracing::debug;
 
 use defi_abi::uniswap2::IUniswapV2Pair;
 use defi_abi::IERC20;

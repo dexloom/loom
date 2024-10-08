@@ -5,11 +5,11 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag};
 use alloy_rpc_types_trace::geth::AccountState;
 use eyre::Result;
-use log::{debug, error, trace};
 use revm::db::{AccountState as DbAccountState, Database};
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
 use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
 use revm::InMemoryDB;
+use tracing::{debug, error, trace};
 
 use defi_types::GethStateUpdate;
 use loom_revm_db::LoomInMemoryDB;

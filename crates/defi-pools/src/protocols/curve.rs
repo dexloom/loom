@@ -7,7 +7,7 @@ use alloy_rpc_types::{BlockId, BlockNumberOrTag};
 use alloy_sol_types::SolInterface;
 use alloy_transport::Transport;
 use eyre::{eyre, Report, Result};
-use log::{debug, error, trace};
+use tracing::{debug, error, trace};
 
 use defi_abi::curve::ICurveAddressProvider::ICurveAddressProviderInstance;
 use defi_abi::curve::ICurveCommon::ICurveCommonInstance;

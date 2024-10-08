@@ -2,11 +2,11 @@ use async_trait::async_trait;
 use defi_blockchain::Blockchain;
 use eyre::eyre;
 use influxdb::{Client, ReadQuery, WriteQuery};
-use log::{error, info, warn};
 use loom_actors::Consumer;
 use loom_actors::{Actor, ActorResult, Broadcaster, WorkerResult};
 use loom_actors_macros::Consumer;
 use std::collections::HashMap;
+use tracing::{error, info, warn};
 
 pub async fn start_influxdb_worker(
     url: String,

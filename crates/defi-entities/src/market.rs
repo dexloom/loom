@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use alloy_primitives::{address, Address};
 use eyre::{eyre, OptionExt, Result};
-use log::debug;
+use tracing::debug;
 
 use crate::build_swap_path_vec;
 use crate::{PoolClass, PoolWrapper, Token};

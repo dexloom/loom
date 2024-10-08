@@ -9,11 +9,11 @@ use alloy_rpc_types::{BlockNumberOrTag, TransactionInput, TransactionRequest};
 use clap::Parser;
 use colored::*;
 use eyre::{OptionExt, Result};
-use log::{error, info};
 use revm::primitives::Env;
 use serde::{Deserialize, Serialize};
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
+use tracing::{error, info};
 
 use crate::cli::Cli;
 use crate::dto::SwapLineDTO;

@@ -17,6 +17,6 @@ defi-events.workspace = true
 eyre.workspace = true
 tokio.workspace = true
 async-trait.workspace = true
-log.workspace = true
+tracing.workspace = true
 influxdb.workspace = true
 chrono.workspace = true

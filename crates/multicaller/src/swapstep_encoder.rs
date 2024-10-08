@@ -1,7 +1,7 @@
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::Result;
 use lazy_static::lazy_static;
-use log::{debug, trace};
+use tracing::{debug, trace};
 
 use defi_entities::{SwapAmountType, SwapStep};
 use defi_types::{MulticallerCall, MulticallerCalls};

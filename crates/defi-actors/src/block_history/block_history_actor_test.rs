@@ -6,8 +6,8 @@ mod test {
     use alloy_transport::Transport;
     use defi_blockchain::Blockchain;
     use defi_events::{BlockLogs, BlockStateUpdate, MessageBlockHeader};
-    use log::error;
     use revm::db::DatabaseRef;
+    use tracing::error;
 
     use alloy_eips::BlockNumberOrTag;
     use alloy_node_bindings::Anvil;
@@ -19,11 +19,11 @@ mod test {
     use defi_events::{BlockHeader, Message};
     use defi_types::{GethStateUpdate, GethStateUpdateVec};
     use eyre::eyre;
-    use log::info;
     use loom_actors::Actor;
     use loom_revm_db::LoomInMemoryDB;
     use loom_utils::geth_state_update::{account_state_add_storage, account_state_with_nonce_and_balance, geth_state_update_add_account};
     use std::time::Duration;
+    use tracing::info;
 
     async fn broadcast_to_channels(
         bc: &Blockchain,

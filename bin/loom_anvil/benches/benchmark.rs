@@ -1,7 +1,6 @@
 use alloy_primitives::{Address, BlockNumber, U256};
 use chrono::Local;
 use eyre::Result;
-use log::error;
 use rand::prelude::{Rng, SeedableRng, StdRng};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
@@ -12,6 +11,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
+use tracing::error;
 
 use debug_provider::AnvilDebugProviderFactory;
 use defi_entities::required_state::RequiredStateReader;

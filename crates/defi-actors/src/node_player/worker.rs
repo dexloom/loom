@@ -10,12 +10,12 @@ use defi_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
 };
 use defi_types::{debug_trace_block, Mempool};
-use log::{debug, error};
 use loom_actors::{Broadcaster, SharedState, WorkerResult};
 use loom_revm_db::LoomInMemoryDB;
 use std::ops::RangeInclusive;
 use std::sync::Arc;
 use std::time::Duration;
+use tracing::{debug, error};
 
 #[allow(clippy::too_many_arguments)]
 pub async fn node_player_worker<P>(

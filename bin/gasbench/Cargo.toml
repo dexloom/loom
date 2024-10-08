@@ -9,7 +9,7 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
-log.workspace = true
+tracing.workspace = true
 env_logger.workspace = true
 tokio.workspace = true
 eyre.workspace = true

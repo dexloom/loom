@@ -8,7 +8,7 @@ use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRe
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use log::{error, trace};
+use tracing::{error, trace};
 
 use debug_provider::DebugProviderExt;
 use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec};

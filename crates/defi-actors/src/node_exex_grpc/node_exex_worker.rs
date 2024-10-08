@@ -6,13 +6,13 @@ use alloy_rpc_types::serde_helpers::WithOtherFields;
 use alloy_rpc_types::{Block, BlockTransactionsKind, Header, Transaction};
 use chrono::Utc;
 use futures::{pin_mut, StreamExt};
-use log::{error, info};
 use reth_exex::ExExNotification;
 use reth_provider::Chain;
 use reth_rpc::eth::EthTxBuilder;
 use revm::db::states::StorageSlot;
 use revm::db::{BundleAccount, StorageWithOriginalValues};
 use tokio::select;
+use tracing::{error, info};
 
 use defi_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,

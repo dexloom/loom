@@ -9,7 +9,7 @@ license = "MIT OR Apache-2.0"
 [dependencies]
 tokio.workspace = true
 env_logger.workspace = true
-log.workspace = true
+tracing.workspace = true
 eyre.workspace = true
 futures.workspace = true
 

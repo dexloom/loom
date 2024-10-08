@@ -8,9 +8,9 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use log::{debug, error, info};
 use rand::random;
 use tokio::sync::broadcast::error::RecvError;
+use tracing::{debug, error, info};
 
 use defi_blockchain::Blockchain;
 use loom_utils::NWETH;

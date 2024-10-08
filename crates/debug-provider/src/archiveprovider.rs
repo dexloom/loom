@@ -20,8 +20,8 @@ use alloy::{
     },
     transports::{Transport, TransportResult},
 };
-use log::debug;
 use tokio::sync::RwLock;
+use tracing::debug;
 
 #[derive(Clone)]
 pub struct ArchiveHistoryProvider<P, T> {

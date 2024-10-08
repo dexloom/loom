@@ -13,9 +13,9 @@ use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info};
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
 use tokio::sync::RwLock;
+use tracing::{debug, error, info};
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;

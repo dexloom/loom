@@ -5,7 +5,7 @@ use alloy_primitives::TxHash;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use futures::StreamExt;
-use log::error;
+use tracing::error;
 
 use defi_blockchain::Blockchain;
 use defi_events::{MessageMempoolDataUpdate, NodeMempoolDataUpdate};

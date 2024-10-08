@@ -4,9 +4,9 @@ use alloy_primitives::aliases::U24;
 use alloy_primitives::{Address, U160, U256};
 use alloy_sol_types::SolCall;
 use eyre::{eyre, Result};
-use log::error;
 use revm::primitives::Env;
 use revm::DatabaseRef;
+use tracing::error;
 
 use defi_abi::uniswap_periphery::ICustomQuoter;
 use loom_utils::evm::evm_call;

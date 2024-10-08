@@ -10,13 +10,13 @@ use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use chrono::Utc;
 use futures::StreamExt;
-use log::{debug, error, info, trace};
 use reth_chainspec::ChainSpecBuilder;
 use reth_node_ethereum::EthereumNode;
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_primitives::{BlockHashOrNumber, BlockWithSenders};
 use reth_provider::providers::StaticFileProvider;
 use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider, StateProvider, StorageReader, TransactionVariant};
+use tracing::{debug, error, info, trace};
 
 use defi_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,

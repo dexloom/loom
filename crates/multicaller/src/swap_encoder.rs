@@ -1,6 +1,6 @@
 use alloy_primitives::{Address, Bytes};
 use eyre::{eyre, OptionExt, Result};
-use log::error;
+use tracing::error;
 
 use defi_entities::Swap;
 use defi_types::MulticallerCalls;

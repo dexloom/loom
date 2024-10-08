@@ -494,8 +494,8 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
 #[cfg(test)]
 mod tests {
     use env_logger::Env as EnvLog;
-    use log::debug;
     use std::env;
+    use tracing::debug;
 
     use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::required_state::RequiredStateReader;

@@ -1,6 +1,6 @@
 use eyre::Result;
-use log::{error, info};
 use tokio::task::JoinHandle;
+use tracing::{error, info};
 
 use crate::{Actor, WorkerResult};
 

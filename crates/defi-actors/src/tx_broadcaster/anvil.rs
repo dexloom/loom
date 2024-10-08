@@ -6,9 +6,9 @@ use alloy_provider::Provider;
 use alloy_rpc_types::BlockTransactions;
 use alloy_transport::Transport;
 use eyre::Result;
-use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
+use tracing::{error, info};
 
 use debug_provider::AnvilProviderExt;
 use defi_blockchain::Blockchain;

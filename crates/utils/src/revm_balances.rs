@@ -4,8 +4,8 @@ use alloy::{network::Network, primitives::Address, providers::Provider, sol_type
 use debug_provider::{AnvilProviderExt, DebugProviderExt};
 use defi_abi::IERC20::IERC20Instance;
 use eyre::{eyre, Result};
-use log::error;
 use loom_revm_db::LoomInMemoryDB;
+use tracing::error;
 
 pub struct BalanceCheater {}
 

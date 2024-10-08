@@ -12,10 +12,10 @@ use alloy::{
 use defi_types::GethStateUpdate;
 use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, trace};
 use revm::interpreter::Host;
 use revm::primitives::{Account, BlockEnv, Env, ExecutionResult, Output, ResultAndState, TransactTo, TxEnv, SHANGHAI};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
+use tracing::{debug, error, trace};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();

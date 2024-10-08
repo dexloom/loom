@@ -8,10 +8,10 @@ use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use log::{debug, error, info};
 use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
+use tracing::{debug, error, info};
 use url::Url;
 
 #[derive(Clone)]

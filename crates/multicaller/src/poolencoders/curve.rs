@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::Result;
 use lazy_static::lazy_static;
-use log::error;
+use tracing::error;
 
 use defi_entities::PoolWrapper;
 use defi_entities::{PreswapRequirement, SwapAmountType};

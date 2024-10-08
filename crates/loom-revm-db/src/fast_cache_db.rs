@@ -9,10 +9,10 @@ use alloy::{
     primitives::{Address, Log, B256, U256},
     rpc::types::trace::geth::AccountState as GethAccountState,
 };
-use log::{error, trace};
 use revm::db::{AccountState, EmptyDB};
 use revm::primitives::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
+use tracing::{error, trace};
 
 use crate::fast_hasher::SimpleBuildHasher;
 

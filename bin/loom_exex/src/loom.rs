@@ -11,8 +11,8 @@ use eyre::OptionExt;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use reth_exex::ExExContext;
 use reth_node_api::{FullNodeComponents, NodeAddOns};
-use reth_tracing::tracing::info;
 use std::future::Future;
+use tracing::info;
 
 pub async fn init<Node: FullNodeComponents>(
     ctx: ExExContext<Node>,

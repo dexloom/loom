@@ -8,9 +8,9 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use chrono::{DateTime, Duration, Local};
 use eyre::Result;
-use log::{error, info, warn};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
+use tracing::{error, info, warn};
 
 use defi_blockchain::Blockchain;
 use defi_entities::MarketState;

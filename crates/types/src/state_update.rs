@@ -14,7 +14,7 @@ use alloy_rpc_types_trace::geth::{
 use alloy_transport::Transport;
 use eyre::Result;
 use lazy_static::lazy_static;
-use log::{debug, trace};
+use tracing::{debug, trace};
 
 use debug_provider::DebugProviderExt;
 
@@ -189,7 +189,7 @@ mod test {
     use alloy_rpc_client::{ClientBuilder, WsConnect};
     use alloy_rpc_types::state::{AccountOverride, StateOverride};
     use env_logger::Env as EnvLog;
-    use log::{debug, error};
+    use tracing::{debug, error};
 
     #[tokio::test]
     async fn test_debug_block() -> Result<()> {

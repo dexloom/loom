@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy_primitives::{address, Address, Bytes, U256};
 use eyre::{eyre, Result};
-use log::{error, trace};
+use tracing::{error, trace};
 
 use defi_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 use defi_types::{MulticallerCall, MulticallerCalls};

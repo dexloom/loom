@@ -4,7 +4,7 @@ use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
 use alloy_transport::Transport;
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 
 use crate::market::logs_parser::process_log_entries;
 use debug_provider::DebugProviderExt;

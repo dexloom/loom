@@ -2,8 +2,8 @@ use alloy_primitives::Log as EVMLog;
 use alloy_rpc_types::Log;
 use alloy_sol_types::SolEventInterface;
 use eyre::Result;
-use log::error;
 use std::collections::HashMap;
+use tracing::error;
 
 use defi_abi::maverick::IMaverickPool::IMaverickPoolEvents;
 use defi_abi::uniswap2::IUniswapV2Pair::IUniswapV2PairEvents;

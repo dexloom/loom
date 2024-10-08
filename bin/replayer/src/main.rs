@@ -7,8 +7,8 @@ use alloy::primitives::{address, Address, U256};
 use alloy::rpc::types::Header;
 use alloy::{providers::ProviderBuilder, rpc::client::ClientBuilder};
 use eyre::Result;
-use log::{debug, error, info};
 use tokio::select;
+use tracing::{debug, error, info};
 use url::Url;
 
 use debug_provider::HttpCachedTransport;

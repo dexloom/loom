@@ -9,6 +9,8 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
+tracing.workspace = true
+tracing-subscriber.workspace = true
 tokio.workspace = true
 eyre.workspace = true
 futures-util.workspace = true
@@ -27,7 +29,6 @@ reth-node-core.workspace = true
 reth-node-ethereum.workspace = true
 reth-rpc-types-compat.workspace = true
 reth-primitives.workspace = true
-reth-tracing.workspace = true
 reth-execution-types.workspace = true
 
 loom-actors.workspace = true

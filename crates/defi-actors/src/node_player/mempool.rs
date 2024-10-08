@@ -3,9 +3,9 @@ use alloy_rpc_types::Header;
 use defi_entities::MarketState;
 use defi_types::Mempool;
 use eyre::Result;
-use log::{debug, info};
 use loom_actors::SharedState;
 use loom_utils::evm::{convert_evm_result_to_rpc, evm_call_tx_in_block};
+use tracing::{debug, info};
 
 pub(crate) async fn replayer_mempool_task(
     mempool: SharedState<Mempool>,

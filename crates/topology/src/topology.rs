@@ -8,8 +8,8 @@ use alloy_transport::BoxTransport;
 use alloy_transport_ipc::IpcConnect;
 use alloy_transport_ws::WsConnect;
 use eyre::{eyre, OptionExt, Result};
-use log::{error, info, warn};
 use tokio::task::JoinHandle;
+use tracing::{error, info, warn};
 
 use crate::topology_config::TransportType;
 use crate::topology_config::{BroadcasterConfig, ClientConfigParams, EncoderConfig, EstimatorConfig, SignersConfig, TopologyConfig};

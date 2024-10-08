@@ -2279,13 +2279,13 @@ dependencies = [
  "eyre",
  "futures",
  "k256",
- "log",
  "rand",
  "reqwest 0.12.8",
  "serde",
  "serde_json",
  "tokio",
  "tower 0.5.1",
+ "tracing",
  "url",
 ]
 
@@ -2330,7 +2330,6 @@ dependencies = [
  "flashbots",
  "futures",
  "lazy_static",
- "log",
  "loom-actors",
  "loom-actors-macros",
  "loom-metrics",
@@ -2351,11 +2350,11 @@ dependencies = [
  "reth-provider",
  "reth-rpc",
  "reth-rpc-types-compat",
- "reth-tracing",
  "reth-transaction-pool",
  "rethdb-dexsync",
  "revm",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -2395,7 +2394,6 @@ dependencies = [
  "hex",
  "indexmap 2.6.0",
  "lazy_static",
- "log",
  "loom-revm-db",
  "loom-utils",
  "rand",
@@ -2411,6 +2409,7 @@ dependencies = [
  "strum",
  "strum_macros",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -2448,13 +2447,13 @@ dependencies = [
  "env_logger",
  "eyre",
  "lazy_static",
- "log",
  "loom-revm-db",
  "loom-utils",
  "reth-storage-api",
  "revm",
  "strum",
  "tokio",
+ "tracing",
  "uniswap_v3_math",
  "url",
 ]
@@ -2479,11 +2478,11 @@ dependencies = [
  "eyre",
  "hex",
  "lazy_static",
- "log",
  "revm",
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
  "url",
 ]
 
@@ -2973,7 +2972,6 @@ dependencies = [
  "eyre",
  "futures-core",
  "futures-util",
- "log",
  "pin-project",
  "rand",
  "reqwest 0.12.8",
@@ -2981,6 +2979,7 @@ dependencies = [
  "serde_json",
  "thiserror",
  "tokio",
+ "tracing",
  "url",
 ]
 
@@ -3166,7 +3165,6 @@ dependencies = [
  "env_logger",
  "eyre",
  "lazy_static",
- "log",
  "loom-actors",
  "loom-actors-macros",
  "loom-multicaller",
@@ -3176,6 +3174,7 @@ dependencies = [
  "serde",
  "serde_json",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -4588,19 +4587,19 @@ dependencies = [
  "async-trait",
  "eyre",
  "futures",
- "log",
  "loom-actors-macros",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
 name = "loom-actors-macros"
 version = "0.1.0"
 dependencies = [
- "log",
  "proc-macro2",
  "quote",
  "syn 2.0.79",
+ "tracing",
 ]
 
 [[package]]
@@ -4613,10 +4612,10 @@ dependencies = [
  "defi-events",
  "eyre",
  "influxdb",
- "log",
  "loom-actors",
  "loom-actors-macros",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -4641,9 +4640,9 @@ dependencies = [
  "eyre",
  "k256",
  "lazy_static",
- "log",
  "loom-utils",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -4653,11 +4652,11 @@ dependencies = [
  "alloy",
  "chrono",
  "criterion",
- "log",
  "rand",
  "revm",
  "serde",
  "serde_json",
+ "tracing",
 ]
 
 [[package]]
@@ -4679,7 +4678,6 @@ dependencies = [
  "defi-types",
  "eyre",
  "flashbots",
- "log",
  "loom-actors",
  "loom-multicaller",
  "reth-exex-grpc",
@@ -4689,6 +4687,7 @@ dependencies = [
  "strum_macros",
  "tokio",
  "toml",
+ "tracing",
 ]
 
 [[package]]
@@ -4701,13 +4700,13 @@ dependencies = [
  "defi-types",
  "eyre",
  "lazy_static",
- "log",
  "loom-revm-db",
  "reth-db",
  "reth-primitives",
  "reth-rpc",
  "reth-rpc-types-compat",
  "revm",
+ "tracing",
 ]
 
 [[package]]
@@ -4736,7 +4735,6 @@ dependencies = [
  "eyre",
  "flashbots",
  "futures",
- "log",
  "loom-actors",
  "loom-actors-macros",
  "loom-multicaller",
@@ -4749,6 +4747,7 @@ dependencies = [
  "serde",
  "tokio",
  "toml",
+ "tracing",
 ]
 
 [[package]]
@@ -4766,13 +4765,13 @@ dependencies = [
  "eyre",
  "flashbots",
  "futures",
- "log",
  "loom-actors",
  "loom-actors-macros",
  "loom-metrics",
  "loom-multicaller",
  "loom-topology",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -4807,8 +4806,9 @@ dependencies = [
  "reth-provider",
  "reth-rpc-types-compat",
  "reth-testing-utils",
- "reth-tracing",
  "tokio",
+ "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]
@@ -6272,7 +6272,6 @@ dependencies = [
  "env_logger",
  "eyre",
  "futures",
- "log",
  "loom-actors",
  "loom-actors-macros",
  "loom-multicaller",
@@ -6280,6 +6279,7 @@ dependencies = [
  "serde",
  "tokio",
  "toml",
+ "tracing",
  "url",
 ]
 
