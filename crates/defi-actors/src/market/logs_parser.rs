@@ -1,23 +1,17 @@
-use alloy_network::Network;
-use alloy_primitives::Address;
 use alloy_primitives::Log as EVMLog;
-use alloy_provider::Provider;
 use alloy_rpc_types::Log;
 use alloy_sol_types::SolEventInterface;
-use alloy_transport::Transport;
-use eyre::{eyre, Result};
+use eyre::Result;
 use log::error;
-use tokio::task::JoinHandle;
+use std::collections::HashMap;
 
-use debug_provider::DebugProviderExt;
 use defi_abi::maverick::IMaverickPool::IMaverickPoolEvents;
 use defi_abi::uniswap2::IUniswapV2Pair::IUniswapV2PairEvents;
 use defi_abi::uniswap3::IUniswapV3Pool::IUniswapV3PoolEvents;
-use defi_entities::{Market, MarketState, PoolClass};
+use defi_entities::PoolClass;
+use defi_events::Task;
 use defi_pools::PoolsConfig;
-use loom_actors::SharedState;
-
-use super::pool_loader::fetch_and_add_pool_by_address;
+use loom_actors::{run_async, Broadcaster};
 
 fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
     {
@@ -61,20 +55,9 @@ fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
     }
 }
 
-pub async fn process_log_entries<P, T, N>(
-    client: P,
-    market: SharedState<Market>,
-    market_state: SharedState<MarketState>,
-    log_entries: Vec<Log>,
-    pools_config: &PoolsConfig,
-) -> Result<Vec<Address>>
-where
-    T: Transport + Clone,
-    N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-{
-    let mut tasks: Vec<JoinHandle<_>> = Vec::new();
-    let mut pool_address_vec: Vec<Address> = Vec::new();
+pub async fn process_log_entries(log_entries: Vec<Log>, pools_config: &PoolsConfig, tasks_tx: Broadcaster<Task>) -> Result<()> {
+    let mut pool_to_fetch = Vec::new();
+    let mut processed_pools = HashMap::new();
 
     for log_entry in log_entries.into_iter() {
         if let Some(pool_class) = determine_pool_class(log_entry.clone()) {
@@ -82,37 +65,15 @@ where
                 continue;
             }
 
-            let mut market_guard = market.write().await;
-            let market_pool = market_guard.is_pool(&log_entry.address());
-            if !market_pool {
-                {
-                    if let Err(e) = market_guard.add_empty_pool(&log_entry.address()) {
-                        error!("{}", e)
-                    }
-                }
-                drop(market_guard);
-
-                pool_address_vec.push(log_entry.address());
-
-                tasks.push(tokio::task::spawn(fetch_and_add_pool_by_address(
-                    client.clone(),
-                    market.clone(),
-                    market_state.clone(),
-                    log_entry.address(),
-                    pool_class,
-                )));
+            // was this pool already processed?
+            if processed_pools.insert(log_entry.address(), true).is_some() {
+                continue;
             }
+
+            pool_to_fetch.push((log_entry.address(), pool_class));
         }
     }
 
-    for task in tasks {
-        if let Err(e) = task.await {
-            error!("Fetching pool task error : {}", e)
-        }
-    }
-    if !pool_address_vec.is_empty() {
-        Ok(pool_address_vec)
-    } else {
-        Err(eyre!("NO_POOLS_ADDED"))
-    }
+    run_async!(tasks_tx.send(Task::FetchAndAddPools(pool_to_fetch)));
+    Ok(())
 }

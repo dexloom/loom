@@ -2,11 +2,11 @@ use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
 use alloy_primitives::{address, Address};
-use eyre::{OptionExt, Result};
+use eyre::{eyre, OptionExt, Result};
 use log::debug;
 
 use crate::build_swap_path_vec;
-use crate::{EmptyPool, Pool, PoolClass, PoolWrapper, Token};
+use crate::{PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
 
 /// The market struct contains all the pools and tokens.
@@ -53,23 +53,13 @@ impl Market {
         address.eq(&WETH_ADDRESS)
     }
 
-    /// Add a new empty pool to the market for the given pool address.
-    pub fn add_empty_pool(&mut self, address: &Address) -> Result<()> {
-        let pool_contract = EmptyPool::new(*address);
-        self.pools.insert(pool_contract.get_address(), pool_contract.into());
-        Ok(())
-    }
-
     /// Add a new pool to the market if it does not exist or the class is unknown.
     pub fn add_pool<T: Into<PoolWrapper>>(&mut self, pool: T) -> Result<()> {
         let pool_contract = pool.into();
         let pool_address = pool_contract.get_address();
 
         if let Some(pool) = self.pools.get(&pool_address) {
-            if pool.get_class() != PoolClass::Unknown {
-                debug!("Pool already added {:?}", pool_address);
-                return Ok(());
-            }
+            return Err(eyre!("Pool already exists {:?}", pool.get_address()));
         }
 
         debug!("Adding pool {:?}", pool_address);
@@ -210,7 +200,7 @@ impl Market {
 mod tests {
     use super::*;
     use crate::required_state::RequiredState;
-    use crate::{AbiSwapEncoder, PoolProtocol};
+    use crate::{AbiSwapEncoder, Pool, PoolProtocol};
     use alloy_primitives::{Address, U256};
     use eyre::ErrReport;
     use loom_revm_db::LoomInMemoryDB;
@@ -301,17 +291,6 @@ mod tests {
 
         assert!(market.get_token_pools(&token0).unwrap().contains(&pool_address));
         assert!(market.get_token_pools(&token1).unwrap().contains(&pool_address));
-    }
-
-    #[test]
-    fn test_add_empty_pool() {
-        let mut market = Market::default();
-        let pool_address = Address::random();
-
-        let result = market.add_empty_pool(&pool_address);
-
-        assert!(result.is_ok());
-        assert!(market.is_pool(&pool_address));
     }
 
     #[test]

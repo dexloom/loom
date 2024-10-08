@@ -14,10 +14,10 @@ use tokio::task::JoinHandle;
 use crate::topology_config::TransportType;
 use crate::topology_config::{BroadcasterConfig, ClientConfigParams, EncoderConfig, EstimatorConfig, SignersConfig, TopologyConfig};
 use defi_actors::{
-    BlockHistoryActor, CurveProtocolPoolLoaderActor, EvmEstimatorActor, FlashbotsBroadcastActor, GethEstimatorActor,
-    HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor,
-    NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor, PoolHealthMonitorActor,
-    PriceActor, TxSignersActor,
+    BlockHistoryActor, CurvePoolLoaderOneShotActor, EvmEstimatorActor, FlashbotsBroadcastActor, GethEstimatorActor,
+    HistoryPoolLoaderOneShotActor, InitializeSignersOneShotBlockingActor, MarketStatePreloadedOneShotActor, MempoolActor,
+    NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor, NonceAndBalanceMonitorActor,
+    PoolHealthMonitorActor, PoolLoaderActor, PriceActor, TxSignersActor,
 };
 use defi_blockchain::Blockchain;
 use defi_entities::TxSigners;
@@ -91,7 +91,7 @@ impl Topology {
         for (k, v) in config.encoders.iter() {
             match v {
                 EncoderConfig::SwapStep(c) => {
-                    let address: Address = c.address.parse().unwrap();
+                    let address: Address = c.address.parse()?;
                     let encoder = SwapStepEncoder::new(address);
                     topology.encoders.insert(k.clone(), encoder);
                     topology.default_encoder_name = Some(k.clone());
@@ -164,9 +164,9 @@ impl Topology {
             match params {
                 SignersConfig::Env(params) => {
                     info!("Starting initialize env signers actor {name}");
-                    let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
+                    let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
 
-                    let mut initialize_signers_actor = InitializeSignersOneShotActor::new_from_encrypted_env();
+                    let mut initialize_signers_actor = InitializeSignersOneShotBlockingActor::new_from_encrypted_env();
                     match initialize_signers_actor.access(signers.clone()).access(blockchain.nonce_and_balance()).start_and_wait() {
                         Ok(_) => {
                             info!("Signers have been initialized")
@@ -196,9 +196,9 @@ impl Topology {
             for (name, params) in preloader_actors {
                 info!("Starting market state preload actor {name}");
 
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
-                let client = topology.get_client(params.client.as_ref()).unwrap();
-                let signers = topology.get_signers(params.signers.as_ref()).unwrap();
+                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                let client = topology.get_client(params.client.as_ref())?;
+                let signers = topology.get_signers(params.signers.as_ref())?;
 
                 let mut market_state_preload_actor =
                     MarketStatePreloadedOneShotActor::new(client).with_signers(signers.clone()).with_encoder(&topology.get_encoder(None)?);
@@ -217,7 +217,7 @@ impl Topology {
 
         if let Some(node_exex_actors) = config.actors.node_exex {
             for (name, params) in node_exex_actors {
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
+                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
                 let url = params.url.unwrap_or("http://[::1]:10000".to_string());
 
                 info!("Starting node actor {name}");
@@ -243,9 +243,9 @@ impl Topology {
 
         if let Some(node_block_actors) = config.actors.node {
             for (name, params) in node_block_actors {
-                let client = topology.get_client(params.client.as_ref()).unwrap();
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
-                let client_config = topology.get_client_config(params.client.as_ref()).unwrap();
+                let client = topology.get_client(params.client.as_ref())?;
+                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                let client_config = topology.get_client_config(params.client.as_ref())?;
 
                 info!("Starting node actor {name}");
                 let mut node_block_actor =
@@ -270,7 +270,7 @@ impl Topology {
 
         if let Some(node_mempool_actors) = config.actors.mempool {
             for (name, params) in node_mempool_actors {
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
+                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
                 match topology.get_client(params.client.as_ref()) {
                     Ok(client) => {
                         println!("Starting node mempool actor {name}");
@@ -294,8 +294,8 @@ impl Topology {
 
         if let Some(price_actors) = config.actors.price {
             for (name, c) in price_actors {
-                let client = topology.get_client(c.client.as_ref()).unwrap();
-                let blockchain = topology.get_blockchain(c.blockchain.as_ref()).unwrap();
+                let client = topology.get_client(c.client.as_ref())?;
+                let blockchain = topology.get_blockchain(c.blockchain.as_ref())?;
                 info!("Starting price actor");
                 let mut price_actor = PriceActor::new(client);
                 match price_actor.access(blockchain.market()).start() {
@@ -314,8 +314,8 @@ impl Topology {
 
         if let Some(node_balance_actors) = config.actors.noncebalance {
             for (name, c) in node_balance_actors {
-                let client = topology.get_client(c.client.as_ref()).unwrap();
-                let blockchain = topology.get_blockchain(c.blockchain.as_ref()).unwrap();
+                let client = topology.get_client(c.client.as_ref())?;
+                let blockchain = topology.get_blockchain(c.blockchain.as_ref())?;
 
                 info!("Starting nonce and balance monitor actor {name}");
                 let mut nonce_and_balance_monitor = NonceAndBalanceMonitorActor::new(client);
@@ -342,8 +342,8 @@ impl Topology {
             for (name, params) in broadcaster_actors {
                 match params {
                     BroadcasterConfig::Flashbots(params) => {
-                        let client = topology.get_client(params.client.as_ref()).unwrap();
-                        let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
+                        let client = topology.get_client(params.client.as_ref())?;
+                        let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
 
                         let flashbots_client = Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays();
                         let mut flashbots_actor = FlashbotsBroadcastActor::new(flashbots_client, params.smart.unwrap_or(false));
@@ -364,47 +364,44 @@ impl Topology {
         }
 
         if let Some(pool_actors) = config.actors.pools {
+            let mut blockchains = HashMap::new();
             for (name, params) in pool_actors {
-                let client = topology.get_client(params.client.as_ref()).unwrap();
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
+                let client = topology.get_client(params.client.as_ref())?;
+                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                blockchains.insert(blockchain.chain_id(), blockchain);
                 if params.history {
                     info!("Starting history pools loader {name}");
 
-                    let mut history_pools_loader_actor = HistoryPoolLoaderActor::new(client.clone(), PoolsConfig::new());
-                    match history_pools_loader_actor.access(blockchain.market()).access(blockchain.market_state()).start() {
+                    let mut history_pools_loader_actor = HistoryPoolLoaderOneShotActor::new(client.clone(), PoolsConfig::new());
+                    match history_pools_loader_actor.produce(blockchain.tasks_channel()).start() {
                         Ok(r) => {
                             tasks.extend(r);
                             info!("History pool loader actor started successfully {name}")
                         }
                         Err(e) => {
-                            panic!("HistoryPoolLoaderActor : {}", e)
+                            panic!("HistoryPoolLoaderOneShotActor : {}", e)
                         }
                     }
                 }
                 if params.protocol {
-                    info!("Starting protocols pools loader {name}");
+                    info!("Starting curve pools loader {name}");
 
-                    let mut protocol_pools_loader_actor = CurveProtocolPoolLoaderActor::new(client.clone());
-                    match protocol_pools_loader_actor.access(blockchain.market()).access(blockchain.market_state()).start() {
+                    let mut curve_pools_loader_actor = CurvePoolLoaderOneShotActor::new(client.clone());
+                    match curve_pools_loader_actor.access(blockchain.market()).access(blockchain.market_state()).start() {
                         Err(e) => {
-                            panic!("ProtocolPoolLoaderActor : {}", e)
+                            panic!("CurvePoolLoaderOneShotActor : {}", e)
                         }
                         Ok(r) => {
                             tasks.extend(r);
-                            info!("Protocol pool loader actor started successfully")
+                            info!("Curve pool loader actor started successfully")
                         }
                     }
                 }
 
                 if params.new {
                     info!("Starting new pool loader actor {name}");
-                    let mut new_pool_actor = NewPoolLoaderActor::new(client.clone(), PoolsConfig::new());
-                    match new_pool_actor
-                        .access(blockchain.market())
-                        .access(blockchain.market_state())
-                        .consume(blockchain.new_block_logs_channel())
-                        .start()
-                    {
+                    let mut new_pool_actor = NewPoolLoaderActor::new(PoolsConfig::new());
+                    match new_pool_actor.consume(blockchain.new_block_logs_channel()).produce(blockchain.tasks_channel()).start() {
                         Ok(r) => {
                             tasks.extend(r);
                             info!("New pool actor started")
@@ -412,6 +409,18 @@ impl Topology {
                         Err(e) => {
                             panic!("NewPoolLoaderActor : {}", e)
                         }
+                    }
+                }
+
+                info!("Starting pool loader actor {name}");
+                let mut pool_loader_actor = PoolLoaderActor::new(client.clone());
+                match pool_loader_actor.access(blockchain.market()).consume(blockchain.tasks_channel()).start() {
+                    Ok(r) => {
+                        tasks.extend(r);
+                        info!("Pool loader actor started successfully")
+                    }
+                    Err(e) => {
+                        panic!("PoolLoaderActor : {}", e)
                     }
                 }
             }
@@ -423,8 +432,8 @@ impl Topology {
             for (name, params) in estimator_actors {
                 match params {
                     EstimatorConfig::Evm(params) => {
-                        let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
-                        let encoder = topology.get_encoder(params.encoder.as_ref()).unwrap();
+                        let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                        let encoder = topology.get_encoder(params.encoder.as_ref())?;
                         let mut evm_estimator_actor = EvmEstimatorActor::new(encoder);
                         match evm_estimator_actor.consume(blockchain.compose_channel()).produce(blockchain.compose_channel()).start() {
                             Ok(r) => {
@@ -437,9 +446,9 @@ impl Topology {
                         }
                     }
                     EstimatorConfig::Geth(params) => {
-                        let client = topology.get_client(params.client.as_ref()).unwrap();
-                        let blockchain = topology.get_blockchain(params.blockchain.as_ref()).unwrap();
-                        let encoder = topology.get_encoder(params.encoder.as_ref()).unwrap();
+                        let client = topology.get_client(params.client.as_ref())?;
+                        let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                        let encoder = topology.get_encoder(params.encoder.as_ref())?;
 
                         let flashbots_client = Arc::new(Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays());
 

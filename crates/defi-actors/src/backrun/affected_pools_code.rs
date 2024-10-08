@@ -10,14 +10,12 @@ use eyre::eyre;
 use log::{debug, error};
 use revm::primitives::Env;
 
-use defi_entities::{Market, MarketState, Pool, PoolProtocol, PoolWrapper};
+use defi_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolProtocol, PoolWrapper};
 use defi_pools::protocols::{UniswapV2Protocol, UniswapV3Protocol};
 use defi_pools::state_readers::{UniswapV2StateReader, UniswapV3StateReader};
 use defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use defi_types::GethStateUpdateVec;
 use loom_actors::SharedState;
-
-use crate::market::get_protocol_by_factory;
 
 pub async fn get_affected_pools_from_code<P, T, N>(
     client: P,

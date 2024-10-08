@@ -5,8 +5,8 @@ pub use blockchain_actors::BlockchainActors;
 pub use estimators::{EvmEstimatorActor, GethEstimatorActor, HardhatEstimatorActor};
 pub use health_monitor::{PoolHealthMonitorActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 pub use market::{
-    fetch_and_add_pool_by_address, fetch_state_and_add_pool, CurveProtocolPoolLoaderActor, DbPoolLoaderOneShotActor,
-    HistoryPoolLoaderActor, NewPoolLoaderActor, RequiredPoolLoaderActor,
+    fetch_and_add_pool_by_address, fetch_state_and_add_pool, CurvePoolLoaderOneShotActor, DbPoolLoaderOneShotActor,
+    HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, RequiredPoolLoaderActor,
 };
 pub use market_state::{preload_market_state, MarketStatePreloadedOneShotActor};
 pub use mempool::MempoolActor;
@@ -16,7 +16,7 @@ pub use node_exex_grpc::NodeExExGrpcActor;
 pub use node_player::NodeBlockPlayerActor;
 pub use pathencoder::SwapEncoderActor;
 pub use price::PriceActor;
-pub use signers::{InitializeSignersOneShotActor, TxSignersActor};
+pub use signers::{InitializeSignersOneShotBlockingActor, TxSignersActor};
 pub use tx_broadcaster::{AnvilBroadcastActor, FlashbotsBroadcastActor};
 
 mod market;

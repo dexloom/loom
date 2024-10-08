@@ -3,7 +3,7 @@ use alloy::primitives::{Address, BlockHash};
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
 use defi_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
-    MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent,
+    MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent, Task,
 };
 use defi_types::{ChainParameters, Mempool};
 use influxdb::WriteQuery;
@@ -31,6 +31,7 @@ pub struct Blockchain {
     compose_channel: Broadcaster<MessageTxCompose>,
     state_update_channel: Broadcaster<StateUpdateEvent>,
     influxdb_write_channel: Broadcaster<WriteQuery>,
+    tasks_channel: Broadcaster<Task>,
 }
 
 impl Blockchain {
@@ -48,6 +49,7 @@ impl Blockchain {
         let compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
         let state_update_channel: Broadcaster<StateUpdateEvent> = Broadcaster::new(100);
         let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
+        let tasks_channel: Broadcaster<Task> = Broadcaster::new(1000);
 
         let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
         let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
@@ -92,6 +94,7 @@ impl Blockchain {
             compose_channel,
             state_update_channel,
             influxdb_write_channel: influx_write_channel,
+            tasks_channel,
         }
     }
 
@@ -168,5 +171,9 @@ impl Blockchain {
 
     pub fn influxdb_write_channel(&self) -> Broadcaster<WriteQuery> {
         self.influxdb_write_channel.clone()
+    }
+
+    pub fn tasks_channel(&self) -> Broadcaster<Task> {
+        self.tasks_channel.clone()
     }
 }

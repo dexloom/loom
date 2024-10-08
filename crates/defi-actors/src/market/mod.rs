@@ -1,8 +1,8 @@
-pub use curve_protocol_pool_actor::CurveProtocolPoolLoaderActor;
+pub use curve_protocol_pool_actor::CurvePoolLoaderOneShotActor;
 pub use db_pool_loader_actor::DbPoolLoaderOneShotActor;
-pub use history_pool_actor::HistoryPoolLoaderActor;
+pub use history_pool_actor::HistoryPoolLoaderOneShotActor;
 pub use new_pool_actor::NewPoolLoaderActor;
-pub use pool_loader::{fetch_and_add_pool_by_address, fetch_state_and_add_pool, get_protocol_by_factory};
+pub use pool_loader::{fetch_and_add_pool_by_address, fetch_state_and_add_pool, PoolLoaderActor};
 pub use required_pools_actor::RequiredPoolLoaderActor;
 
 mod curve_protocol_pool_actor;
