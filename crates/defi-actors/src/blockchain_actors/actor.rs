@@ -5,11 +5,11 @@ use std::sync::Arc;
 use crate::backrun::BlockStateChangeProcessorActor;
 use crate::market::DbPoolLoaderOneShotActor;
 use crate::{
-    ArbSwapPathMergerActor, BlockHistoryActor, CurveProtocolPoolLoaderActor, DiffPathMergerActor, EvmEstimatorActor,
-    FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor,
-    MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor, NodeMempoolActor,
-    NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PriceActor, RequiredPoolLoaderActor,
-    SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
+    ArbSwapPathMergerActor, BlockHistoryActor, CurvePoolLoaderOneShotActor, DiffPathMergerActor, EvmEstimatorActor,
+    FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderOneShotActor, InitializeSignersOneShotBlockingActor,
+    MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor,
+    NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PoolLoaderActor, PriceActor,
+    RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
 };
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, B256, U256};
@@ -85,15 +85,17 @@ where
     pub fn initialize_signers_with_anvil(&mut self) -> Result<&mut Self> {
         let key: B256 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".parse()?;
 
-        self.actor_manager
-            .start_and_wait(InitializeSignersOneShotActor::new(Some(key.to_vec())).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start_and_wait(
+            InitializeSignersOneShotBlockingActor::new(Some(key.to_vec())).with_signers(self.signers.clone()).on_bc(&self.bc),
+        )?;
         self.with_signers()?;
         Ok(self)
     }
 
     /// Initialize signers with the private key. Random key generated if param in None
     pub fn initialize_signers_with_key(&mut self, key: Option<Vec<u8>>) -> Result<&mut Self> {
-        self.actor_manager.start_and_wait(InitializeSignersOneShotActor::new(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager
+            .start_and_wait(InitializeSignersOneShotBlockingActor::new(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
         self.with_signers()?;
         Ok(self)
     }
@@ -102,7 +104,7 @@ where
     pub fn initialize_signers_with_keys(&mut self, keys: Vec<Vec<u8>>) -> Result<&mut Self> {
         for key in keys {
             self.actor_manager
-                .start_and_wait(InitializeSignersOneShotActor::new(Some(key)).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+                .start_and_wait(InitializeSignersOneShotBlockingActor::new(Some(key)).with_signers(self.signers.clone()).on_bc(&self.bc))?;
         }
         self.with_signers()?;
         Ok(self)
@@ -111,7 +113,7 @@ where
     /// Initialize signers with encrypted private key
     pub fn initialize_signers_with_encrypted_key(&mut self, key: Vec<u8>) -> Result<&mut Self> {
         self.actor_manager.start_and_wait(
-            InitializeSignersOneShotActor::new_from_encrypted_key(key).with_signers(self.signers.clone()).on_bc(&self.bc),
+            InitializeSignersOneShotBlockingActor::new_from_encrypted_key(key).with_signers(self.signers.clone()).on_bc(&self.bc),
         )?;
         self.with_signers()?;
         Ok(self)
@@ -119,8 +121,9 @@ where
 
     /// Initializes signers with encrypted key form DATA env var
     pub fn initialize_signers_with_env(&mut self) -> Result<&mut Self> {
-        self.actor_manager
-            .start_and_wait(InitializeSignersOneShotActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start_and_wait(
+            InitializeSignersOneShotBlockingActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc),
+        )?;
         self.with_signers()?;
         Ok(self)
     }
@@ -316,19 +319,25 @@ where
 
     /// Start pool loader from new block events
     pub fn with_new_pool_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
-        self.actor_manager.start(NewPoolLoaderActor::new(self.provider.clone(), pools_config).on_bc(&self.bc))?;
+        self.actor_manager.start(NewPoolLoaderActor::new(pools_config).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start pool loader for last 10000 blocks
     pub fn with_pool_history_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
-        self.actor_manager.start(HistoryPoolLoaderActor::new(self.provider.clone(), pools_config).on_bc(&self.bc))?;
+        self.actor_manager.start(HistoryPoolLoaderOneShotActor::new(self.provider.clone(), pools_config).on_bc(&self.bc))?;
+        Ok(self)
+    }
+
+    /// Start pool loader from new block events
+    pub fn with_pool_loader(&mut self) -> Result<&mut Self> {
+        self.actor_manager.start(PoolLoaderActor::new(self.provider.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start pool loader for curve + steth + wsteth
     pub fn with_curve_pool_protocol_loader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(CurveProtocolPoolLoaderActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(CurvePoolLoaderOneShotActor::new(self.provider.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 
@@ -337,9 +346,10 @@ where
         if pools_config.is_enabled(PoolClass::Curve) {
             self.with_new_pool_loader(pools_config.clone())?
                 .with_pool_history_loader(pools_config.clone())?
-                .with_curve_pool_protocol_loader()
+                .with_curve_pool_protocol_loader()?
+                .with_pool_loader()
         } else {
-            self.with_new_pool_loader(pools_config.clone())?.with_pool_history_loader(pools_config.clone())
+            self.with_new_pool_loader(pools_config.clone())?.with_pool_history_loader(pools_config.clone())?.with_pool_loader()
         }
     }
 

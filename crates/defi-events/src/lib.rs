@@ -4,6 +4,7 @@ pub use health_event::*;
 pub use message::Message;
 pub use node::*;
 pub use state_update_event::*;
+pub use tasks::Task;
 pub use tx_compose::*;
 
 mod best_tx_compose;
@@ -14,3 +15,4 @@ mod node;
 mod tx_compose;
 
 mod state_update_event;
+mod tasks;

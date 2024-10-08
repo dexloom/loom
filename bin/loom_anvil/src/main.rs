@@ -16,7 +16,7 @@ use log::{debug, error, info};
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
-    DiffPathMergerActor, EvmEstimatorActor, InitializeSignersOneShotActor, MarketStatePreloadedOneShotActor, NodeBlockActor,
+    DiffPathMergerActor, EvmEstimatorActor, InitializeSignersOneShotBlockingActor, MarketStatePreloadedOneShotActor, NodeBlockActor,
     NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapEncoderActor,
     TxSignersActor,
 };
@@ -170,7 +170,7 @@ async fn main() -> Result<()> {
 
     info!("Starting initialize signers actor");
 
-    let mut initialize_signers_actor = InitializeSignersOneShotActor::new(Some(priv_key.to_bytes().to_vec()));
+    let mut initialize_signers_actor = InitializeSignersOneShotBlockingActor::new(Some(priv_key.to_bytes().to_vec()));
     match initialize_signers_actor.access(tx_signers.clone()).access(accounts_state.clone()).start_and_wait() {
         Err(e) => {
             error!("{}", e);

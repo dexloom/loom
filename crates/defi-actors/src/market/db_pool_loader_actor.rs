@@ -42,20 +42,21 @@ where
         let univ2_factory = rx.await??;
         let elapsed = now.elapsed();
         info!("UniswapV2 {} pools loaded in {:.2?} sec", univ2_factory.pairs.len(), elapsed);
-        let mut market_read_guard = market.write().await;
+        let mut market_write_guard = market.write().await;
 
         let now = Instant::now();
         for (pair, reserve) in univ2_factory.pairs {
-            market_read_guard.add_pool(UniswapV2Pool::new_with_data(
+            // ignore error if pool already exists
+            let _ = market_write_guard.add_pool(UniswapV2Pool::new_with_data(
                 pair.address,
                 pair.token0,
                 pair.token1,
                 UNI_V2_FACTORY,
                 reserve.reserve0.to(),
                 reserve.reserve1.to(),
-            ))?;
+            ));
         }
-        drop(market_read_guard);
+        drop(market_write_guard);
         let elapsed = now.elapsed();
         info!("UniswapV2 pools added in {:.2?} sec", elapsed);
     }
@@ -81,7 +82,7 @@ where
         info!("UniswapV3 {} pools loaded in {:.2?} sec", position_manager.pools.len(), elapsed);
 
         let now = Instant::now();
-        let mut market_state_read_guard = market.write().await;
+        let mut market_write_guard = market.write().await;
         for (pool, slot0, liquidity) in position_manager.pools {
             let slot0 = Slot0 {
                 sqrt_price_x96: slot0.sqrt_price_x96.to(),
@@ -92,8 +93,8 @@ where
                 fee_protocol: slot0.fee_protocol,
                 unlocked: slot0.unlocked,
             };
-
-            market_state_read_guard.add_pool(UniswapV3Pool::new_with_data(
+            // ignore error if pool already exists
+            let _ = market_write_guard.add_pool(UniswapV3Pool::new_with_data(
                 pool.address,
                 pool.token0,
                 pool.token1,
@@ -101,9 +102,9 @@ where
                 pool.fee.to::<u32>(),
                 Some(slot0),
                 UNI_V3_FACTORY,
-            ))?;
+            ));
         }
-        drop(market_state_read_guard);
+        drop(market_write_guard);
         let elapsed = now.elapsed();
         info!("UniswapV3 pools added in {:.2?} sec", elapsed);
     }

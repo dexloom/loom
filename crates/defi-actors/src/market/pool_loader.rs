@@ -1,4 +1,5 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
+use std::marker::PhantomData;
 use std::sync::Arc;
 
 use alloy_network::Network;
@@ -6,55 +7,67 @@ use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use lazy_static::lazy_static;
-use log::{debug, error};
+use futures::stream::FuturesUnordered;
+use futures::StreamExt;
+use log::{debug, error, warn};
 
 use debug_provider::DebugProviderExt;
+use defi_blockchain::Blockchain;
 use defi_entities::required_state::RequiredStateReader;
-use defi_entities::{Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
+use defi_entities::{get_protocol_by_factory, Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
+use defi_events::Task;
 use defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory, CurveProtocol};
 use defi_pools::{CurvePool, MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
-use loom_actors::SharedState;
+use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, SharedState, WorkerResult};
+use loom_actors::{Accessor, Consumer};
+use loom_actors_macros::{Accessor, Consumer};
 
-lazy_static! {
-    static ref UNISWAPV2_FACTORY: Address = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f".parse().unwrap();
-    static ref NOMISWAP_STABLE_FACTORY: Address = "0x818339b4E536E707f14980219037c5046b049dD4".parse().unwrap();
-    static ref SUSHISWAP_FACTORY: Address = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac".parse().unwrap();
-    static ref DOOARSWAP_FACTORY: Address = "0x1e895bFe59E3A5103e8B7dA3897d1F2391476f3c".parse().unwrap();
-    static ref SAFESWAP_FACTORY: Address = "0x7F09d4bE6bbF4b0fF0C97ca5c486a166198aEAeE".parse().unwrap();
-    static ref UNISWAPV3_FACTORY: Address = "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
-    static ref PANCAKEV3_FACTORY: Address = "0x0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865".parse().unwrap();
-    static ref MINISWAP_FACTORY: Address = "0x2294577031F113DF4782B881cF0b140e94209a6F".parse().unwrap();
-    static ref SHIBASWAP_FACTORY: Address = "0x115934131916C8b277DD010Ee02de363c09d037c".parse().unwrap();
-    static ref MAVERICK_FACTORY: Address = "0xEb6625D65a0553c9dBc64449e56abFe519bd9c9B".parse().unwrap();
-}
+pub async fn pool_loader_worker<P, T, N>(
+    client: P,
+    market: SharedState<Market>,
+    market_state: SharedState<MarketState>,
+    tasks_rx: Broadcaster<Task>,
+) -> WorkerResult
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+{
+    let mut fetch_tasks = FuturesUnordered::new();
+    let mut processed_pools = HashMap::new();
 
-pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
-    if factory_address == *UNISWAPV2_FACTORY {
-        PoolProtocol::UniswapV2
-    } else if factory_address == *UNISWAPV3_FACTORY {
-        PoolProtocol::UniswapV3
-    } else if factory_address == *PANCAKEV3_FACTORY {
-        PoolProtocol::PancakeV3
-    } else if factory_address == *NOMISWAP_STABLE_FACTORY {
-        PoolProtocol::NomiswapStable
-    } else if factory_address == *SUSHISWAP_FACTORY {
-        PoolProtocol::Sushiswap
-    } else if factory_address == *DOOARSWAP_FACTORY {
-        PoolProtocol::DooarSwap
-    } else if factory_address == *SAFESWAP_FACTORY {
-        PoolProtocol::Safeswap
-    } else if factory_address == *MINISWAP_FACTORY {
-        PoolProtocol::Miniswap
-    } else if factory_address == *SHIBASWAP_FACTORY {
-        PoolProtocol::Shibaswap
-    } else if factory_address == *MAVERICK_FACTORY {
-        PoolProtocol::Maverick
-    } else {
-        PoolProtocol::Unknown
+    subscribe!(tasks_rx);
+    loop {
+        if let Ok(task) = tasks_rx.recv().await {
+            let pools = match task {
+                Task::FetchAndAddPools(pools) => pools,
+                _ => continue,
+            };
+
+            for (pool_address, pool_class) in pools {
+                // Check if pool already exists
+                if processed_pools.insert(pool_address, true).is_some() {
+                    continue;
+                }
+                // Fetch and add pool
+                fetch_tasks.push(fetch_and_add_pool_by_address(
+                    client.clone(),
+                    market.clone(),
+                    market_state.clone(),
+                    pool_address,
+                    pool_class,
+                ));
+
+                // Limit the number of concurrent fetch tasks
+                if fetch_tasks.len() > 20 {
+                    fetch_tasks.next().await;
+                }
+            }
+        }
     }
 }
 
+/// Fetch pool data, add it to the market and fetch the required state
 pub async fn fetch_and_add_pool_by_address<P, T, N>(
     client: P,
     market: SharedState<Market>,
@@ -168,7 +181,8 @@ where
 
                 let mut market_write_guard = market.write().await;
                 if let Err(e) = market_write_guard.add_pool(pool_wrapped) {
-                    error!("{}", e)
+                    // Pool maybe already added by e.g. db pool loader
+                    warn!("{}", e)
                 }
 
                 let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
@@ -188,4 +202,53 @@ where
     }
 
     Ok(())
+}
+
+#[derive(Accessor, Consumer)]
+pub struct PoolLoaderActor<P, T, N> {
+    client: P,
+    #[accessor]
+    market: Option<SharedState<Market>>,
+    #[accessor]
+    market_state: Option<SharedState<MarketState>>,
+    #[consumer]
+    tasks_rx: Option<Broadcaster<Task>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
+}
+
+impl<P, T, N> PoolLoaderActor<P, T, N>
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
+{
+    pub fn new(client: P) -> Self {
+        Self { client, market: None, market_state: None, tasks_rx: None, _t: PhantomData, _n: PhantomData }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self { market: Some(bc.market()), market_state: Some(bc.market_state()), tasks_rx: Some(bc.tasks_channel()), ..self }
+    }
+}
+
+impl<P, T, N> Actor for PoolLoaderActor<P, T, N>
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+{
+    fn start(&self) -> ActorResult {
+        let task = tokio::task::spawn(pool_loader_worker(
+            self.client.clone(),
+            self.market.clone().unwrap(),
+            self.market_state.clone().unwrap(),
+            self.tasks_rx.clone().unwrap(),
+        ));
+        Ok(vec![task])
+    }
+
+    fn name(&self) -> &'static str {
+        "PoolLoaderActor"
+    }
 }

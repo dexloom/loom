@@ -9,7 +9,7 @@ use loom_actors_macros::Accessor;
 
 /// The one-shot actor adds a new signer to the signers and monitor list after and stops.
 #[derive(Accessor)]
-pub struct InitializeSignersOneShotActor {
+pub struct InitializeSignersOneShotBlockingActor {
     key: Option<Vec<u8>>,
     #[accessor]
     signers: Option<SharedState<TxSigners>>,
@@ -28,14 +28,14 @@ async fn initialize_signers_one_shot_worker(
     Ok("Signer added".to_string())
 }
 
-impl InitializeSignersOneShotActor {
-    pub fn new(key: Option<Vec<u8>>) -> InitializeSignersOneShotActor {
+impl InitializeSignersOneShotBlockingActor {
+    pub fn new(key: Option<Vec<u8>>) -> InitializeSignersOneShotBlockingActor {
         let key = key.unwrap_or_else(|| B256::random().to_vec());
 
-        InitializeSignersOneShotActor { key: Some(key), signers: None, monitor: None }
+        InitializeSignersOneShotBlockingActor { key: Some(key), signers: None, monitor: None }
     }
 
-    pub fn new_from_encrypted_env() -> InitializeSignersOneShotActor {
+    pub fn new_from_encrypted_env() -> InitializeSignersOneShotBlockingActor {
         let key = match std::env::var("DATA") {
             Ok(priv_key_enc) => {
                 let keystore = KeyStore::new();
@@ -45,14 +45,14 @@ impl InitializeSignersOneShotActor {
             _ => None,
         };
 
-        InitializeSignersOneShotActor { key, signers: None, monitor: None }
+        InitializeSignersOneShotBlockingActor { key, signers: None, monitor: None }
     }
 
-    pub fn new_from_encrypted_key(priv_key_enc: Vec<u8>) -> InitializeSignersOneShotActor {
+    pub fn new_from_encrypted_key(priv_key_enc: Vec<u8>) -> InitializeSignersOneShotBlockingActor {
         let keystore = KeyStore::new();
         let key = keystore.encrypt_once(priv_key_enc.as_slice()).unwrap();
 
-        InitializeSignersOneShotActor { key: Some(key), signers: None, monitor: None }
+        InitializeSignersOneShotBlockingActor { key: Some(key), signers: None, monitor: None }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -64,7 +64,7 @@ impl InitializeSignersOneShotActor {
     }
 }
 
-impl Actor for InitializeSignersOneShotActor {
+impl Actor for InitializeSignersOneShotBlockingActor {
     fn start_and_wait(&self) -> eyre::Result<()> {
         let key = match self.key.clone() {
             Some(key) => key,
@@ -94,6 +94,6 @@ impl Actor for InitializeSignersOneShotActor {
     }
 
     fn name(&self) -> &'static str {
-        "InitializeSignersOneShotActor"
+        "InitializeSignersOneShotBlockingActor"
     }
 }

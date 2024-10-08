@@ -6,6 +6,7 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use log::{debug, error};
 
+use crate::market::pool_loader::fetch_state_and_add_pool;
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, MarketState, PoolWrapper};
@@ -14,13 +15,7 @@ use defi_pools::CurvePool;
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 
-use crate::market::fetch_state_and_add_pool;
-
-async fn curve_protocol_loader_worker<P, T, N>(
-    client: P,
-    market: SharedState<Market>,
-    market_state: SharedState<MarketState>,
-) -> WorkerResult
+async fn curve_pool_loader_worker<P, T, N>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState>) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
@@ -86,7 +81,7 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct CurveProtocolPoolLoaderActor<P, T, N> {
+pub struct CurvePoolLoaderOneShotActor<P, T, N> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
@@ -96,7 +91,7 @@ pub struct CurveProtocolPoolLoaderActor<P, T, N> {
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> CurveProtocolPoolLoaderActor<P, T, N>
+impl<P, T, N> CurvePoolLoaderOneShotActor<P, T, N>
 where
     N: Network,
     T: Transport + Clone,
@@ -111,14 +106,14 @@ where
     }
 }
 
-impl<P, T, N> Actor for CurveProtocolPoolLoaderActor<P, T, N>
+impl<P, T, N> Actor for CurvePoolLoaderOneShotActor<P, T, N>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(curve_protocol_loader_worker(
+        let task = tokio::task::spawn(curve_pool_loader_worker(
             self.client.clone(),
             self.market.clone().unwrap(),
             self.market_state.clone().unwrap(),
@@ -128,6 +123,6 @@ where
     }
 
     fn name(&self) -> &'static str {
-        "ProtocolPoolLoaderActor"
+        "CurvePoolLoaderOneShotActor"
     }
 }

@@ -11,7 +11,7 @@ use revm::db::CacheDB;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-#[derive(Clone)]
+#[derive(Clone, Default)]
 pub struct RethAdapter<Node: FullNodeComponents, AddOns: NodeAddOns<Node>> {
     pub node: Option<FullNode<Node, AddOns>>,
     pub factory: Option<ProviderFactory<NodeTypesWithDBAdapter<EthereumNode, Arc<DatabaseEnv>>>>,
@@ -22,6 +22,10 @@ where
     Node: FullNodeComponents,
     AddOns: NodeAddOns<Node>,
 {
+    pub fn new() -> Self {
+        Self { node: None, factory: None }
+    }
+
     pub fn new_with_node(node: FullNode<Node, AddOns>) -> Self {
         Self { node: Some(node), factory: None }
     }

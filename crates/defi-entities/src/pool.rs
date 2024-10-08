@@ -4,15 +4,50 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::Arc;
 
-use alloy_primitives::{Address, Bytes, U256};
+use crate::required_state::RequiredState;
+use alloy_primitives::{address, Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
+use loom_revm_db::LoomInMemoryDB;
 use revm::primitives::Env;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, EnumString, VariantNames};
 
-use loom_revm_db::LoomInMemoryDB;
+const UNISWAPV2_FACTORY: Address = address!("5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f");
+const NOMISWAP_STABLE_FACTORY: Address = address!("818339b4E536E707f14980219037c5046b049dD4");
+const SUSHISWAP_FACTORY: Address = address!("C0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac");
+const DOOARSWAP_FACTORY: Address = address!("1e895bFe59E3A5103e8B7dA3897d1F2391476f3c");
+const SAFESWAP_FACTORY: Address = address!("7F09d4bE6bbF4b0fF0C97ca5c486a166198aEAeE");
+const UNISWAPV3_FACTORY: Address = address!("1F98431c8aD98523631AE4a59f267346ea31F984");
+const PANCAKEV3_FACTORY: Address = address!("0BFbCF9fa4f9C56B0F40a671Ad40E0805A091865");
+const MINISWAP_FACTORY: Address = address!("2294577031F113DF4782B881cF0b140e94209a6F");
+const SHIBASWAP_FACTORY: Address = address!("115934131916C8b277DD010Ee02de363c09d037c");
+const MAVERICK_FACTORY: Address = address!("Eb6625D65a0553c9dBc64449e56abFe519bd9c9B");
 
-use crate::required_state::RequiredState;
+pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
+    if factory_address == UNISWAPV2_FACTORY {
+        PoolProtocol::UniswapV2
+    } else if factory_address == UNISWAPV3_FACTORY {
+        PoolProtocol::UniswapV3
+    } else if factory_address == PANCAKEV3_FACTORY {
+        PoolProtocol::PancakeV3
+    } else if factory_address == NOMISWAP_STABLE_FACTORY {
+        PoolProtocol::NomiswapStable
+    } else if factory_address == SUSHISWAP_FACTORY {
+        PoolProtocol::Sushiswap
+    } else if factory_address == DOOARSWAP_FACTORY {
+        PoolProtocol::DooarSwap
+    } else if factory_address == SAFESWAP_FACTORY {
+        PoolProtocol::Safeswap
+    } else if factory_address == MINISWAP_FACTORY {
+        PoolProtocol::Miniswap
+    } else if factory_address == SHIBASWAP_FACTORY {
+        PoolProtocol::Shibaswap
+    } else if factory_address == MAVERICK_FACTORY {
+        PoolProtocol::Maverick
+    } else {
+        PoolProtocol::Unknown
+    }
+}
 
 #[derive(Copy, Clone, Debug, PartialEq, Hash, Eq, EnumString, VariantNames, Display, Default, Deserialize, Serialize, EnumIter)]
 #[strum(ascii_case_insensitive, serialize_all = "lowercase")]
@@ -92,57 +127,6 @@ impl Display for PoolProtocol {
     }
 }
 
-#[derive(Clone)]
-pub struct EmptyPool {
-    address: Address,
-}
-
-impl EmptyPool {
-    pub fn new(address: Address) -> Self {
-        EmptyPool { address }
-    }
-}
-
-impl Pool for EmptyPool {
-    fn get_address(&self) -> Address {
-        self.address
-    }
-
-    fn calculate_out_amount(
-        &self,
-        _state: &LoomInMemoryDB,
-        _env: Env,
-        _token_address_from: &Address,
-        _token_address_to: &Address,
-        _in_amount: U256,
-    ) -> Result<(U256, u64), ErrReport> {
-        Err(eyre!("NOT_IMPLEMENTED"))
-    }
-
-    fn calculate_in_amount(
-        &self,
-        _state: &LoomInMemoryDB,
-        _env: Env,
-        _token_address_from: &Address,
-        _token_address_to: &Address,
-        _out_amount: U256,
-    ) -> Result<(U256, u64), ErrReport> {
-        Err(eyre!("NOT_IMPLEMENTED"))
-    }
-
-    fn can_flash_swap(&self) -> bool {
-        false
-    }
-
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
-        &DefaultAbiSwapEncoder {}
-    }
-
-    fn get_state_required(&self) -> Result<RequiredState> {
-        Ok(RequiredState::new())
-    }
-}
-
 pub struct PoolWrapper {
     pub pool: Arc<dyn Pool>,
 }
@@ -188,11 +172,6 @@ impl PartialEq for PoolWrapper {
 impl PoolWrapper {
     pub fn new(pool: Arc<dyn Pool>) -> Self {
         PoolWrapper { pool }
-    }
-
-    pub fn empty(pool_address: Address) -> Self {
-        let pool = EmptyPool::new(pool_address);
-        Self::new(Arc::new(pool))
     }
 }
 

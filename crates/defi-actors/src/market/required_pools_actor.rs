@@ -6,8 +6,7 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use log::{debug, error};
 
-use crate::fetch_and_add_pool_by_address;
-use crate::market::fetch_state_and_add_pool;
+use crate::market::pool_loader::{fetch_and_add_pool_by_address, fetch_state_and_add_pool};
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
 use defi_entities::required_state::{RequiredState, RequiredStateReader};

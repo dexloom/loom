@@ -141,10 +141,67 @@ impl SwapPaths {
 
 #[cfg(test)]
 mod test {
+    use super::*;
+    use crate::pool::DefaultAbiSwapEncoder;
+    use crate::required_state::RequiredState;
+    use crate::{AbiSwapEncoder, Pool};
+    use alloy_primitives::U256;
+    use eyre::{eyre, ErrReport};
     use log::error;
+    use loom_revm_db::LoomInMemoryDB;
+    use revm::primitives::Env;
     use tokio::task::JoinHandle;
 
-    use super::*;
+    #[derive(Clone)]
+    pub struct EmptyPool {
+        address: Address,
+    }
+
+    impl EmptyPool {
+        pub fn new(address: Address) -> Self {
+            EmptyPool { address }
+        }
+    }
+
+    impl Pool for EmptyPool {
+        fn get_address(&self) -> Address {
+            self.address
+        }
+
+        fn calculate_out_amount(
+            &self,
+            _state: &LoomInMemoryDB,
+            _env: Env,
+            _token_address_from: &Address,
+            _token_address_to: &Address,
+            _in_amount: U256,
+        ) -> Result<(U256, u64), ErrReport> {
+            Err(eyre!("NOT_IMPLEMENTED"))
+        }
+
+        fn calculate_in_amount(
+            &self,
+            _state: &LoomInMemoryDB,
+            _env: Env,
+            _token_address_from: &Address,
+            _token_address_to: &Address,
+            _out_amount: U256,
+        ) -> eyre::Result<(U256, u64), ErrReport> {
+            Err(eyre!("NOT_IMPLEMENTED"))
+        }
+
+        fn can_flash_swap(&self) -> bool {
+            false
+        }
+
+        fn get_encoder(&self) -> &dyn AbiSwapEncoder {
+            &DefaultAbiSwapEncoder {}
+        }
+
+        fn get_state_required(&self) -> Result<RequiredState> {
+            Ok(RequiredState::new())
+        }
+    }
 
     #[test]
     fn test_add_path() {
@@ -154,7 +211,10 @@ mod test {
             .map(|i| {
                 SwapPath::new(
                     vec![basic_token.clone(), Token::new(Address::repeat_byte(i)), basic_token.clone()],
-                    vec![PoolWrapper::empty(Address::repeat_byte(i + 1)), PoolWrapper::empty(Address::repeat_byte(i + 2))],
+                    vec![
+                        PoolWrapper::new(Arc::new(EmptyPool::new(Address::repeat_byte(i + 1)))),
+                        PoolWrapper::new(Arc::new(EmptyPool::new(Address::repeat_byte(i + 2)))),
+                    ],
                 )
             })
             .collect();
@@ -170,7 +230,12 @@ mod test {
         const PATHS_COUNT: usize = 10;
 
         let pool_address_vec: Vec<(PoolWrapper, PoolWrapper)> = (0..PATHS_COUNT)
-            .map(|i| (PoolWrapper::empty(Address::repeat_byte(i as u8)), PoolWrapper::empty(Address::repeat_byte((i + 1) as u8))))
+            .map(|i| {
+                (
+                    PoolWrapper::new(Arc::new(EmptyPool::new(Address::repeat_byte(i as u8)))),
+                    PoolWrapper::new(Arc::new(EmptyPool::new(Address::repeat_byte((i + 1) as u8)))),
+                )
+            })
             .collect();
 
         let paths_vec: Vec<SwapPath> = pool_address_vec
@@ -196,7 +261,7 @@ mod test {
             let pool_address = pools.0.get_address();
             let paths_shared_clone = paths_shared.clone();
             tasks.push(tokio::task::spawn(async move {
-                let pool = PoolWrapper::empty(pool_address);
+                let pool = PoolWrapper::new(Arc::new(EmptyPool::new(pool_address)));
                 let path_guard = paths_shared_clone.read().await;
                 let pool_paths = path_guard.get_pool_paths_hashset(&pool.get_address());
                 println!("{i} {pool_address}: {pool_paths:?}");

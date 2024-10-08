@@ -25,22 +25,6 @@ pub struct Token {
 
 pub type TokenWrapper = Arc<Token>;
 
-/*
-impl Default for Token {
-    fn default() -> Self {
-        Token{
-            address: Address::zero(),
-            basic : false,
-            middle : false,
-            decimals : None,
-            name : None,
-            symbol: None,
-            eth_price : None),
-        }
-    }
-}
-*/
-
 impl Hash for Token {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.address.hash(state)
