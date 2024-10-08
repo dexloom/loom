@@ -36,7 +36,7 @@ reth-node-ethereum.workspace = true
 
 tokio.workspace = true
 eyre.workspace = true
-log.workspace = true
+tracing.workspace = true
 hex.workspace = true
 lazy_static.workspace = true
 rand.workspace = true

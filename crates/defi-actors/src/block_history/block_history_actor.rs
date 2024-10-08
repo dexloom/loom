@@ -9,7 +9,6 @@ use defi_entities::{apply_state_update, BlockHistory, BlockHistoryManager, Lates
 use defi_events::{MarketEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 use defi_types::ChainParameters;
 use eyre::{eyre, Result};
-use log::{debug, error, info, trace};
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomInMemoryDB;
@@ -18,6 +17,7 @@ use std::marker::PhantomData;
 use std::ops::DerefMut;
 use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;
+use tracing::{debug, error, info, trace};
 
 pub async fn set_chain_head<P, T>(
     block_history_manager: &BlockHistoryManager<P, T>,

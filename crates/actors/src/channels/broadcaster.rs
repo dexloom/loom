@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use eyre::{eyre, Result};
-use log::error;
 use tokio::sync::broadcast;
 use tokio::sync::broadcast::error::SendError;
 use tokio::sync::broadcast::Receiver;
 use tokio::sync::RwLock;
+use tracing::error;
 
 #[derive(Clone)]
 pub struct Broadcaster<T>

@@ -4,9 +4,9 @@ use alloy_primitives::{Address, TxHash};
 use alloy_rpc_types::Transaction;
 use eyre::{OptionExt, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
+use tracing::{debug, error, info};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{MarketState, Swap};

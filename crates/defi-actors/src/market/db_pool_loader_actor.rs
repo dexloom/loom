@@ -2,7 +2,6 @@ use alloy_eips::BlockNumberOrTag;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, MarketState, PoolClass, RethAdapter};
 use defi_pools::{PoolsConfig, Slot0, UniswapV2Pool, UniswapV3Pool};
-use log::{error, info};
 use loom_actors::{Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 use reth_node_api::{FullNodeComponents, NodeAddOns};
@@ -11,6 +10,7 @@ use rethdb_dexsync::univ2::{UniV2Factory, UNI_V2_FACTORY};
 use rethdb_dexsync::univ3::{UniV3PositionManager, UNI_V3_FACTORY, UNI_V3_POSITION_MANAGER};
 use std::time::Instant;
 use tokio::sync::oneshot;
+use tracing::{error, info};
 
 async fn pool_loader_one_shot_worker<Node, AddOns>(
     reth_adapter: RethAdapter<Node, AddOns>,

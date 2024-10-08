@@ -3,7 +3,7 @@ use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, Header};
 use alloy_transport::Transport;
-use log::{debug, error};
+use tracing::{debug, error};
 
 use debug_provider::DebugProviderExt;
 use defi_events::{BlockStateUpdate, Message, MessageBlockStateUpdate};

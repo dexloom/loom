@@ -11,9 +11,9 @@ use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_types::{debug_trace_block, GethStateUpdateVec};
 use eyre::{eyre, ErrReport, OptionExt, Result};
-use log::{error, trace, warn};
 use loom_revm_db::LoomInMemoryDB;
 use tokio::sync::RwLock;
+use tracing::{error, trace, warn};
 
 use crate::MarketState;
 

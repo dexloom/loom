@@ -5,11 +5,11 @@ use alloy_primitives::{Address, U256};
 #[cfg(not(debug_assertions))]
 use chrono::TimeDelta;
 use eyre::{eyre, Result};
-use log::{debug, error, info, warn};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
+use tracing::{debug, error, info, warn};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};

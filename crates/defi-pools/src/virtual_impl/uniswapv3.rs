@@ -203,7 +203,7 @@ impl UniswapV3PoolVirtual {
 
         if current_state.amount_specified_remaining.is_zero() {
             let amount_out = (-current_state.amount_calculated).into_raw();
-            log::trace!("AmountOut : {amount_out}");
+            tracing::trace!("AmountOut : {amount_out}");
             Ok(amount_out)
         } else {
             Err(eyre!("NOT_ENOUGH_LIQUIDITY"))
@@ -329,7 +329,7 @@ impl UniswapV3PoolVirtual {
         if current_state.amount_specified_remaining.is_zero() {
             let amount_in = current_state.amount_calculated.into_raw();
 
-            log::trace!("Amount In : {amount_in}");
+            tracing::trace!("Amount In : {amount_in}");
 
             Ok(amount_in)
         } else {

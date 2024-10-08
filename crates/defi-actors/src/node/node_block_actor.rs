@@ -183,8 +183,8 @@ mod test {
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::{ClientBuilder, WsConnect};
     use alloy_rpc_types::Header;
-    use log::{debug, error, info};
     use tokio::select;
+    use tracing::{debug, error, info};
 
     use crate::node::node_block_actor::NodeBlockActorConfig;
     use crate::NodeBlockActor;

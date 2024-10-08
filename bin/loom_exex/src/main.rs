@@ -7,11 +7,18 @@ use defi_entities::RethAdapter;
 use loom_topology::TopologyConfig;
 use reth_node_core::args::utils::EthereumChainSpecParser;
 use reth_node_ethereum::EthereumNode;
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{fmt, EnvFilter, Layer};
 
 mod arguments;
 mod loom;
 
 fn main() -> eyre::Result<()> {
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
+    let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_filter(env_filter);
+    tracing_subscriber::registry().with(fmt_layer).init();
+
     // ignore arguments used by reth
     let app_args = AppArgs::from_arg_matches_mut(&mut AppArgs::command().ignore_errors(true).get_matches())?;
     match app_args.command {

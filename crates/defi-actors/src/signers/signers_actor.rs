@@ -1,9 +1,9 @@
 use alloy_consensus::TxEnvelope;
 use alloy_rlp::Encodable;
 use eyre::{eyre, Result};
-use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
+use tracing::{error, info};
 
 use defi_blockchain::Blockchain;
 use defi_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData, TxState};

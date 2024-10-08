@@ -4,7 +4,7 @@ use alloy_primitives::{Address, Signed, Uint, B256, I256};
 use alloy_primitives::{U160, U256};
 use eyre::Result;
 use lazy_static::lazy_static;
-use log::trace;
+use tracing::trace;
 
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use loom_revm_db::LoomInMemoryDB;
@@ -97,9 +97,9 @@ impl UniswapV3DBReader {
 mod test {
     use alloy_primitives::Address;
     use eyre::Result;
-    use log::debug;
     use revm::primitives::Env;
     use std::env;
+    use tracing::debug;
 
     use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::required_state::RequiredStateReader;

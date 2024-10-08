@@ -13,11 +13,11 @@ use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use log::{debug, error, info, trace};
 use revm::primitives::{BlockEnv, Env, SHANGHAI};
 use revm::Evm;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::RwLock;
+use tracing::{debug, error, info, trace};
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;

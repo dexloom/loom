@@ -5,8 +5,8 @@ use alloy_provider::{Network, Provider};
 use alloy_sol_types::SolCall;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use log::error;
 use revm::primitives::Env;
+use tracing::error;
 
 use defi_abi::IERC20;
 use defi_entities::required_state::RequiredState;
@@ -520,10 +520,10 @@ mod tests {
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::{MarketState, Pool};
     use env_logger::Env as EnvLog;
-    use log::debug;
     use loom_revm_db::fast_cache_db::FastCacheDB;
     use loom_revm_db::LoomInMemoryDB;
     use revm::db::EmptyDB;
+    use tracing::debug;
 
     use crate::protocols::CurveProtocol;
     use crate::CurvePool;

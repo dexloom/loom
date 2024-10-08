@@ -1,8 +1,8 @@
 use crate::channels::Broadcaster;
 use crate::shared_state::SharedState;
 use eyre::{eyre, Result};
-use log::info;
 use tokio::task::JoinHandle;
+use tracing::info;
 
 pub type WorkerResult = Result<String>;
 

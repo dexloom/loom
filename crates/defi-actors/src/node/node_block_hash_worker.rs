@@ -10,8 +10,8 @@ use chrono::Utc;
 use defi_events::{BlockHeader, MessageBlockHeader};
 use eyre::Result;
 use futures::StreamExt;
-use log::{error, info};
 use loom_actors::{run_async, Broadcaster, WorkerResult};
+use tracing::{error, info};
 
 #[allow(dead_code)]
 pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, sender: Broadcaster<Header>) -> Result<()> {

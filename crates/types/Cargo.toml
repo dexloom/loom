@@ -23,7 +23,7 @@ debug-provider.workspace = true
 
 chrono.workspace = true
 eyre.workspace = true
-log.workspace = true
+tracing.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
 hex.workspace = true

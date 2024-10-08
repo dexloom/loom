@@ -4,9 +4,9 @@ use std::sync::Arc;
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use eyre::{eyre, Result};
-use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
+use tracing::{error, info};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{LatestBlock, Swap, Token};

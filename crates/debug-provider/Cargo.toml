@@ -10,7 +10,7 @@ exclude.workspace = true
 
 [dependencies]
 async-trait.workspace = true
-log.workspace = true
+tracing.workspace = true
 eyre.workspace = true
 k256.workspace = true
 reqwest.workspace = true

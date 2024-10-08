@@ -2,9 +2,9 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, U256};
 use eyre::{eyre, Result};
-use log::{debug, error, info};
 use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
+use tracing::{debug, error, info};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{LatestBlock, Swap, SwapStep};

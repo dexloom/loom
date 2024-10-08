@@ -3,8 +3,8 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{BlockTransactionsKind, Header};
 use alloy_transport::Transport;
 use defi_events::{Message, MessageBlock};
-use log::{debug, error};
 use loom_actors::{subscribe, Broadcaster, WorkerResult};
+use tracing::{debug, error};
 
 pub async fn new_block_with_tx_worker<P, T>(
     client: P,

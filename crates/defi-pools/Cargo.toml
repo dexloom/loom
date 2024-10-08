@@ -29,7 +29,7 @@ revm.workspace = true
 reth-storage-api.workspace = true
 
 eyre.workspace = true
-log.workspace = true
+tracing.workspace = true
 strum.workspace = true
 
 uniswap_v3_math.workspace = true

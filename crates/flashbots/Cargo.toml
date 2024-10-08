@@ -20,7 +20,7 @@ alloy-rlp.workspace = true
 
 url.workspace = true
 eyre.workspace = true
-log.workspace = true
+tracing.workspace = true
 env_logger.workspace = true
 tokio.workspace = true
 rand.workspace = true

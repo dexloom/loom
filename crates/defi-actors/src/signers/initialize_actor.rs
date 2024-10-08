@@ -1,6 +1,6 @@
 use alloy_primitives::{hex, Bytes, B256};
 use eyre::eyre;
-use log::{error, info};
+use tracing::{error, info};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, KeyStore, TxSigners};

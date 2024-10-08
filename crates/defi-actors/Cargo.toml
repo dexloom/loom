@@ -28,7 +28,7 @@ defi-blockchain.workspace = true
 eyre.workspace = true
 tokio.workspace = true
 rayon.workspace = true
-log.workspace = true
+tracing.workspace = true
 chrono.workspace = true
 futures.workspace = true
 lazy_static.workspace = true
@@ -62,7 +62,6 @@ reth-provider.workspace = true
 reth-primitives.workspace = true
 reth-node-api.workspace = true
 reth-transaction-pool.workspace = true
-reth-tracing.workspace = true
 
 reth-exex-grpc.workspace = true
 rethdb-dexsync.workspace = true

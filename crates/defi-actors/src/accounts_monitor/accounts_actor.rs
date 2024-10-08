@@ -12,11 +12,11 @@ use defi_abi::IERC20::IERC20Events;
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory};
 use defi_events::MarketEvents;
-use log::debug;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::time::sleep;
+use tracing::debug;
 
 pub async fn nonce_and_balance_fetcher_worker<P, T, N>(
     client: P,

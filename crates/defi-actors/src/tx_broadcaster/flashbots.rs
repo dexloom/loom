@@ -6,8 +6,8 @@ use alloy_primitives::{Bytes, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use log::error;
 use tokio::sync::broadcast::error::RecvError;
+use tracing::error;
 
 use defi_blockchain::Blockchain;
 use defi_events::{BestTxCompose, MessageTxCompose, RlpState, TxCompose, TxComposeData};

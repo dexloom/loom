@@ -9,7 +9,7 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use log::{debug, error, warn};
+use tracing::{debug, error, warn};
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;

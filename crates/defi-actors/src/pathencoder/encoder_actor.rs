@@ -1,8 +1,8 @@
 use alloy_primitives::{Address, U256};
 use eyre::{eyre, OptionExt, Result};
-use log::{debug, error};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
+use tracing::{debug, error};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, Swap, SwapStep, TxSigners};

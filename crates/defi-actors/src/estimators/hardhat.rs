@@ -6,8 +6,8 @@ use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use eyre::{eyre, Result};
-use log::{error, info};
 use tokio::sync::broadcast::error::RecvError;
+use tracing::{error, info};
 
 use debug_provider::DebugProviderExt;
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};

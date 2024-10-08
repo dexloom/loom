@@ -1,6 +1,6 @@
 use alloy_provider::Provider;
 use eyre::Result;
-use log::{error, info};
+use tracing::{error, info};
 
 use defi_actors::{
     ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateChangeArbActor, StateHealthMonitorActor, StuffingTxMonitorActor,

@@ -4,8 +4,8 @@ use std::hash::Hash;
 use std::sync::Arc;
 
 use eyre::Result;
-use log::error;
 use tokio::sync::RwLock;
+use tracing::error;
 
 use crate::FetchState::Fetching;
 

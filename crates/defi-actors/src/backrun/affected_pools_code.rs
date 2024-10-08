@@ -7,8 +7,8 @@ use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::eyre;
-use log::{debug, error};
 use revm::primitives::Env;
+use tracing::{debug, error};
 
 use defi_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolProtocol, PoolWrapper};
 use defi_pools::protocols::{UniswapV2Protocol, UniswapV3Protocol};

@@ -2,8 +2,8 @@ use alloy_primitives::BlockNumber;
 use alloy_rpc_types::BlockTransactions;
 use chrono::{Duration, Utc};
 use eyre::eyre;
-use log::{debug, error, info, trace};
 use tokio::sync::broadcast::error::RecvError;
+use tracing::{debug, error, info, trace};
 
 use defi_blockchain::Blockchain;
 use defi_events::{MempoolEvents, MessageBlock, MessageBlockHeader, MessageMempoolDataUpdate};

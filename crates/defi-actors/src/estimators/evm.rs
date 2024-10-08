@@ -3,8 +3,8 @@ use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use eyre::{eyre, Result};
-use log::{debug, error, info};
 use tokio::sync::broadcast::error::RecvError;
+use tracing::{debug, error, info};
 
 use defi_blockchain::Blockchain;
 use defi_entities::Swap;

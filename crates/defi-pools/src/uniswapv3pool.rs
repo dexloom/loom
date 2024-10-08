@@ -7,10 +7,10 @@ use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use lazy_static::lazy_static;
-use log::debug;
-#[cfg(any(test, debug_assertions))]
-use log::error;
 use revm::primitives::Env;
+use tracing::debug;
+#[cfg(any(test, debug_assertions))]
+use tracing::error;
 
 #[cfg(any(test, debug_assertions))]
 use crate::protocols::UniswapV3Protocol;

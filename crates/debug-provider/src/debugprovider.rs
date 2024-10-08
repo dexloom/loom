@@ -291,7 +291,7 @@ mod test {
     use alloy_rpc_client::ClientBuilder;
     use env_logger::Env as EnvLog;
     use eyre::Result;
-    use log::{debug, error};
+    use tracing::{debug, error};
 
     #[tokio::test]
     async fn test_debug_trace_call() -> Result<()> {

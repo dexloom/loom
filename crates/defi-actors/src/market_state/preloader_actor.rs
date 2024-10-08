@@ -9,7 +9,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use log::{debug, error};
+use tracing::{debug, error};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};

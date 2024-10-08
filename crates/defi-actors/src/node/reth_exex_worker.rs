@@ -17,12 +17,12 @@ use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
 use reth_provider::Chain;
 use reth_rpc::eth::EthTxBuilder;
-use reth_tracing::tracing::{debug, error, info};
 use reth_transaction_pool::{BlobStore, Pool, TransactionOrdering, TransactionPool, TransactionValidator};
 use revm::db::states::StorageSlot;
 use revm::db::{BundleAccount, StorageWithOriginalValues};
 use std::sync::Arc;
 use tokio::select;
+use tracing::{debug, error, info};
 
 async fn process_chain(
     chain: Arc<Chain>,

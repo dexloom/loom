@@ -1,9 +1,9 @@
 use defi_events::{MessageTxCompose, RlpState, TxCompose};
 use defi_types::Mempool;
-use log::{error, info};
 use loom_actors::{Broadcaster, SharedState, WorkerResult};
 use loom_utils::reth_types::decode_into_transaction;
 use tokio::select;
+use tracing::{error, info};
 
 pub(crate) async fn replayer_compose_worker(mempool: SharedState<Mempool>, compose_channel: Broadcaster<MessageTxCompose>) -> WorkerResult {
     let mut compose_channel_rx = compose_channel.subscribe().await;

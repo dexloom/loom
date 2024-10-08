@@ -7,7 +7,7 @@ use alloy_network::Network;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, Pool};

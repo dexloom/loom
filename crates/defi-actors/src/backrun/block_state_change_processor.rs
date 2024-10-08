@@ -4,10 +4,10 @@ use defi_entities::{BlockHistory, Market};
 use defi_events::{MarketEvents, StateUpdateEvent};
 use defi_types::ChainParameters;
 use eyre::eyre;
-use log::error;
 use loom_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use tokio::sync::broadcast::error::RecvError;
+use tracing::error;
 
 pub async fn block_state_change_worker(
     chain_parameters: ChainParameters,

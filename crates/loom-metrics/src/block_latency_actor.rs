@@ -2,12 +2,12 @@ use defi_blockchain::Blockchain;
 use defi_events::MessageBlockHeader;
 use eyre::eyre;
 use influxdb::{Timestamp, WriteQuery};
-use log::{error, info};
 use loom_actors::Consumer;
 use loom_actors::Producer;
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use tokio::sync::broadcast::error::RecvError;
+use tracing::{error, info};
 
 async fn block_latency_worker(
     block_header_update_rx: Broadcaster<MessageBlockHeader>,

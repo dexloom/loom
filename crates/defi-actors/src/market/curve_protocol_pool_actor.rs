@@ -4,7 +4,7 @@ use std::sync::Arc;
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use log::{debug, error};
+use tracing::{debug, error};
 
 use crate::market::pool_loader::fetch_state_and_add_pool;
 use debug_provider::DebugProviderExt;

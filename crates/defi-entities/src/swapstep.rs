@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, I256, U256};
 use eyre::{eyre, Result};
-use log::error;
 use revm::primitives::Env;
+use tracing::error;
 
 use loom_revm_db::LoomInMemoryDB;
 

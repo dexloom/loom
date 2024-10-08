@@ -11,7 +11,7 @@ use alloy_rpc_types::{BlockId, BlockNumberOrTag, BlockTransactionsKind};
 use clap::Parser;
 use env_logger::Env as EnvLog;
 use eyre::{OptionExt, Result};
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{

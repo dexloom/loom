@@ -12,7 +12,7 @@ use alloy_transport::Transport;
 use eyre::{eyre, OptionExt, Result};
 use k256::SecretKey;
 use lazy_static::lazy_static;
-use log::{debug, error, info};
+use tracing::{debug, error, info};
 
 use debug_provider::AnvilProviderExt;
 

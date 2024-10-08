@@ -18,11 +18,11 @@ use alloy::{
     },
 };
 use eyre::{eyre, Result};
-use log::{debug, error, trace};
 use reqwest::Client;
 use serde_json::value::RawValue;
 use tokio::sync::RwLock;
 use tower::Service;
+use tracing::{debug, error, trace};
 use url::Url;
 
 use crate::cachefolder::CacheFolder;
@@ -402,8 +402,8 @@ mod test {
     };
     use eyre::Result;
     use futures::StreamExt;
-    use log::debug;
     use tokio::select;
+    use tracing::debug;
     use url::Url;
 
     use crate::httpcached::HttpCachedTransport;
