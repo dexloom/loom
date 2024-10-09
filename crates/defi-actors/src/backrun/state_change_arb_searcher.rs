@@ -28,13 +28,9 @@ async fn state_change_arb_searcher_task(
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> Result<()> {
     debug!("Message received {} stuffing : {:?}", msg.origin, msg.stuffing_tx_hash());
-    //let msg_time = chrono::Local::now();
 
     let mut db = msg.market_state().clone();
     db.apply_geth_update_vec(msg.state_update().clone());
-    //let mut current_market_state = MarketState::new(db);
-
-    //current_market_state.apply_state_update(msg.state_update(), true, false);
 
     let start_time = chrono::Local::now();
     let mut swap_path_vec: Vec<SwapPath> = Vec::new();
@@ -58,14 +54,14 @@ async fn state_change_arb_searcher_task(
     drop(market_guard_read);
 
     if swap_path_vec.is_empty() {
-        warn!(
+        debug!(
             "No swap path built for request: {:?} {}",
             msg.stuffing_txs_hashes().first().unwrap_or_default(),
             chrono::Local::now() - start_time
         );
         return Err(eyre!("NO_SWAP_PATHS"));
     }
-    warn!("Calculation started {} {}", swap_path_vec.len(), chrono::Local::now() - start_time);
+    warn!("Calculation started: swap_path_vec_len={} elapsed={}", swap_path_vec.len(), chrono::Local::now() - start_time);
 
     let env = msg.evm_env();
 
@@ -76,8 +72,6 @@ async fn state_change_arb_searcher_task(
     let swap_path_vec_len = swap_path_vec.len();
 
     tokio::task::spawn(async move {
-        //let pool = ThreadPoolBuilder::new().num_threads(20).build().unwrap();
-
         thread_pool.install(|| {
             swap_path_vec.into_par_iter().for_each_with((&swap_path_tx, &market_state_clone, &env), |req, item| {
                 let mut mut_item: SwapLine = SwapLine { path: item, ..Default::default() };
@@ -174,8 +168,8 @@ async fn state_change_arb_searcher_task(
 
         answers += 1;
     }
-    warn!(
-        "Calculation finished. Origin : {} {} {} {} stuffing hash : {:?}",
+    info!(
+        "Calculation finished: origin={}, swap_path_vec_len={}, answer={}, elapsed={}, stuffing_hash={:?}",
         msg.origin,
         swap_path_vec_len,
         answers,
@@ -196,8 +190,8 @@ pub async fn state_change_arb_searcher_worker(
     subscribe!(search_request_rx);
 
     let cpus = num_cpus::get();
-    info!("Cpus : {cpus}");
-    let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(cpus - 2).build().unwrap());
+    info!("Starting state arb searcher cpus={cpus}, tasks={}", cpus / 2);
+    let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(cpus / 2).build()?);
 
     loop {
         tokio::select! {
