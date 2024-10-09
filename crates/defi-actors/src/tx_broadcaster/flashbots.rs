@@ -7,7 +7,7 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use tokio::sync::broadcast::error::RecvError;
-use tracing::error;
+use tracing::{error, info};
 
 use defi_blockchain::Blockchain;
 use defi_events::{BestTxCompose, MessageTxCompose, RlpState, TxCompose, TxComposeData};
@@ -48,6 +48,7 @@ async fn flashbots_broadcaster_worker<P, T>(
     client: Arc<Flashbots<P, T>>,
     smart_mode: bool,
     bundle_rx: Broadcaster<MessageTxCompose>,
+    allow_broadcast: bool,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -72,23 +73,26 @@ where
                                 }
 
                                 if best_request.check(&broadcast_request) {
-                                    tokio::task::spawn(
+                                    if allow_broadcast {
+                                         tokio::task::spawn(
+                                            broadcast_task(
+                                            broadcast_request,
+                                            client.clone(),
+                                            )
+                                        );
+                                    } else {
+                                       info!("broadcast_request (best_request): {:?}", broadcast_request);
+                                    }
+                                }
+                            } else if allow_broadcast {
+                                      tokio::task::spawn(
                                         broadcast_task(
-                                        broadcast_request,
-                                        client.clone(),
+                                            broadcast_request,
+                                            client.clone(),
                                         )
                                     );
-                                }
-
-
-                            }else{
-                                tokio::task::spawn(
-                                    broadcast_task(
-                                        broadcast_request,
-                                        client.clone(),
-                                        //latest_block.clone(),
-                                    )
-                                );
+                            } else {
+                                info!("broadcast_request: {:?}", broadcast_request);
                             }
                         }
                     }
@@ -107,6 +111,7 @@ pub struct FlashbotsBroadcastActor<P, T> {
     smart: bool,
     #[consumer]
     tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
+    allow_broadcast: bool,
 }
 
 impl<P, T> FlashbotsBroadcastActor<P, T>
@@ -114,8 +119,8 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: Flashbots<P, T>, smart: bool) -> FlashbotsBroadcastActor<P, T> {
-        FlashbotsBroadcastActor { client: Arc::new(client), smart, tx_compose_channel_rx: None }
+    pub fn new(client: Flashbots<P, T>, smart: bool, allow_broadcast: bool) -> FlashbotsBroadcastActor<P, T> {
+        FlashbotsBroadcastActor { client: Arc::new(client), smart, tx_compose_channel_rx: None, allow_broadcast }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -129,8 +134,12 @@ where
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task =
-            tokio::task::spawn(flashbots_broadcaster_worker(self.client.clone(), self.smart, self.tx_compose_channel_rx.clone().unwrap()));
+        let task = tokio::task::spawn(flashbots_broadcaster_worker(
+            self.client.clone(),
+            self.smart,
+            self.tx_compose_channel_rx.clone().unwrap(),
+            self.allow_broadcast,
+        ));
         Ok(vec![task])
     }
 

@@ -30,7 +30,7 @@ fn main() -> eyre::Result<()> {
 
             let handle = builder
                 .node(EthereumNode::default())
-                .install_exex("loom-exex", |node_ctx| loom::init(node_ctx, bc_clone, NodeBlockActorConfig::default()))
+                .install_exex("loom-exex", |node_ctx| loom::init(node_ctx, bc_clone, NodeBlockActorConfig::all_enabled()))
                 .launch()
                 .await?;
 

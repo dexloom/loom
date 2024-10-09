@@ -11,6 +11,7 @@ use eyre::OptionExt;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use reth_exex::ExExContext;
 use reth_node_api::{FullNodeComponents, NodeAddOns};
+use std::env;
 use std::future::Future;
 use tracing::info;
 
@@ -74,7 +75,7 @@ where
         .with_swap_encoder(Some(multicaller_address))? // convert swaps to opcodes and passes to estimator
         .with_evm_estimator()? // estimate gas, add tips
         .with_signers()? // start signer actor that signs transactions before broadcasting
-        .with_flashbots_broadcaster(true)? // broadcast signed txes to flashbots
+        .with_flashbots_broadcaster(true, false)? // broadcast signed txes to flashbots
         .with_market_state_preloader()? // preload contracts to market state
         .with_nonce_and_balance_monitor()? // start monitoring balances of
         .with_pool_history_loader(pools_config.clone())? // load pools used in latest 10000 blocks
@@ -86,9 +87,11 @@ where
         .with_same_path_merger()? // load merger for same swap paths with different stuffing txes
         .with_backrun_block()? // load backrun searcher for incoming block
         .with_backrun_mempool()? // load backrun searcher for mempool txes
-        // EXPERIMENTAL pool loader feature
-        .with_pool_db_loader(reth_adapter, PoolsConfig::new())? // load pools directly from db
     ;
+    if env::var("EXPERIMENTAL").unwrap_or_default() != "" {
+        bc_actors.with_pool_db_loader(reth_adapter, pools_config)?; // EXPERIMENTAL load pools directly from db. Currently, does not add state + swap paths
+    }
+
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors
             .with_influxdb_writer(influxdb_config.url, influxdb_config.database, influxdb_config.tags)?

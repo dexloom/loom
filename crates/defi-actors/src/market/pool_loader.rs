@@ -9,7 +9,7 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use futures::stream::FuturesUnordered;
 use futures::StreamExt;
-use tracing::{debug, error, warn};
+use tracing::{debug, error};
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
@@ -180,10 +180,8 @@ where
                 directions_tree.insert(pool_wrapped.clone(), directions_vec);
 
                 let mut market_write_guard = market.write().await;
-                if let Err(e) = market_write_guard.add_pool(pool_wrapped) {
-                    // Pool maybe already added by e.g. db pool loader
-                    warn!("{}", e)
-                }
+                // Ignore error if pool already exists because it was maybe already added by e.g. db pool loader
+                let _ = market_write_guard.add_pool(pool_wrapped);
 
                 let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
                 market_write_guard.add_paths(swap_paths);

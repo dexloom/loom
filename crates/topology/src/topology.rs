@@ -346,7 +346,7 @@ impl Topology {
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
 
                         let flashbots_client = Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays();
-                        let mut flashbots_actor = FlashbotsBroadcastActor::new(flashbots_client, params.smart.unwrap_or(false));
+                        let mut flashbots_actor = FlashbotsBroadcastActor::new(flashbots_client, params.smart.unwrap_or(false), true);
                         match flashbots_actor.consume(blockchain.compose_channel()).start() {
                             Ok(r) => {
                                 tasks.extend(r);

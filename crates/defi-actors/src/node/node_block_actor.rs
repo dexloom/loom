@@ -59,7 +59,7 @@ pub struct NodeBlockActorConfig {
 }
 
 impl NodeBlockActorConfig {
-    pub fn new() -> Self {
+    pub fn all_disabled() -> Self {
         Self { block_header: false, block_with_tx: false, block_logs: false, block_state_update: false }
     }
 
@@ -85,12 +85,6 @@ impl NodeBlockActorConfig {
     pub fn with_block_state_update(mut self) -> Self {
         self.block_state_update = true;
         self
-    }
-}
-
-impl Default for NodeBlockActorConfig {
-    fn default() -> Self {
-        Self::new()
     }
 }
 
