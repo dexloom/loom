@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use alloy_primitives::Address;
 use eyre::Result;
 use tokio::sync::broadcast::error::RecvError;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use defi_blockchain::Blockchain;
 use defi_entities::Market;
@@ -30,21 +30,17 @@ pub async fn pool_health_monitor_worker(
                             debug!("Pool health_monitor message update: {:?} {} {} ", swap_error.pool, swap_error.msg, swap_error.amount);
                             let entry = pool_errors_map.entry(swap_error.pool).or_insert(0);
                             *entry += 1;
-                            if *entry == 10 {
+                            if *entry >= 10 {
                                 let mut market_guard = market.write().await;
                                 market_guard.set_pool_ok(swap_error.pool, false);
                                 match market_guard.get_pool(&swap_error.pool) {
                                     Some(pool)=>{
-                                        debug!("Disabling pool: protocol={}, address={:?}, msg={} amount={}", pool.get_protocol(),swap_error.pool, swap_error.msg, swap_error.amount);
+                                        info!("Disabling pool: protocol={}, address={:?}, msg={} amount={}", pool.get_protocol(),swap_error.pool, swap_error.msg, swap_error.amount);
                                     }
                                     _=>{
                                         error!("Disabled pool missing in market: address={:?}, msg={} amount={}", swap_error.pool, swap_error.msg, swap_error.amount);
                                     }
                                 }
-                            }
-
-                            if *entry > 10  {
-                                error!("Pool disabled: address={:?}, msg={} amount={}", swap_error.pool, swap_error.msg, swap_error.amount);
                             }
                         }
                     }

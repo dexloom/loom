@@ -105,7 +105,31 @@ impl Market {
 
     /// Set the pool status to ok or not ok.
     pub fn set_pool_ok(&mut self, address: Address, ok: bool) {
-        *self.pools_disabled.entry(address).or_insert(false) = ok
+        *self.pools_disabled.entry(address).or_insert(false) = ok;
+
+        let pool_contract = match self.pools.get(&address) {
+            Some(pool) => pool.pool.clone(),
+            None => return,
+        };
+
+        for (token_from_address, token_to_address) in pool_contract.get_swap_directions().into_iter() {
+            if !ok {
+                // remove pool from token_token_pools
+                let _ = self
+                    .token_token_pools
+                    .get_mut(&token_from_address)
+                    .and_then(|token_from_map| token_from_map.get_mut(&token_to_address))
+                    .map(|pool_addresses| pool_addresses.retain(|&x| x != address));
+            } else if self
+                .token_token_pools
+                .get(&token_from_address)
+                .and_then(|token_from_map| token_from_map.get(&token_to_address))
+                .map_or(false, |pool_addresses| !pool_addresses.contains(&address))
+            {
+                // add pool to token_token_pools if it does not exist
+                self.token_token_pools.entry(token_from_address).or_default().entry(token_to_address).or_default().push(address);
+            }
+        }
     }
 
     /// Check if the pool is ok.
@@ -349,27 +373,26 @@ mod tests {
     }
 
     #[test]
-    fn test_set_pool_ok_to_not_ok() {
+    fn test_set_pool_ok() {
         let mut market = Market::default();
         let pool_address = Address::random();
-        let mock_pool = MockPool { address: pool_address, token0: Address::ZERO, token1: Address::ZERO };
+        let token0 = Address::random();
+        let token1 = Address::random();
+        let mock_pool = MockPool { address: pool_address, token0, token1 };
         market.add_pool(mock_pool.clone());
 
-        market.set_pool_ok(pool_address, false);
-
-        assert!(!market.is_pool_ok(&pool_address));
-    }
-
-    #[test]
-    fn test_set_pool_ok_to_ok() {
-        let mut market = Market::default();
-        let pool_address = Address::random();
-        let mock_pool = MockPool { address: pool_address, token0: Address::ZERO, token1: Address::ZERO };
-        market.add_pool(mock_pool);
-
-        market.set_pool_ok(pool_address, true);
-
         assert!(market.is_pool_ok(&pool_address));
+        assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 1);
+
+        // toggle not ok
+        market.set_pool_ok(pool_address, false);
+        assert!(!market.is_pool_ok(&pool_address));
+        assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 0);
+
+        // toggle back
+        market.set_pool_ok(pool_address, true);
+        assert!(market.is_pool_ok(&pool_address));
+        assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 1);
     }
 
     #[test]
