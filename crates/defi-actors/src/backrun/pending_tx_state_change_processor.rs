@@ -15,7 +15,7 @@ use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
 use tokio::sync::RwLock;
-use tracing::{debug, error, info};
+use tracing::{debug, error};
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
@@ -82,8 +82,11 @@ where
             }
             None => {
                 error!(
-                    "No gas price{:?} {:?} {:?}",
-                    transaction_request.gas_price, transaction_request.max_fee_per_gas, transaction_request.max_priority_fee_per_gas
+                    "No gas price gas_price={:?}, max_fee_per_gas={:?}, max_priority_fee_per_gas={:?}, hash={:?}",
+                    transaction_request.gas_price,
+                    transaction_request.max_fee_per_gas,
+                    transaction_request.max_priority_fee_per_gas,
+                    mempool_tx.tx_hash
                 );
                 return Err(eyre!("NO_GAS_PRICE"));
             }
@@ -142,7 +145,7 @@ where
         Ok(affected_pools) => {
             let storage_len = accounts_vec_len(&state_update_vec);
 
-            info!("Mempool affected pools {:?} {} update len : {} strg : {}", tx_hash, source, affected_pools.len(), storage_len);
+            debug!("Mempool affected pools {:?} {} update len : {} strg : {}", tx_hash, source, affected_pools.len(), storage_len);
 
             affecting_tx.write().await.insert(tx_hash, !affected_pools.is_empty());
 
@@ -175,7 +178,6 @@ where
             }
 
             if is_pool_code(&merged_state_update_vec) {
-                info!("Pool code found");
                 match get_affected_pools_from_code(client, market.clone(), &merged_state_update_vec).await {
                     Ok(affected_pools) => {
                         match affecting_tx.write().await.entry(tx_hash) {

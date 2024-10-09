@@ -9,7 +9,7 @@ use defi_entities::{apply_state_update, BlockHistory, BlockHistoryManager, Lates
 use defi_events::{MarketEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 use defi_types::ChainParameters;
 use eyre::{eyre, Result};
-use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomInMemoryDB;
 use std::borrow::BorrowMut;
@@ -214,103 +214,91 @@ where
 
             }
             msg = state_update_rx.recv() => {
-
                 let state_update_msg : Result<MessageBlockStateUpdate, RecvError> = msg;
-                match state_update_msg {
-                    Ok(msg) => {
-                        let msg = msg.inner;
-                        let msg_block_header = msg.block_header;
-                        let msg_block_number : BlockNumber = msg_block_header.number;
-                        let msg_block_hash : BlockHash = msg_block_header.hash;
-                        debug!("Block State update {}", msg_block_hash);
+
+                let msg = match state_update_msg {
+                    Ok(message_block_state_update) => message_block_state_update,
+                    Err(e) => {
+                        error!("state_update_rx.recv error {}", e);
+                        continue
+                    }
+                };
+
+                let msg = msg.inner;
+                let msg_block_header = msg.block_header;
+                let msg_block_number : BlockNumber = msg_block_header.number;
+                let msg_block_hash : BlockHash = msg_block_header.hash;
+                debug!("Block State update {}", msg_block_hash);
 
 
-                        let mut block_history_guard = block_history.write().await;
-                        let mut latest_block_guard = latest_block.write().await;
-                        let mut market_state_guard = market_state.write().await;
+                let mut block_history_guard = block_history.write().await;
+                let mut latest_block_guard = latest_block.write().await;
+                let mut market_state_guard = market_state.write().await;
 
 
-                        match set_chain_head(
-                            &block_history_manager,
-                            block_history_guard.borrow_mut(),
-                            latest_block_guard.borrow_mut(),
-                            market_events_tx.clone(),
-                            msg_block_header,
-                            &chain_parameters
-                        ).await {
-                            Ok(_)=>{
-                                let (latest_block_number, latest_block_hash) = latest_block_guard.number_and_hash();
-                                let latest_block_parent_hash = latest_block_guard.parent_hash().unwrap_or_default();
+                if let Err(e) = set_chain_head(&block_history_manager, block_history_guard.borrow_mut(),
+                    latest_block_guard.borrow_mut(),market_events_tx.clone(), msg_block_header, &chain_parameters).await {
+                    error!("set_chain_head : {}", e);
+                    continue
+                }
 
-                                if latest_block_hash != msg_block_hash {
-                                    error!("State update for block that is not latest {} need {}", msg_block_hash, latest_block_hash);
-                                    if let Err(e) = block_history_guard.add_state_diff(msg_block_hash, None, msg.state_update.clone()) {
-                                        error!("block_history.add_state_diff {}", e)
-                                    }
+                let (latest_block_number, latest_block_hash) = latest_block_guard.number_and_hash();
+                let latest_block_parent_hash = latest_block_guard.parent_hash().unwrap_or_default();
 
-                                } else{
-                                    latest_block_guard.update(msg_block_number, msg_block_hash, None, None, None, Some(msg.state_update.clone()) );
+                if latest_block_hash != msg_block_hash {
+                    error!("State update for block that is not latest {} need {}", msg_block_hash, latest_block_hash);
+                    if let Err(e) = block_history_guard.add_state_diff(msg_block_hash, None, msg.state_update.clone()) {
+                        error!("block_history.add_state_diff {}, {}", e, msg_block_hash);
+                    }
 
+                } else{
+                    latest_block_guard.update(msg_block_number, msg_block_hash, None, None, None, Some(msg.state_update.clone()) );
 
-                                    let new_market_state_db = if market_state_guard.block_hash.is_zero() || market_state_guard.block_hash == latest_block_parent_hash {
-                                        let db = market_state_guard.state_db.clone();
-                                        apply_state_update(db, msg.state_update.clone(), &market_state_guard)
-                                    }else{
-                                        block_history_manager.apply_state_update_on_parent_db(block_history_guard.deref_mut(), &market_state_guard, msg_block_hash ).await?
-                                    };
-
-
-                                    let add_state_diff_result= block_history_guard.add_state_diff(msg_block_hash, Some(new_market_state_db.clone()), msg.state_update.clone());
-
-                                    match add_state_diff_result {
-                                        Ok(_) => {
-                                            debug!("Block History len :{}", block_history_guard.len());
-
-                                            let accounts_len = market_state_guard.accounts_len();
-                                            let accounts_db_len = market_state_guard.accounts_db_len();
-                                            let storage_len = market_state_guard.storage_len();
-                                            let storage_db_len = market_state_guard.storage_db_len();
-                                            trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
-
-
-                                            market_state_guard.state_db = new_market_state_db.clone();
-                                            market_state_guard.block_hash = msg_block_hash;
-                                            market_state_guard.block_number = latest_block_number;
-
-                                            info!("market state updated ok records : update len: {} accounts: {} contracts: {}", msg.state_update.len(), new_market_state_db.accounts.len(),  new_market_state_db.contracts.len()  );
-
-                                            market_events_tx.send(MarketEvents::BlockStateUpdate{ block_hash : msg_block_hash} ).await.unwrap();
-
-                                            //Merging DB in background and update market state
-                                            let market_state_clone= market_state.clone();
-
-                                            tokio::task::spawn( async move{
-                                                let merged_db = new_market_state_db.merge();
-                                                let mut market_state_guard = market_state_clone.write().await;
-                                                market_state_guard.state_db = LoomInMemoryDB::new( Arc::new(merged_db));
-                                                debug!("Merged DB stored in MarketState at block {}", msg_block_number)
-                                            });
-                                        }
-                                        Err(e)=>{
-                                            error!("block_state_update add_block error {} {}", e, msg_block_hash);
-                                        }
-                                    }
-                                }
-                            }
-                            Err(e)=>{
-                                error!("set_chain_head : {}", e)
+                    let new_market_state_db = if market_state_guard.block_hash.is_zero() || market_state_guard.block_hash == latest_block_parent_hash {
+                        let db = market_state_guard.state_db.clone();
+                        apply_state_update(db, msg.state_update.clone(), &market_state_guard)
+                    } else {
+                        match block_history_manager.apply_state_update_on_parent_db(block_history_guard.deref_mut(), &market_state_guard, msg_block_hash ).await {
+                            Ok(db) => db,
+                            Err(e) => {
+                                error!("apply_state_update_on_parent_db error {}, {}", e, msg_block_hash);
+                                continue
                             }
                         }
+                    };
 
-
-
+                    if let Err(e) = block_history_guard.add_state_diff(msg_block_hash, Some(new_market_state_db.clone()), msg.state_update.clone()) {
+                        error!("block_history.add_state_diff {}, {}", e, msg_block_hash);
+                        continue
                     }
-                    Err(e)=>{
-                        error!("block state update message error : {}", e);
-                    }
+
+                    debug!("Block History len :{}", block_history_guard.len());
+
+                    let accounts_len = market_state_guard.accounts_len();
+                    let accounts_db_len = market_state_guard.accounts_db_len();
+                    let storage_len = market_state_guard.storage_len();
+                    let storage_db_len = market_state_guard.storage_db_len();
+                    trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
+
+                    market_state_guard.state_db = new_market_state_db.clone();
+                    market_state_guard.block_hash = msg_block_hash;
+                    market_state_guard.block_number = latest_block_number;
+
+                    info!("market state updated ok records : update len: {} accounts: {} contracts: {}", msg.state_update.len(),
+                        new_market_state_db.accounts.len(),  new_market_state_db.contracts.len()  );
+
+                    run_async!(market_events_tx.send(MarketEvents::BlockStateUpdate{ block_hash : msg_block_hash} ));
+
+                    // Merging DB in background and update market state
+                    let market_state_clone= market_state.clone();
+
+                    tokio::task::spawn( async move{
+                        let merged_db = new_market_state_db.merge();
+                        let mut market_state_guard = market_state_clone.write().await;
+                        market_state_guard.state_db = LoomInMemoryDB::new( Arc::new(merged_db));
+                        debug!("Merged DB stored in MarketState at block {}", msg_block_number)
+                    });
                 }
-                debug!("Block State update finished");
-
             }
         }
     }
