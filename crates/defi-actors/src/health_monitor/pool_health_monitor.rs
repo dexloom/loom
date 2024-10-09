@@ -35,16 +35,16 @@ pub async fn pool_health_monitor_worker(
                                 market_guard.set_pool_ok(swap_error.pool, false);
                                 match market_guard.get_pool(&swap_error.pool) {
                                     Some(pool)=>{
-                                        error!("Disabling pool  {}@{:?} {} {}", pool.get_protocol(),swap_error.pool, swap_error.msg, swap_error.amount);
+                                        debug!("Disabling pool: protocol={}, address={:?}, msg={} amount={}", pool.get_protocol(),swap_error.pool, swap_error.msg, swap_error.amount);
                                     }
                                     _=>{
-                                        error!("Disabling pool NOT_FOUND@{:?} {} {}", swap_error.pool, swap_error.msg, swap_error.amount);
+                                        error!("Disabled pool missing in market: address={:?}, msg={} amount={}", swap_error.pool, swap_error.msg, swap_error.amount);
                                     }
                                 }
                             }
 
                             if *entry > 10  {
-                                error!("Pool disabled : {:?} {} {}", swap_error.pool, swap_error.msg, swap_error.amount);
+                                error!("Pool disabled: address={:?}, msg={} amount={}", swap_error.pool, swap_error.msg, swap_error.amount);
                             }
                         }
                     }
