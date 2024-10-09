@@ -8784,7 +8784,7 @@ dependencies = [
 [[package]]
 name = "rethdb-dexsync"
 version = "0.0.1"
-source = "git+https://github.com/cakevm/rethdb-dexsync?rev=65d5b45#65d5b45045efdc542c4c84d25280b4009a9d6610"
+source = "git+https://github.com/cakevm/rethdb-dexsync?rev=7569e53#7569e535562c5cc2a10622304e32010e63c95969"
 dependencies = [
  "alloy",
  "alloy-sol-types",

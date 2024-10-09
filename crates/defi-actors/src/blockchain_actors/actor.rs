@@ -285,19 +285,19 @@ where
     }
 
     /// Starts flashbots broadcaster
-    pub fn with_flashbots_broadcaster(&mut self, smart: bool) -> Result<&mut Self> {
+    pub fn with_flashbots_broadcaster(&mut self, smart: bool, allow_broadcast: bool) -> Result<&mut Self> {
         let flashbots = match self.relays.is_empty() {
             true => Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays(),
             false => Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_relays(self.relays.clone()),
         };
 
-        self.actor_manager.start(FlashbotsBroadcastActor::new(flashbots, smart).on_bc(&self.bc))?;
+        self.actor_manager.start(FlashbotsBroadcastActor::new(flashbots, smart, allow_broadcast).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start composer : estimator, signer and broadcaster
-    pub fn with_composers(&mut self) -> Result<&mut Self> {
-        self.with_evm_estimator()?.with_signers()?.with_flashbots_broadcaster(true)
+    pub fn with_composers(&mut self, allow_broadcast: bool) -> Result<&mut Self> {
+        self.with_evm_estimator()?.with_signers()?.with_flashbots_broadcaster(true, allow_broadcast)
     }
 
     /// Starts pool health monitor

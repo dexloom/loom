@@ -2,11 +2,12 @@ use alloy_eips::BlockNumberOrTag;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, MarketState, PoolClass, RethAdapter};
 use defi_pools::{PoolsConfig, Slot0, UniswapV2Pool, UniswapV3Pool};
+use eyre::eyre;
 use loom_actors::{Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 use reth_node_api::{FullNodeComponents, NodeAddOns};
-use reth_provider::StateProviderFactory;
-use rethdb_dexsync::univ2::{UniV2Factory, UNI_V2_FACTORY};
+use reth_provider::{BlockReaderIdExt, StateProviderFactory};
+use rethdb_dexsync::univ2::{PoolFilter, UniV2Factory, UNI_V2_FACTORY};
 use rethdb_dexsync::univ3::{UniV3PositionManager, UNI_V3_FACTORY, UNI_V3_POSITION_MANAGER};
 use std::time::Instant;
 use tokio::sync::oneshot;
@@ -28,7 +29,22 @@ where
         let (tx, rx) = oneshot::channel();
         let node = reth_adapter.node.clone().unwrap();
         node.task_executor.spawn_blocking(Box::pin(async move {
-            let univ2_factory = match UniV2Factory::load_pairs(&&node.provider, &BlockNumberOrTag::Latest, UNI_V2_FACTORY, None) {
+            let header = match node.provider.latest_header() {
+                Ok(header) => header.unwrap(),
+                Err(e) => {
+                    error!("Failed to load latest header: {:?}", e);
+                    tx.send(Err(eyre!(e))).unwrap();
+                    return;
+                }
+            };
+            let oldest_block = header.timestamp as u32 - 100_000 * 12; // 1000 blocks * 12 sec
+            let univ2_factory = match UniV2Factory::load_pairs(
+                &&node.provider,
+                &BlockNumberOrTag::Latest,
+                UNI_V2_FACTORY,
+                PoolFilter::new().block_timestamp_after(oldest_block),
+                None,
+            ) {
                 Ok(univ2_factory) => univ2_factory,
                 Err(e) => {
                     error!("Failed to load UniswapV2 pairs: {:?}", e);
