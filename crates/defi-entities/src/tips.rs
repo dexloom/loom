@@ -2,21 +2,21 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use alloy_primitives::utils::format_units;
 use alloy_primitives::{Address, U256};
-use defi_entities::{Swap, Token};
 use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use rand::random;
-use tracing::info;
+
+use crate::{Swap, Token};
+use loom_utils::NWETH;
 
 #[derive(Clone, Debug)]
 pub struct Tips {
-    pub(crate) token_in: Arc<Token>,
-    pub(crate) profit: U256,
-    pub(crate) profit_eth: U256,
-    pub(crate) tips: U256,
-    pub(crate) min_change: U256,
+    pub token_in: Arc<Token>,
+    pub profit: U256,
+    pub profit_eth: U256,
+    pub tips: U256,
+    pub min_change: U256,
 }
 
 impl Display for Tips {
@@ -25,10 +25,10 @@ impl Display for Tips {
             f,
             "{} : tips {} min_change {} profit : {} eth : {} ",
             self.token_in.get_symbol(),
-            format_units(self.tips, "ether").unwrap_or_default(),
+            NWETH::to_float(self.tips),
             self.token_in.to_float(self.min_change),
             self.token_in.to_float(self.profit),
-            format_units(self.profit_eth, "ether").unwrap_or_default(),
+            NWETH::to_float(self.profit_eth),
         )
     }
 }
@@ -62,15 +62,10 @@ pub fn randomize_tips_pct(tips_pct: u32) -> u32 {
 
 pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost: U256, eth_balance: U256) -> Result<(Vec<Tips>, U256)> {
     let total_profit_eth = swap.abs_profit_eth();
-    info!("Total profit eth : {}", format_units(total_profit_eth, "ether").unwrap_or_default());
+
     let tips_pct = randomize_tips_pct(tips_pct.unwrap_or(tips_pct_advanced(&total_profit_eth)));
 
     if total_profit_eth < gas_cost {
-        info!(
-            "total_profit_eth={} < {}",
-            format_units(total_profit_eth, "ether").unwrap_or_default(),
-            format_units(gas_cost, "ether").unwrap_or_default()
-        );
         return Err(eyre!("NOT_ENOUGH_PROFIT"));
     }
 

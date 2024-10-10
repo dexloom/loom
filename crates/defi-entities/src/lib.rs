@@ -13,6 +13,7 @@ pub use pool::{get_protocol_by_factory, AbiSwapEncoder, Pool, PoolClass, PoolPro
 pub use reth_provider::RethAdapter;
 pub use signers::{TxSigner, TxSigners};
 pub use swap::Swap;
+pub use swap_encoder::SwapEncoder;
 pub use swapline::{SwapAmountType, SwapLine};
 pub use swappath::{SwapPath, SwapPaths};
 pub use swappath_builder::build_swap_path_vec;
@@ -42,3 +43,5 @@ pub mod private;
 mod datafetcher;
 mod reth_provider;
 mod swap;
+mod swap_encoder;
+pub mod tips;

@@ -16,7 +16,7 @@ use loom_actors_macros::{Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 use loom_utils::evm::{env_for_block, evm_access_list};
 
-use crate::estimators::tips::tips_and_value_for_swap_type;
+use defi_entities::tips::tips_and_value_for_swap_type;
 
 async fn estimator_task(
     estimate_request: TxComposeData,
