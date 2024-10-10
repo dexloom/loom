@@ -1,8 +1,4 @@
-use std::collections::hash_map::Entry;
-use std::collections::HashMap;
-use std::marker::PhantomData;
-use std::sync::Arc;
-
+use alloy_consensus::constants::{EIP1559_TX_TYPE_ID, EIP2930_TX_TYPE_ID, EIP4844_TX_TYPE_ID, LEGACY_TX_TYPE_ID};
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::{Network, TransactionBuilder};
 use alloy_primitives::{Address, BlockNumber, TxHash, U256};
@@ -14,8 +10,12 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
+use std::collections::hash_map::Entry;
+use std::collections::HashMap;
+use std::marker::PhantomData;
+use std::sync::Arc;
 use tokio::sync::RwLock;
-use tracing::{debug, error};
+use tracing::{debug, error, warn};
 
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
@@ -73,7 +73,8 @@ where
 
     let mut transaction_request: TransactionRequest = tx.clone().into_request();
 
-    if transaction_request.transaction_type.unwrap_or_default() == 0 {
+    let transaction_type = transaction_request.transaction_type.unwrap_or_default();
+    if transaction_type == LEGACY_TX_TYPE_ID || transaction_type == EIP2930_TX_TYPE_ID {
         match transaction_request.gas_price {
             Some(g) => {
                 if g < cur_next_base_fee as u128 {
@@ -82,7 +83,7 @@ where
             }
             None => {
                 error!(
-                    "No gas price gas_price={:?}, max_fee_per_gas={:?}, max_priority_fee_per_gas={:?}, hash={:?}",
+                    "No gas price for gas_price={:?}, max_fee_per_gas={:?}, max_priority_fee_per_gas={:?}, hash={:?}",
                     transaction_request.gas_price,
                     transaction_request.max_fee_per_gas,
                     transaction_request.max_priority_fee_per_gas,
@@ -91,7 +92,7 @@ where
                 return Err(eyre!("NO_GAS_PRICE"));
             }
         }
-    } else {
+    } else if transaction_type == EIP1559_TX_TYPE_ID {
         match transaction_request.max_fee_per_gas {
             Some(g) => {
                 if g < cur_next_base_fee as u128 {
@@ -100,12 +101,22 @@ where
             }
             None => {
                 error!(
-                    "No base fee {:?} {:?} {:?}",
-                    transaction_request.gas_price, transaction_request.max_fee_per_gas, transaction_request.max_priority_fee_per_gas
+                    "No base fee for gas_price={:?}, max_fee_per_gas={:?}, max_priority_fee_per_gas={:?}, hash={:?}",
+                    transaction_request.gas_price,
+                    transaction_request.max_fee_per_gas,
+                    transaction_request.max_priority_fee_per_gas,
+                    mempool_tx.tx_hash
                 );
                 return Err(eyre!("NO_BASE_FEE"));
             }
         }
+    } else if transaction_type == EIP4844_TX_TYPE_ID {
+        // ignore blob tx
+        warn!("Ignore EIP4844 transaction: hash={:?}", mempool_tx.tx_hash);
+        return Ok(());
+    } else {
+        warn!("Unknown transaction type: type={}, hash={:?}", transaction_type, mempool_tx.tx_hash);
+        return Err(eyre!("UNKNOWN_TX_TYPE"));
     }
 
     let call_opts: GethDebugTracingCallOptions = GethDebugTracingCallOptions {

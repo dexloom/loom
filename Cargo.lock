@@ -4706,6 +4706,7 @@ dependencies = [
  "reth-rpc",
  "reth-rpc-types-compat",
  "revm",
+ "revm-inspectors",
  "tracing",
 ]
 
@@ -4731,7 +4732,6 @@ dependencies = [
  "defi-events",
  "defi-pools",
  "defi-types",
- "env_logger",
  "eyre",
  "flashbots",
  "futures",
@@ -4748,6 +4748,7 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
+ "tracing-subscriber",
 ]
 
 [[package]]

@@ -10,8 +10,8 @@ exclude.workspace = true
 
 [dependencies]
 tokio.workspace = true
-env_logger.workspace = true
 tracing.workspace = true
+tracing-subscriber.workspace = true
 eyre.workspace = true
 futures.workspace = true
 clap.workspace = true

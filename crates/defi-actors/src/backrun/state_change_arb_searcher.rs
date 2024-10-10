@@ -5,12 +5,14 @@ use alloy_primitives::{Address, U256};
 #[cfg(not(debug_assertions))]
 use chrono::TimeDelta;
 use eyre::{eyre, Result};
+use lazy_static::lazy_static;
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info};
 
+use alloy_primitives::utils::parse_units;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData};
@@ -61,7 +63,7 @@ async fn state_change_arb_searcher_task(
         );
         return Err(eyre!("NO_SWAP_PATHS"));
     }
-    warn!("Calculation started: swap_path_vec_len={} elapsed={}", swap_path_vec.len(), chrono::Local::now() - start_time);
+    info!("Calculation started: swap_path_vec_len={} elapsed={}", swap_path_vec.len(), chrono::Local::now() - start_time);
 
     let env = msg.evm_env();
 
@@ -89,12 +91,17 @@ async fn state_change_arb_searcher_task(
                                 warn!("Took longer than expected {} {}", took_time, mut_item.clone())
                             }
                         }
+                        /*amount_in: Set(100000000000000000),
+                        amount_out: Set(73690880749392842)
+
+                        amount_in: Set(100000000000000000),
+                        amount_out: Set(99760728185379858)
+
+                         */
+                        debug!("Calc result received: {}", mut_item);
 
                         if let Ok(profit) = mut_item.profit() {
-                            if profit.is_positive()
-                                && msg.next_base_fee != 0
-                                && mut_item.abs_profit_eth() > U256::from(200000 * msg.next_base_fee)
-                            {
+                            if profit.is_positive() && mut_item.abs_profit_eth() > U256::from(msg.next_base_fee * 200_000) {
                                 if let Err(e) = swap_path_tx.try_send(Ok(mut_item)) {
                                     error!("try_send ok swap_path_tx  error : {e}")
                                 }
@@ -212,6 +219,10 @@ pub async fn state_change_arb_searcher_worker(
             }
         }
     }
+}
+
+lazy_static! {
+    static ref START_OPTIMIZE_INPUT: U256 = parse_units("0.01", "ether").unwrap().get_absolute();
 }
 
 struct Calculator {}

@@ -13,7 +13,7 @@ use defi_types::{debug_trace_block, GethStateUpdateVec};
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_revm_db::LoomInMemoryDB;
 use tokio::sync::RwLock;
-use tracing::{error, trace, warn};
+use tracing::{debug, error, trace};
 
 use crate::MarketState;
 
@@ -199,7 +199,7 @@ impl BlockHistory {
             Ok(is_new)
         } else {
             if let Some(market_history_entry) = self.get_entry(&block_hash) {
-                warn!(
+                debug!(
                     "Block is already processed header: {} block : {} state_update : {} logs : {}",
                     market_history_entry.header.hash,
                     market_history_entry.block.is_some(),
