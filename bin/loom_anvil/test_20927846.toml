@@ -1,0 +1,31 @@
+# CHAD_0x5c CHAD_0x7d WETH ARB CASE
+[modules]
+signer = false
+
+
+[settings]
+block = 20927847
+coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
+multicaller = "0x3dd35b4da6534230ff53048f7477f17f7f4e7a70"
+skip_default = false
+
+[pools]
+chad_0x7d_weth_uni2 = { address = "0xff554b495ba09cb31c1833ed133e732aabaf7aca", class = "uniswap2" }
+chad_0x5c_chad_0x7d = { address = "0xd6a74e770fa71967b97186d9d59ce633627bffaa", class = "uniswap2" }
+chad_0x5c_weth_uni3 = { address = "0xf532da4460c965379593d38f89afae437fb54700", class = "uniswap3" }
+
+
+[txs]
+# block 20927848
+tx_1 = { hash = "0x98ce09e2d71ab3f4e47c8c437386c1b4413bf58242acb8d21c2e61a8123ed04e", send = "mempool" }
+
+
+[tokens]
+weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
+chad_0x5c = { address = "0x5c888fa2e6f9f0880321683d1efa12e936fd5051", symbol = "CHAD_0x5c", decimals = 18, basic = false, middle = false }
+chad_0x7d = { address = "0x7d7ef607A2B7aB675194D85eB03b276a93F6b71d", symbol = "CHAD_0x7d", decimals = 18, basic = false, middle = false }
+
+[results]
+swaps_encoded = 2
+swaps_ok = 2
+best_profit_eth = 0.00958

@@ -89,6 +89,14 @@ async fn state_change_arb_searcher_task(
                                 warn!("Took longer than expected {} {}", took_time, mut_item.clone())
                             }
                         }
+                        /*amount_in: Set(100000000000000000),
+                        amount_out: Set(73690880749392842)
+
+                        amount_in: Set(100000000000000000),
+                        amount_out: Set(99760728185379858)
+
+                         */
+                        debug!("Calc result received: {}", mut_item);
 
                         if let Ok(profit) = mut_item.profit() {
                             if profit.is_positive()
@@ -220,7 +228,7 @@ impl Calculator {
     #[inline]
     pub fn calculate<'a>(path: &'a mut SwapLine, state: &LoomInMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
         let first_token = path.get_first_token().unwrap();
-        if let Some(amount_in) = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))) {
+        if let Some(amount_in) = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(16))) {
             //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
             path.optimize_with_in_amount(state, env, amount_in)
         } else {

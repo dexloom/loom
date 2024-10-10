@@ -89,6 +89,7 @@ impl UniswapV2Pool {
         let safeswap_factory: Address = "0x7F09d4bE6bbF4b0fF0C97ca5c486a166198aEAeE".parse().unwrap();
         let miniswap_factory: Address = "0x2294577031F113DF4782B881cF0b140e94209a6F".parse().unwrap();
         let shibaswap_factory: Address = "0x115934131916C8b277DD010Ee02de363c09d037c".parse().unwrap();
+        let og_pepe_factory: Address = "0x52fbA58f936833F8b643e881Ad308b2e37713a86".parse().unwrap();
 
         if factory_address == uni2_factory {
             PoolProtocol::UniswapV2
@@ -104,8 +105,17 @@ impl UniswapV2Pool {
             PoolProtocol::Miniswap
         } else if factory_address == shibaswap_factory {
             PoolProtocol::Shibaswap
+        } else if factory_address == og_pepe_factory {
+            PoolProtocol::OgPepe
         } else {
             PoolProtocol::UniswapV2Like
+        }
+    }
+
+    fn get_fee_by_protocol(protocol: PoolProtocol) -> U256 {
+        match protocol {
+            PoolProtocol::DooarSwap | PoolProtocol::OgPepe => U256::from(9900),
+            _ => U256::from(9970),
         }
     }
 
@@ -120,7 +130,7 @@ impl UniswapV2Pool {
         let factory = UniswapV2StateReader::factory(db, env.clone(), address)?;
         let protocol = Self::get_protocol_by_factory(factory);
 
-        let fee = if protocol == PoolProtocol::DooarSwap { U256::from(9900) } else { U256::from(9970) };
+        let fee = Self::get_fee_by_protocol(protocol);
 
         let ret = UniswapV2Pool {
             address,
@@ -150,8 +160,6 @@ impl UniswapV2Pool {
         let factory: Address = uni2_pool.factory().call().await?._0;
         let reserves = uni2_pool.getReserves().call().await?.clone();
 
-        //let mut h = [0u8;32] = U256::from(8).to_be_bytes();
-
         let storage_reserves_cell = client.get_storage_at(address, U256::from(8)).block_id(BlockNumberOrTag::Latest.into()).await.unwrap();
 
         let storage_reserves = Self::storage_to_reserves(storage_reserves_cell);
@@ -166,7 +174,7 @@ impl UniswapV2Pool {
 
         let protocol = UniswapV2Pool::get_protocol_by_factory(factory);
 
-        let fee = if protocol == PoolProtocol::DooarSwap { U256::from(9900) } else { U256::from(9970) };
+        let fee = Self::get_fee_by_protocol(protocol);
 
         let ret = UniswapV2Pool {
             address,
