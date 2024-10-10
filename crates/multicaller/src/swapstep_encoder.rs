@@ -175,7 +175,7 @@ impl SwapStepEncoder {
         Ok((self.multicaller, call_data))
     }
 
-    pub fn encode(&self, sp0: &SwapStep, sp1: &SwapStep) -> Result<MulticallerCalls> {
+    pub fn encode_swap_steps(&self, sp0: &SwapStep, sp1: &SwapStep) -> Result<MulticallerCalls> {
         if sp0.can_flash_swap() {
             self.encode_in_amount(sp0.clone(), sp1.clone())
         } else if sp1.can_flash_swap() {

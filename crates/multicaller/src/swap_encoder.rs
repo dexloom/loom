@@ -1,61 +1,68 @@
-use alloy_primitives::{Address, Bytes};
-use eyre::{eyre, OptionExt, Result};
-use tracing::error;
-
-use defi_entities::Swap;
+use crate::MulticallerSwapEncoder;
+use alloy_primitives::{Bytes, U256};
+use defi_entities::{Swap, SwapEncoder, SwapStep};
 use defi_types::MulticallerCalls;
-
-use crate::SwapStepEncoder;
-
-pub trait SwapEncoder {
-    fn encode_calls(&self, calls: MulticallerCalls) -> Result<(Address, Bytes)>;
-    fn add_internal_calls(&self, opcodes: MulticallerCalls, inside_opcodes: MulticallerCalls) -> Result<MulticallerCalls>;
-    fn make_calls(&self, swap: &Swap) -> Result<MulticallerCalls>;
-}
-
-#[derive(Clone)]
-pub struct MulticallerSwapEncoder {
-    pub multicaller_address: Address,
-    pub swap_step_encoder: SwapStepEncoder,
-}
-
-impl MulticallerSwapEncoder {
-    pub fn new(multicaller_address: Address) -> Self {
-        Self { multicaller_address, swap_step_encoder: SwapStepEncoder::new(multicaller_address) }
-    }
-}
+use eyre::{eyre, OptionExt, Result};
+use tracing::{debug, error};
+use defi_entities::tips::tips_and_value_for_swap_type;
 
 impl SwapEncoder for MulticallerSwapEncoder {
-    fn encode_calls(&self, calls: MulticallerCalls) -> Result<(Address, Bytes)> {
-        self.swap_step_encoder.to_call_data(&calls)
-    }
-
-    fn add_internal_calls(&self, opcodes: MulticallerCalls, inside_opcodes: MulticallerCalls) -> Result<MulticallerCalls> {
-        self.swap_step_encoder.encode_do_calls(opcodes, inside_opcodes)
-    }
-
-    fn make_calls(&self, swap: &Swap) -> Result<MulticallerCalls> {
-        match swap {
-            Swap::BackrunSwapLine(swap_line) => {
-                let (swap_step_0, swap_step_1) = swap_line.to_swap_steps(self.multicaller_address).ok_or_eyre("SWAP_TYPE_NOT_COVERED")?;
-                self.swap_step_encoder.encode(&swap_step_0, &swap_step_1)
+    fn encode(&self, swap: Swap, bribe: Option<U256>) -> Result<Bytes> {
+        let swap_vec = match &swap {
+            Swap::BackrunSwapLine(_) | Swap::BackrunSwapSteps(_) => {
+                vec![swap.to_swap_steps(self.swap_step_encoder.get_multicaller()).ok_or_eyre("SWAP_TYPE_NOTE_COVERED")?]
             }
-            Swap::BackrunSwapSteps((swap_step_0, swap_step_1)) => self.swap_step_encoder.encode(swap_step_0, swap_step_1),
             Swap::Multiple(swap_vec) => {
-                if swap_vec.len() == 1 {
-                    self.make_calls(&swap_vec[0])
-                } else {
-                    let mut multicaller_calls = MulticallerCalls::new();
-                    for swap in swap_vec {
-                        multicaller_calls = self.add_internal_calls(multicaller_calls, self.make_calls(swap)?)?;
-                    }
-                    Ok(multicaller_calls)
+                let mut ret: Vec<(SwapStep, SwapStep)> = Vec::new();
+                for s in swap_vec.iter() {
+                    ret.push(s.to_swap_steps(self.swap_step_encoder.get_multicaller()).ok_or_eyre("AA")?);
                 }
+                ret
             }
-            _ => {
-                error!("Swap type not supported");
-                Err(eyre!("SWAP_TYPE_NOT_SUPPORTED"))
+            Swap::ExchangeSwapLine(_) => vec![],
+            Swap::None => {
+                vec![]
             }
-        }
+        };
+
+        let swap_opcodes = if swap_vec.is_empty() {
+            match &swap {
+                Swap::ExchangeSwapLine(swap_line) => {
+                    debug!("Swap::ExchangeSwapLine encoding started");
+                    match self.swap_step_encoder.swap_line_encoder.encode_swap_line_in_amount(
+                        swap_line,
+                        self.swap_step_encoder.get_multicaller(),
+                        self.swap_step_encoder.get_multicaller(),
+                    ) {
+                        Ok(calls) => calls,
+                        Err(e) => {
+                            error!("swap_line_encoder.encode_swap_line_in_amount : {}", e);
+                            return Err(eyre!("ENCODING_FAILED"));
+                        }
+                    }
+                }
+                _ => return Err(eyre!("NO_SWAP_STEPS")),
+            }
+        } else if swap_vec.len() == 1 {
+            let sp0 = &swap_vec[0].0;
+            let sp1 = &swap_vec[0].1;
+            self.swap_step_encoder.encode_swap_steps(sp0, sp1)?
+        } else {
+            let mut ret = MulticallerCalls::new();
+            for (sp0, sp1) in swap_vec.iter() {
+                ret = self.swap_step_encoder.encode_do_calls(ret, self.swap_step_encoder.encode_swap_steps(sp0, sp1)?)?;
+            }
+            ret
+        };
+
+
+        let (tips_vec, call_value) = tips_and_value_for_swap_type(&swap, None, gas_cost, estimate_request.eth_balance)?;
+
+
+        for tips in tips_vec {
+            tips_opcodes =
+                self.swap_step_encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
+
+        Err(eyre!("NOT_IMPLEMENTED"))
     }
 }

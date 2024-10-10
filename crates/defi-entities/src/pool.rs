@@ -74,7 +74,9 @@ pub enum PoolClass {
     #[serde(rename = "rocketpool")]
     #[strum(serialize = "rocketpool")]
     RocketPool,
-    //NomiswapStable,
+    #[serde(rename = "custom")]
+    #[strum(serialize = "custom")]
+    Custom(u64),
 }
 
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
@@ -98,6 +100,7 @@ pub enum PoolProtocol {
     LidoStEth,
     LidoWstEth,
     RocketEth,
+    Custom(u64),
 }
 
 impl Display for PoolProtocol {
@@ -122,6 +125,7 @@ impl Display for PoolProtocol {
             Self::LidoWstEth => "WstEth",
             Self::LidoStEth => "StEth",
             Self::RocketEth => "RocketEth",
+            Self::Custom(x) => "Custom",
         };
         write!(f, "{}", protocol_name)
     }

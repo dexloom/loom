@@ -58,11 +58,11 @@ async fn encoder_task(
     } else if swap_vec.len() == 1 {
         let sp0 = &swap_vec[0].0;
         let sp1 = &swap_vec[0].1;
-        encoder.encode(sp0, sp1)?
+        encoder.encode_swap_steps(sp0, sp1)?
     } else {
         let mut ret = MulticallerCalls::new();
         for (sp0, sp1) in swap_vec.iter() {
-            ret = encoder.encode_do_calls(ret, encoder.encode(sp0, sp1)?)?;
+            ret = encoder.encode_do_calls(ret, encoder.encode_swap_steps(sp0, sp1)?)?;
         }
         ret
     };

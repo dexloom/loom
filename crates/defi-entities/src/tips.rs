@@ -7,16 +7,16 @@ use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use rand::random;
 
-use defi_entities::{Swap, Token};
+use crate::{Swap, Token};
 use loom_utils::NWETH;
 
 #[derive(Clone, Debug)]
 pub struct Tips {
-    pub(crate) token_in: Arc<Token>,
-    pub(crate) profit: U256,
-    pub(crate) profit_eth: U256,
-    pub(crate) tips: U256,
-    pub(crate) min_change: U256,
+    pub token_in: Arc<Token>,
+    pub profit: U256,
+    pub profit_eth: U256,
+    pub tips: U256,
+    pub min_change: U256,
 }
 
 impl Display for Tips {
