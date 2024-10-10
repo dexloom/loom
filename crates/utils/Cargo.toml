@@ -10,6 +10,7 @@ exclude.workspace = true
 
 [dependencies]
 revm.workspace = true
+revm-inspectors = {workspace = true, optional = true}
 
 alloy.workspace = true
 
@@ -17,7 +18,6 @@ reth-primitives.workspace = true
 reth-db.workspace = true
 reth-rpc.workspace = true
 reth-rpc-types-compat.workspace = true
-
 
 eyre.workspace = true
 tracing.workspace = true
@@ -28,3 +28,6 @@ loom-revm-db.workspace = true
 
 debug-provider.workspace = true
 defi-abi.workspace = true
+
+[features]
+trace-calls = ["revm-inspectors"]
