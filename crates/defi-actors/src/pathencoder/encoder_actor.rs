@@ -1,18 +1,21 @@
+use alloy_primitives::utils::parse_units;
 use alloy_primitives::{Address, U256};
-use eyre::{eyre, OptionExt, Result};
-use tokio::sync::broadcast::error::RecvError;
-use tokio::sync::broadcast::Receiver;
-use tracing::{debug, error};
-
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, Swap, SwapStep, TxSigners};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
 use defi_types::MulticallerCalls;
+use eyre::{eyre, OptionExt, Result};
+use lazy_static::lazy_static;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
+use tokio::sync::broadcast::error::RecvError;
+use tokio::sync::broadcast::Receiver;
+use tracing::{debug, error};
 
-const PRIORITY_GAS_FEE: u64 = 10_u64.pow(9);
+lazy_static! {
+    static ref PRIORITY_GAS_FEE: u64 = parse_units("9", "gwei").unwrap().get_absolute().to::<u64>();
+}
 
 /// encoder task performs encode for request
 async fn encoder_task(
@@ -81,7 +84,7 @@ async fn encoder_task(
             } else {
                 let gas = (encode_request.swap.pre_estimate_gas()) * 2;
                 let value = U256::ZERO;
-                let priority_gas_fee: u64 = if base_fee > PRIORITY_GAS_FEE { PRIORITY_GAS_FEE } else { base_fee };
+                let priority_gas_fee: u64 = if base_fee > *PRIORITY_GAS_FEE { *PRIORITY_GAS_FEE } else { base_fee };
 
                 let estimate_request = TxComposeData {
                     signer: Some(signer),

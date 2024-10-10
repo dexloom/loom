@@ -78,118 +78,114 @@ async fn estimator_task(
         ..TransactionRequest::default()
     };
 
-    if let Some(db) = estimate_request.poststate {
-        let evm_env = env_for_block(estimate_request.block, estimate_request.block_timestamp);
-        match evm_access_list(&db, &evm_env, &tx_request) {
-            Ok((gas_used, access_list)) => {
-                let swap = estimate_request.swap.clone();
-
-                if gas_used < 60_000 {
-                    error!("Incorrect transaction estimation {} Gas used : {}", swap, gas_used);
-                    return Err(eyre!("TRANSACTION_ESTIMATED_INCORRECTLY"));
-                }
-
-                let gas_cost = U256::from(gas_used as u128 * gas_price as u128);
-
-                let mut tips_vec = vec![];
-
-                let (to, calldata, call_value) = if !matches!(estimate_request.swap, Swap::ExchangeSwapLine(_)) {
-                    if gas_cost > estimate_request.swap.abs_profit_eth() {
-                        error!("Profit is too small");
-                        return Err(eyre!("TOO_SMALL_PROFIT"));
-                    }
-
-                    let (upd_tips_vec, call_value) =
-                        tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
-                    tips_vec = upd_tips_vec;
-
-                    let call_value = if call_value.is_zero() { None } else { Some(call_value) };
-
-                    let mut tips_opcodes = opcodes.clone();
-
-                    for tips in tips_vec.iter() {
-                        tips_opcodes = encoder.encode_tips(
-                            tips_opcodes,
-                            tips.token_in.get_address(),
-                            tips.min_change,
-                            tips.tips,
-                            tx_signer.address(),
-                        )?;
-                    }
-                    let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
-                    (to, calldata, call_value)
-                } else {
-                    (to, calldata, None)
-                };
-
-                let tx_request = TransactionRequest {
-                    transaction_type: Some(2),
-                    chain_id: Some(1),
-                    from: Some(tx_signer.address()),
-                    to: Some(TxKind::Call(to)),
-                    gas: Some((gas_used * 1200) / 1000),
-                    value: call_value,
-                    input: TransactionInput::new(calldata),
-                    nonce: Some(estimate_request.nonce),
-                    access_list: Some(access_list),
-                    max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-                    max_fee_per_gas: Some(estimate_request.base_fee as u128), // TODO: Why not prio + base fee?
-                    ..TransactionRequest::default()
-                };
-
-                let encoded_txes: Result<Vec<TxEnvelope>, _> =
-                    estimate_request.stuffing_txs.iter().map(|item| TxEnvelope::try_from(item.clone())).collect();
-
-                let stuffing_txs_rlp: Vec<Bytes> = encoded_txes?.into_iter().map(|x| Bytes::from(x.encoded_2718())).collect();
-
-                let mut tx_with_state: Vec<TxState> = stuffing_txs_rlp.into_iter().map(TxState::ReadyForBroadcastStuffing).collect();
-
-                tx_with_state.push(TxState::SignatureRequired(tx_request));
-
-                let total_tips = tips_vec.into_iter().map(|v| v.tips).sum();
-                let profit_eth = estimate_request.swap.abs_profit_eth();
-                let gas_cost_f64 = NWETH::to_float(gas_cost);
-                let tips_f64 = NWETH::to_float(total_tips);
-                let profit_eth_f64 = NWETH::to_float(profit_eth);
-                let profit_f64 = match estimate_request.swap.get_first_token() {
-                    Some(token_in) => token_in.to_float(estimate_request.swap.abs_profit()),
-                    None => profit_eth_f64,
-                };
-
-                let sign_request = MessageTxCompose::sign(TxComposeData {
-                    tx_bundle: Some(tx_with_state),
-                    poststate: Some(db),
-                    tips: Some(total_tips + gas_cost),
-                    ..estimate_request
-                });
-
-                let result = match compose_channel_tx.send(sign_request).await {
-                    Err(e) => {
-                        error!("{e}");
-                        Err(eyre!("COMPOSE_CHANNEL_SEND_ERROR"))
-                    }
-                    _ => Ok(()),
-                };
-
-                let sim_duration = chrono::Local::now() - start_time;
-
-                //TODO add formated paths
-                info!(
-                    " +++ Simulation successful. Cost {} Profit {} ProfitEth {} Tips {} {}  Gas used {} Time {}",
-                    gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, swap, gas_used, sim_duration
-                );
-
-                result
-            }
-            Err(e) => {
-                error!("evm_access_list error {}: {e}", estimate_request.swap);
-                Err(eyre!("EVM_ACCESS_LIST_ERROR"))
-            }
-        }
-    } else {
+    let Some(db) = estimate_request.poststate else {
         error!("StateDB is None");
-        Err(eyre!("STATE_DB_IS_NONE"))
+        return Err(eyre!("STATE_DB_IS_NONE"));
+    };
+    let evm_env = env_for_block(estimate_request.block, estimate_request.block_timestamp);
+    let (gas_used, access_list) = match evm_access_list(&db, &evm_env, &tx_request) {
+        Ok((gas_used, access_list)) => (gas_used, access_list),
+        Err(e) => {
+            error!(
+                "evm_access_list error for block_number={}, block_timestamp={}, swap={}, err={e}",
+                estimate_request.block, estimate_request.block_timestamp, estimate_request.swap
+            );
+            return Err(eyre!("EVM_ACCESS_LIST_ERROR"));
+        }
+    };
+    let swap = estimate_request.swap.clone();
+
+    if gas_used < 60_000 {
+        error!("Incorrect transaction estimation {} Gas used : {}", swap, gas_used);
+        return Err(eyre!("TRANSACTION_ESTIMATED_INCORRECTLY"));
     }
+
+    let gas_cost = U256::from(gas_used as u128 * gas_price as u128);
+
+    let mut tips_vec = vec![];
+
+    let (to, calldata, call_value) = if !matches!(estimate_request.swap, Swap::ExchangeSwapLine(_)) {
+        if gas_cost > estimate_request.swap.abs_profit_eth() {
+            error!("Profit is too small");
+            return Err(eyre!("TOO_SMALL_PROFIT"));
+        }
+
+        let (upd_tips_vec, call_value) =
+            tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
+        tips_vec = upd_tips_vec;
+
+        let call_value = if call_value.is_zero() { None } else { Some(call_value) };
+
+        let mut tips_opcodes = opcodes.clone();
+
+        for tips in tips_vec.iter() {
+            tips_opcodes =
+                encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
+        }
+        let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
+        (to, calldata, call_value)
+    } else {
+        (to, calldata, None)
+    };
+
+    let tx_request = TransactionRequest {
+        transaction_type: Some(2),
+        chain_id: Some(1),
+        from: Some(tx_signer.address()),
+        to: Some(TxKind::Call(to)),
+        gas: Some((gas_used * 1200) / 1000),
+        value: call_value,
+        input: TransactionInput::new(calldata),
+        nonce: Some(estimate_request.nonce),
+        access_list: Some(access_list),
+        max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
+        max_fee_per_gas: Some(estimate_request.base_fee as u128), // TODO: Why not prio + base fee?
+        ..TransactionRequest::default()
+    };
+
+    let encoded_txes: Result<Vec<TxEnvelope>, _> =
+        estimate_request.stuffing_txs.iter().map(|item| TxEnvelope::try_from(item.clone())).collect();
+
+    let stuffing_txs_rlp: Vec<Bytes> = encoded_txes?.into_iter().map(|x| Bytes::from(x.encoded_2718())).collect();
+
+    let mut tx_with_state: Vec<TxState> = stuffing_txs_rlp.into_iter().map(TxState::ReadyForBroadcastStuffing).collect();
+
+    tx_with_state.push(TxState::SignatureRequired(tx_request));
+
+    let total_tips = tips_vec.into_iter().map(|v| v.tips).sum();
+    let profit_eth = estimate_request.swap.abs_profit_eth();
+    let gas_cost_f64 = NWETH::to_float(gas_cost);
+    let tips_f64 = NWETH::to_float(total_tips);
+    let profit_eth_f64 = NWETH::to_float(profit_eth);
+    let profit_f64 = match estimate_request.swap.get_first_token() {
+        Some(token_in) => token_in.to_float(estimate_request.swap.abs_profit()),
+        None => profit_eth_f64,
+    };
+
+    let sign_request = MessageTxCompose::sign(TxComposeData {
+        tx_bundle: Some(tx_with_state),
+        poststate: Some(db),
+        tips: Some(total_tips + gas_cost),
+        ..estimate_request
+    });
+
+    let result = match compose_channel_tx.send(sign_request).await {
+        Err(e) => {
+            error!("{e}");
+            Err(eyre!("COMPOSE_CHANNEL_SEND_ERROR"))
+        }
+        _ => Ok(()),
+    };
+
+    let sim_duration = chrono::Local::now() - start_time;
+
+    //TODO add formated paths
+    info!(
+        " +++ Simulation successful. Cost {} Profit {} ProfitEth {} Tips {} {}  Gas used {} Time {}",
+        gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, swap, gas_used, sim_duration
+    );
+
+    result
 }
 
 async fn estimator_worker(

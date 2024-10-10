@@ -3,7 +3,10 @@ use std::convert::Infallible;
 
 use alloy::eips::BlockNumHash;
 use alloy::primitives::TxHash;
+
 use alloy::rpc::types::trace::geth::AccountState;
+#[cfg(feature = "trace-calls")]
+use alloy::rpc::types::trace::parity::TraceType;
 use alloy::rpc::types::Log;
 use alloy::{
     primitives::{Address, Bytes, B256, U256},
@@ -12,9 +15,16 @@ use alloy::{
 use defi_types::GethStateUpdate;
 use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
+#[cfg(feature = "trace-calls")]
+use revm::inspector_handle_register;
 use revm::interpreter::Host;
 use revm::primitives::{Account, BlockEnv, Env, ExecutionResult, Output, ResultAndState, TransactTo, TxEnv, SHANGHAI};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
+#[cfg(feature = "trace-calls")]
+use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
+#[cfg(feature = "trace-calls")]
+use std::collections::HashSet;
+
 use tracing::{debug, error, trace};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
@@ -116,6 +126,18 @@ where
 
     env.block.coinbase = *COINBASE;
 
+    #[cfg(feature = "trace-calls")]
+    let mut evm = Evm::builder()
+        .with_ref_db(state_db)
+        .with_spec_id(SHANGHAI)
+        .with_env(Box::new(env))
+        .with_external_context(TracingInspector::new(TracingInspectorConfig::from_parity_config(&HashSet::from_iter(vec![
+            TraceType::Trace,
+        ]))))
+        .append_handler_register(inspector_handle_register)
+        .build();
+
+    #[cfg(not(feature = "trace-calls"))]
     let mut evm = Evm::builder().with_ref_db(state_db).with_spec_id(SHANGHAI).with_env(Box::new(env)).build();
 
     match evm.transact() {
@@ -133,7 +155,10 @@ where
                 Ok((gas_used, acl))
             }
             ExecutionResult::Revert { output, gas_used } => {
-                error!("Revert {output} gas used {gas_used}");
+                #[cfg(feature = "trace-calls")]
+                debug!("Trace: {:#?}", evm.context.external.into_parity_builder().into_transaction_traces());
+
+                error!("Revert reason '{}' gas used {gas_used}", revert_bytes_to_string(&output));
                 Err(eyre!("EXECUTION_REVERTED"))
             }
             ExecutionResult::Halt { reason, .. } => {
@@ -248,4 +273,16 @@ pub fn convert_evm_result_to_rpc(
     }
 
     Ok((logs, state_update))
+}
+
+pub fn revert_bytes_to_string(bytes: &Bytes) -> String {
+    if bytes.len() < 4 {
+        return format!("{:?}", bytes);
+    }
+    let error_data = &bytes[4..];
+
+    match String::from_utf8(error_data.to_vec()) {
+        Ok(s) => s.replace(char::from(0), "").trim().to_string(),
+        Err(_) => format!("{:?}", bytes),
+    }
 }

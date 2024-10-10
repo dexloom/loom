@@ -9,10 +9,6 @@ use alloy_provider::network::eip2718::Encodable2718;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, BlockTransactionsKind};
 use clap::Parser;
-use env_logger::Env as EnvLog;
-use eyre::{OptionExt, Result};
-use tracing::{debug, error, info};
-
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
@@ -21,7 +17,12 @@ use defi_actors::{
     TxSignersActor,
 };
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners};
+use eyre::{OptionExt, Result};
 use loom_utils::NWETH;
+use tracing::{debug, error, info};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{fmt, EnvFilter, Layer};
 
 use defi_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
@@ -98,7 +99,9 @@ struct Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    env_logger::init_from_env(EnvLog::default().default_filter_or("debug,alloy_rpc_client=off"));
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "debug,alloy_rpc_client=off,loom_multicaller=trace".into());
+    let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(true).with_line_number(true).with_filter(env_filter);
+    tracing_subscriber::registry().with(fmt_layer).init();
 
     let args = Commands::parse();
 
@@ -123,9 +126,10 @@ async fn main() -> Result<()> {
     let block_nr = client.get_block_number().await?;
     info!("Block : {}", block_nr);
 
-    let block_header = client.get_block(block_nr.into(), BlockTransactionsKind::Hashes).await.unwrap().unwrap().header;
+    let block_header = client.get_block(block_nr.into(), BlockTransactionsKind::Hashes).await?.unwrap().header;
+    info!("Block header : {:?}", block_header);
 
-    let block_header_with_txes = client.get_block(block_nr.into(), BlockTransactionsKind::Full).await.unwrap().unwrap();
+    let block_header_with_txes = client.get_block(block_nr.into(), BlockTransactionsKind::Full).await?.unwrap();
 
     let cache_db = LoomInMemoryDB::default();
 
@@ -256,7 +260,7 @@ async fn main() -> Result<()> {
         _ => info!("Price actor has been initialized"),
     }
 
-    for (_pool_name, pool_config) in test_config.pools {
+    for (pool_name, pool_config) in test_config.pools {
         match pool_config.class {
             PoolClass::UniswapV2 | PoolClass::UniswapV3 => {
                 debug!("Loading uniswap pool");
@@ -284,6 +288,11 @@ async fn main() -> Result<()> {
                 error!("Unknown pool class")
             }
         }
+        let swap_path_len = market_instance.read().await.get_pool_paths(&pool_config.address).unwrap_or_default().len();
+        info!(
+            "Loaded pool '{}' with address={}, pool_class={}, swap_paths={}",
+            pool_name, pool_config.address, pool_config.class, swap_path_len
+        );
     }
 
     info!("Starting block history actor");
@@ -524,7 +533,7 @@ async fn main() -> Result<()> {
     let mut s = tx_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
-    let timeout_duration = Duration::from_secs(5);
+    let timeout_duration = Duration::from_secs(500);
 
     loop {
         tokio::select! {

@@ -1,10 +1,9 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
+use crate::{Market, PoolWrapper, SwapPath};
 use alloy_primitives::Address;
 use eyre::Result;
-
-use crate::{Market, PoolWrapper, SwapPath};
 
 struct SwapPathSet {
     set: HashSet<SwapPath>,
@@ -29,6 +28,7 @@ impl SwapPathSet {
     }
 }
 
+// (Basic -> Token1) -> (Token1 -> Basic)
 fn build_swap_path_two_hopes_basic_in(
     market: &Market,
     pool: &PoolWrapper,
@@ -36,27 +36,27 @@ fn build_swap_path_two_hopes_basic_in(
     token_to_address: Address,
 ) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
-    if let Some(token_token_pools) = market.get_token_token_pools(&token_to_address, &token_from_address) {
-        for pool_address in token_token_pools.iter() {
-            if !market.is_pool_ok(pool_address) {
-                continue;
-            }
+    let Some(token_token_pools) = market.get_token_token_pools(&token_to_address, &token_from_address) else {
+        return Ok(ret);
+    };
+    for pool_address in token_token_pools.iter() {
+        if !market.is_pool_ok(pool_address) {
+            continue;
+        }
 
-            if let Some(loop_pool) = market.get_pool(pool_address) {
-                let token_from = market.get_token_or_default(&token_from_address);
-                let token_to = market.get_token_or_default(&token_to_address);
+        let Some(loop_pool) = market.get_pool(pool_address) else { continue };
+        let token_from = market.get_token_or_default(&token_from_address);
+        let token_to = market.get_token_or_default(&token_to_address);
 
-                let mut swap_path = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
-                if !swap_path.contains_pool(loop_pool) {
-                    swap_path.push_swap_hope(token_to, token_from, loop_pool.clone())?;
-                    ret.push(swap_path)
-                }
-            }
+        let mut swap_path = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
+        if !swap_path.contains_pool(loop_pool) {
+            swap_path.push_swap_hope(token_to, token_from, loop_pool.clone())?;
+            ret.push(swap_path)
         }
     }
     Ok(ret)
 }
-
+// (Basic -> Token1) -> (Token1 -> Token2) -> (Token2 -> Basic)
 fn build_swap_path_three_hopes_basic_in(
     market: &Market,
     pool: &PoolWrapper,
@@ -64,51 +64,50 @@ fn build_swap_path_three_hopes_basic_in(
     token_to_address: Address,
 ) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
-    if let Some(token_tokens) = market.get_token_tokens(&token_to_address) {
-        for token_middle_address in token_tokens.iter() {
-            if let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) {
-                if let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) {
-                    for pool_address_1 in token_token_pools_1.iter() {
-                        if !market.is_pool_ok(pool_address_1) {
-                            continue;
-                        }
+    let Some(token_tokens) = market.get_token_tokens(&token_to_address) else {
+        return Ok(ret);
+    };
+    for token_middle_address in token_tokens.iter() {
+        let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) else { continue };
+        let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) else { continue };
 
-                        for pool_address_2 in token_token_pools_2.iter() {
-                            if !market.is_pool_ok(pool_address_2) {
-                                continue;
-                            }
+        for pool_address_1 in token_token_pools_1.iter() {
+            if !market.is_pool_ok(pool_address_1) {
+                continue;
+            }
 
-                            if let Some(pool_1) = market.get_pool(pool_address_1) {
-                                if let Some(pool_2) = market.get_pool(pool_address_2) {
-                                    let token_from = market.get_token_or_default(&token_from_address);
-                                    let token_to = market.get_token_or_default(&token_to_address);
-                                    let token_middle = market.get_token_or_default(token_middle_address);
-
-                                    let mut swap = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
-                                    if !swap.contains_pool(pool_1) {
-                                        let _ = swap.push_swap_hope(token_to, token_middle.clone(), pool_1.clone());
-                                    } else {
-                                        continue;
-                                    }
-
-                                    if !swap.contains_pool(pool_2) {
-                                        let _ = swap.push_swap_hope(token_middle, token_from, pool_2.clone());
-                                    } else {
-                                        continue;
-                                    }
-
-                                    ret.push(swap)
-                                }
-                            }
-                        }
-                    }
+            for pool_address_2 in token_token_pools_2.iter() {
+                if !market.is_pool_ok(pool_address_2) {
+                    continue;
                 }
+
+                let Some(pool_1) = market.get_pool(pool_address_1) else { continue };
+                let Some(pool_2) = market.get_pool(pool_address_2) else { continue };
+
+                let token_from = market.get_token_or_default(&token_from_address);
+                let token_to = market.get_token_or_default(&token_to_address);
+                let token_middle = market.get_token_or_default(token_middle_address);
+
+                let mut swap = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
+                if !swap.contains_pool(pool_1) {
+                    let _ = swap.push_swap_hope(token_to, token_middle.clone(), pool_1.clone());
+                } else {
+                    continue;
+                }
+
+                if !swap.contains_pool(pool_2) {
+                    let _ = swap.push_swap_hope(token_middle, token_from, pool_2.clone());
+                } else {
+                    continue;
+                }
+
+                ret.push(swap)
             }
         }
     }
     Ok(ret)
 }
-
+// (Basic -> Token) -> (Token -> Token) -> (Token -> Token) -> (Token -> Basic)
 fn build_swap_path_four_hopes_basic_in(
     market: &Market,
     pool: &PoolWrapper,
@@ -225,44 +224,41 @@ fn build_swap_path_three_hopes_basic_out(
     token_to_address: Address,
 ) -> Result<Vec<SwapPath>> {
     let mut ret: Vec<SwapPath> = Vec::new();
-    if let Some(token_tokens) = market.get_token_tokens(&token_from_address) {
-        for token_middle_address in token_tokens.iter() {
-            if let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) {
-                if let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) {
-                    for pool_address_1 in token_token_pools_1.iter() {
-                        if !market.is_pool_ok(pool_address_1) {
-                            continue;
-                        }
+    let Some(token_tokens) = market.get_token_tokens(&token_from_address) else {
+        return Ok(vec![]);
+    };
+    for token_middle_address in token_tokens.iter() {
+        let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) else { continue };
+        let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) else { continue };
+        for pool_address_1 in token_token_pools_1.iter() {
+            if !market.is_pool_ok(pool_address_1) {
+                continue;
+            }
 
-                        for pool_address_2 in token_token_pools_2.iter() {
-                            if !market.is_pool_ok(pool_address_2) {
-                                continue;
-                            }
-                            if let Some(pool_1) = market.get_pool(pool_address_1) {
-                                if let Some(pool_2) = market.get_pool(pool_address_2) {
-                                    let token_from = market.get_token_or_default(&token_from_address);
-                                    let token_to = market.get_token_or_default(&token_to_address);
-                                    let token_middle = market.get_token_or_default(token_middle_address);
-
-                                    let mut swap = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
-                                    if !swap.contains_pool(pool_2) {
-                                        let _ = swap.insert_swap_hope(token_middle.clone(), token_from.clone(), pool_2.clone());
-                                    } else {
-                                        continue;
-                                    }
-
-                                    if !swap.contains_pool(pool_1) {
-                                        let _ = swap.insert_swap_hope(token_to, token_middle, pool_1.clone());
-                                    } else {
-                                        continue;
-                                    }
-
-                                    ret.push(swap)
-                                }
-                            }
-                        }
-                    }
+            for pool_address_2 in token_token_pools_2.iter() {
+                if !market.is_pool_ok(pool_address_2) {
+                    continue;
                 }
+                let Some(pool_1) = market.get_pool(pool_address_1) else { continue };
+                let Some(pool_2) = market.get_pool(pool_address_2) else { continue };
+                let token_from = market.get_token_or_default(&token_from_address);
+                let token_to = market.get_token_or_default(&token_to_address);
+                let token_middle = market.get_token_or_default(token_middle_address);
+
+                let mut swap = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
+                if !swap.contains_pool(pool_2) {
+                    let _ = swap.insert_swap_hope(token_middle.clone(), token_from.clone(), pool_2.clone());
+                } else {
+                    continue;
+                }
+
+                if !swap.contains_pool(pool_1) {
+                    let _ = swap.insert_swap_hope(token_to, token_middle, pool_1.clone());
+                } else {
+                    continue;
+                }
+
+                ret.push(swap)
             }
         }
     }
@@ -357,6 +353,7 @@ fn build_swap_path_four_hopes_basic_out(
     Ok(ret)
 }
 
+// (Token -> Token) -> (Token -> Token) -> (Token -> Token)
 fn build_swap_path_three_hopes_no_basic(
     market: &Market,
     pool: &PoolWrapper,
