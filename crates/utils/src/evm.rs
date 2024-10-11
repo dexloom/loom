@@ -66,7 +66,7 @@ where
     let value = match result {
         ExecutionResult::Success { output: Output::Call(value), .. } => Some((value.to_vec(), gas_used)),
         ExecutionResult::Revert { output, gas_used } => {
-            trace!("Revert {} : {:?}", gas_used, output);
+            trace!(gas_used, ?output, "Revert");
             #[cfg(feature = "trace-calls")]
             debug!("Revert trace: {:#?}", evm.context.external.into_parity_builder().into_transaction_traces());
 
@@ -159,8 +159,7 @@ where
     match evm.transact() {
         Ok(execution_result) => match execution_result.result {
             ExecutionResult::Success { output, gas_used, reason, .. } => {
-                debug!("AccessList Gas used : {gas_used} reason : {reason:?}");
-                debug!("AccessList Output : {output:?}");
+                debug!(gas_used, ?reason, ?output, "AccessList");
                 let mut acl = AccessList::default();
 
                 for (addr, acc) in execution_result.state {

@@ -17,7 +17,6 @@ use defi_pools::protocols::UniswapV3Protocol;
 use defi_types::GethStateUpdate;
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
-use loom_multicaller::SwapStepEncoder;
 use loom_utils::tokens::ETH_NATIVE_ADDRESS;
 use loom_utils::{BalanceCheater, NWETH};
 

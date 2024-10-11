@@ -9,7 +9,7 @@ use alloy_rpc_types::{Transaction, TransactionRequest};
 use eyre::{eyre, Result};
 
 use defi_entities::{Swap, TxSigner};
-use defi_types::{GethStateUpdateVec, MulticallerCalls};
+use defi_types::GethStateUpdateVec;
 use loom_revm_db::LoomInMemoryDB;
 
 use crate::Message;

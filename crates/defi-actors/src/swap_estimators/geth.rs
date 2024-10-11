@@ -8,7 +8,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use rand::random;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info};
 
@@ -20,7 +19,6 @@ use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use flashbots::Flashbots;
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
-use loom_multicaller::SwapStepEncoder;
 
 async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static>(
     estimate_request: TxComposeData,
@@ -29,8 +27,6 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
     let token_in = estimate_request.swap.get_first_token().cloned().ok_or(eyre!("NO_TOKEN"))?;
-
-    let token_in_address = token_in.get_address();
 
     let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
 
@@ -44,7 +40,7 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
     let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
     let gas_cost = U256::from(100_000 * gas_price);
 
-    let (to, call_value, call_data, _) = swap_encoder.encode(
+    let (to, _, call_data, _) = swap_encoder.encode(
         estimate_request.swap.clone(),
         estimate_request.tips_pct,
         Some(estimate_request.next_block_number),
