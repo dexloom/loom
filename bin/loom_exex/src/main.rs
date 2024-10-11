@@ -15,7 +15,6 @@ use tracing_subscriber::{fmt, EnvFilter, Layer};
 mod arguments;
 mod loom;
 
-
 fn main() -> eyre::Result<()> {
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
     let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(true).with_line_number(true).with_filter(env_filter);
@@ -25,7 +24,6 @@ fn main() -> eyre::Result<()> {
     let app_args = AppArgs::from_arg_matches_mut(&mut AppArgs::command().ignore_errors(true).get_matches())?;
     match app_args.command {
         Command::Node(_) => Cli::<EthereumChainSpecParser, LoomArgs>::parse().run(|builder, loom_args: LoomArgs| async move {
-
             let topology_config = TopologyConfig::load_from_file(loom_args.loom_config)?;
 
             let bc = Blockchain::new(builder.config().chain.chain.id());
