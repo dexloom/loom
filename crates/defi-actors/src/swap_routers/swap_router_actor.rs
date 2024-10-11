@@ -46,14 +46,15 @@ async fn router_task(
                 let estimate_request =
                     TxComposeData { signer: Some(signer), nonce, eth_balance, gas, priority_gas_fee, value, ..route_request };
 
-            let estimate_request = MessageTxCompose::estimate(estimate_request);
+                let estimate_request = MessageTxCompose::estimate(estimate_request);
 
-            match compose_channel_tx.send(estimate_request).await {
-                Err(e) => {
-                    error!("{e}");
-                    Err(eyre!(e))
+                match compose_channel_tx.send(estimate_request).await {
+                    Err(e) => {
+                        error!("{e}");
+                        Err(eyre!(e))
+                    }
+                    Ok(_) => Ok(()),
                 }
-                Ok(_) => Ok(()),
             }
         }
         None => Err(eyre!("NO_SIGNER_AVAILABLE")),

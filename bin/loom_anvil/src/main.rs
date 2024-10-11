@@ -568,7 +568,7 @@ async fn main() -> Result<()> {
                 error!("Test failed. Not enough encoded swaps : {} need {}", stat.found_counter, swaps_encoded);
                 exit(1)
             } else {
-                info!("Test passed. Encoded swaps : {} required {}", stat.encode_counter, swaps_encoded);
+                info!("Test passed. Encoded swaps : {} required {}", stat.found_counter, swaps_encoded);
             }
         }
         if let Some(swaps_ok) = results.swaps_ok {

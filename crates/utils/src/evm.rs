@@ -18,15 +18,14 @@ use lazy_static::lazy_static;
 #[cfg(feature = "trace-calls")]
 use revm::inspector_handle_register;
 use revm::interpreter::Host;
+#[cfg(feature = "trace-calls")]
+use revm::primitives::HashSet;
 use revm::primitives::{Account, BlockEnv, Env, ExecutionResult, Output, ResultAndState, TransactTo, TxEnv, SHANGHAI};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 #[cfg(feature = "trace-calls")]
 use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
-#[cfg(feature = "trace-calls")]
-use std::collections::HashSet;
-
-use tracing::{debug, error};
 use tracing::log::trace;
+use tracing::{debug, error};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();

@@ -2,15 +2,14 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use alloy_primitives::utils::format_units;
 use crate::{Swap, Token};
+use alloy_primitives::utils::format_units;
 use alloy_primitives::{Address, U256};
-use defi_entities::{Swap, Token};
 use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use loom_utils::NWETH;
 use rand::random;
-use tracing::error;
+use tracing::{error, info};
 
 #[derive(Clone, Debug)]
 pub struct Tips {
@@ -72,13 +71,15 @@ pub fn tips_and_value_for_swap_type(
     info!("Total profit eth : {}", format_units(total_profit_eth, "ether").unwrap_or_default());
     let tips_pct = randomize_tips_pct(tips_pct.unwrap_or(tips_pct_advanced(&total_profit_eth)));
 
-    if total_profit_eth < gas_cost {
-        info!(
-            "total_profit_eth={} < {}",
-            format_units(total_profit_eth, "ether").unwrap_or_default(),
-            format_units(gas_cost, "ether").unwrap_or_default()
-        );
-        return Err(eyre!("NOT_ENOUGH_PROFIT"));
+    if let Some(gas_cost) = gas_cost {
+        if total_profit_eth < gas_cost {
+            info!(
+                "total_profit_eth={} < {}",
+                format_units(total_profit_eth, "ether").unwrap_or_default(),
+                format_units(gas_cost, "ether").unwrap_or_default()
+            );
+            return Err(eyre!("NOT_ENOUGH_PROFIT"));
+        }
     }
 
     match swap {
