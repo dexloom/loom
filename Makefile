@@ -1,13 +1,20 @@
 # Define the RUSTFLAGS to treat warnings as errors
-RELEASEFLAGS = -D warnings
+RELEASEFLAGS = -D warnings -C target-cpu=native
 
 # Target to run all tests
 .PHONY: build
 build:
 	cargo build --all
 
+# Build release
+.PHONY: release
 release:
 	export RELEASEFLAGS | cargo build --release
+
+# Build optimized release
+.PHONY: maxperf
+maxperf:
+	export RELEASEFLAGS | cargo build --profile maxperf
 
 # Target to run all tests
 .PHONY: test

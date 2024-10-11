@@ -148,3 +148,20 @@ tower = "0.5.1"
 criterion = { version = "0.5.1", features = ["async_tokio"] }
 rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "5a641ed" }
 #rethdb-dexsync = { path = "../rethdb-dexsync" }
+
+[profile.test]
+debug = 1
+incremental = true
+
+[profile.release]
+debug = "line-tables-only"
+lto = "thin"
+opt-level = 3
+panic = "unwind"
+strip = true # stripping of debuginfo
+
+[profile.maxperf]
+# set parallel codegen to 1 to increase performance
+codegen-units = 1
+inherits = "release"
+lto = "fat"
