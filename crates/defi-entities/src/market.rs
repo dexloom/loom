@@ -470,7 +470,7 @@ mod tests {
         assert_eq!(swap_paths.get(1).unwrap().tokens_count(), 3);
 
         // the order of the swap paths is not deterministic
-        let (first_path, second_path) = if swap_paths.get(0).unwrap().tokens.get(1).unwrap().get_address() == token1 {
+        let (first_path, second_path) = if swap_paths.get(0).unwrap().pools.get(0).unwrap().get_address() == pool_address1 {
             (swap_paths.get(0).unwrap(), swap_paths.get(1).unwrap())
         } else {
             (swap_paths.get(1).unwrap(), swap_paths.get(0).unwrap())
