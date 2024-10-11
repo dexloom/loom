@@ -24,15 +24,15 @@ use defi_entities::TxSigners;
 use defi_pools::PoolsConfig;
 use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, Consumer, Producer, SharedState, WorkerResult};
-use loom_multicaller::SwapStepEncoder;
+use loom_multicaller::MulticallerSwapEncoder;
 
 pub struct Topology {
     clients: HashMap<String, ClientConfigParams>,
     blockchains: HashMap<String, Blockchain>,
     signers: HashMap<String, SharedState<TxSigners>>,
-    encoders: HashMap<String, SwapStepEncoder>,
+    multicaller_encoders: HashMap<String, MulticallerSwapEncoder>,
     default_blockchain_name: Option<String>,
-    default_encoder_name: Option<String>,
+    default_multicaller_encoder_name: Option<String>,
     default_signer_name: Option<String>,
 }
 
@@ -42,9 +42,9 @@ impl Topology {
             clients: HashMap::new(),
             blockchains: HashMap::new(),
             signers: HashMap::new(),
-            encoders: HashMap::new(),
+            multicaller_encoders: HashMap::new(),
             default_blockchain_name: None,
-            default_encoder_name: None,
+            default_multicaller_encoder_name: None,
             default_signer_name: None,
         };
 
@@ -92,9 +92,9 @@ impl Topology {
             match v {
                 EncoderConfig::SwapStep(c) => {
                     let address: Address = c.address.parse()?;
-                    let encoder = SwapStepEncoder::new(address);
-                    topology.encoders.insert(k.clone(), encoder);
-                    topology.default_encoder_name = Some(k.clone());
+                    let encoder = MulticallerSwapEncoder::new(address);
+                    topology.multicaller_encoders.insert(k.clone(), encoder);
+                    topology.default_multicaller_encoder_name = Some(k.clone());
                 }
             }
         }
@@ -200,8 +200,9 @@ impl Topology {
                 let client = topology.get_client(params.client.as_ref())?;
                 let signers = topology.get_signers(params.signers.as_ref())?;
 
-                let mut market_state_preload_actor =
-                    MarketStatePreloadedOneShotActor::new(client).with_signers(signers.clone()).with_encoder(&topology.get_encoder(None)?);
+                let mut market_state_preload_actor = MarketStatePreloadedOneShotActor::new(client)
+                    .with_signers(signers.clone())
+                    .with_copied_account(topology.get_multicaller_encoder(None)?.get_contract_address());
                 match market_state_preload_actor.access(blockchain.market_state()).start_and_wait() {
                     Ok(_) => {
                         info!("Market state preload actor executed successfully")
@@ -433,7 +434,7 @@ impl Topology {
                 match params {
                     EstimatorConfig::Evm(params) => {
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
-                        let encoder = topology.get_encoder(params.encoder.as_ref())?;
+                        let encoder = topology.get_multicaller_encoder(params.encoder.as_ref())?;
                         let mut evm_estimator_actor = EvmEstimatorActor::new(encoder);
                         match evm_estimator_actor.consume(blockchain.compose_channel()).produce(blockchain.compose_channel()).start() {
                             Ok(r) => {
@@ -448,7 +449,7 @@ impl Topology {
                     EstimatorConfig::Geth(params) => {
                         let client = topology.get_client(params.client.as_ref())?;
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
-                        let encoder = topology.get_encoder(params.encoder.as_ref())?;
+                        let encoder = topology.get_multicaller_encoder(params.encoder.as_ref())?;
 
                         let flashbots_client = Arc::new(Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays());
 
@@ -493,15 +494,15 @@ impl Topology {
         }
     }
 
-    pub fn get_encoder(&self, name: Option<&String>) -> Result<SwapStepEncoder> {
-        match self.encoders.get(name.unwrap_or(&self.default_encoder_name.clone().unwrap())) {
-            Some(a) => Ok(a.clone()),
+    pub fn get_multicaller_encoder(&self, name: Option<&String>) -> Result<MulticallerSwapEncoder> {
+        match self.multicaller_encoders.get(name.unwrap_or(&self.default_multicaller_encoder_name.clone().unwrap())) {
+            Some(encoder) => Ok(encoder.clone()),
             None => Err(eyre!("ENCODER_NOT_FOUND")),
         }
     }
 
     pub fn get_signers(&self, name: Option<&String>) -> Result<SharedState<TxSigners>> {
-        match self.signers.get(name.unwrap_or(&self.default_encoder_name.clone().unwrap())) {
+        match self.signers.get(name.unwrap_or(&self.default_multicaller_encoder_name.clone().unwrap())) {
             Some(a) => Ok(a.clone()),
             None => Err(eyre!("SIGNERS_NOT_FOUND")),
         }
