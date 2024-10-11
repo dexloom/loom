@@ -10,14 +10,14 @@ use defi_events::{
     MessageMempoolDataUpdate, NodeMempoolDataUpdate,
 };
 use defi_types::{GethStateUpdate, MempoolTx};
-use futures::StreamExt;
+use futures::TryStreamExt;
 use loom_actors::Broadcaster;
 use loom_utils::reth_types::append_all_matching_block_logs_sealed;
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
 use reth_provider::Chain;
 use reth_rpc::eth::EthTxBuilder;
-use reth_transaction_pool::{BlobStore, Pool, TransactionOrdering, TransactionPool, TransactionValidator};
+use reth_transaction_pool::TransactionPool;
 use revm::db::states::StorageSlot;
 use revm::db::{BundleAccount, StorageWithOriginalValues};
 use std::sync::Arc;
@@ -135,7 +135,7 @@ pub async fn loom_exex<Node: FullNodeComponents>(
 ) -> eyre::Result<()> {
     info!("Loom ExEx is started");
 
-    while let Some(exex_notification) = ctx.notifications.next().await {
+    while let Some(exex_notification) = ctx.notifications.try_next().await? {
         match &exex_notification {
             ExExNotification::ChainCommitted { new } => {
                 info!(committed_chain = ?new.range(), "Received commit");
@@ -181,11 +181,9 @@ pub async fn loom_exex<Node: FullNodeComponents>(
     Ok(())
 }
 
-pub async fn mempool_worker<V, T, S>(mempool: Pool<V, T, S>, bc: Blockchain) -> eyre::Result<()>
+pub async fn mempool_worker<Pool>(mempool: Pool, bc: Blockchain) -> eyre::Result<()>
 where
-    V: TransactionValidator,
-    T: TransactionOrdering<Transaction = <V as TransactionValidator>::Transaction>,
-    S: BlobStore,
+    Pool: TransactionPool + Clone + 'static,
 {
     info!("Mempool worker started");
     let mut tx_listener = mempool.new_transactions_listener();
