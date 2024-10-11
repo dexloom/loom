@@ -7,7 +7,7 @@ build:
 	cargo build --all
 
 release:
-	export RELEASEFLAGS | $(CARGO) build --release
+	export RELEASEFLAGS | cargo build --release
 
 # Target to run all tests
 .PHONY: test
