@@ -75,7 +75,7 @@ pub struct TokenConfig {
     pub address: Address,
     pub symbol: Option<String>,
     pub name: Option<String>,
-    pub decimals: Option<i32>,
+    pub decimals: Option<u8>,
     pub basic: Option<bool>,
     pub middle: Option<bool>,
     pub price: Option<f64>,
@@ -94,7 +94,7 @@ mod test {
     use crate::test_config::TestConfig;
 
     #[test]
-    fn test_desrialization() {
+    fn test_deserialization() {
         let cfg = r#"
 [settings]
 block = 19101579

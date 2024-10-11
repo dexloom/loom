@@ -447,14 +447,16 @@ impl SwapLine {
                 return Ok(self);
             }
 
-            let current_out_amount_result = self.calculate_with_in_amount(state, env.clone(), next_amount);
-
-            if counter == 1 && current_out_amount_result.is_err() {
-                return Err(current_out_amount_result.err().unwrap());
-            }
-            let (current_out_amount, current_gas_used) = current_out_amount_result.unwrap_or_default();
-
-            //let mut next_profit = I256::zero();
+            let (current_out_amount, current_gas_used) = match self.calculate_with_in_amount(state, env.clone(), next_amount) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    if counter == 1 {
+                        // break if first swap already fails
+                        return Err(e);
+                    }
+                    (U256::ZERO, 0)
+                }
+            };
 
             let current_profit = Self::calc_profit(next_amount, current_out_amount);
 

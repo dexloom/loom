@@ -46,7 +46,7 @@ where
     };
 
     let multicaller_address = multicaller_address.ok_or_eyre("MULTICALLER_ADDRESS_NOT_SET")?;
-    //let private_key_encrypted = hex::decode(env::var("DATA")?)?;
+    let private_key_encrypted = hex::decode(env::var("DATA")?)?;
 
     info!(address=?multicaller_address, "Multicaller");
 
@@ -66,7 +66,7 @@ where
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), relays);
     bc_actors
         .mempool()?
-        //.initialize_signers_with_encrypted_key(private_key_encrypted)? // initialize signer with encrypted key
+        .initialize_signers_with_encrypted_key(private_key_encrypted)? // initialize signer with encrypted key
         .with_block_history()? // collect blocks
         .with_price_station()? // calculate price fo tokens
         .with_health_monitor_pools()? // monitor pools health to disable empty
@@ -75,7 +75,7 @@ where
         .with_swap_encoder(Some(multicaller_address))? // convert swaps to opcodes and passes to estimator
         .with_evm_estimator()? // estimate gas, add tips
         .with_signers()? // start signer actor that signs transactions before broadcasting
-        .with_flashbots_broadcaster(true, false)? // broadcast signed txes to flashbots
+        .with_flashbots_broadcaster(true, true)? // broadcast signed txes to flashbots
         .with_market_state_preloader()? // preload contracts to market state
         .with_nonce_and_balance_monitor()? // start monitoring balances of
         .with_pool_history_loader(pools_config.clone())? // load pools used in latest 10000 blocks
