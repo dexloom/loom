@@ -535,7 +535,7 @@ async fn main() -> Result<()> {
     let mut s = tx_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
-    let timeout_duration = Duration::from_secs(500);
+    let timeout_duration = Duration::from_secs(5);
 
     loop {
         tokio::select! {
