@@ -7,7 +7,7 @@ use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info};
 
 use defi_blockchain::Blockchain;
-use defi_entities::Swap;
+use defi_entities::{Swap, SwapEncoder};
 use loom_utils::NWETH;
 
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
@@ -20,13 +20,13 @@ use defi_entities::tips::tips_and_value_for_swap_type;
 
 async fn estimator_task(
     estimate_request: TxComposeData,
-    encoder: SwapStepEncoder,
+    swap_encoder: impl SwapEncoder,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
     debug!(
         "EVM estimation. Gas limit: {} base fee: {} total fee: {} stuffing txs: {}",
         estimate_request.gas,
-        NWETH::to_float_gwei(estimate_request.base_fee as u128),
+        NWETH::to_float_gwei(estimate_request.next_block_base_fee as u128),
         NWETH::to_float_wei(estimate_request.gas_cost()),
         estimate_request.stuffing_txs_hashes.len()
     );
@@ -35,34 +35,19 @@ async fn estimator_task(
 
     let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
 
-    let opcodes = estimate_request.opcodes.clone().ok_or(eyre!("NO_OPCODES"))?;
-
     let profit = estimate_request.swap.abs_profit();
 
-    let gas_price = estimate_request.priority_gas_fee + estimate_request.base_fee;
+    let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
     let gas_cost = U256::from(100_000 * gas_price);
 
-    // EXCHANGE SWAP
-    let (tips_opcodes, call_value) = if matches!(estimate_request.swap, Swap::ExchangeSwapLine(_)) {
-        debug!("Exchange swap, no tips");
-        (opcodes.clone(), U256::ZERO)
-    } else {
-        if profit.is_zero() {
-            error!("No profit for arb");
-            return Err(eyre!("NO_PROFIT"));
-        }
-
-        let (tips_vec, call_value) = tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
-
-        let mut tips_opcodes = opcodes.clone();
-
-        for tips in tips_vec {
-            tips_opcodes =
-                encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
-        }
-        (tips_opcodes, call_value)
-    };
-    let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
+    let (to, call_value, call_data, _) = swap_encoder.encode(
+        estimate_request.swap.clone(),
+        estimate_request.tips_pct,
+        Some(estimate_request.next_block_number),
+        Some(gas_cost),
+        Some(tx_signer.address()),
+        Some(estimate_request.eth_balance),
+    )?;
 
     let tx_request = TransactionRequest {
         transaction_type: Some(2),
@@ -70,11 +55,11 @@ async fn estimator_task(
         from: Some(tx_signer.address()),
         to: Some(TxKind::Call(to)),
         gas: Some(estimate_request.gas),
-        value: Some(call_value),
-        input: TransactionInput::new(calldata.clone()),
+        value: call_value,
+        input: TransactionInput::new(call_data.clone()),
         nonce: Some(estimate_request.nonce),
         max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-        max_fee_per_gas: Some(estimate_request.base_fee as u128), // Why not prio + base fee?
+        max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128), // Why not prio + base fee?
         ..TransactionRequest::default()
     };
 
@@ -82,13 +67,14 @@ async fn estimator_task(
         error!("StateDB is None");
         return Err(eyre!("STATE_DB_IS_NONE"));
     };
-    let evm_env = env_for_block(estimate_request.block, estimate_request.block_timestamp);
+
+    let evm_env = env_for_block(estimate_request.next_block_number, estimate_request.next_block_timestamp);
     let (gas_used, access_list) = match evm_access_list(&db, &evm_env, &tx_request) {
         Ok((gas_used, access_list)) => (gas_used, access_list),
         Err(e) => {
             error!(
                 "evm_access_list error for block_number={}, block_timestamp={}, swap={}, err={e}",
-                estimate_request.block, estimate_request.block_timestamp, estimate_request.swap
+                estimate_request.next_block_number, estimate_request.next_block_timestamp, estimate_request.swap
             );
             return Err(eyre!("EVM_ACCESS_LIST_ERROR"));
         }
@@ -102,30 +88,16 @@ async fn estimator_task(
 
     let gas_cost = U256::from(gas_used as u128 * gas_price as u128);
 
-    let mut tips_vec = vec![];
-
-    let (to, calldata, call_value) = if !matches!(estimate_request.swap, Swap::ExchangeSwapLine(_)) {
-        if gas_cost > estimate_request.swap.abs_profit_eth() {
-            error!("Profit is too small");
-            return Err(eyre!("TOO_SMALL_PROFIT"));
-        }
-
-        let (upd_tips_vec, call_value) =
-            tips_and_value_for_swap_type(&estimate_request.swap, None, gas_cost, estimate_request.eth_balance)?;
-        tips_vec = upd_tips_vec;
-
-        let call_value = if call_value.is_zero() { None } else { Some(call_value) };
-
-        let mut tips_opcodes = opcodes.clone();
-
-        for tips in tips_vec.iter() {
-            tips_opcodes =
-                encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
-        }
-        let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
-        (to, calldata, call_value)
-    } else {
-        (to, calldata, None)
+    let (to, call_value, call_data, tips_vec) = match estimate_request.swap {
+        Swap::ExchangeSwapLine(_) => (to, None, call_data, vec![]),
+        _ => swap_encoder.encode(
+            estimate_request.swap.clone(),
+            estimate_request.tips_pct,
+            Some(estimate_request.next_block_number),
+            Some(gas_cost),
+            Some(tx_signer.address()),
+            Some(estimate_request.eth_balance),
+        )?,
     };
 
     let tx_request = TransactionRequest {
@@ -135,11 +107,11 @@ async fn estimator_task(
         to: Some(TxKind::Call(to)),
         gas: Some((gas_used * 1200) / 1000),
         value: call_value,
-        input: TransactionInput::new(calldata),
+        input: TransactionInput::new(call_data),
         nonce: Some(estimate_request.nonce),
         access_list: Some(access_list),
         max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-        max_fee_per_gas: Some(estimate_request.base_fee as u128), // TODO: Why not prio + base fee?
+        max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128), // TODO: Why not prio + base fee?
         ..TransactionRequest::default()
     };
 
@@ -179,7 +151,6 @@ async fn estimator_task(
 
     let sim_duration = chrono::Local::now() - start_time;
 
-    //TODO add formated paths
     info!(
         " +++ Simulation successful. Cost {} Profit {} ProfitEth {} Tips {} {}  Gas used {} Time {}",
         gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, swap, gas_used, sim_duration
@@ -189,7 +160,7 @@ async fn estimator_task(
 }
 
 async fn estimator_worker(
-    encoder: SwapStepEncoder,
+    encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
     compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
@@ -219,16 +190,19 @@ async fn estimator_worker(
 }
 
 #[derive(Consumer, Producer)]
-pub struct EvmEstimatorActor {
-    encoder: SwapStepEncoder,
+pub struct EvmEstimatorActor<E> {
+    encoder: E,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
 }
 
-impl EvmEstimatorActor {
-    pub fn new(encoder: SwapStepEncoder) -> Self {
+impl<E> EvmEstimatorActor<E>
+where
+    E: SwapEncoder + Send + Sync + Clone + 'static,
+{
+    pub fn new(encoder: E) -> Self {
         Self { encoder, compose_channel_tx: None, compose_channel_rx: None }
     }
 
@@ -237,7 +211,10 @@ impl EvmEstimatorActor {
     }
 }
 
-impl Actor for EvmEstimatorActor {
+impl<E> Actor for EvmEstimatorActor<E>
+where
+    E: SwapEncoder + Clone + Send + Sync + 'static,
+{
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(
             self.encoder.clone(),

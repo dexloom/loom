@@ -80,7 +80,11 @@ where
     let mut stuffing_state_locks: Vec<(Transaction, FetchState<GethStateUpdate>)> = Vec::new();
 
     let env = Env {
-        block: BlockEnv { number: U256::from(request.block), timestamp: U256::from(request.block_timestamp), ..BlockEnv::default() },
+        block: BlockEnv {
+            number: U256::from(request.next_block_number),
+            timestamp: U256::from(request.next_block_timestamp),
+            ..BlockEnv::default()
+        },
         ..Env::default()
     };
 
@@ -192,7 +196,7 @@ where
             match swap_line.optimize_with_in_amount(&db, env.clone(), amount_in) {
                 Ok(_r) => {
                     let arc_db = Arc::new(db);
-                    let encode_request = MessageTxCompose::encode(TxComposeData {
+                    let encode_request = MessageTxCompose::route(TxComposeData {
                         stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.hash).collect(),
                         stuffing_txs: tx_order.iter().map(|i| stuffing_states[*i].0.clone()).collect(),
                         swap: Swap::BackrunSwapLine(swap_line.clone()),

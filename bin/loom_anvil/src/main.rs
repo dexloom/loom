@@ -13,7 +13,7 @@ use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
     DiffPathMergerActor, EvmEstimatorActor, InitializeSignersOneShotBlockingActor, MarketStatePreloadedOneShotActor, NodeBlockActor,
-    NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapEncoderActor,
+    NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapRouterActor,
     TxSignersActor,
 };
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners};
@@ -32,7 +32,7 @@ use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
 use defi_types::{debug_trace_block, ChainParameters, Mempool};
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
-use loom_multicaller::{MulticallerDeployer, SwapStepEncoder};
+use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapStepEncoder};
 use loom_revm_db::LoomInMemoryDB;
 
 use crate::test_config::TestConfig;
@@ -100,7 +100,8 @@ struct Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "debug,alloy_rpc_client=off,loom_multicaller=trace".into());
-    let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(true).with_line_number(true).with_filter(env_filter);
+    let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(false).with_line_number(true).with_filter(env_filter);
+
     tracing_subscriber::registry().with(fmt_layer).init();
 
     let args = Commands::parse();
@@ -121,7 +122,7 @@ async fn main() -> Result<()> {
         .ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     info!("Multicaller deployed at {:?}", multicaller_address);
 
-    let encoder = SwapStepEncoder::new(multicaller_address);
+    let encoder = MulticallerSwapEncoder::new(multicaller_address);
 
     let block_nr = client.get_block_number().await?;
     info!("Block : {}", block_nr);
@@ -205,8 +206,9 @@ async fn main() -> Result<()> {
     }
 
     info!("Starting market state preload actor");
-    let mut market_state_preload_actor =
-        MarketStatePreloadedOneShotActor::new(client.clone()).with_encoder(&encoder).with_signers(tx_signers.clone());
+    let mut market_state_preload_actor = MarketStatePreloadedOneShotActor::new(client.clone())
+        .with_copied_account(encoder.get_contract_address())
+        .with_signers(tx_signers.clone());
     match market_state_preload_actor.access(market_state.clone()).start_and_wait() {
         Err(e) => {
             error!("{}", e)
@@ -337,11 +339,11 @@ async fn main() -> Result<()> {
 
     // Start actor that encodes paths found
     if test_config.modules.encoder {
-        info!("Starting swap path encoder actor");
+        info!("Starting swap router actor");
 
-        let mut swap_path_encoder_actor = SwapEncoderActor::new(multicaller_address);
+        let mut swap_router_actor = SwapRouterActor::new();
 
-        match swap_path_encoder_actor
+        match swap_router_actor
             .access(tx_signers.clone())
             .access(accounts_state.clone())
             .consume(tx_compose_channel.clone())
@@ -352,7 +354,7 @@ async fn main() -> Result<()> {
                 error!("{}", e)
             }
             _ => {
-                info!("Swap path encoder actor started successfully")
+                info!("Swap router actor started successfully")
             }
         }
     }
@@ -548,7 +550,7 @@ async fn main() -> Result<()> {
                                 stat.best_swap = Some(sign_message.swap.clone());
                             }
                         }
-                        TxCompose::Encode(encode_message) => {
+                        TxCompose::Route(encode_message) => {
                             debug!("Encode message. Swap : {}", encode_message.swap);
                             stat.encode_counter +=1;
                         }

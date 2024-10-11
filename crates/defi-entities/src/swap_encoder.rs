@@ -1,11 +1,29 @@
+use crate::tips::Tips;
 use crate::Swap;
-use alloy_primitives::{Bytes, U256};
+use alloy_primitives::{Address, BlockNumber, Bytes, U256};
 use eyre::Result;
 use std::ops::Deref;
 use std::sync::Arc;
 
 pub trait SwapEncoder {
-    fn encode(&self, swap: Swap, bribe: Option<U256>) -> Result<Bytes>
+    /// Encodes Swap
+    ///
+    /// - next_block_number - number of the next block
+    /// - next_block_gas_price - base_fee + priority fee for transaction
+    /// - sender_address - EOA of of the transaction
+    /// - sender_eth_balance - balance of EOA
+    ///
+    /// returns (to. value, call_data) for transaction
+
+    fn encode(
+        &self,
+        swap: Swap,
+        tips_pct: Option<u32>,
+        next_block_number: Option<BlockNumber>,
+        gas_cost: Option<U256>,
+        sender_address: Option<Address>,
+        sender_eth_balance: Option<U256>,
+    ) -> Result<(Address, Option<U256>, Bytes, Vec<Tips>)>
     where
         Self: Sized;
 }

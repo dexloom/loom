@@ -1,13 +1,21 @@
 use crate::MulticallerSwapEncoder;
-use alloy_primitives::{Bytes, U256};
+use alloy_primitives::{Address, BlockNumber, Bytes, U256};
+use defi_entities::tips::{tips_and_value_for_swap_type, Tips};
 use defi_entities::{Swap, SwapEncoder, SwapStep};
 use defi_types::MulticallerCalls;
 use eyre::{eyre, OptionExt, Result};
 use tracing::{debug, error};
-use defi_entities::tips::tips_and_value_for_swap_type;
 
 impl SwapEncoder for MulticallerSwapEncoder {
-    fn encode(&self, swap: Swap, bribe: Option<U256>) -> Result<Bytes> {
+    fn encode(
+        &self,
+        swap: Swap,
+        tips_pct: Option<u32>,
+        next_block_number: Option<BlockNumber>,
+        gas_cost: Option<U256>,
+        sender_address: Option<Address>,
+        sender_eth_balance: Option<U256>,
+    ) -> Result<(Address, Option<U256>, Bytes, Vec<Tips>)> {
         let swap_vec = match &swap {
             Swap::BackrunSwapLine(_) | Swap::BackrunSwapSteps(_) => {
                 vec![swap.to_swap_steps(self.swap_step_encoder.get_multicaller()).ok_or_eyre("SWAP_TYPE_NOTE_COVERED")?]
@@ -25,7 +33,7 @@ impl SwapEncoder for MulticallerSwapEncoder {
             }
         };
 
-        let swap_opcodes = if swap_vec.is_empty() {
+        let mut swap_opcodes = if swap_vec.is_empty() {
             match &swap {
                 Swap::ExchangeSwapLine(swap_line) => {
                     debug!("Swap::ExchangeSwapLine encoding started");
@@ -55,14 +63,26 @@ impl SwapEncoder for MulticallerSwapEncoder {
             ret
         };
 
+        let tips_vec = if let (Some(tips_pct), Some(sender_address), Some(gas_cost), Some(sender_eth_balance)) =
+            (tips_pct, sender_address, gas_cost, sender_eth_balance)
+        {
+            let (tips_vec, call_value) = tips_and_value_for_swap_type(&swap, Some(tips_pct), gas_cost, sender_eth_balance)?;
+            for tips in &tips_vec {
+                swap_opcodes = self.swap_step_encoder.encode_tips(
+                    swap_opcodes,
+                    tips.token_in.get_address(),
+                    tips.min_change,
+                    tips.tips,
+                    sender_address,
+                )?;
+            }
+            tips_vec
+        } else {
+            vec![]
+        };
 
-        let (tips_vec, call_value) = tips_and_value_for_swap_type(&swap, None, gas_cost, estimate_request.eth_balance)?;
+        let (to, call_data) = self.swap_step_encoder.to_call_data(&swap_opcodes)?;
 
-
-        for tips in tips_vec {
-            tips_opcodes =
-                self.swap_step_encoder.encode_tips(tips_opcodes, tips.token_in.get_address(), tips.min_change, tips.tips, tx_signer.address())?;
-
-        Err(eyre!("NOT_IMPLEMENTED"))
+        Ok((to, None, call_data, tips_vec))
     }
 }

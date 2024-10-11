@@ -4,7 +4,7 @@ use tracing::{error, info};
 
 use defi_actors::{
     ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateChangeArbActor, StateHealthMonitorActor, StuffingTxMonitorActor,
-    SwapEncoderActor,
+    SwapRouterActor,
 };
 use defi_events::MarketEvents;
 use loom_actors::{Accessor, Actor, Consumer, Producer};
@@ -58,7 +58,7 @@ async fn main() -> Result<()> {
     let multicaller = topology.get_encoder(None).unwrap().get_multicaller();
     info!("Starting swap path encoder actor with multicaller at : {}", multicaller);
 
-    let mut swap_path_encoder_actor = SwapEncoderActor::new(multicaller);
+    let mut swap_path_encoder_actor = SwapRouterActor::new(multicaller);
 
     match swap_path_encoder_actor
         .access(tx_signers.clone())

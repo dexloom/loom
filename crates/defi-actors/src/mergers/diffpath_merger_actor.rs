@@ -102,7 +102,7 @@ async fn diff_path_merger_worker(
                                         }
                                     }
 
-                                    let encode_request = MessageTxCompose::encode(
+                                    let encode_request = MessageTxCompose::route(
                                         TxComposeData {
                                             stuffing_txs_hashes,
                                             stuffing_txs,

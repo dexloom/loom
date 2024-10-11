@@ -11,64 +11,20 @@ use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 lazy_static! {
     static ref PRIORITY_GAS_FEE: u64 = parse_units("9", "gwei").unwrap().get_absolute().to::<u64>();
 }
 
 /// encoder task performs encode for request
-async fn encoder_task(
-    encode_request: TxComposeData,
+async fn router_task(
+    route_request: TxComposeData,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-    encoder: SwapStepEncoder,
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
 ) -> Result<()> {
-    debug!("Encoding started {}", encode_request.swap);
-
-    let swap_vec = match &encode_request.swap {
-        Swap::BackrunSwapLine(_) | Swap::BackrunSwapSteps(_) => {
-            vec![encode_request.swap.to_swap_steps(encoder.get_multicaller()).ok_or_eyre("SWAP_TYPE_NOTE_COVERED")?]
-        }
-        Swap::Multiple(swap_vec) => {
-            let mut ret: Vec<(SwapStep, SwapStep)> = Vec::new();
-            for s in swap_vec.iter() {
-                ret.push(s.to_swap_steps(encoder.get_multicaller()).ok_or_eyre("AA")?);
-            }
-            ret
-        }
-        Swap::ExchangeSwapLine(_) => vec![],
-        Swap::None => {
-            vec![]
-        }
-    };
-
-    let swap_opcodes = if swap_vec.is_empty() {
-        match &encode_request.swap {
-            Swap::ExchangeSwapLine(swap_line) => {
-                debug!("Swap::ExchangeSwapLine encoding started");
-                match encoder.swap_line_encoder.encode_swap_line_in_amount(swap_line, encoder.multicaller, encoder.multicaller) {
-                    Ok(calls) => calls,
-                    Err(e) => {
-                        error!("swap_line_encoder.encode_swap_line_in_amount : {}", e);
-                        return Err(eyre!("ENCODING_FAILED"));
-                    }
-                }
-            }
-            _ => return Err(eyre!("NO_SWAP_STEPS")),
-        }
-    } else if swap_vec.len() == 1 {
-        let sp0 = &swap_vec[0].0;
-        let sp1 = &swap_vec[0].1;
-        encoder.encode_swap_steps(sp0, sp1)?
-    } else {
-        let mut ret = MulticallerCalls::new();
-        for (sp0, sp1) in swap_vec.iter() {
-            ret = encoder.encode_do_calls(ret, encoder.encode_swap_steps(sp0, sp1)?)?;
-        }
-        ret
-    };
+    debug!("Routing started {}", route_request.swap);
 
     let signer = signers.read().await.get_randon_signer();
     match signer {
@@ -76,27 +32,21 @@ async fn encoder_task(
             let nonce = account_monitor.read().await.get_account(&signer.address()).unwrap().get_nonce();
             let eth_balance = account_monitor.read().await.get_account(&signer.address()).unwrap().get_eth_balance();
 
-            let base_fee: u64 = encode_request.base_fee;
-
-            if base_fee == 0 {
+            if route_request.next_block_base_fee == 0 {
                 error!("Block base fee is not set");
                 Err(eyre!("NO_BLOCK_GAS_FEE"))
             } else {
-                let gas = (encode_request.swap.pre_estimate_gas()) * 2;
+                let gas = (route_request.swap.pre_estimate_gas()) * 2;
                 let value = U256::ZERO;
-                let priority_gas_fee: u64 = if base_fee > *PRIORITY_GAS_FEE { *PRIORITY_GAS_FEE } else { base_fee };
 
-                let estimate_request = TxComposeData {
-                    signer: Some(signer),
-                    nonce,
-                    eth_balance,
-                    gas,
-                    base_fee,
-                    priority_gas_fee,
-                    value,
-                    opcodes: Some(swap_opcodes),
-                    ..encode_request
+                let priority_gas_fee: u64 = if route_request.next_block_base_fee > *PRIORITY_GAS_FEE {
+                    *PRIORITY_GAS_FEE
+                } else {
+                    route_request.next_block_base_fee
                 };
+
+                let estimate_request =
+                    TxComposeData { signer: Some(signer), nonce, eth_balance, gas, priority_gas_fee, value, ..route_request };
 
                 let estimate_request = MessageTxCompose::estimate(estimate_request);
 
@@ -113,8 +63,7 @@ async fn encoder_task(
     }
 }
 
-async fn arb_swap_path_encoder_worker(
-    encoder: SwapStepEncoder,
+async fn swap_router_worker(
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
     compose_channel_rx: Broadcaster<MessageTxCompose>,
@@ -122,19 +71,20 @@ async fn arb_swap_path_encoder_worker(
 ) -> WorkerResult {
     let mut compose_channel_rx: Receiver<MessageTxCompose> = compose_channel_rx.subscribe().await;
 
+    info!("swap router worker started");
+
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
                 let msg : Result<MessageTxCompose, RecvError> = msg;
                 match msg {
                     Ok(compose_request) => {
-                        if let TxCompose::Encode(encode_request) = compose_request.inner {
+                        if let TxCompose::Route(encode_request) = compose_request.inner {
                             debug!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", encode_request.stuffing_txs_hashes, encode_request.swap);
                             tokio::task::spawn(
-                                encoder_task(
+                                router_task(
                                     encode_request,
                                     compose_channel_tx.clone(),
-                                    encoder.clone(),
                                     signers.clone(),
                                     account_monitor.clone(),
                                 )
@@ -146,11 +96,12 @@ async fn arb_swap_path_encoder_worker(
             }
         }
     }
+
+    info!("swap router worker finished");
 }
 
 #[derive(Consumer, Producer, Accessor)]
-pub struct SwapEncoderActor {
-    encoder: SwapStepEncoder,
+pub struct SwapRouterActor {
     #[accessor]
     signers: Option<SharedState<TxSigners>>,
     #[accessor]
@@ -161,15 +112,9 @@ pub struct SwapEncoderActor {
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
 }
 
-impl SwapEncoderActor {
-    pub fn new(multicaller: Address) -> SwapEncoderActor {
-        SwapEncoderActor {
-            encoder: SwapStepEncoder::new(multicaller),
-            signers: None,
-            account_nonce_balance: None,
-            compose_channel_rx: None,
-            compose_channel_tx: None,
-        }
+impl SwapRouterActor {
+    pub fn new() -> SwapRouterActor {
+        SwapRouterActor { signers: None, account_nonce_balance: None, compose_channel_rx: None, compose_channel_tx: None }
     }
 
     pub fn with_signers(self, signers: SharedState<TxSigners>) -> Self {
@@ -186,10 +131,9 @@ impl SwapEncoderActor {
     }
 }
 
-impl Actor for SwapEncoderActor {
+impl Actor for SwapRouterActor {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(arb_swap_path_encoder_worker(
-            self.encoder.clone(),
+        let task = tokio::task::spawn(swap_router_worker(
             self.signers.clone().unwrap(),
             self.account_nonce_balance.clone().unwrap(),
             self.compose_channel_rx.clone().unwrap(),
@@ -199,6 +143,6 @@ impl Actor for SwapEncoderActor {
     }
 
     fn name(&self) -> &'static str {
-        "ArbSwapPathEncoderActor"
+        "SwapRouterActor"
     }
 }

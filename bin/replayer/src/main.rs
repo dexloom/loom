@@ -100,9 +100,9 @@ async fn main() -> Result<()> {
                             swap_line.amount_in = SwapAmountType::Set( NWETH::from_float(0.1));
                             swap_line.gas_used = Some(300000);
 
-                            let tx_compose_encode_msg = MessageTxCompose::encode(
+                            let tx_compose_encode_msg = MessageTxCompose::route(
                                 TxComposeData{
-                                    base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
+                                    next_block_base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
                                     poststate : Some(Arc::new(market_state.read().await.state_db.clone())),
                                     swap : Swap::ExchangeSwapLine(swap_line),
                                     ..TxComposeData::default()
