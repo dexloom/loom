@@ -42,9 +42,9 @@ impl SwapStepEncoder {
         token_address: Address,
         min_balance: U256,
         tips: U256,
-        to: Address,
+        funds_to: Address,
     ) -> Result<MulticallerCalls> {
-        self.swap_line_encoder.encode_tips(swap_opcodes, token_address, min_balance, tips, to)
+        self.swap_line_encoder.encode_tips(swap_opcodes, token_address, min_balance, tips, funds_to)
     }
 
     pub fn encode_balancer_flash_loan(&self, steps: Vec<SwapStep>) -> Result<MulticallerCalls> {

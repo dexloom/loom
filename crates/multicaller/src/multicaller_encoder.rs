@@ -23,6 +23,10 @@ impl MulticallerSwapEncoder {
     pub fn new(multicaller_address: Address) -> Self {
         Self { multicaller_address, swap_step_encoder: SwapStepEncoder::new(multicaller_address) }
     }
+
+    pub fn get_contract_address(&self) -> Address {
+        self.multicaller_address
+    }
 }
 
 impl MulticallerEncoder for MulticallerSwapEncoder {

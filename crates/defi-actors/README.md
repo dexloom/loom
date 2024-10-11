@@ -6,8 +6,8 @@ Blockchain actors
 - [blockhistory](./src/block_history) - handles block updates and reorgs, stores blocks data
 - [gas](./src/gas) - gas worker. handles current gas price
 - [mempool](./src/mempool) - handles mempool transactions
-- [signers](./src/signers) - sign transactions
-- [tx_broadcaster](./src/tx_broadcaster) - broadcast transactions
+- [signers](./src/swap_signers) - sign transactions
+- [tx_broadcaster](./src/swap_tx_broadcaster) - broadcast transactions
 - [node](./src/node) - responsible for collecting information from nodes and passing it forward
 
 Market actors:
@@ -19,9 +19,10 @@ Market actors:
 
 Searchers:
 
-- [estimators](./src/estimators) - set of gas estimators for EVM and Geth nodes and local test provider, responsible for
+- [estimators](./src/swap_estimators) - set of gas estimators for EVM and Geth nodes and local test provider,
+  responsible for
   tips
 - [backrun](./src/backrun) - searches for arb opportunities in blocks and mempool transactions
 - [mergers](./src/mergers) - paths merger
-- [pathencoder](./src/pathencoder) - paths encoders
+- [pathencoder](./src/swap_routers) - paths encoders
 - 

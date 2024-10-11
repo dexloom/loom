@@ -20,7 +20,7 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    let block_number = broadcast_request.block;
+    let block_number = broadcast_request.next_block_number;
 
     if let Some(rlp_bundle) = broadcast_request.rlp_bundle.clone() {
         let stuffing_rlp_bundle: Vec<Bytes> = rlp_bundle.iter().map(|item| item.unwrap()).collect();
@@ -67,8 +67,8 @@ where
                     Ok(compose_request) => {
                         if let TxCompose::Broadcast(broadcast_request)  = compose_request.inner {
                             if smart_mode {
-                                if current_block < broadcast_request.block {
-                                    current_block = broadcast_request.block;
+                                if current_block < broadcast_request.next_block_number {
+                                    current_block = broadcast_request.next_block_number;
                                     best_request = BestTxCompose::new_with_pct( U256::from(8000));
                                 }
 
