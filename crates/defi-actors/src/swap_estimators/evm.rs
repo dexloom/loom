@@ -13,10 +13,7 @@ use loom_utils::NWETH;
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
-use loom_multicaller::SwapStepEncoder;
 use loom_utils::evm::{env_for_block, evm_access_list};
-
-use defi_entities::tips::tips_and_value_for_swap_type;
 
 async fn estimator_task(
     estimate_request: TxComposeData,
@@ -24,18 +21,16 @@ async fn estimator_task(
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
     debug!(
-        "EVM estimation. Gas limit: {} base fee: {} total fee: {} stuffing txs: {}",
-        estimate_request.gas,
-        NWETH::to_float_gwei(estimate_request.next_block_base_fee as u128),
-        NWETH::to_float_wei(estimate_request.gas_cost()),
-        estimate_request.stuffing_txs_hashes.len()
+        gas_limit = estimate_request.gas,
+        base_fee = NWETH::to_float_gwei(estimate_request.next_block_base_fee as u128),
+        gas_cost = NWETH::to_float_wei(estimate_request.gas_cost()),
+        stuffing_txs_len = estimate_request.stuffing_txs_hashes.len(),
+        "EVM estimation",
     );
 
     let start_time = chrono::Local::now();
 
     let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
-
-    let profit = estimate_request.swap.abs_profit();
 
     let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
     let gas_cost = U256::from(100_000 * gas_price);
@@ -44,7 +39,7 @@ async fn estimator_task(
         estimate_request.swap.clone(),
         estimate_request.tips_pct,
         Some(estimate_request.next_block_number),
-        Some(gas_cost),
+        None,
         Some(tx_signer.address()),
         Some(estimate_request.eth_balance),
     )?;
@@ -69,6 +64,7 @@ async fn estimator_task(
     };
 
     let evm_env = env_for_block(estimate_request.next_block_number, estimate_request.next_block_timestamp);
+
     let (gas_used, access_list) = match evm_access_list(&db, &evm_env, &tx_request) {
         Ok((gas_used, access_list)) => (gas_used, access_list),
         Err(e) => {
@@ -82,22 +78,30 @@ async fn estimator_task(
     let swap = estimate_request.swap.clone();
 
     if gas_used < 60_000 {
-        error!("Incorrect transaction estimation {} Gas used : {}", swap, gas_used);
+        error!(gas_used, %swap, "Incorrect transaction estimation");
         return Err(eyre!("TRANSACTION_ESTIMATED_INCORRECTLY"));
     }
 
     let gas_cost = U256::from(gas_used as u128 * gas_price as u128);
 
-    let (to, call_value, call_data, tips_vec) = match estimate_request.swap {
+    let (to, call_value, call_data, tips_vec) = match &swap {
         Swap::ExchangeSwapLine(_) => (to, None, call_data, vec![]),
-        _ => swap_encoder.encode(
-            estimate_request.swap.clone(),
-            estimate_request.tips_pct,
-            Some(estimate_request.next_block_number),
-            Some(gas_cost),
-            Some(tx_signer.address()),
-            Some(estimate_request.eth_balance),
-        )?,
+        _ => {
+            match swap_encoder.encode(
+                estimate_request.swap.clone(),
+                estimate_request.tips_pct,
+                Some(estimate_request.next_block_number),
+                Some(gas_cost),
+                Some(tx_signer.address()),
+                Some(estimate_request.eth_balance),
+            ) {
+                Ok((to, call_value, call_data, tips_vec)) => (to, call_value, call_data, tips_vec),
+                Err(error) => {
+                    error!(%error, %swap, "swap_encoder.encode");
+                    return Err(error);
+                }
+            }
+        }
     };
 
     let tx_request = TransactionRequest {
@@ -142,8 +146,8 @@ async fn estimator_task(
     });
 
     let result = match compose_channel_tx.send(sign_request).await {
-        Err(e) => {
-            error!("{e}");
+        Err(error) => {
+            error!(%error, "compose_channel_tx.send");
             Err(eyre!("COMPOSE_CHANNEL_SEND_ERROR"))
         }
         _ => Ok(()),
@@ -152,8 +156,13 @@ async fn estimator_task(
     let sim_duration = chrono::Local::now() - start_time;
 
     info!(
-        " +++ Simulation successful. Cost {} Profit {} ProfitEth {} Tips {} {}  Gas used {} Time {}",
-        gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, swap, gas_used, sim_duration
+        cost=gas_cost_f64,
+        profit=profit_f64,
+        tips=tips_f64,
+        gas_used,
+        %swap,
+        duration=sim_duration.num_milliseconds(),
+        " +++ Simulation successful",
     );
 
     result

@@ -11,7 +11,7 @@ impl SwapEncoder for MulticallerSwapEncoder {
         &self,
         swap: Swap,
         tips_pct: Option<u32>,
-        next_block_number: Option<BlockNumber>,
+        _next_block_number: Option<BlockNumber>,
         gas_cost: Option<U256>,
         sender_address: Option<Address>,
         sender_eth_balance: Option<U256>,
@@ -63,23 +63,22 @@ impl SwapEncoder for MulticallerSwapEncoder {
             ret
         };
 
-        let tips_vec = if let (Some(tips_pct), Some(sender_address), Some(gas_cost), Some(sender_eth_balance)) =
-            (tips_pct, sender_address, gas_cost, sender_eth_balance)
-        {
-            let (tips_vec, call_value) = tips_and_value_for_swap_type(&swap, Some(tips_pct), gas_cost, sender_eth_balance)?;
-            for tips in &tips_vec {
-                swap_opcodes = self.swap_step_encoder.encode_tips(
-                    swap_opcodes,
-                    tips.token_in.get_address(),
-                    tips.min_change,
-                    tips.tips,
-                    sender_address,
-                )?;
-            }
-            tips_vec
-        } else {
-            vec![]
-        };
+        let tips_vec =
+            if let (Some(tips_pct), Some(sender_address), Some(sender_eth_balance)) = (tips_pct, sender_address, sender_eth_balance) {
+                let (tips_vec, _call_value) = tips_and_value_for_swap_type(&swap, Some(tips_pct), gas_cost, sender_eth_balance)?;
+                for tips in &tips_vec {
+                    swap_opcodes = self.swap_step_encoder.encode_tips(
+                        swap_opcodes,
+                        tips.token_in.get_address(),
+                        tips.min_change,
+                        tips.tips,
+                        sender_address,
+                    )?;
+                }
+                tips_vec
+            } else {
+                vec![]
+            };
 
         let (to, call_data) = self.swap_step_encoder.to_call_data(&swap_opcodes)?;
 

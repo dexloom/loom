@@ -5,21 +5,18 @@ use alloy_primitives::{Address, U256};
 #[cfg(not(debug_assertions))]
 use chrono::TimeDelta;
 use eyre::{eyre, Result};
-use lazy_static::lazy_static;
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
-use tracing::{debug, error, info, warn};
+use tracing::{debug, error, info, trace};
 
-use alloy_primitives::utils::parse_units;
+use crate::backrun::SwapCalculator;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData};
 use defi_types::SwapError;
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
-use loom_revm_db::LoomInMemoryDB;
 
 async fn state_change_arb_searcher_task(
     thread_pool: Arc<ThreadPool>,
@@ -79,7 +76,7 @@ async fn state_change_arb_searcher_task(
                 let mut mut_item: SwapLine = SwapLine { path: item, ..Default::default() };
                 #[cfg(not(debug_assertions))]
                 let start_time = chrono::Local::now();
-                let calc_result = Calculator::calculate(&mut mut_item, req.1, req.2.clone());
+                let calc_result = SwapCalculator::calculate(&mut mut_item, req.1, req.2.clone());
                 #[cfg(not(debug_assertions))]
                 let took_time = chrono::Local::now() - start_time;
 
@@ -91,15 +88,15 @@ async fn state_change_arb_searcher_task(
                                 warn!("Took longer than expected {} {}", took_time, mut_item.clone())
                             }
                         }
-                        debug!("Calc result received: {}", mut_item);
+                        trace!("Calc result received: {}", mut_item);
 
                         if let Ok(profit) = mut_item.profit() {
                             if profit.is_positive() && mut_item.abs_profit_eth() > U256::from(state_update_event.next_base_fee * 200_000) {
-                                if let Err(e) = swap_path_tx.try_send(Ok(mut_item)) {
-                                    error!("try_send ok swap_path_tx  error : {e}")
+                                if let Err(error) = swap_path_tx.try_send(Ok(mut_item)) {
+                                    error!(%error, "swap_path_tx.try_send")
                                 }
                             } else {
-                                warn!("profit is not enough")
+                                trace!("profit is not enough")
                             }
                         }
                     }
@@ -112,17 +109,17 @@ async fn state_change_arb_searcher_task(
                         }
                         //error!("Swap error: {:?}", e);
 
-                        if let Err(e) = swap_path_tx.try_send(Err(e)) {
-                            error!("try_send error to swap_path_tx error : {e}")
+                        if let Err(error) = swap_path_tx.try_send(Err(e)) {
+                            error!(%error, "try_send to swap_path_tx")
                         }
                     }
                 }
             });
         });
-        debug!("Calculation iteration finished {}", chrono::Local::now() - start_time);
+        debug!(elapsed = %(chrono::Local::now() - start_time), "Calculation iteration finished");
     });
 
-    debug!("Calculation results receiver started {}", chrono::Local::now() - start_time);
+    debug!(elapsed = %(chrono::Local::now() - start_time), "Calculation results receiver started" );
 
     let swap_request_tx_clone = swap_request_tx.clone();
     let pool_health_monitor_tx_clone = pool_health_monitor_tx.clone();
@@ -171,12 +168,12 @@ async fn state_change_arb_searcher_task(
         answers += 1;
     }
     info!(
-        "Calculation finished: origin={}, swap_path_vec_len={}, answer={}, elapsed={}, stuffing_hash={:?}",
-        state_update_event.origin,
+        origin = %state_update_event.origin,
         swap_path_vec_len,
         answers,
-        chrono::Local::now() - start_time,
-        state_update_event.stuffing_tx_hash()
+        elapsed = %(chrono::Local::now() - start_time),
+        stuffing_hash = %state_update_event.stuffing_tx_hash(),
+        "Calculation finished"
     );
 
     Ok(())
@@ -212,25 +209,6 @@ pub async fn state_change_arb_searcher_worker(
                     );
                 }
             }
-        }
-    }
-}
-
-lazy_static! {
-    static ref START_OPTIMIZE_INPUT: U256 = parse_units("0.01", "ether").unwrap().get_absolute();
-}
-
-struct Calculator {}
-
-impl Calculator {
-    #[inline]
-    pub fn calculate<'a>(path: &'a mut SwapLine, state: &LoomInMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
-        let first_token = path.get_first_token().unwrap();
-        if let Some(amount_in) = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))) {
-            //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
-            path.optimize_with_in_amount(state, env, amount_in)
-        } else {
-            Err(path.to_error("PRICE_NOT_SET".to_string()))
         }
     }
 }

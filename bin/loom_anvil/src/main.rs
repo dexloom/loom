@@ -32,7 +32,7 @@ use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
 use defi_types::{debug_trace_block, ChainParameters, Mempool};
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
-use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapStepEncoder};
+use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
 use loom_revm_db::LoomInMemoryDB;
 
 use crate::test_config::TestConfig;
@@ -42,7 +42,7 @@ mod test_config;
 
 #[derive(Clone, Default, Debug)]
 struct Stat {
-    encode_counter: usize,
+    found_counter: usize,
     sign_counter: usize,
     best_profit_eth: U256,
     best_swap: Option<Swap>,
@@ -55,8 +55,8 @@ impl Display for Stat {
                 Some(token) => {
                     write!(
                         f,
-                        "Encoded: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ",
-                        self.encode_counter,
+                        "Found: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ",
+                        self.found_counter,
                         self.sign_counter,
                         token.to_float(swap.abs_profit()),
                         NWETH::to_float(swap.abs_profit_eth()),
@@ -66,8 +66,8 @@ impl Display for Stat {
                 None => {
                     write!(
                         f,
-                        "Encoded: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ",
-                        self.encode_counter,
+                        "Found: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ",
+                        self.found_counter,
                         self.sign_counter,
                         swap.abs_profit(),
                         swap.abs_profit_eth(),
@@ -532,18 +532,18 @@ async fn main() -> Result<()> {
 
     println!("Test is started!");
 
-    let mut s = tx_compose_channel.subscribe().await;
+    let mut tx_compose_sub = tx_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
     let timeout_duration = Duration::from_secs(5);
 
     loop {
         tokio::select! {
-            msg = s.recv() => {
+            msg = tx_compose_sub.recv() => {
                 match msg {
                     Ok(msg) => match msg.inner {
                         TxCompose::Sign(sign_message) => {
-                            debug!("Sign message. Swap : {}", sign_message.swap);
+                            debug!(swap=%sign_message.swap, "Sign message" );
                             stat.sign_counter += 1;
                             if stat.best_profit_eth < sign_message.swap.abs_profit_eth() {
                                 stat.best_profit_eth = sign_message.swap.abs_profit_eth();
@@ -551,18 +551,18 @@ async fn main() -> Result<()> {
                             }
                         }
                         TxCompose::Route(encode_message) => {
-                            debug!("Encode message. Swap : {}", encode_message.swap);
-                            stat.encode_counter +=1;
+                            debug!(swap=%encode_message.swap, "Route message" );
+                            stat.found_counter +=1;
                         }
                         _ => {}
                     },
-                    Err(e) => {
-                        error!("{e}")
+                    Err(error) => {
+                        error!(%error, "tx_compose_sub.recv")
                     }
                 }
             }
             msg = tokio::time::sleep(timeout_duration) => {
-                debug!("Timed out : {:?} ", msg);
+                debug!(?msg, "Timed out");
                 break;
             }
         }
@@ -572,8 +572,8 @@ async fn main() -> Result<()> {
 
     if let Some(results) = test_config.results {
         if let Some(swaps_encoded) = results.swaps_encoded {
-            if swaps_encoded > stat.encode_counter {
-                error!("Test failed. Not enough encoded swaps : {} need {}", stat.encode_counter, swaps_encoded);
+            if swaps_encoded > stat.found_counter {
+                error!("Test failed. Not enough encoded swaps : {} need {}", stat.found_counter, swaps_encoded);
                 exit(1)
             }
         }

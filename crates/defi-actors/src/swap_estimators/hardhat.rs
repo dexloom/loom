@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Bytes, TxKind, U256};
@@ -14,7 +12,6 @@ use defi_entities::SwapEncoder;
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
-use loom_multicaller::SwapStepEncoder;
 
 async fn estimator_worker(
     swap_encoder: impl SwapEncoder,
@@ -33,30 +30,25 @@ async fn estimator_worker(
                                     info!("Hardhat estimation");
                                     let token_in = estimate_request.swap.get_first_token().cloned().ok_or(eyre!("NO_TOKEN"))?;
 
-                                    let token_in_address = token_in.get_address();
-
                                     let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
 
-                            let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
-                            let gas_cost = U256::from(100_000 * gas_price);
+                                    let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
+                                    let gas_cost = U256::from(100_000 * gas_price);
 
                                     let profit = estimate_request.swap.abs_profit();
-            if profit.is_zero() {
-                return Err(eyre!("NO_PROFIT"));
-            }
-        let profit_eth = token_in.calc_eth_value(profit).ok_or(eyre!("CALC_ETH_VALUE_FAILED"))?;
+                                    if profit.is_zero() {
+                                        return Err(eyre!("NO_PROFIT"));
+                                    }
+                                    let profit_eth = token_in.calc_eth_value(profit).ok_or(eyre!("CALC_ETH_VALUE_FAILED"))?;
 
-                            let (to, call_value, call_data, _) = swap_encoder.encode(
-                                estimate_request.swap.clone(),
-                                estimate_request.tips_pct,
-                                Some(estimate_request.next_block_number),
-                                Some(gas_cost),
-                                Some(tx_signer.address()),
-                                Some(estimate_request.eth_balance),
-                            )?;
-
-
-
+                                    let (to, _call_value, call_data, _) = swap_encoder.encode(
+                                        estimate_request.swap.clone(),
+                                        estimate_request.tips_pct,
+                                        Some(estimate_request.next_block_number),
+                                        Some(gas_cost),
+                                        Some(tx_signer.address()),
+                                        Some(estimate_request.eth_balance),
+                                    )?;
 
                                     let tx_request = TransactionRequest {
                                         transaction_type : Some(2),
@@ -98,10 +90,10 @@ async fn estimator_worker(
                                     }
                                 }
                             }
-                            Err(e)=>{error!("{e}")}
-                        }
-                    }
+                    Err(e)=>{error!("{e}")}
                 }
+            }
+        }
     }
 }
 

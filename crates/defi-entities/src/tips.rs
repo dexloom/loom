@@ -2,13 +2,13 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
+use crate::{Swap, Token};
 use alloy_primitives::{Address, U256};
 use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
-use rand::random;
-
-use crate::{Swap, Token};
 use loom_utils::NWETH;
+use rand::random;
+use tracing::error;
 
 #[derive(Clone, Debug)]
 pub struct Tips {
@@ -60,29 +60,48 @@ pub fn randomize_tips_pct(tips_pct: u32) -> u32 {
     tips_pct - rnd
 }
 
-pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost: U256, eth_balance: U256) -> Result<(Vec<Tips>, U256)> {
+pub fn tips_and_value_for_swap_type(
+    swap: &Swap,
+    tips_pct: Option<u32>,
+    gas_cost: Option<U256>,
+    eth_balance: U256,
+) -> Result<(Vec<Tips>, U256)> {
     let total_profit_eth = swap.abs_profit_eth();
 
     let tips_pct = randomize_tips_pct(tips_pct.unwrap_or(tips_pct_advanced(&total_profit_eth)));
 
-    if total_profit_eth < gas_cost {
-        return Err(eyre!("NOT_ENOUGH_PROFIT"));
+    if let Some(gas_cost) = gas_cost {
+        if total_profit_eth < gas_cost {
+            error!(total_profit_eth = NWETH::to_float(total_profit_eth), gas_cost = NWETH::to_float(gas_cost), %swap, "Not enough total_profit_eth");
+            return Err(eyre!("NOT_ENOUGH_PROFIT"));
+        }
     }
 
     match swap {
         Swap::BackrunSwapLine(_) | Swap::BackrunSwapSteps(_) => {
             let profit = swap.abs_profit();
             if profit.is_zero() {
+                error!(profit = NWETH::to_float(profit), %swap, "Zero profit");
                 return Err(eyre!("NO_PROFIT"));
             }
             let token_in = swap.get_first_token().ok_or_eyre("NO_FIRST_TOKEN")?.clone();
             let profit_eth = token_in.calc_eth_value(profit).ok_or_eyre("CALC_ETH_VALUE_FAILED")?;
-            if profit_eth < gas_cost {
-                return Err(eyre!("NO_PROFIT_EXCEEDING_GAS"));
+
+            if let Some(gas_cost) = gas_cost {
+                if profit_eth < gas_cost {
+                    error!(
+                        profit_eth = NWETH::to_float(profit_eth),
+                        gas_cost = NWETH::to_float(gas_cost),
+                        %swap,
+                        "Profit doesn't exceed the gas cost"
+                    );
+                    return Err(eyre!("NO_PROFIT_EXCEEDING_GAS"));
+                }
             }
 
-            let mut tips = profit_eth.checked_sub(gas_cost).ok_or_eyre("SUBTRACTION_OVERFLOWN")? * U256::from(tips_pct) / U256::from(10000);
-            let min_change = token_in.calc_token_value_from_eth(gas_cost + tips).unwrap();
+            let mut tips = profit_eth.checked_sub(gas_cost.unwrap_or_default()).ok_or_eyre("SUBTRACTION_OVERFLOWN")? * U256::from(tips_pct)
+                / U256::from(10000);
+            let min_change = token_in.calc_token_value_from_eth(gas_cost.unwrap_or_default() + tips).unwrap();
             let mut value = if token_in.is_weth() { U256::ZERO } else { tips };
 
             if !token_in.is_weth() && (tips > ((eth_balance * U256::from(9000)) / U256::from(10000))) {
@@ -97,17 +116,26 @@ pub fn tips_and_value_for_swap_type(swap: &Swap, tips_pct: Option<u32>, gas_cost
 
             let profit_eth = swap.abs_profit_eth();
 
-            if profit_eth < gas_cost {
-                return Err(eyre!("NO_PROFIT_EXCEEDING_GAS"));
+            if let Some(gas_cost) = gas_cost {
+                if profit_eth < gas_cost {
+                    error!(
+                        profit_eth = NWETH::to_float(profit_eth),
+                        gas_cost = NWETH::to_float(gas_cost),
+                        %swap,
+                        "Profit doesn't exceed the gas cost"
+                    );
+                    return Err(eyre!("NO_PROFIT_EXCEEDING_GAS"));
+                }
             }
 
-            let gas_cost_per_record = gas_cost / U256::from(swap_vec.len());
+            let gas_cost_per_record = gas_cost.unwrap_or_default() / U256::from(swap_vec.len());
 
             for swap_record in swap_vec.iter() {
                 let token_in = swap_record.get_first_token().ok_or_eyre("NO_FIRST_TOKEN")?.clone();
 
                 let profit = swap_record.abs_profit();
                 if profit.is_zero() {
+                    error!(profit = NWETH::to_float(profit), %swap, "Zero profit");
                     return Err(eyre!("NO_PROFIT"));
                 }
 

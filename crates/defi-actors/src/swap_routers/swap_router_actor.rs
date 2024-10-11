@@ -1,14 +1,12 @@
 use alloy_primitives::utils::parse_units;
-use alloy_primitives::{Address, U256};
+use alloy_primitives::U256;
 use defi_blockchain::Blockchain;
-use defi_entities::{AccountNonceAndBalanceState, Swap, SwapStep, TxSigners};
+use defi_entities::{AccountNonceAndBalanceState, TxSigners};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
-use defi_types::MulticallerCalls;
-use eyre::{eyre, OptionExt, Result};
+use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
-use loom_multicaller::SwapStepEncoder;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error, info};
@@ -96,8 +94,6 @@ async fn swap_router_worker(
             }
         }
     }
-
-    info!("swap router worker finished");
 }
 
 #[derive(Consumer, Producer, Accessor)]

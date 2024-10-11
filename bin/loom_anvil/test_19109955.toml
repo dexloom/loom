@@ -28,6 +28,6 @@ usdt = { address = "0xdAC17F958D2ee523a2206206994597C13D831ec7", symbol = "USDT"
 
 
 [results]
-swaps_encoded = 3
-swaps_ok = 3
-best_profit_eth = 0.00958
+swaps_encoded = 2
+swaps_ok = 1
+best_profit_eth = 0.00519
