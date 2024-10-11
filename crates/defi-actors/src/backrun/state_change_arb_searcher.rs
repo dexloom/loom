@@ -10,9 +10,12 @@ use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use revm::primitives::Env;
 use tokio::sync::broadcast::error::RecvError;
+#[cfg(not(debug_assertions))]
+use tracing::warn;
 use tracing::{debug, error, info};
 
 use alloy_primitives::utils::parse_units;
+use tracing::log::trace;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData};
@@ -91,13 +94,6 @@ async fn state_change_arb_searcher_task(
                                 warn!("Took longer than expected {} {}", took_time, mut_item.clone())
                             }
                         }
-                        /*amount_in: Set(100000000000000000),
-                        amount_out: Set(73690880749392842)
-
-                        amount_in: Set(100000000000000000),
-                        amount_out: Set(99760728185379858)
-
-                         */
                         debug!("Calc result received: {}", mut_item);
 
                         if let Ok(profit) = mut_item.profit() {
@@ -115,7 +111,7 @@ async fn state_change_arb_searcher_task(
                                 warn!("Took longer than expected {:?} {}", e, mut_item.clone())
                             }
                         }
-                        //error!("Swap error: {:?}", e);
+                        trace!("Swap error: {:?}", e);
 
                         if let Err(e) = swap_path_tx.try_send(Err(e)) {
                             error!("try_send error to swap_path_tx error : {e}")
@@ -231,7 +227,10 @@ impl Calculator {
     #[inline]
     pub fn calculate<'a>(path: &'a mut SwapLine, state: &LoomInMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
         let first_token = path.get_first_token().unwrap();
-        if let Some(amount_in) = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))) {
+        if !first_token.is_basic() {
+            return Err(path.to_error("FIRST_TOKEN_NOT_BASIC".to_string()));
+        };
+        if let Some(amount_in) = first_token.calc_token_value_from_eth(*START_OPTIMIZE_INPUT) {
             //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
             path.optimize_with_in_amount(state, env, amount_in)
         } else {

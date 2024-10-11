@@ -147,7 +147,7 @@ where
         }
         Err(e) => {
             mempool.write().await.set_failed(tx.hash);
-            error!("debug_trace_call error : {} : {:?}", e, tx.hash);
+            error!("debug_trace_call error for cur_block_number={}, hash={:?}, err={}", cur_block_number, tx.hash, e);
         }
     }
 

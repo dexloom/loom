@@ -190,6 +190,40 @@ impl UniswapV2Pool {
         };
         Ok(ret)
     }
+
+    fn fetch_reserves(
+        &self,
+        state_db: &LoomInMemoryDB,
+        env: Env,
+        token_address_from: &Address,
+        token_address_to: &Address,
+    ) -> Result<(U256, U256)> {
+        let (reserve_in, reserve_out) = match self.reserves_cell {
+            Some(cell) => match state_db.storage_ref(self.get_address(), cell) {
+                Ok(c) => {
+                    let (reserve_0, reserve_1) = Self::storage_to_reserves(c);
+                    if token_address_from < token_address_to {
+                        (reserve_0, reserve_1)
+                    } else {
+                        (reserve_1, reserve_0)
+                    }
+                }
+                Err(_) => {
+                    return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
+                }
+            },
+            None => {
+                let (reserve_0, reserve_1) = UniswapV2StateReader::get_reserves(state_db, env, self.get_address())?;
+
+                if token_address_from < token_address_to {
+                    (reserve_0, reserve_1)
+                } else {
+                    (reserve_1, reserve_0)
+                }
+            }
+        };
+        Ok((reserve_in, reserve_out))
+    }
 }
 
 impl Pool for UniswapV2Pool {
@@ -225,45 +259,22 @@ impl Pool for UniswapV2Pool {
         token_address_to: &Address,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let (reserve_in, reserve_out) = match self.reserves_cell {
-            Some(cell) => match state_db.storage_ref(self.get_address(), cell) {
-                Ok(c) => {
-                    let reserves = Self::storage_to_reserves(c);
-                    if token_address_from < token_address_to {
-                        (reserves.0, reserves.1)
-                    } else {
-                        (reserves.1, reserves.0)
-                    }
-                }
-                Err(_) => {
-                    return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
-                }
-            },
-            None => {
-                let (reserve_0, reserve_1) = UniswapV2StateReader::get_reserves(state_db, env, self.get_address())?;
-
-                if token_address_from < token_address_to {
-                    (reserve_0, reserve_1)
-                } else {
-                    (reserve_1, reserve_0)
-                }
-            }
-        };
+        let (reserve_in, reserve_out) = self.fetch_reserves(state_db, env, token_address_from, token_address_to)?;
 
         let amount_in_with_fee = in_amount * self.fee;
         let numerator = amount_in_with_fee * reserve_out;
         let denominator = reserve_in * U256::from(10000) + amount_in_with_fee;
         if denominator.is_zero() {
-            Err(eyre!("CANNOT_CALCULATE_ZERO_RESERVE"))
+            return Err(eyre!("CANNOT_CALCULATE_ZERO_RESERVE"));
+        }
+
+        let out_amount = numerator / denominator;
+        if out_amount > reserve_out {
+            Err(eyre!("RESERVE_EXCEEDED"))
+        } else if out_amount.is_zero() {
+            Err(eyre!("OUT_AMOUNT_IS_ZERO"))
         } else {
-            let out_amount = numerator / denominator;
-            if out_amount > reserve_out {
-                Err(eyre!("RESERVE_EXCEEDED"))
-            } else if out_amount.is_zero() {
-                Err(eyre!("OUT_AMOUNT_IS_ZERO"))
-            } else {
-                Ok((out_amount - U256::from(1), 100000))
-            }
+            Ok((out_amount - U256::from(1), 100000))
         }
     }
 
@@ -275,30 +286,7 @@ impl Pool for UniswapV2Pool {
         token_address_to: &Address,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let (reserve_in, reserve_out) = match self.reserves_cell {
-            Some(cell) => match state_db.storage_ref(self.get_address(), cell) {
-                Ok(c) => {
-                    let reserves = Self::storage_to_reserves(c);
-                    if token_address_from < token_address_to {
-                        (reserves.0, reserves.1)
-                    } else {
-                        (reserves.1, reserves.0)
-                    }
-                }
-                Err(_) => {
-                    return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
-                }
-            },
-            None => {
-                let (reserve_0, reserve_1) = UniswapV2StateReader::get_reserves(state_db, env, self.get_address())?;
-
-                if token_address_from < token_address_to {
-                    (reserve_0, reserve_1)
-                } else {
-                    (reserve_1, reserve_0)
-                }
-            }
-        };
+        let (reserve_in, reserve_out) = self.fetch_reserves(state_db, env, token_address_from, token_address_to)?;
 
         if out_amount > reserve_out {
             return Err(eyre!("RESERVE_OUT_EXCEEDED"));
@@ -397,12 +385,12 @@ impl AbiSwapEncoder for UniswapV2AbiSwapEncoder {
 
 #[cfg(test)]
 mod tests {
+    use crate::protocols::UniswapV2Protocol;
+    use alloy_primitives::address;
     use debug_provider::AnvilDebugProviderFactory;
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::MarketState;
     use std::env;
-
-    use crate::protocols::UniswapV2Protocol;
 
     use super::*;
 
@@ -416,8 +404,8 @@ mod tests {
 
         let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
-        let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-        let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
+        let weth_address: Address = address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+        let usdc_address: Address = address!("A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
         let pool_address: Address = UniswapV2Protocol::get_pool_address_for_tokens(weth_address, usdc_address);
 
         let pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
@@ -444,47 +432,42 @@ mod tests {
         assert!(gas_used > 50000);
 
         let (in_amount, gas_used) =
-            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, out_amount).unwrap();
+            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, out_amount)?;
         debug!("in {} -> {} gas : {}", out_amount, in_amount, gas_used);
         assert_ne!(in_amount, U256::ZERO);
         assert!(gas_used > 50000);
 
         let a = U256::from(161429016704477229850u128);
 
-        let (out_amount, gas_used) =
-            pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, a).unwrap();
+        let (out_amount, gas_used) = pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, a)?;
         debug!("out {} -> {}", a, out_amount);
         assert_ne!(out_amount, U256::ZERO);
         assert!(gas_used > 50000);
 
         let (in_amount, gas_used) =
-            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, out_amount).unwrap();
+            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, out_amount)?;
         debug!("in {} -> {} {}", out_amount, in_amount, in_amount >= a);
         assert_ne!(in_amount, U256::ZERO);
         assert!(gas_used > 50000);
 
-        let (out_amount, gas_used) = pool
-            .calculate_out_amount(
-                &market_state.state_db,
-                evm_env.clone(),
-                &pool.token0,
-                &pool.token1,
-                U256::from(pool.liquidity0 / U256::from(100)),
-            )
-            .unwrap();
+        let (out_amount, gas_used) = pool.calculate_out_amount(
+            &market_state.state_db,
+            evm_env.clone(),
+            &pool.token0,
+            &pool.token1,
+            U256::from(pool.liquidity0 / U256::from(100)),
+        )?;
         debug!("{}", out_amount);
         assert_ne!(out_amount, U256::ZERO);
         assert!(gas_used > 50000);
 
-        let (out_amount, gas_used) = pool
-            .calculate_out_amount(
-                &market_state.state_db,
-                evm_env.clone(),
-                &pool.token1,
-                &pool.token0,
-                U256::from(pool.liquidity1 / U256::from(100)),
-            )
-            .unwrap();
+        let (out_amount, gas_used) = pool.calculate_out_amount(
+            &market_state.state_db,
+            evm_env.clone(),
+            &pool.token1,
+            &pool.token0,
+            U256::from(pool.liquidity1 / U256::from(100)),
+        )?;
         debug!("{}", out_amount);
         assert_ne!(out_amount, U256::ZERO);
         assert!(gas_used > 50000);

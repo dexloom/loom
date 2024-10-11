@@ -4,20 +4,18 @@ use std::ops::{Add, Div, Mul, Neg};
 use std::sync::Arc;
 use std::sync::RwLock;
 
-use alloy_primitives::{Address, I256, U256};
-use lazy_static::lazy_static;
+use alloy_primitives::utils::Unit;
+use alloy_primitives::{address, Address, I256, U256};
 
-lazy_static! {
-    static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-    static ref ONE_ETHER: U256 = U256::from(10).pow(U256::from(18));
-}
+const ONE_ETHER: U256 = Unit::ETHER.wei_const();
+const WETH_ADDRESS: Address = address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 
 #[derive(Clone, Debug, Default)]
 pub struct Token {
     address: Address,
     basic: bool,
     middle: bool,
-    decimals: Option<i32>,
+    decimals: u8,
     name: Option<String>,
     symbol: Option<String>,
     eth_price: Arc<RwLock<Option<U256>>>,
@@ -53,23 +51,23 @@ impl PartialOrd for Token {
 
 impl Token {
     pub fn new(address: Address) -> Token {
-        Token { address, decimals: Some(18), ..Token::default() }
+        Token { address, decimals: 18, ..Token::default() }
     }
 
     pub fn new_with_data(
         address: Address,
         symbol: Option<String>,
         name: Option<String>,
-        decimals: Option<i32>,
+        decimals: Option<u8>,
         basic: bool,
         middle: bool,
     ) -> Token {
-        Token { address, symbol, name, decimals, basic, middle, ..Default::default() }
+        Token { address, symbol, name, decimals: decimals.unwrap_or(18), basic, middle, ..Default::default() }
     }
 
     pub fn get_eth_price(&self) -> Option<U256> {
         if self.is_weth() {
-            Some(*ONE_ETHER)
+            Some(ONE_ETHER)
         } else {
             match self.eth_price.read() {
                 Ok(x) => *x,
@@ -85,12 +83,12 @@ impl Token {
     }
 
     pub fn calc_eth_value(&self, value: U256) -> Option<U256> {
-        self.get_eth_price().map(|x| value.mul(*ONE_ETHER).div(x))
+        self.get_eth_price().map(|x| value.mul(ONE_ETHER).div(x))
     }
 
     pub fn calc_token_value_from_eth(&self, eth_value: U256) -> Option<U256> {
         let x = self.get_eth_price();
-        x.map(|x| eth_value.mul(x).div(*ONE_ETHER))
+        x.map(|x| eth_value.mul(x).div(ONE_ETHER))
     }
 
     pub fn get_symbol(&self) -> String {
@@ -101,16 +99,15 @@ impl Token {
         self.name.clone().unwrap_or(self.address.to_string())
     }
 
-    pub fn get_decimals(&self) -> Option<i32> {
+    pub fn get_decimals(&self) -> u8 {
         self.decimals
     }
 
     pub fn get_exp(&self) -> U256 {
-        let decimals = self.decimals.unwrap_or(18);
-        if decimals == 18 {
-            *ONE_ETHER
+        if self.decimals == 18 {
+            ONE_ETHER
         } else {
-            U256::from(10).pow(U256::from(self.decimals.unwrap_or(18)))
+            U256::from(10).pow(U256::from(self.decimals))
         }
     }
 
@@ -137,8 +134,7 @@ impl Token {
     }
 
     pub fn to_float(&self, value: U256) -> f64 {
-        let decimals = self.decimals.unwrap_or(18);
-        if decimals == 0 {
+        if self.decimals == 0 {
             0f64
         } else {
             let divider = self.get_exp();
@@ -150,7 +146,7 @@ impl Token {
             if div.is_err() || rem.is_err() {
                 0f64
             } else {
-                div.unwrap_or_default() as f64 + ((rem.unwrap_or_default() as f64) / (10u64.pow(decimals as u32) as f64))
+                div.unwrap_or_default() as f64 + ((rem.unwrap_or_default() as f64) / (10u64.pow(self.decimals as u32) as f64))
             }
         }
     }
@@ -167,12 +163,12 @@ impl Token {
 
     pub fn from_float(&self, value: f64) -> U256 {
         let multiplier = U256::from(value as i64);
-        let modulus = U256::from(((value - value.round()) * (10 ^ self.decimals.unwrap() as i64) as f64) as u64);
-        multiplier.mul(U256::from(10).pow(U256::from(self.decimals.unwrap()))).add(modulus)
+        let modulus = U256::from(((value - value.round()) * (10 ^ self.decimals as i64) as f64) as u64);
+        multiplier.mul(U256::from(10).pow(U256::from(self.decimals))).add(modulus)
     }
 
     pub fn is_weth(&self) -> bool {
-        self.address == *WETH_ADDRESS
+        self.address == WETH_ADDRESS
     }
 }
 
