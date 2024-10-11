@@ -489,42 +489,34 @@ async fn main() -> Result<()> {
 
         for (_, tx_config) in test_config.txs.iter() {
             debug!("Fetching original tx {}", tx_config.hash);
-            match client_clone.get_transaction_by_hash(tx_config.hash).await {
-                Ok(tx_option) => match tx_option {
-                    Some(tx) => {
-                        let from = tx.from;
-                        let to = tx.to.unwrap_or_default();
-                        if let Ok(tx_env) = TryInto::<TxEnvelope>::try_into(tx.clone()) {
-                            match tx_config.send.to_lowercase().as_str() {
-                                "mempool" => {
-                                    let mut mempool_guard = mempool_instance.write().await;
-                                    let tx_hash: TxHash = tx.hash;
+            let Some(tx) = client_clone.get_transaction_by_hash(tx_config.hash).await.unwrap() else {
+                panic!("Cannot get tx: {}", tx_config.hash);
+            };
 
-                                    mempool_guard.add_tx(tx.clone());
-                                    if let Err(e) = mempool_events_channel.send(MempoolEvents::MempoolActualTxUpdate { tx_hash }).await {
-                                        error!("{e}");
-                                    }
-                                }
-                                "block" => match client_clone.send_raw_transaction(tx_env.encoded_2718().as_slice()).await {
-                                    Ok(p) => {
-                                        debug!("Transaction sent {}", p.tx_hash());
-                                    }
-                                    Err(e) => {
-                                        error!("Error sending transaction : {e}");
-                                    }
-                                },
-                                _ => {
-                                    debug!("Incorrect action {} for : hash {} from {} to {}  ", tx_config.send, tx_env.tx_hash(), from, to);
-                                }
-                            }
+            let from = tx.from;
+            let to = tx.to.unwrap_or_default();
+            if let Ok(tx_env) = TryInto::<TxEnvelope>::try_into(tx.clone()) {
+                match tx_config.send.to_lowercase().as_str() {
+                    "mempool" => {
+                        let mut mempool_guard = mempool_instance.write().await;
+                        let tx_hash: TxHash = tx.hash;
+
+                        mempool_guard.add_tx(tx.clone());
+                        if let Err(e) = mempool_events_channel.send(MempoolEvents::MempoolActualTxUpdate { tx_hash }).await {
+                            error!("{e}");
                         }
                     }
-                    None => {
-                        error!("Tx is none")
+                    "block" => match client_clone.send_raw_transaction(tx_env.encoded_2718().as_slice()).await {
+                        Ok(p) => {
+                            debug!("Transaction sent {}", p.tx_hash());
+                        }
+                        Err(e) => {
+                            error!("Error sending transaction : {e}");
+                        }
+                    },
+                    _ => {
+                        debug!("Incorrect action {} for : hash {} from {} to {}  ", tx_config.send, tx_env.tx_hash(), from, to);
                     }
-                },
-                Err(e) => {
-                    error!("Cannot get tx : {e}")
                 }
             }
         }
@@ -575,18 +567,24 @@ async fn main() -> Result<()> {
             if swaps_encoded > stat.found_counter {
                 error!("Test failed. Not enough encoded swaps : {} need {}", stat.found_counter, swaps_encoded);
                 exit(1)
+            } else {
+                info!("Test passed. Encoded swaps : {} required {}", stat.encode_counter, swaps_encoded);
             }
         }
         if let Some(swaps_ok) = results.swaps_ok {
             if swaps_ok > stat.sign_counter {
                 error!("Test failed. Not enough verified swaps : {} need {}", stat.sign_counter, swaps_ok);
                 exit(1)
+            } else {
+                info!("Test passed. swaps : {} required {}", stat.sign_counter, swaps_ok);
             }
         }
         if let Some(best_profit) = results.best_profit_eth {
             if NWETH::from_float(best_profit) > stat.best_profit_eth {
                 error!("Profit is too small {} need {}", NWETH::to_float(stat.best_profit_eth), best_profit);
                 exit(1)
+            } else {
+                info!("Test passed. best profit : {} > {}", NWETH::to_float(stat.best_profit_eth), best_profit);
             }
         }
     }

@@ -11,8 +11,13 @@ use tokio::sync::broadcast::error::RecvError;
 #[cfg(not(debug_assertions))]
 use tracing::warn;
 use tracing::{debug, error, info, trace};
+#[cfg(not(debug_assertions))]
+use tracing::warn;
+use tracing::{debug, error, info};
 
 use crate::backrun::SwapCalculator;
+use alloy_primitives::utils::parse_units;
+use tracing::log::trace;
 use defi_blockchain::Blockchain;
 use defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData};
@@ -109,7 +114,7 @@ async fn state_change_arb_searcher_task(
                                 warn!("Took longer than expected {:?} {}", e, mut_item.clone())
                             }
                         }
-                        //error!("Swap error: {:?}", e);
+                        trace!("Swap error: {:?}", e);
 
                         if let Err(error) = swap_path_tx.try_send(Err(e)) {
                             error!(%error, "try_send to swap_path_tx")
@@ -211,6 +216,28 @@ pub async fn state_change_arb_searcher_worker(
                     );
                 }
             }
+        }
+    }
+}
+
+lazy_static! {
+    static ref START_OPTIMIZE_INPUT: U256 = parse_units("0.01", "ether").unwrap().get_absolute();
+}
+
+struct Calculator {}
+
+impl Calculator {
+    #[inline]
+    pub fn calculate<'a>(path: &'a mut SwapLine, state: &LoomInMemoryDB, env: Env) -> Result<&'a mut SwapLine, SwapError> {
+        let first_token = path.get_first_token().unwrap();
+        if !first_token.is_basic() {
+            return Err(path.to_error("FIRST_TOKEN_NOT_BASIC".to_string()));
+        };
+        if let Some(amount_in) = first_token.calc_token_value_from_eth(*START_OPTIMIZE_INPUT) {
+            //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );
+            path.optimize_with_in_amount(state, env, amount_in)
+        } else {
+            Err(path.to_error("PRICE_NOT_SET".to_string()))
         }
     }
 }

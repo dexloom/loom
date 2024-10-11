@@ -25,7 +25,8 @@ use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
 #[cfg(feature = "trace-calls")]
 use std::collections::HashSet;
 
-use tracing::{debug, error, trace};
+use tracing::{debug, error};
+use tracing::log::trace;
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();
@@ -41,8 +42,19 @@ where
     let mut env = env;
     env.tx.transact_to = TransactTo::Call(transact_to);
     env.tx.data = Bytes::from(call_data_vec);
-    env.tx.value = U256::from(0);
 
+    #[cfg(feature = "trace-calls")]
+    let mut evm = Evm::builder()
+        .with_ref_db(state_db)
+        .with_spec_id(SHANGHAI)
+        .with_env(Box::new(env))
+        .with_external_context(TracingInspector::new(TracingInspectorConfig::from_parity_config(&HashSet::from_iter(vec![
+            TraceType::Trace,
+        ]))))
+        .append_handler_register(inspector_handle_register)
+        .build();
+
+    #[cfg(not(feature = "trace-calls"))]
     let mut evm = Evm::builder().with_spec_id(SHANGHAI).with_ref_db(state_db).with_env(Box::new(env)).build();
 
     let ref_tx = evm.transact().unwrap();
@@ -54,7 +66,11 @@ where
     let value = match result {
         ExecutionResult::Success { output: Output::Call(value), .. } => Some((value.to_vec(), gas_used)),
         ExecutionResult::Revert { output, gas_used } => {
-            trace!(gas_used, ?output, "Revert");
+            trace!("Revert {} : {:?}", gas_used, output);
+            #[cfg(feature = "trace-calls")]
+            debug!("Revert trace: {:#?}", evm.context.external.into_parity_builder().into_transaction_traces());
+
+            //error!("Revert reason '{}' to={:?}, gas_used={gas_used}", revert_bytes_to_string(&output), transact_to);
             None
         }
         _ => None,

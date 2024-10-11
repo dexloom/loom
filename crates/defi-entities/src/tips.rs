@@ -2,8 +2,10 @@ use std::collections::HashMap;
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
+use alloy_primitives::utils::format_units;
 use crate::{Swap, Token};
 use alloy_primitives::{Address, U256};
+use defi_entities::{Swap, Token};
 use eyre::{eyre, OptionExt, Result};
 use lazy_static::lazy_static;
 use loom_utils::NWETH;
@@ -25,10 +27,10 @@ impl Display for Tips {
             f,
             "{} : tips {} min_change {} profit : {} eth : {} ",
             self.token_in.get_symbol(),
-            NWETH::to_float(self.tips),
+            format_units(self.tips, "ether").unwrap_or_default(),
             self.token_in.to_float(self.min_change),
             self.token_in.to_float(self.profit),
-            NWETH::to_float(self.profit_eth),
+            format_units(self.profit_eth, "ether").unwrap_or_default(),
         )
     }
 }
@@ -67,14 +69,16 @@ pub fn tips_and_value_for_swap_type(
     eth_balance: U256,
 ) -> Result<(Vec<Tips>, U256)> {
     let total_profit_eth = swap.abs_profit_eth();
-
+    info!("Total profit eth : {}", format_units(total_profit_eth, "ether").unwrap_or_default());
     let tips_pct = randomize_tips_pct(tips_pct.unwrap_or(tips_pct_advanced(&total_profit_eth)));
 
-    if let Some(gas_cost) = gas_cost {
-        if total_profit_eth < gas_cost {
-            error!(total_profit_eth = NWETH::to_float(total_profit_eth), gas_cost = NWETH::to_float(gas_cost), %swap, "Not enough total_profit_eth");
-            return Err(eyre!("NOT_ENOUGH_PROFIT"));
-        }
+    if total_profit_eth < gas_cost {
+        info!(
+            "total_profit_eth={} < {}",
+            format_units(total_profit_eth, "ether").unwrap_or_default(),
+            format_units(gas_cost, "ether").unwrap_or_default()
+        );
+        return Err(eyre!("NOT_ENOUGH_PROFIT"));
     }
 
     match swap {
