@@ -5,7 +5,8 @@ use defi_actors::{mempool_worker, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
 use defi_entities::RethAdapter;
 use loom_topology::TopologyConfig;
-use reth_node_core::args::utils::EthereumChainSpecParser;
+use reth::chainspec::EthereumChainSpecParser;
+use reth::cli::Cli;
 use reth_node_ethereum::EthereumNode;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -13,6 +14,7 @@ use tracing_subscriber::{fmt, EnvFilter, Layer};
 
 mod arguments;
 mod loom;
+
 
 fn main() -> eyre::Result<()> {
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
@@ -22,7 +24,8 @@ fn main() -> eyre::Result<()> {
     // ignore arguments used by reth
     let app_args = AppArgs::from_arg_matches_mut(&mut AppArgs::command().ignore_errors(true).get_matches())?;
     match app_args.command {
-        Command::Node(_) => reth::cli::Cli::<EthereumChainSpecParser, LoomArgs>::parse().run(|builder, loom_args: LoomArgs| async move {
+        Command::Node(_) => Cli::<EthereumChainSpecParser, LoomArgs>::parse().run(|builder, loom_args: LoomArgs| async move {
+
             let topology_config = TopologyConfig::load_from_file(loom_args.loom_config)?;
 
             let bc = Blockchain::new(builder.config().chain.chain.id());

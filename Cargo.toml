@@ -82,10 +82,10 @@ revm-primitives = { version = "10.0.0", features = [
 revm-inspectors = "0.8.1"
 
 alloy-chains = "0.1.32"
-alloy-primitives = { version = "0.8.5", features = ["rand"] }
-alloy-dyn-abi = { version = "0.8.5", features = ["json", "std"] }
-alloy-sol-types = { version = "0.8.5", features = ["json"] }
-alloy-sol-macro = { version = "0.8.5", features = ["json"] }
+alloy-primitives = { version = "0.8.7", features = ["rand"] }
+alloy-dyn-abi = { version = "0.8.7", features = ["json", "std"] }
+alloy-sol-types = { version = "0.8.7", features = ["json"] }
+alloy-sol-macro = { version = "0.8.7", features = ["json"] }
 
 alloy-rlp = "0.3.8"
 alloy-trie = "0.6"
@@ -115,36 +115,36 @@ alloy-pubsub = "0.4.2"
 alloy-signer = "0.4.2"
 alloy-signer-local = "0.4.2"
 
-reth = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8", features = ["asm-keccak"] }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-rpc = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8", features = ["asm-keccak"] }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8", features = ["serde"] }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-tracing = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-node-core = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8", features = ["asm-keccak"] }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-node-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-node-builder = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-storage-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0", features = ["asm-keccak"] }
+reth-db = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-rpc = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0", features = ["asm-keccak"] }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0", features = ["serde"] }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-node-core = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0", features = ["asm-keccak"] }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-node-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth-storage-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
 
-reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev = "3589545" }
+reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev = "3345479" }
 #reth-exex-grpc = { path = "../reth-exex-grpc" }
 
 
 tower = "0.5.1"
 
 criterion = { version = "0.5.1", features = ["async_tokio"] }
-rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "7569e53" }
+rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "5a641ed" }
 #rethdb-dexsync = { path = "../rethdb-dexsync" }
