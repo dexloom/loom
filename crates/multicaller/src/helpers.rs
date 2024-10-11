@@ -1,20 +1,16 @@
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_sol_types::SolInterface;
-use lazy_static::lazy_static;
 
 use defi_abi::balancer::IVault;
 use defi_abi::lido::{IStEth, IWStEth};
 use defi_abi::{IMultiCaller, IERC20, IWETH};
+use defi_address_book::Token;
 
 pub struct EncoderHelper;
 
-lazy_static! {
-    pub static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-}
-
 impl EncoderHelper {
     pub fn is_weth(address: Address) -> bool {
-        address == *WETH_ADDRESS
+        address == Token::WETH
     }
 
     pub fn encode_weth_deposit() -> Bytes {

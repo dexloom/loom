@@ -2322,6 +2322,7 @@ dependencies = [
  "chrono",
  "debug-provider",
  "defi-abi",
+ "defi-address-book",
  "defi-blockchain",
  "defi-entities",
  "defi-events",
@@ -2360,10 +2361,18 @@ dependencies = [
 ]
 
 [[package]]
+name = "defi-address-book"
+version = "0.2.0"
+dependencies = [
+ "alloy-primitives",
+]
+
+[[package]]
 name = "defi-blockchain"
 version = "0.2.0"
 dependencies = [
  "alloy",
+ "defi-address-book",
  "defi-entities",
  "defi-events",
  "defi-types",
@@ -2391,6 +2400,7 @@ dependencies = [
  "alloy-signer-local",
  "alloy-transport",
  "debug-provider",
+ "defi-address-book",
  "defi-types",
  "eyre",
  "hex",
@@ -2444,6 +2454,7 @@ dependencies = [
  "alloy-transport",
  "debug-provider",
  "defi-abi",
+ "defi-address-book",
  "defi-entities",
  "defi-types",
  "env_logger",
@@ -4647,6 +4658,7 @@ dependencies = [
  "alloy-transport",
  "debug-provider",
  "defi-abi",
+ "defi-address-book",
  "defi-entities",
  "defi-types",
  "env_logger",
@@ -4710,6 +4722,7 @@ dependencies = [
  "alloy",
  "debug-provider",
  "defi-abi",
+ "defi-address-book",
  "defi-types",
  "eyre",
  "lazy_static",
@@ -4741,6 +4754,7 @@ dependencies = [
  "criterion",
  "debug-provider",
  "defi-actors",
+ "defi-address-book",
  "defi-entities",
  "defi-events",
  "defi-pools",

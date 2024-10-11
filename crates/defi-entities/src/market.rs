@@ -1,13 +1,14 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use alloy_primitives::{address, Address};
+use alloy_primitives::Address;
 use eyre::{eyre, OptionExt, Result};
 use tracing::debug;
 
 use crate::build_swap_path_vec;
 use crate::{PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
+use defi_address_book::Token as TokenAddress;
 
 /// The market struct contains all the pools and tokens.
 /// It keeps track if a pool is disabled or not and the swap paths.
@@ -29,8 +30,6 @@ pub struct Market {
     swap_paths: SwapPaths,
 }
 
-const WETH_ADDRESS: Address = address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
-
 impl Market {
     /// Add a [`Token`](crate::Token) reference to the market.
     pub fn add_token<T: Into<Arc<Token>>>(&mut self, token: T) -> Result<()> {
@@ -50,7 +49,7 @@ impl Market {
 
     /// Check if the given address is the WETH address.
     pub fn is_weth(address: &Address) -> bool {
-        address.eq(&WETH_ADDRESS)
+        address.eq(&TokenAddress::WETH)
     }
 
     /// Add a new pool to the market if it does not exist or the class is unknown.
@@ -443,18 +442,18 @@ mod tests {
         let mut market = Market::default();
 
         // Add basic token for start/end
-        let weth_token = Token::new_with_data(WETH_ADDRESS, Some("WETH".to_string()), None, Some(18), true, false);
+        let weth_token = Token::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false);
         market.add_token(weth_token);
 
         // Swap pool: token weth -> token1
         let pool_address1 = Address::random();
         let token1 = Address::random();
-        let mock_pool1 = PoolWrapper::new(Arc::new(MockPool { address: pool_address1, token0: WETH_ADDRESS, token1 }));
+        let mock_pool1 = PoolWrapper::new(Arc::new(MockPool { address: pool_address1, token0: TokenAddress::WETH, token1 }));
         market.add_pool(mock_pool1.clone());
 
         // Swap pool: token weth -> token1
         let pool_address2 = Address::random();
-        let mock_pool2 = PoolWrapper::new(Arc::new(MockPool { address: pool_address2, token0: WETH_ADDRESS, token1 }));
+        let mock_pool2 = PoolWrapper::new(Arc::new(MockPool { address: pool_address2, token0: TokenAddress::WETH, token1 }));
         market.add_pool(mock_pool2.clone());
 
         // Add test swap paths
@@ -478,9 +477,9 @@ mod tests {
 
         // first path weth -> token1 -> -> weth
         let tokens = first_path.tokens.iter().map(|token| token.get_address()).collect::<Vec<Address>>();
-        assert_eq!(tokens.get(0), Some(&WETH_ADDRESS));
+        assert_eq!(tokens.get(0), Some(&TokenAddress::WETH));
         assert_eq!(tokens.get(1), Some(&token1));
-        assert_eq!(tokens.get(2), Some(&WETH_ADDRESS));
+        assert_eq!(tokens.get(2), Some(&TokenAddress::WETH));
 
         let pools = first_path.pools.iter().map(|pool| pool.get_address()).collect::<Vec<Address>>();
         assert_eq!(pools.get(0), Some(&pool_address1));
@@ -488,9 +487,9 @@ mod tests {
 
         // other way around
         let tokens = second_path.tokens.iter().map(|token| token.get_address()).collect::<Vec<Address>>();
-        assert_eq!(tokens.get(0), Some(&WETH_ADDRESS));
+        assert_eq!(tokens.get(0), Some(&TokenAddress::WETH));
         assert_eq!(tokens.get(1), Some(&token1));
-        assert_eq!(tokens.get(2), Some(&WETH_ADDRESS));
+        assert_eq!(tokens.get(2), Some(&TokenAddress::WETH));
 
         let pools = second_path.pools.iter().map(|pool| pool.get_address()).collect::<Vec<Address>>();
         assert_eq!(pools.get(0), Some(&pool_address2));
@@ -504,7 +503,7 @@ mod tests {
         let mut market = Market::default();
 
         // Add basic token for start/end
-        let weth_token = Token::new_with_data(loom_utils::tokens::WETH_ADDRESS, Some("WETH".to_string()), None, Some(18), true, false);
+        let weth_token = Token::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false);
         market.add_token(weth_token);
 
         // tokens
@@ -513,7 +512,7 @@ mod tests {
 
         // Swap pool: weth -> token1
         let pool_address1 = Address::random();
-        let mock_pool = PoolWrapper::new(Arc::new(MockPool { address: pool_address1, token0: token1, token1: WETH_ADDRESS }));
+        let mock_pool = PoolWrapper::new(Arc::new(MockPool { address: pool_address1, token0: token1, token1: TokenAddress::WETH }));
         market.add_pool(mock_pool);
 
         // Swap pool: token1 -> token2
@@ -523,7 +522,7 @@ mod tests {
 
         // Swap pool: token2 -> weth
         let pool_address3 = Address::random();
-        let mock_pool3 = PoolWrapper::new(Arc::new(MockPool { address: pool_address3, token0: token2, token1: WETH_ADDRESS }));
+        let mock_pool3 = PoolWrapper::new(Arc::new(MockPool { address: pool_address3, token0: token2, token1: TokenAddress::WETH }));
         market.add_pool(mock_pool3.clone());
 
         // under test
@@ -547,10 +546,10 @@ mod tests {
 
         // first path weth -> token1 -> token2 -> weth
         let tokens = first_path.tokens.iter().map(|token| token.get_address()).collect::<Vec<Address>>();
-        assert_eq!(tokens.get(0), Some(&WETH_ADDRESS));
+        assert_eq!(tokens.get(0), Some(&TokenAddress::WETH));
         assert_eq!(tokens.get(1), Some(&token1));
         assert_eq!(tokens.get(2), Some(&token2));
-        assert_eq!(tokens.get(3), Some(&WETH_ADDRESS));
+        assert_eq!(tokens.get(3), Some(&TokenAddress::WETH));
 
         let pools = first_path.pools.iter().map(|pool| pool.get_address()).collect::<Vec<Address>>();
         assert_eq!(pools.get(0), Some(&pool_address1));
@@ -559,10 +558,10 @@ mod tests {
 
         // other way around
         let tokens = second_path.tokens.iter().map(|token| token.get_address()).collect::<Vec<Address>>();
-        assert_eq!(tokens.get(0), Some(&WETH_ADDRESS));
+        assert_eq!(tokens.get(0), Some(&TokenAddress::WETH));
         assert_eq!(tokens.get(1), Some(&token2));
         assert_eq!(tokens.get(2), Some(&token1));
-        assert_eq!(tokens.get(3), Some(&WETH_ADDRESS));
+        assert_eq!(tokens.get(3), Some(&TokenAddress::WETH));
 
         let pools = second_path.pools.iter().map(|pool| pool.get_address()).collect::<Vec<Address>>();
         assert_eq!(pools.get(0), Some(&pool_address3));

@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{address, Address, Bytes, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::SolCall;
 use alloy_transport::Transport;
-use eyre::{eyre, Result};
-use revm::primitives::Env;
-use tracing::error;
-
 use defi_abi::IERC20;
+use defi_address_book::Token;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use eyre::{eyre, Result};
 use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
+use revm::primitives::Env;
+use tracing::error;
 
 use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};
 
@@ -100,9 +100,9 @@ where
         let mut is_native = false;
 
         for tkn in tokens.iter_mut() {
-            if *tkn == "0xEeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE".parse::<Address>().unwrap() {
+            if *tkn == address!("EeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
                 //return Err(eyre!("ETH_CURVE_POOL_NOT_SUPPORTED"));
-                *tkn = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
+                *tkn = Token::WETH;
                 is_native = true;
             }
         }

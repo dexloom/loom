@@ -1,5 +1,6 @@
+use alloy::primitives::BlockHash;
 use alloy::primitives::ChainId;
-use alloy::primitives::{Address, BlockHash};
+use defi_address_book::Token as TokenAddress;
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
 use defi_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
@@ -51,21 +52,14 @@ impl Blockchain {
         let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
         let tasks_channel: Broadcaster<Task> = Broadcaster::new(1000);
 
-        let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-        let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
-        let usdt_address: Address = "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap();
-        let dai_address: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();
-        let wbtc_address: Address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".parse().unwrap();
-        let threecrv_address: Address = "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse().unwrap();
-
         let mut market_instance = Market::default();
 
-        let weth_token = Token::new_with_data(weth_address, Some("WETH".to_string()), None, Some(18), true, false);
-        let usdc_token = Token::new_with_data(usdc_address, Some("USDC".to_string()), None, Some(6), true, false);
-        let usdt_token = Token::new_with_data(usdt_address, Some("USDT".to_string()), None, Some(6), true, false);
-        let dai_token = Token::new_with_data(dai_address, Some("DAI".to_string()), None, Some(18), true, false);
-        let wbtc_token = Token::new_with_data(wbtc_address, Some("WBTC".to_string()), None, Some(8), true, false);
-        let threecrv_token = Token::new_with_data(threecrv_address, Some("3Crv".to_string()), None, Some(18), false, true);
+        let weth_token = Token::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false);
+        let usdc_token = Token::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), true, false);
+        let usdt_token = Token::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), true, false);
+        let dai_token = Token::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), true, false);
+        let wbtc_token = Token::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), true, false);
+        let threecrv_token = Token::new_with_data(TokenAddress::THREECRV, Some("3Crv".to_string()), None, Some(18), false, true);
 
         market_instance.add_token(weth_token).unwrap();
         market_instance.add_token(usdc_token).unwrap();

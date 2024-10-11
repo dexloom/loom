@@ -2,25 +2,20 @@ use alloy_primitives::{Address, Bytes, U128, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
 use alloy_transport::Transport;
-use eyre::{eyre, ErrReport, OptionExt, Result};
-use lazy_static::lazy_static;
-use revm::primitives::Env;
-use tracing::error;
-
 use defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaverickPoolInstance};
 use defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuoterCalls};
 use defi_abi::maverick::{IMaverickPool, IMaverickQuoter, State};
 use defi_abi::IERC20;
+use defi_address_book::Periphery;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
+use revm::primitives::Env;
+use tracing::error;
 
 use crate::state_readers::UniswapV3StateReader;
-
-lazy_static! {
-    pub static ref QUOTER_ADDRESS: Address = "0x9980ce3b5570e41324904f46A06cE7B466925E23".parse().unwrap();
-}
 
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -195,7 +190,7 @@ impl Pool for MaverickPool {
         })
         .abi_encode();
 
-        let (value, gas_used) = evm_call(state_db, env, *QUOTER_ADDRESS, call_data_vec)?;
+        let (value, gas_used) = evm_call(state_db, env, Periphery::MAVERICK_QUOTER, call_data_vec)?;
 
         let ret = calculateSwapCall::abi_decode_returns(&value, false)?.returnAmount;
 
@@ -234,7 +229,7 @@ impl Pool for MaverickPool {
         })
         .abi_encode();
 
-        let (value, gas_used) = evm_call(state_db, env, *QUOTER_ADDRESS, call_data_vec)?;
+        let (value, gas_used) = evm_call(state_db, env, Periphery::MAVERICK_QUOTER, call_data_vec)?;
 
         let ret = calculateSwapCall::abi_decode_returns(&value, false)?.returnAmount;
 
@@ -285,52 +280,52 @@ impl Pool for MaverickPool {
         state_required
             .add_call(self.get_address(), IMaverickPoolCalls::getState(getStateCall {}).abi_encode())
             .add_call(
-                *QUOTER_ADDRESS,
+                Periphery::MAVERICK_QUOTER,
                 IMaverickQuoterCalls::getBinsAtTick(IMaverickQuoter::getBinsAtTickCall { pool: pool_address, tick: tick_bitmap_index - 4 })
                     .abi_encode(),
             )
             .add_call(
-                *QUOTER_ADDRESS,
+                Periphery::MAVERICK_QUOTER,
                 IMaverickQuoterCalls::getBinsAtTick(IMaverickQuoter::getBinsAtTickCall { pool: pool_address, tick: tick_bitmap_index - 3 })
                     .abi_encode(),
             )
             .add_call(
-                *QUOTER_ADDRESS,
+                Periphery::MAVERICK_QUOTER,
                 IMaverickQuoterCalls::getBinsAtTick(IMaverickQuoter::getBinsAtTickCall { pool: pool_address, tick: tick_bitmap_index - 2 })
                     .abi_encode(),
             )
             .add_call(
-                *QUOTER_ADDRESS,
+                Periphery::MAVERICK_QUOTER,
                 IMaverickQuoterCalls::getBinsAtTick(IMaverickQuoter::getBinsAtTickCall { pool: pool_address, tick: tick_bitmap_index - 1 })
                     .abi_encode(),
             )
             .add_call(
-                *QUOTER_ADDRESS,
+                Periphery::MAVERICK_QUOTER,
                 IMaverickQuoterCalls::getBinsAtTick(IMaverickQuoter::getBinsAtTickCall { pool: pool_address, tick: tick_bitmap_index })
                     .abi_encode(),
             )
             .add_call(
-                *QUOTER_ADDRESS,
+                Periphery::MAVERICK_QUOTER,
                 IMaverickQuoterCalls::getBinsAtTick(IMaverickQuoter::getBinsAtTickCall { pool: pool_address, tick: tick_bitmap_index + 1 })
                     .abi_encode(),
             )
             .add_call(
-                *QUOTER_ADDRESS,
+                Periphery::MAVERICK_QUOTER,
                 IMaverickQuoterCalls::getBinsAtTick(IMaverickQuoter::getBinsAtTickCall { pool: pool_address, tick: tick_bitmap_index + 2 })
                     .abi_encode(),
             )
             .add_call(
-                *QUOTER_ADDRESS,
+                Periphery::MAVERICK_QUOTER,
                 IMaverickQuoterCalls::getBinsAtTick(IMaverickQuoter::getBinsAtTickCall { pool: pool_address, tick: tick_bitmap_index + 3 })
                     .abi_encode(),
             )
             .add_call(
-                *QUOTER_ADDRESS,
+                Periphery::MAVERICK_QUOTER,
                 IMaverickQuoterCalls::getBinsAtTick(IMaverickQuoter::getBinsAtTickCall { pool: pool_address, tick: tick_bitmap_index + 4 })
                     .abi_encode(),
             )
-            .add_call(*QUOTER_ADDRESS, quoter_swap_0_1_call)
-            .add_call(*QUOTER_ADDRESS, quoter_swap_1_0_call)
+            .add_call(Periphery::MAVERICK_QUOTER, quoter_swap_0_1_call)
+            .add_call(Periphery::MAVERICK_QUOTER, quoter_swap_1_0_call)
             .add_slot_range(self.get_address(), U256::from(0), 0x20);
 
         for token_address in self.get_tokens() {
@@ -459,7 +454,7 @@ mod tests {
 
         let amount = U256::from(pool.liquidity1 / U256::from(1000));
 
-        let quoter = IMaverickQuoterInstance::new(*QUOTER_ADDRESS, client.clone());
+        let quoter = IMaverickQuoterInstance::new(Periphery::MAVERICK_QUOTER, client.clone());
 
         let resp = quoter.calculateSwap(pool_address, amount.to(), false, false, U256::ZERO).call().await?;
         debug!("Router call : {:?}", resp.returnAmount);

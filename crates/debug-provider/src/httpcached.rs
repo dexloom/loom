@@ -390,6 +390,7 @@ mod test {
     use std::env;
     use std::time::Duration;
 
+    use alloy::primitives::address;
     use alloy::{
         providers::{ext::DebugApi, Provider, ProviderBuilder},
         rpc::{
@@ -447,7 +448,7 @@ mod test {
 
         let mut blocks_watcher = provider.watch_blocks().await?.into_stream();
 
-        let weth = defi_abi::IWETH::new("0xc02aaa39b223fe8d0a0e5c4f27ead9083c756cc2".parse()?, provider.clone());
+        let weth = defi_abi::IWETH::new(address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"), provider.clone());
 
         tokio::task::spawn(async move {
             loop {

@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
-use alloy_primitives::{address, Address, Bytes, U256};
+use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, Result};
 use tracing::{error, trace};
 
+use defi_address_book::Token as TokenAddress;
 use defi_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 use defi_types::{MulticallerCall, MulticallerCalls};
 
@@ -707,9 +708,8 @@ impl SwapLineEncoder {
         to: Address,
     ) -> Result<MulticallerCalls> {
         let mut tips_opcodes = swap_opcodes.clone();
-        let weth_address: Address = address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 
-        let call_data = if token_address == weth_address {
+        let call_data = if token_address == TokenAddress::WETH {
             EncoderHelper::encode_multicaller_transfer_tips_weth(min_balance, tips, to)
         } else {
             EncoderHelper::encode_multicaller_transfer_tips(token_address, min_balance, tips, to)

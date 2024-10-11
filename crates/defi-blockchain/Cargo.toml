@@ -9,6 +9,7 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
+defi-address-book.workspace = true
 defi-entities.workspace = true
 defi-types.workspace = true
 defi-events.workspace = true

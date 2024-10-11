@@ -11,9 +11,11 @@ exclude.workspace = true
 [dependencies]
 lazy_static.workspace = true
 
+
 defi-entities.workspace = true
 defi-abi.workspace = true
 defi-types.workspace = true
+defi-address-book.workspace = true
 loom-utils.workspace = true
 loom-revm-db.workspace = true
 

@@ -4,19 +4,15 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, I256, U256};
 use eyre::{eyre, Result};
-use lazy_static::lazy_static;
 use revm::primitives::Env;
 use tracing::debug;
 
+use defi_address_book::Token as TokenAddress;
 use defi_types::SwapError;
 use loom_revm_db::LoomInMemoryDB;
 
 use crate::swappath::SwapPath;
 use crate::{PoolWrapper, SwapStep, Token};
-
-lazy_static! {
-    static ref WETH_ADDRESS: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-}
 
 #[derive(Clone, Copy, Debug, Default)]
 pub enum SwapAmountType {
@@ -247,7 +243,7 @@ impl SwapLine {
         if tokens.is_empty() {
             false
         } else {
-            tokens[0].get_address() == *WETH_ADDRESS
+            tokens[0].get_address() == TokenAddress::WETH
         }
     }
 

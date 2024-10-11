@@ -1,38 +1,31 @@
 use std::fmt::Debug;
 use std::ops::Sub;
 
-use alloy_primitives::{Address, Bytes, I256, U160, U256};
-use alloy_provider::{Network, Provider};
-use alloy_sol_types::{SolCall, SolInterface};
-use alloy_transport::Transport;
-use eyre::{eyre, ErrReport, OptionExt, Result};
-use lazy_static::lazy_static;
-use revm::primitives::Env;
-use tracing::debug;
-#[cfg(any(test, debug_assertions))]
-use tracing::error;
-
 #[cfg(any(test, debug_assertions))]
 use crate::protocols::UniswapV3Protocol;
 #[cfg(any(test, debug_assertions))]
 use crate::state_readers::UniswapCustomQuoterStateReader;
 use crate::state_readers::{UniswapV3QuoterEncoder, UniswapV3StateReader};
+use alloy_primitives::{Address, Bytes, I256, U160, U256};
+use alloy_provider::{Network, Provider};
+use alloy_sol_types::{SolCall, SolInterface};
+use alloy_transport::Transport;
 use defi_abi::uniswap3::IUniswapV3Pool;
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use defi_abi::uniswap_periphery::ITickLens;
 use defi_abi::IERC20;
+use defi_address_book::{Factory, Periphery};
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_revm_db::LoomInMemoryDB;
+use revm::primitives::Env;
+use tracing::debug;
+#[cfg(any(test, debug_assertions))]
+use tracing::error;
 
 use crate::virtual_impl::UniswapV3PoolVirtual;
 
-lazy_static! {
-    pub static ref QUOTER_ADDRESS: Address = "0xb27308f9F90D607463bb33eA1BeBb41C27CE5AB6".parse().unwrap();
-    pub static ref TICK_LENS_ADDRESS: Address = "0xbfd8137f7d1516D3ea5cA83523914859ec47F573".parse().unwrap();
-    pub static ref UNI3_FACTORY_ADDRESS: Address = "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
-    pub static ref SUSHI3_FACTORY_ADDRESS: Address = "0xbACEB8eC6b9355Dfc0269C18bac9d6E2Bdc29C4F".parse().unwrap();
-}
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
 pub struct Slot0 {
@@ -153,9 +146,9 @@ impl UniswapV3Pool {
     }
 
     fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
-        if factory_address == *UNI3_FACTORY_ADDRESS {
+        if factory_address == Factory::UNISWAP_V3 {
             PoolProtocol::UniswapV3
-        } else if factory_address == *SUSHI3_FACTORY_ADDRESS {
+        } else if factory_address == Factory::SUSHISWAP_V3 {
             PoolProtocol::SushiswapV3
         } else {
             PoolProtocol::UniswapV3Like
@@ -357,7 +350,7 @@ impl Pool for UniswapV3Pool {
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode())
             .add_call(
-                *TICK_LENS_ADDRESS,
+                Periphery::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 4,
@@ -365,7 +358,7 @@ impl Pool for UniswapV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                *TICK_LENS_ADDRESS,
+                Periphery::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 3,
@@ -373,7 +366,7 @@ impl Pool for UniswapV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                *TICK_LENS_ADDRESS,
+                Periphery::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 2,
@@ -381,7 +374,7 @@ impl Pool for UniswapV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                *TICK_LENS_ADDRESS,
+                Periphery::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 1,
@@ -389,7 +382,7 @@ impl Pool for UniswapV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                *TICK_LENS_ADDRESS,
+                Periphery::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index,
@@ -397,7 +390,7 @@ impl Pool for UniswapV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                *TICK_LENS_ADDRESS,
+                Periphery::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 1,
@@ -405,7 +398,7 @@ impl Pool for UniswapV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                *TICK_LENS_ADDRESS,
+                Periphery::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 2,
@@ -413,7 +406,7 @@ impl Pool for UniswapV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                *TICK_LENS_ADDRESS,
+                Periphery::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 3,
@@ -421,7 +414,7 @@ impl Pool for UniswapV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                *TICK_LENS_ADDRESS,
+                Periphery::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 4,
@@ -449,7 +442,10 @@ impl Pool for UniswapV3Pool {
             let quoter_swap_1_0_call =
                 UniswapV3QuoterEncoder::quote_exact_input_encode(self.token1, self.token0, self.fee.try_into()?, price_limit, amount);
 
-            state_required.add_call(*QUOTER_ADDRESS, quoter_swap_0_1_call).add_call(*QUOTER_ADDRESS, quoter_swap_1_0_call);
+            // TODO: How about Sushiswap?
+            state_required
+                .add_call(Periphery::UNISWAP_V3_QUOTER, quoter_swap_0_1_call)
+                .add_call(Periphery::UNISWAP_V3_QUOTER, quoter_swap_1_0_call);
         }
 
         Ok(state_required)
