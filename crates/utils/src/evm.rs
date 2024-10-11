@@ -25,8 +25,7 @@ use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
 #[cfg(feature = "trace-calls")]
 use std::collections::HashSet;
 
-use tracing::{debug, error};
-use tracing::log::trace;
+use tracing::{debug, error, trace};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();
