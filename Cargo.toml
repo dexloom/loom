@@ -10,7 +10,7 @@ default-members = ["bin/loom_backrun", "bin/keys", "bin/loom_anvil", "bin/gasben
 resolver = "2"
 
 [workspace.package]
-version = "0.1.0"
+version = "0.2.0"
 edition = "2021"
 rust-version = "1.81"
 license = "MIT OR Apache-2.0"
@@ -114,31 +114,31 @@ alloy-pubsub = "0.4.2"
 alloy-signer = "0.4.2"
 alloy-signer-local = "0.4.2"
 
-reth = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-rpc = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8", features = ["serde"] }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-tracing = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-node-core = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-node-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-node-builder = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
-reth-storage-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.0.8" }
+reth = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-rpc = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8", features = ["serde"] }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-node-core = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-node-types = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
+reth-storage-api = { git = "https://github.com/paradigmxyz/reth", tag = "v1.0.8" }
 
-reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev="3589545" }
+reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev = "3589545" }
 #reth-exex-grpc = { path = "../reth-exex-grpc" }
 
 

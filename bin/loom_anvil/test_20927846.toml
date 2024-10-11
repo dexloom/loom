@@ -27,5 +27,5 @@ chad_0x7d = { address = "0x7d7ef607A2B7aB675194D85eB03b276a93F6b71d", symbol = "
 
 [results]
 swaps_encoded = 1
-swaps_ok = 1
+swaps_ok = 0
 best_profit_eth = 0.003239

@@ -96,7 +96,7 @@ async fn swap_router_worker(
     }
 }
 
-#[derive(Consumer, Producer, Accessor)]
+#[derive(Consumer, Producer, Accessor, Default)]
 pub struct SwapRouterActor {
     #[accessor]
     signers: Option<SharedState<TxSigners>>,

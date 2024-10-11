@@ -7,7 +7,7 @@ use loom_revm_db::LoomInMemoryDB;
 use reth_primitives::revm_primitives::Env;
 
 lazy_static! {
-    static ref START_OPTIMIZE_INPUT: U256 = parse_units("0.1", "ether").unwrap().get_absolute();
+    static ref START_OPTIMIZE_INPUT: U256 = parse_units("0.01", "ether").unwrap().get_absolute();
 }
 
 pub struct SwapCalculator {}

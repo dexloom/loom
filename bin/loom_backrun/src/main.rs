@@ -55,10 +55,10 @@ async fn main() -> Result<()> {
         }
     }
 
-    let multicaller = topology.get_encoder(None).unwrap().get_multicaller();
+    let multicaller = topology.get_multicaller_encoder(None).unwrap().get_contract_address();
     info!("Starting swap path encoder actor with multicaller at : {}", multicaller);
 
-    let mut swap_path_encoder_actor = SwapRouterActor::new(multicaller);
+    let mut swap_path_encoder_actor = SwapRouterActor::new();
 
     match swap_path_encoder_actor
         .access(tx_signers.clone())

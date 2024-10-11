@@ -25,7 +25,7 @@ impl SwapStepEncoder {
         Self { multicaller, swap_line_encoder: SwapLineEncoder::new(multicaller) }
     }
 
-    pub fn get_multicaller(&self) -> Address {
+    pub fn get_contract_address(&self) -> Address {
         self.multicaller
     }
 

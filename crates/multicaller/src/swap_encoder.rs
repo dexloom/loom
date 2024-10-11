@@ -18,12 +18,12 @@ impl SwapEncoder for MulticallerSwapEncoder {
     ) -> Result<(Address, Option<U256>, Bytes, Vec<Tips>)> {
         let swap_vec = match &swap {
             Swap::BackrunSwapLine(_) | Swap::BackrunSwapSteps(_) => {
-                vec![swap.to_swap_steps(self.swap_step_encoder.get_multicaller()).ok_or_eyre("SWAP_TYPE_NOTE_COVERED")?]
+                vec![swap.to_swap_steps(self.swap_step_encoder.get_contract_address()).ok_or_eyre("SWAP_TYPE_NOTE_COVERED")?]
             }
             Swap::Multiple(swap_vec) => {
                 let mut ret: Vec<(SwapStep, SwapStep)> = Vec::new();
                 for s in swap_vec.iter() {
-                    ret.push(s.to_swap_steps(self.swap_step_encoder.get_multicaller()).ok_or_eyre("AA")?);
+                    ret.push(s.to_swap_steps(self.swap_step_encoder.get_contract_address()).ok_or_eyre("AA")?);
                 }
                 ret
             }
@@ -39,8 +39,8 @@ impl SwapEncoder for MulticallerSwapEncoder {
                     debug!("Swap::ExchangeSwapLine encoding started");
                     match self.swap_step_encoder.swap_line_encoder.encode_swap_line_in_amount(
                         swap_line,
-                        self.swap_step_encoder.get_multicaller(),
-                        self.swap_step_encoder.get_multicaller(),
+                        self.swap_step_encoder.get_contract_address(),
+                        self.swap_step_encoder.get_contract_address(),
                     ) {
                         Ok(calls) => calls,
                         Err(e) => {
