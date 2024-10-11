@@ -8,6 +8,8 @@ use eyre::{eyre, Result};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use tokio::sync::broadcast::error::RecvError;
+#[cfg(not(debug_assertions))]
+use tracing::warn;
 use tracing::{debug, error, info, trace};
 
 use crate::backrun::SwapCalculator;
