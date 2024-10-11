@@ -26,7 +26,7 @@ async fn arb_swap_steps_optimizer_task(
         let start_time = chrono::Local::now();
         match SwapStep::optimize_swap_steps(&state_db, evm_env, &sp0, &sp1, None) {
             Ok((s0, s1)) => {
-                let encode_request = MessageTxCompose::encode(TxComposeData {
+                let encode_request = MessageTxCompose::route(TxComposeData {
                     origin: Some("merger_searcher".to_string()),
                     tips_pct: None,
                     swap: Swap::BackrunSwapSteps((s0, s1)),
@@ -113,7 +113,7 @@ async fn arb_swap_path_merger_worker(
                             };
 
 
-                            match SwapStep::merge_swap_paths( req_swap.clone(), swap_path.clone(), encoder.get_multicaller() ){
+                            match SwapStep::merge_swap_paths( req_swap.clone(), swap_path.clone(), encoder.get_contract_address() ){
                                 Ok((sp0, sp1)) => {
                                     let latest_block_guard = latest_block.read().await;
                                     let block_header = latest_block_guard.block_header.clone().unwrap();

@@ -95,7 +95,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider + Clone + 'static>(
 
                                 let entry = txs_to_check.entry(*stuffing_tx_hash).or_insert(
                                         TxToCheck{
-                                                block : broadcast_data.block,
+                                                block : broadcast_data.next_block_number,
                                                 token_in : token_in.as_ref().clone(),
                                                 profit : U256::ZERO,
                                                 tips : U256::ZERO,

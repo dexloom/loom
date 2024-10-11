@@ -25,7 +25,7 @@ impl SwapStepEncoder {
         Self { multicaller, swap_line_encoder: SwapLineEncoder::new(multicaller) }
     }
 
-    pub fn get_multicaller(&self) -> Address {
+    pub fn get_contract_address(&self) -> Address {
         self.multicaller
     }
 
@@ -42,9 +42,9 @@ impl SwapStepEncoder {
         token_address: Address,
         min_balance: U256,
         tips: U256,
-        to: Address,
+        funds_to: Address,
     ) -> Result<MulticallerCalls> {
-        self.swap_line_encoder.encode_tips(swap_opcodes, token_address, min_balance, tips, to)
+        self.swap_line_encoder.encode_tips(swap_opcodes, token_address, min_balance, tips, funds_to)
     }
 
     pub fn encode_balancer_flash_loan(&self, steps: Vec<SwapStep>) -> Result<MulticallerCalls> {
@@ -175,7 +175,7 @@ impl SwapStepEncoder {
         Ok((self.multicaller, call_data))
     }
 
-    pub fn encode(&self, sp0: &SwapStep, sp1: &SwapStep) -> Result<MulticallerCalls> {
+    pub fn encode_swap_steps(&self, sp0: &SwapStep, sp1: &SwapStep) -> Result<MulticallerCalls> {
         if sp0.can_flash_swap() {
             self.encode_in_amount(sp0.clone(), sp1.clone())
         } else if sp1.can_flash_swap() {

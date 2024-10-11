@@ -26,6 +26,6 @@ chad_0x5c = { address = "0x5c888fa2e6f9f0880321683d1efa12e936fd5051", symbol = "
 chad_0x7d = { address = "0x7d7ef607A2B7aB675194D85eB03b276a93F6b71d", symbol = "CHAD_0x7d", decimals = 18, basic = false, middle = false }
 
 [results]
-swaps_encoded = 2
-swaps_ok = 2
-best_profit_eth = 0.00958
+swaps_encoded = 1
+swaps_ok = 0
+best_profit_eth = 0.003239

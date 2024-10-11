@@ -9,7 +9,7 @@ use crate::{
     FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderOneShotActor, InitializeSignersOneShotBlockingActor,
     MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor,
     NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PoolLoaderActor, PriceActor,
-    RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapEncoderActor, TxSignersActor,
+    RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapRouterActor, TxSignersActor,
 };
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, B256, U256};
@@ -148,7 +148,7 @@ where
         };
 
         self.encoder = Some(MulticallerSwapEncoder::new(multicaller_address));
-        self.actor_manager.start(SwapEncoderActor::new(multicaller_address).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(SwapRouterActor::new().with_signers(self.signers.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 
@@ -273,14 +273,13 @@ where
     pub fn with_geth_estimator(&mut self) -> Result<&mut Self> {
         let flashbots = Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays();
 
-        self.actor_manager
-            .start(GethEstimatorActor::new(Arc::new(flashbots), self.encoder.clone().unwrap().swap_step_encoder.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(GethEstimatorActor::new(Arc::new(flashbots), self.encoder.clone().unwrap()).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Starts EVM gas estimator and tips filler
     pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(EvmEstimatorActor::new(self.encoder.clone().unwrap().swap_step_encoder.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(EvmEstimatorActor::new(self.encoder.clone().unwrap()).on_bc(&self.bc))?;
         Ok(self)
     }
 

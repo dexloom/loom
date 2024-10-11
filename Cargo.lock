@@ -2268,7 +2268,7 @@ checksum = "f578e8e2c440e7297e008bb5486a3a8a194775224bbc23729b0dbdfaeebf162e"
 
 [[package]]
 name = "debug-provider"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "alloy-provider",
@@ -2291,7 +2291,7 @@ dependencies = [
 
 [[package]]
 name = "defi-abi"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy-contract",
  "alloy-primitives",
@@ -2301,7 +2301,7 @@ dependencies = [
 
 [[package]]
 name = "defi-actors"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "alloy-consensus",
@@ -2359,7 +2359,7 @@ dependencies = [
 
 [[package]]
 name = "defi-blockchain"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "defi-entities",
@@ -2373,7 +2373,7 @@ dependencies = [
 
 [[package]]
 name = "defi-entities"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aes",
  "alloy-consensus",
@@ -2414,7 +2414,7 @@ dependencies = [
 
 [[package]]
 name = "defi-events"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy-consensus",
  "alloy-primitives",
@@ -2430,7 +2430,7 @@ dependencies = [
 
 [[package]]
 name = "defi-pools"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy-primitives",
  "alloy-provider",
@@ -2460,7 +2460,7 @@ dependencies = [
 
 [[package]]
 name = "defi-types"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -2854,7 +2854,7 @@ dependencies = [
 
 [[package]]
 name = "exex_grpc_loom"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "eyre",
  "reth-exex",
@@ -3145,7 +3145,7 @@ checksum = "42012b0f064e01aa58b545fe3727f90f7dd4020f4a3ea735b50344965f5a57e9"
 
 [[package]]
 name = "gasbench"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "alloy-consensus",
@@ -4350,7 +4350,7 @@ dependencies = [
 
 [[package]]
 name = "keys"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "aes",
  "clap",
@@ -4561,7 +4561,7 @@ checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 
 [[package]]
 name = "loom"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "debug-provider",
  "defi-abi",
@@ -4604,7 +4604,7 @@ dependencies = [
 
 [[package]]
 name = "loom-metrics"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "chrono",
@@ -4620,7 +4620,7 @@ dependencies = [
 
 [[package]]
 name = "loom-multicaller"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy-eips",
  "alloy-network",
@@ -4647,7 +4647,7 @@ dependencies = [
 
 [[package]]
 name = "loom-revm-db"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "chrono",
@@ -4661,7 +4661,7 @@ dependencies = [
 
 [[package]]
 name = "loom-topology"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy-primitives",
  "alloy-provider",
@@ -4692,7 +4692,7 @@ dependencies = [
 
 [[package]]
 name = "loom-utils"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "debug-provider",
@@ -4712,7 +4712,7 @@ dependencies = [
 
 [[package]]
 name = "loom_anvil"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy-consensus",
  "alloy-node-bindings",
@@ -4777,7 +4777,7 @@ dependencies = [
 
 [[package]]
 name = "loom_exex"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "clap",
@@ -5104,7 +5104,7 @@ dependencies = [
 
 [[package]]
 name = "nodebench"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "chrono",
@@ -6259,7 +6259,7 @@ dependencies = [
 
 [[package]]
 name = "replayer"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "clap",
@@ -6281,6 +6281,7 @@ dependencies = [
  "tokio",
  "toml",
  "tracing",
+ "tracing-subscriber",
  "url",
 ]
 
@@ -10629,7 +10630,7 @@ checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
 
 [[package]]
 name = "uniswap_v3_math"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy",
  "eyre",

@@ -18,15 +18,14 @@ use lazy_static::lazy_static;
 #[cfg(feature = "trace-calls")]
 use revm::inspector_handle_register;
 use revm::interpreter::Host;
+#[cfg(feature = "trace-calls")]
+use revm::primitives::HashSet;
 use revm::primitives::{Account, BlockEnv, Env, ExecutionResult, Output, ResultAndState, TransactTo, TxEnv, SHANGHAI};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 #[cfg(feature = "trace-calls")]
 use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
-#[cfg(feature = "trace-calls")]
-use std::collections::HashSet;
-
-use tracing::{debug, error};
 use tracing::log::trace;
+use tracing::{debug, error};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();
@@ -159,8 +158,7 @@ where
     match evm.transact() {
         Ok(execution_result) => match execution_result.result {
             ExecutionResult::Success { output, gas_used, reason, .. } => {
-                debug!("AccessList Gas used : {gas_used} reason : {reason:?}");
-                debug!("AccessList Output : {output:?}");
+                debug!(gas_used, ?reason, ?output, "AccessList");
                 let mut acl = AccessList::default();
 
                 for (addr, acc) in execution_result.state {

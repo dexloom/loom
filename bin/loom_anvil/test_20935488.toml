@@ -1,0 +1,31 @@
+# ITO KOBOSU WETH ARB CASE
+# replay tx with loom for 0xdc89197a90ba2c9f9a285cc7335b8f0917413d85bebd1764110d786a4753bde2
+[modules]
+signer = false
+
+
+[settings]
+block = 20935488
+coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
+multicaller = "0x3dd35b4da6534230ff53048f7477f17f7f4e7a70"
+skip_default = false
+
+[pools]
+ito_weth_uni2 = { address = "0x322bba387c825180ebfb62bd8e6969ebe5b5e52d", class = "uniswap2" }
+kobosu_ito_uni2 = { address = "0xf382839b955ab57cc1e041f2c987a909c9a48af1", class = "uniswap2" }
+kobosu_weth_uni3 = { address = "0x49af5fb5de94c93ee83ad488fe8cab30b0ef35f2", class = "uniswap3" }
+
+[txs]
+# block 20935489
+tx_1 = { hash = "0xf9da422be59beb73438586da11601400b66d7b4246d665477f0ebc84646df8d9", send = "mempool" }
+
+
+[tokens]
+weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
+ito = { address = "0x465dbC39F46f9D43C581a5d90A43e4a0F2A6fF2d", symbol = "ITO", decimals = 9, basic = false, middle = false }
+kabosu = { address = "0xceb67a66c2c8a90980da3a50a3f96c07525a26cb", symbol = "KABOSU", decimals = 9, basic = false, middle = false }
+
+[results]
+swaps_encoded = 2
+swaps_ok = 2
+best_profit_eth = 0.00958

@@ -17,7 +17,6 @@ use defi_pools::protocols::UniswapV3Protocol;
 use defi_types::GethStateUpdate;
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
-use loom_multicaller::SwapStepEncoder;
 use loom_utils::tokens::ETH_NATIVE_ADDRESS;
 use loom_utils::{BalanceCheater, NWETH};
 
@@ -144,7 +143,7 @@ pub struct MarketStatePreloadedOneShotActor<P, T, N> {
     #[accessor]
     market_state: Option<SharedState<MarketState>>,
     #[accessor]
-    account_nonce_balabnce_state: Option<SharedState<AccountNonceAndBalanceState>>,
+    account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -168,7 +167,7 @@ where
             new_accounts: Vec::new(),
             token_balances: Vec::new(),
             market_state: None,
-            account_nonce_balabnce_state: None,
+            account_nonce_balance_state: None,
             _t: PhantomData,
             _n: PhantomData,
         }
@@ -179,7 +178,7 @@ where
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self { market_state: Some(bc.market_state()), account_nonce_balabnce_state: Some(bc.nonce_and_balance()), ..self }
+        Self { market_state: Some(bc.market_state()), account_nonce_balance_state: Some(bc.nonce_and_balance()), ..self }
     }
 
     pub fn with_signers(self, tx_signers: SharedState<TxSigners>) -> Self {
@@ -194,12 +193,6 @@ where
                 self
             }
         }
-    }
-
-    pub fn with_encoder(self, encoder: &SwapStepEncoder) -> Self {
-        let mut addresses = self.copied_accounts;
-        addresses.extend(vec![encoder.get_multicaller()]);
-        Self { copied_accounts: addresses, ..self }
     }
 
     pub fn with_copied_account(self, address: Address) -> Self {
@@ -241,7 +234,7 @@ where
             self.new_accounts.clone(),
             self.token_balances.clone(),
             self.market_state.clone().unwrap(),
-            self.account_nonce_balabnce_state.clone(),
+            self.account_nonce_balance_state.clone(),
         ));
 
         self.wait(Ok(vec![handler]))?;

@@ -8,7 +8,6 @@ use alloy::rpc::types::Header;
 use alloy::{providers::ProviderBuilder, rpc::client::ClientBuilder};
 use eyre::Result;
 use tokio::select;
-use tracing::{debug, error, info};
 use url::Url;
 
 use debug_provider::HttpCachedTransport;
@@ -22,15 +21,26 @@ use loom_multicaller::EncoderHelper;
 use loom_utils::evm::env_for_block;
 use loom_utils::tokens::{USDC_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
+use tracing::{debug, error, info};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{fmt, EnvFilter, Layer};
 
 #[tokio::main]
 async fn main() -> Result<()> {
     let start_block_number = 20179184;
-    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(
-        "debug,alloy_rpc_client=off,debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace",
-    ))
-    .format_timestamp_micros()
-    .init();
+    // env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(
+    //     "debug,alloy_rpc_client=off,debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace",
+    // ))
+    // .format_timestamp_micros()
+    // .init();
+
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
+        "debug,alloy_rpc_client=off,debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace".into()
+    });
+    let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(false).with_line_number(true).with_filter(env_filter);
+
+    tracing_subscriber::registry().with(fmt_layer).init();
 
     let node_url = env::var("MAINNET_HTTP")?;
     let node_url = Url::parse(node_url.as_str())?;
@@ -100,9 +110,9 @@ async fn main() -> Result<()> {
                             swap_line.amount_in = SwapAmountType::Set( NWETH::from_float(0.1));
                             swap_line.gas_used = Some(300000);
 
-                            let tx_compose_encode_msg = MessageTxCompose::encode(
+                            let tx_compose_encode_msg = MessageTxCompose::route(
                                 TxComposeData{
-                                    base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
+                                    next_block_base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
                                     poststate : Some(Arc::new(market_state.read().await.state_db.clone())),
                                     swap : Swap::ExchangeSwapLine(swap_line),
                                     ..TxComposeData::default()

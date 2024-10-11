@@ -13,7 +13,7 @@ use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
     DiffPathMergerActor, EvmEstimatorActor, InitializeSignersOneShotBlockingActor, MarketStatePreloadedOneShotActor, NodeBlockActor,
-    NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapEncoderActor,
+    NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapRouterActor,
     TxSignersActor,
 };
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners};
@@ -32,7 +32,7 @@ use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
 use defi_types::{debug_trace_block, ChainParameters, Mempool};
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
-use loom_multicaller::{MulticallerDeployer, SwapStepEncoder};
+use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
 use loom_revm_db::LoomInMemoryDB;
 
 use crate::test_config::TestConfig;
@@ -42,7 +42,7 @@ mod test_config;
 
 #[derive(Clone, Default, Debug)]
 struct Stat {
-    encode_counter: usize,
+    found_counter: usize,
     sign_counter: usize,
     best_profit_eth: U256,
     best_swap: Option<Swap>,
@@ -55,8 +55,8 @@ impl Display for Stat {
                 Some(token) => {
                     write!(
                         f,
-                        "Encoded: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ",
-                        self.encode_counter,
+                        "Found: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ",
+                        self.found_counter,
                         self.sign_counter,
                         token.to_float(swap.abs_profit()),
                         NWETH::to_float(swap.abs_profit_eth()),
@@ -66,8 +66,8 @@ impl Display for Stat {
                 None => {
                     write!(
                         f,
-                        "Encoded: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ",
-                        self.encode_counter,
+                        "Found: {} Ok: {} Profit : {} / ProfitEth : {} Path : {} ",
+                        self.found_counter,
                         self.sign_counter,
                         swap.abs_profit(),
                         swap.abs_profit_eth(),
@@ -99,8 +99,9 @@ struct Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "debug,alloy_rpc_client=off".into());
-    let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(true).with_line_number(true).with_filter(env_filter);
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "debug,alloy_rpc_client=off,loom_multicaller=trace".into());
+    let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(false).with_line_number(true).with_filter(env_filter);
+
     tracing_subscriber::registry().with(fmt_layer).init();
 
     let args = Commands::parse();
@@ -121,7 +122,7 @@ async fn main() -> Result<()> {
         .ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     info!("Multicaller deployed at {:?}", multicaller_address);
 
-    let encoder = SwapStepEncoder::new(multicaller_address);
+    let encoder = MulticallerSwapEncoder::new(multicaller_address);
 
     let block_nr = client.get_block_number().await?;
     info!("Block : {}", block_nr);
@@ -205,8 +206,9 @@ async fn main() -> Result<()> {
     }
 
     info!("Starting market state preload actor");
-    let mut market_state_preload_actor =
-        MarketStatePreloadedOneShotActor::new(client.clone()).with_encoder(&encoder).with_signers(tx_signers.clone());
+    let mut market_state_preload_actor = MarketStatePreloadedOneShotActor::new(client.clone())
+        .with_copied_account(encoder.get_contract_address())
+        .with_signers(tx_signers.clone());
     match market_state_preload_actor.access(market_state.clone()).start_and_wait() {
         Err(e) => {
             error!("{}", e)
@@ -337,11 +339,11 @@ async fn main() -> Result<()> {
 
     // Start actor that encodes paths found
     if test_config.modules.encoder {
-        info!("Starting swap path encoder actor");
+        info!("Starting swap router actor");
 
-        let mut swap_path_encoder_actor = SwapEncoderActor::new(multicaller_address);
+        let mut swap_router_actor = SwapRouterActor::new();
 
-        match swap_path_encoder_actor
+        match swap_router_actor
             .access(tx_signers.clone())
             .access(accounts_state.clone())
             .consume(tx_compose_channel.clone())
@@ -352,7 +354,7 @@ async fn main() -> Result<()> {
                 error!("{}", e)
             }
             _ => {
-                info!("Swap path encoder actor started successfully")
+                info!("Swap router actor started successfully")
             }
         }
     }
@@ -522,37 +524,37 @@ async fn main() -> Result<()> {
 
     println!("Test is started!");
 
-    let mut s = tx_compose_channel.subscribe().await;
+    let mut tx_compose_sub = tx_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
     let timeout_duration = Duration::from_secs(5);
 
     loop {
         tokio::select! {
-            msg = s.recv() => {
+            msg = tx_compose_sub.recv() => {
                 match msg {
                     Ok(msg) => match msg.inner {
                         TxCompose::Sign(sign_message) => {
-                            debug!("Sign message. Swap : {}", sign_message.swap);
+                            debug!(swap=%sign_message.swap, "Sign message" );
                             stat.sign_counter += 1;
                             if stat.best_profit_eth < sign_message.swap.abs_profit_eth() {
                                 stat.best_profit_eth = sign_message.swap.abs_profit_eth();
                                 stat.best_swap = Some(sign_message.swap.clone());
                             }
                         }
-                        TxCompose::Encode(encode_message) => {
-                            debug!("Encode message. Swap : {}", encode_message.swap);
-                            stat.encode_counter +=1;
+                        TxCompose::Route(encode_message) => {
+                            debug!(swap=%encode_message.swap, "Route message" );
+                            stat.found_counter +=1;
                         }
                         _ => {}
                     },
-                    Err(e) => {
-                        error!("{e}")
+                    Err(error) => {
+                        error!(%error, "tx_compose_sub.recv")
                     }
                 }
             }
             msg = tokio::time::sleep(timeout_duration) => {
-                debug!("Timed out : {:?} ", msg);
+                debug!(?msg, "Timed out");
                 break;
             }
         }
@@ -562,11 +564,11 @@ async fn main() -> Result<()> {
 
     if let Some(results) = test_config.results {
         if let Some(swaps_encoded) = results.swaps_encoded {
-            if swaps_encoded > stat.encode_counter {
-                error!("Test failed. Not enough encoded swaps : {} need {}", stat.encode_counter, swaps_encoded);
+            if swaps_encoded > stat.found_counter {
+                error!("Test failed. Not enough encoded swaps : {} need {}", stat.found_counter, swaps_encoded);
                 exit(1)
             } else {
-                info!("Test passed. Encoded swaps : {} required {}", stat.encode_counter, swaps_encoded);
+                info!("Test passed. Encoded swaps : {} required {}", stat.found_counter, swaps_encoded);
             }
         }
         if let Some(swaps_ok) = results.swaps_ok {

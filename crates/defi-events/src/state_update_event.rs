@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::fmt::Debug;
 
-use alloy_primitives::{Address, TxHash};
+use alloy_primitives::{Address, BlockNumber, TxHash};
 use alloy_rpc_types::Transaction;
 use revm::primitives::Env;
 
@@ -12,7 +12,7 @@ use loom_utils::evm::env_for_block;
 
 #[derive(Clone, Debug)]
 pub struct StateUpdateEvent {
-    pub next_block: u64,
+    pub next_block_number: BlockNumber,
     pub next_block_timestamp: u64,
     pub next_base_fee: u64,
     market_state: LoomInMemoryDB,
@@ -41,7 +41,7 @@ impl StateUpdateEvent {
         tips_pct: u32,
     ) -> StateUpdateEvent {
         StateUpdateEvent {
-            next_block,
+            next_block_number: next_block,
             next_block_timestamp,
             next_base_fee,
             state_update,
@@ -56,7 +56,7 @@ impl StateUpdateEvent {
     }
 
     pub fn evm_env(&self) -> Env {
-        env_for_block(self.next_block, self.next_block_timestamp)
+        env_for_block(self.next_block_number, self.next_block_timestamp)
     }
 
     pub fn directions(&self) -> &BTreeMap<PoolWrapper, Vec<(Address, Address)>> {

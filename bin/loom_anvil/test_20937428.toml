@@ -1,0 +1,38 @@
+# WETH -> USDC -> TSUKA -> ODIN -> WBTC -> WETH ARB CASE
+# replay tx with loom for 0x840cf4634cb8927ef1aaa00a8680f7ec7147ad27b975d733099b9a732dfd9211
+[modules]
+signer = false
+
+
+[settings]
+block = 20937428
+coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
+multicaller = "0x3dd35b4da6534230ff53048f7477f17f7f4e7a70"
+skip_default = false
+
+[pools]
+# in order of swaps
+usdc_weth_uni3 = { address = "0x88e6a0c2ddd26feeb64f039a2c41296fcb3f5640", class = "uniswap3" }
+usdc_tsuka_uni2 = { address = "0x67cea36eeb36ace126a3ca6e21405258130cf33c", class = "uniswap2" }
+tsuka_odin_uni3 = { address = "0xc0376b0cbc8e92bcc21e6b9a2f1a2351e714c6e6", class = "uniswap2" }
+odin_wbtc_uni3 = { address = "0xad673e520aada71cf73cd8e257a5d50c78eb01a0", class = "uniswap2" }
+weth_wbtc_uni2 = { address = "0x4585fe77225b41b697c938b018e2ac67ac5a20c0", class = "uniswap3" }
+
+
+[txs]
+# block 20937429
+tx_1 = { hash = "0x31f1e81e781e1e1f62f565945c875c6b0756a51d3f7ee5d07cf102af21253014", send = "mempool" }
+tx_2 = { hash = "0x2289938db5ba837b2b363c1ae9f739e96b2d576caa1a7d130f3bcdb8d78d5841", send = "mempool" }
+
+
+[tokens]
+weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
+usdc = { address = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48", symbol = "USDC", decimals = 6, basic = false, middle = false }
+tsuka = { address = "0xc5fb36dd2fb59d3b98deff88425a3f425ee469ed", symbol = "TSUKA", decimals = 9, basic = false, middle = false }
+odin = { address = "0xdfc5964141c018485b4d017634660f85aa667714", symbol = "ODIN", decimals = 18, basic = false, middle = false }
+wbtc = { address = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599", symbol = "WBTC", decimals = 8, basic = false, middle = false }
+
+[results]
+swaps_encoded = 2
+swaps_ok = 2
+best_profit_eth = 0.00958

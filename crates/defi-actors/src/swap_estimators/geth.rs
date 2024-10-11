@@ -8,32 +8,27 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use rand::random;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info};
 
 use defi_blockchain::Blockchain;
+use defi_entities::{Swap, SwapEncoder};
 use loom_utils::NWETH;
 
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use flashbots::Flashbots;
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
-use loom_multicaller::SwapStepEncoder;
 
 async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static>(
     estimate_request: TxComposeData,
     client: Arc<Flashbots<P, T>>,
-    encoder: SwapStepEncoder,
+    swap_encoder: impl SwapEncoder,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> Result<()> {
     let token_in = estimate_request.swap.get_first_token().cloned().ok_or(eyre!("NO_TOKEN"))?;
 
-    let token_in_address = token_in.get_address();
-
     let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
-
-    let opcodes = estimate_request.opcodes.clone().ok_or(eyre!("NO_OPCODES"))?;
 
     let profit = estimate_request.swap.abs_profit();
     if profit.is_zero() {
@@ -42,9 +37,17 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
 
     let profit_eth = token_in.calc_eth_value(profit).ok_or(eyre!("CALC_ETH_VALUE_FAILED"))?;
 
-    let tips_opcodes = encoder.encode_tips(opcodes.clone(), token_in_address, profit >> 1, U256::from(1000), tx_signer.address())?;
+    let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
+    let gas_cost = U256::from(100_000 * gas_price);
 
-    let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
+    let (to, _, call_data, _) = swap_encoder.encode(
+        estimate_request.swap.clone(),
+        estimate_request.tips_pct,
+        Some(estimate_request.next_block_number),
+        Some(gas_cost),
+        Some(tx_signer.address()),
+        Some(estimate_request.eth_balance),
+    )?;
 
     let mut tx_request = TransactionRequest {
         transaction_type: Some(2),
@@ -55,12 +58,12 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
         value: Some(U256::from(1000)),
         nonce: Some(estimate_request.nonce),
         max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-        max_fee_per_gas: Some(estimate_request.base_fee as u128),
-        input: TransactionInput::new(calldata),
+        max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128),
+        input: TransactionInput::new(call_data.clone()),
         ..TransactionRequest::default()
     };
 
-    let gas_price = estimate_request.priority_gas_fee + estimate_request.base_fee;
+    let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
 
     if U256::from(200_000 * gas_price) > profit_eth {
         error!("Profit is too small");
@@ -80,7 +83,7 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
 
     let start_time = chrono::Local::now();
 
-    match client.simulate_txes(simulation_bundle, estimate_request.block, Some(vec![tx_hash])).await {
+    match client.simulate_txes(simulation_bundle, estimate_request.next_block_number, Some(vec![tx_hash])).await {
         Ok(sim_result) => {
             let sim_duration = chrono::Local::now() - start_time;
             debug!(
@@ -111,21 +114,17 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
                     tx_request.access_list = Some(access_list.clone());
                     let gas_cost = U256::from(gas * gas_price);
                     if gas_cost < profit_eth {
-                        let rnd: u32 = random::<u32>() % 100;
-                        let tips_pct = estimate_request.tips_pct.unwrap_or(8000);
-
-                        let mut tips = (profit_eth - gas_cost) * U256::from(tips_pct + rnd) / U256::from(10000);
-                        let min_balance = token_in.calc_token_value_from_eth(gas_cost + tips).unwrap();
-
-                        if !token_in.is_weth() && (tips > ((estimate_request.eth_balance * U256::from(9000)) / U256::from(10000))) {
-                            tips = (estimate_request.eth_balance * U256::from(9000)) / U256::from(10000)
-                        }
-
-                        let tips_opcodes = encoder.encode_tips(opcodes, token_in_address, min_balance, tips, tx_signer.address())?;
-
-                        let (to, calldata) = encoder.to_call_data(&tips_opcodes)?;
-
-                        let call_value: Option<U256> = if !token_in.is_weth() { Some(tips) } else { None };
+                        let (to, call_value, call_data, tips_vec) = match estimate_request.swap {
+                            Swap::ExchangeSwapLine(_) => (to, None, call_data, vec![]),
+                            _ => swap_encoder.encode(
+                                estimate_request.swap.clone(),
+                                estimate_request.tips_pct,
+                                Some(estimate_request.next_block_number),
+                                Some(gas_cost),
+                                Some(tx_signer.address()),
+                                Some(estimate_request.eth_balance),
+                            )?,
+                        };
 
                         let tx_request = TransactionRequest {
                             transaction_type: Some(2),
@@ -134,11 +133,11 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
                             to: Some(TxKind::Call(to)),
                             gas: Some((gas * 1200) / 1000),
                             value: call_value,
-                            input: TransactionInput::new(calldata),
+                            input: TransactionInput::new(call_data),
                             nonce: Some(estimate_request.nonce),
                             access_list: Some(access_list),
                             max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-                            max_fee_per_gas: Some(estimate_request.base_fee as u128), // TODO: Why not prio + base fee?
+                            max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128), // TODO: Why not prio + base fee?
                             ..TransactionRequest::default()
                         };
 
@@ -147,9 +146,11 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
 
                         tx_with_state.push(TxState::SignatureRequired(tx_request));
 
+                        let total_tips = tips_vec.into_iter().map(|v| v.tips).sum();
+
                         let sign_request = MessageTxCompose::sign(TxComposeData {
                             gas,
-                            tips: Some(tips + gas_cost),
+                            tips: Some(total_tips + gas_cost),
                             tx_bundle: Some(tx_with_state),
                             ..estimate_request
                         });
@@ -164,7 +165,7 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
                         }
 
                         let gas_cost_f64 = NWETH::to_float(gas_cost);
-                        let tips_f64 = NWETH::to_float(tips);
+                        let tips_f64 = NWETH::to_float(total_tips);
                         let profit_eth_f64 = NWETH::to_float(profit_eth);
                         let profit_f64 = token_in.to_float(profit);
                         //TODO add formated paths
@@ -196,7 +197,7 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
 
 async fn estimator_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static>(
     client: Arc<Flashbots<P, T>>,
-    encoder: SwapStepEncoder,
+    encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
     compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
@@ -227,21 +228,22 @@ async fn estimator_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Send 
 }
 
 #[derive(Consumer, Producer)]
-pub struct GethEstimatorActor<P, T> {
+pub struct GethEstimatorActor<P, T, E> {
     client: Arc<Flashbots<P, T>>,
-    encoder: SwapStepEncoder,
+    encoder: E,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
 }
 
-impl<P, T> GethEstimatorActor<P, T>
+impl<P, T, E> GethEstimatorActor<P, T, E>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    E: SwapEncoder + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: Arc<Flashbots<P, T>>, encoder: SwapStepEncoder) -> Self {
+    pub fn new(client: Arc<Flashbots<P, T>>, encoder: E) -> Self {
         Self { client, encoder, compose_channel_tx: None, compose_channel_rx: None }
     }
 
@@ -250,7 +252,12 @@ where
     }
 }
 
-impl<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static> Actor for GethEstimatorActor<P, T> {
+impl<P, T, E> Actor for GethEstimatorActor<P, T, E>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    E: SwapEncoder + Send + Sync + Clone + 'static,
+{
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(
             self.client.clone(),

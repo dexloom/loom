@@ -9,7 +9,7 @@ use alloy_rpc_types::{Transaction, TransactionRequest};
 use eyre::{eyre, Result};
 
 use defi_entities::{Swap, TxSigner};
-use defi_types::{GethStateUpdateVec, MulticallerCalls};
+use defi_types::GethStateUpdateVec;
 use loom_revm_db::LoomInMemoryDB;
 
 use crate::Message;
@@ -39,7 +39,7 @@ impl TxState {
 
 #[derive(Clone, Debug)]
 pub enum TxCompose {
-    Encode(TxComposeData),
+    Route(TxComposeData),
     Estimate(TxComposeData),
     Sign(TxComposeData),
     Broadcast(TxComposeData),
@@ -56,7 +56,7 @@ impl Deref for TxCompose {
 impl TxCompose {
     pub fn data(&self) -> &TxComposeData {
         match self {
-            TxCompose::Encode(x) | TxCompose::Broadcast(x) | TxCompose::Sign(x) | TxCompose::Estimate(x) => x,
+            TxCompose::Route(x) | TxCompose::Broadcast(x) | TxCompose::Sign(x) | TxCompose::Estimate(x) => x,
         }
     }
 }
@@ -88,14 +88,13 @@ pub struct TxComposeData {
     pub eth_balance: U256,
     pub value: U256,
     pub gas: u64,
-    pub base_fee: u64,
     pub priority_gas_fee: u64,
     pub stuffing_txs_hashes: Vec<TxHash>,
     pub stuffing_txs: Vec<Transaction>,
-    pub block: BlockNumber,
-    pub block_timestamp: u64,
+    pub next_block_number: BlockNumber,
+    pub next_block_timestamp: u64,
+    pub next_block_base_fee: u64,
     pub swap: Swap,
-    pub opcodes: Option<MulticallerCalls>,
     pub tx_bundle: Option<Vec<TxState>>,
     pub rlp_bundle: Option<Vec<RlpState>>,
     pub prestate: Option<Arc<LoomInMemoryDB>>,
@@ -143,8 +142,12 @@ impl TxComposeData {
         }
     }
 
+    pub fn gas_price(&self) -> u128 {
+        self.next_block_base_fee as u128 + self.priority_gas_fee as u128
+    }
+
     pub fn gas_cost(&self) -> u128 {
-        self.gas as u128 * (self.base_fee as u128 + self.priority_gas_fee as u128)
+        self.gas as u128 * (self.next_block_base_fee as u128 + self.priority_gas_fee as u128)
     }
 }
 
@@ -154,16 +157,15 @@ impl Default for TxComposeData {
             signer: None,
             nonce: Default::default(),
             eth_balance: Default::default(),
-            base_fee: Default::default(),
+            next_block_base_fee: Default::default(),
             value: Default::default(),
             gas: Default::default(),
             priority_gas_fee: Default::default(),
             stuffing_txs_hashes: Vec::new(),
             stuffing_txs: Vec::new(),
-            block: Default::default(),
-            block_timestamp: Default::default(),
+            next_block_number: Default::default(),
+            next_block_timestamp: Default::default(),
             swap: Swap::None,
-            opcodes: None,
             tx_bundle: None,
             rlp_bundle: None,
             prestate: None,
@@ -179,8 +181,8 @@ impl Default for TxComposeData {
 pub type MessageTxCompose = Message<TxCompose>;
 
 impl MessageTxCompose {
-    pub fn encode(data: TxComposeData) -> Self {
-        Message::new(TxCompose::Encode(data))
+    pub fn route(data: TxComposeData) -> Self {
+        Message::new(TxCompose::Route(data))
     }
 
     pub fn sign(data: TxComposeData) -> Self {

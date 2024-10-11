@@ -69,15 +69,15 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
                     match market.read().await.get_token(token_address) {
                         Some(tkn) => {
                             tkn.set_eth_price(Some(price));
-                            debug!("price is set");
+                            debug!("Price is set");
                         }
                         _ => {
-                            error!("Token {token_address:#20x} not found");
+                            error!(address=%token_address, "Token not found");
                         }
                     }
                 }
-                Err(e) => {
-                    error!("fetch_out_amount : {e}")
+                Err(error) => {
+                    error!(%error, "fetch_out_amount")
                 }
             }
         }
