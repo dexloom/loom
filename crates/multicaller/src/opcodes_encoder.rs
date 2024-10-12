@@ -59,8 +59,8 @@ impl OpcodesEncoderV2 {
         } else {
             selector.bitor_assign(selector_call.shl(80));
             selector.bitor_assign(U256::from(opcode.call_data.len()).shl(0));
-            selector.bitor_assign(U256::from(opcode.call_stack & 0xFFFFFF).shl(16));
-            selector.bitor_assign(U256::from(opcode.return_stack & 0xFFFFFF).shl(40));
+            selector.bitor_assign(U256::from(opcode.call_stack.value()).shl(16));
+            selector.bitor_assign(U256::from(opcode.return_stack.value()).shl(40));
         }
 
         let selector_bytes = selector.to_be_bytes::<32>();
