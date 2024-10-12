@@ -26,6 +26,7 @@ tracing.workspace = true
 k256.workspace = true
 tokio.workspace = true
 
+defi-address-book.workspace = true
 defi-abi.workspace = true
 defi-entities.workspace = true
 loom-utils.workspace = true

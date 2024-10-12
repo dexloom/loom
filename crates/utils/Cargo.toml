@@ -27,6 +27,7 @@ defi-types.workspace = true
 loom-revm-db.workspace = true
 
 debug-provider.workspace = true
+defi-address-book.workspace = true
 defi-abi.workspace = true
 
 [features]

@@ -1,12 +1,12 @@
 use std::collections::BTreeMap;
 
-use alloy_primitives::{Address, Bytes, B256, U256};
+use alloy_primitives::{b256, Address, Bytes, B256, U256};
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_sol_types::SolCall;
-use lazy_static::lazy_static;
-
 use defi_abi::uniswap3::IUniswapV3Pool;
+use defi_address_book::Factory;
 use defi_types::GethStateUpdate;
+use lazy_static::lazy_static;
 
 use crate::protocols::helper::get_uniswap3pool_address;
 use crate::protocols::match_abi;
@@ -21,10 +21,9 @@ pub struct UniswapV3Protocol {}
 
 impl UniswapV3Protocol {
     pub fn get_pool_address_for_tokens(token0: Address, token1: Address, fee: u32) -> Address {
-        let uni3_factory_address: Address = "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
-        let init_code: B256 = "e34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54".parse().unwrap();
+        let init_code: B256 = b256!("e34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54");
 
-        get_uniswap3pool_address(token0, token1, fee, uni3_factory_address, init_code)
+        get_uniswap3pool_address(token0, token1, fee, Factory::UNISWAP_V3, init_code)
     }
 
     pub fn get_custom_quoter_code() -> Bytes {
@@ -53,13 +52,12 @@ impl UniswapV3Protocol {
 
 impl Protocol for UniswapV3Protocol {
     fn get_pool_address_vec_for_tokens(token0: Address, token1: Address) -> Vec<Address> {
-        let uni3_factory_address: Address = "0x1F98431c8aD98523631AE4a59f267346ea31F984".parse().unwrap();
         let init_code: B256 = "e34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54".parse().unwrap();
 
-        let pair_address0 = get_uniswap3pool_address(token0, token1, 100, uni3_factory_address, init_code);
-        let pair_address1 = get_uniswap3pool_address(token0, token1, 500, uni3_factory_address, init_code);
-        let pair_address2 = get_uniswap3pool_address(token0, token1, 3000, uni3_factory_address, init_code);
-        let pair_address3 = get_uniswap3pool_address(token0, token1, 10000, uni3_factory_address, init_code);
+        let pair_address0 = get_uniswap3pool_address(token0, token1, 100, Factory::UNISWAP_V3, init_code);
+        let pair_address1 = get_uniswap3pool_address(token0, token1, 500, Factory::UNISWAP_V3, init_code);
+        let pair_address2 = get_uniswap3pool_address(token0, token1, 3000, Factory::UNISWAP_V3, init_code);
+        let pair_address3 = get_uniswap3pool_address(token0, token1, 10000, Factory::UNISWAP_V3, init_code);
 
         vec![pair_address0, pair_address1, pair_address2, pair_address3]
     }

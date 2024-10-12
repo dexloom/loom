@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{address, Address, Bytes, U256};
 use alloy_provider::{Network, Provider};
 use alloy_rpc_types::{BlockId, BlockNumberOrTag};
 use alloy_sol_types::SolInterface;
@@ -92,8 +92,8 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub async fn lp_token(address: Address) -> Result<Address> {
-        if address == "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".parse::<Address>().unwrap() {
-            return Ok("0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse::<Address>().unwrap());
+        if address == address!("bEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7") {
+            return Ok(address!("6c3F90f043a72FA612cbac8115EE7e52BDe6E490"));
         }
         Err(eyre!("NO_LP_TOKEN"))
     }
@@ -440,17 +440,14 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     pub fn get_underlying_tokens(meta_token_address: Address) -> Result<Vec<Address>> {
-        if meta_token_address == "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse::<Address>().unwrap() {
+        if meta_token_address == address!("6c3F90f043a72FA612cbac8115EE7e52BDe6E490") {
             Ok(vec![
-                "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap(),
-                "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap(),
-                "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap(),
+                address!("6B175474E89094C44Da98b954EedeAC495271d0F"),
+                address!("A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48"),
+                address!("dAC17F958D2ee523a2206206994597C13D831ec7"),
             ])
-        } else if meta_token_address == "0x3175Df0976dFA876431C2E9eE6Bc45b65d3473CC".parse::<Address>().unwrap() {
-            Ok(vec![
-                "0x853d955aCEf822Db058eb8505911ED77F175b99e".parse().unwrap(),
-                "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap(),
-            ])
+        } else if meta_token_address == address!("3175Df0976dFA876431C2E9eE6Bc45b65d3473CC") {
+            Ok(vec![address!("853d955aCEf822Db058eb8505911ED77F175b99e"), address!("A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48")])
         } else {
             Err(eyre!("META_POOL_NOT_FOUND"))
         }
@@ -637,16 +634,16 @@ where
 
     pub fn get_contracts_vec(client: P) -> Vec<CurveContract<P, T, N>> {
         vec![
-            Self::new_u256_3_eth_to(client.clone(), "0xf5f5B97624542D72A9E06f04804Bf81baA15e2B4".parse().unwrap()),
+            Self::new_u256_3_eth_to(client.clone(), address!("f5f5B97624542D72A9E06f04804Bf81baA15e2B4")),
             //Self::new_u256_3_eth_to(client.clone(), "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse().unwrap()),
-            Self::new_i128_3(client.clone(), "0xbEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7".parse().unwrap()),
-            Self::new_i128_2_to(client.clone(), "0x4DEcE678ceceb27446b35C672dC7d61F30bAD69E".parse().unwrap()),
-            Self::new_u256_2_eth_to(client.clone(), "0x9409280DC1e6D33AB7A8C6EC03e5763FB61772B5".parse().unwrap()),
-            Self::new_u256_3_eth(client.clone(), "0xD51a44d3FaE010294C616388b506AcdA1bfAAE46".parse().unwrap()),
-            Self::new_u256_3_eth_to(client.clone(), "0x7F86Bf177Dd4F3494b841a37e810A34dD56c829B".parse().unwrap()),
-            Self::new_i128_2(client.clone(), "0xDC24316b9AE028F1497c275EB9192a3Ea0f67022".parse().unwrap()),
-            Self::new_i128_2_to(client.clone(), "0x828b154032950C8ff7CF8085D841723Db2696056".parse().unwrap()),
-            //Self::new_i128_2_to_meta(client.clone(), "0xEd279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA".parse().unwrap()),
+            Self::new_i128_3(client.clone(), address!("bEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7")),
+            Self::new_i128_2_to(client.clone(), address!("4DEcE678ceceb27446b35C672dC7d61F30bAD69E")),
+            Self::new_u256_2_eth_to(client.clone(), address!("9409280DC1e6D33AB7A8C6EC03e5763FB61772B5")),
+            Self::new_u256_3_eth(client.clone(), address!("D51a44d3FaE010294C616388b506AcdA1bfAAE46")),
+            Self::new_u256_3_eth_to(client.clone(), address!("7F86Bf177Dd4F3494b841a37e810A34dD56c829B")),
+            Self::new_i128_2(client.clone(), address!("DC24316b9AE028F1497c275EB9192a3Ea0f67022")),
+            Self::new_i128_2_to(client.clone(), address!("828b154032950C8ff7CF8085D841723Db2696056")),
+            //Self::new_i128_2_to_meta(client.clone(), address!("Ed279fDD11cA84bEef15AF5D39BB4d4bEE23F0cA".parse().unwrap()),
         ]
     }
 }

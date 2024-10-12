@@ -1,4 +1,5 @@
-use alloy::primitives::{address, Address, U256};
+use alloy::primitives::{Address, U256};
+use defi_address_book::Token;
 use std::ops::{Add, Mul};
 
 pub struct NWETH {}
@@ -12,7 +13,7 @@ impl NWETH {
     const WEI_EXP_U128: u128 = 10u128.pow(18);
     const WEI_EXP: f64 = 10u64.pow(18) as f64;
 
-    pub const ADDRESS: Address = address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
+    pub const ADDRESS: Address = Token::WETH;
     pub const NATIVE_ADDRESS: Address = Address::ZERO;
 
     #[inline]

@@ -5,10 +5,10 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use alloy_primitives::utils::Unit;
-use alloy_primitives::{address, Address, I256, U256};
+use alloy_primitives::{Address, I256, U256};
+use defi_address_book::Token as TokenAddress;
 
 const ONE_ETHER: U256 = Unit::ETHER.wei_const();
-const WETH_ADDRESS: Address = address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
 
 #[derive(Clone, Debug, Default)]
 pub struct Token {
@@ -168,7 +168,7 @@ impl Token {
     }
 
     pub fn is_weth(&self) -> bool {
-        self.address == WETH_ADDRESS
+        self.address == TokenAddress::WETH
     }
 }
 
@@ -178,17 +178,11 @@ mod test {
 
     #[test]
     fn test_to_float() {
-        let weth_address: Address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse().unwrap();
-        let usdc_address: Address = "0xA0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48".parse().unwrap();
-        let usdt_address: Address = "0xdAC17F958D2ee523a2206206994597C13D831ec7".parse().unwrap();
-        let dai_address: Address = "0x6B175474E89094C44Da98b954EedeAC495271d0F".parse().unwrap();
-        let wbtc_address: Address = "0x2260FAC5E5542a773Aa44fBCfeDf7C193bc2C599".parse().unwrap();
-
-        let weth_token = Token::new_with_data(weth_address, Some("WETH".to_string()), None, Some(18), true, false);
-        let usdc_token = Token::new_with_data(usdc_address, Some("USDC".to_string()), None, Some(6), false, false);
-        let usdt_token = Token::new_with_data(usdt_address, Some("USDT".to_string()), None, Some(6), false, false);
-        let dai_token = Token::new_with_data(dai_address, Some("DAI".to_string()), None, Some(18), false, false);
-        let wbtc_token = Token::new_with_data(wbtc_address, Some("WBTC".to_string()), None, Some(8), false, false);
+        let weth_token = Token::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false);
+        let usdc_token = Token::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), false, false);
+        let usdt_token = Token::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), false, false);
+        let dai_token = Token::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), false, false);
+        let wbtc_token = Token::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), false, false);
 
         let one_ether = U256::from(10).pow(U256::from(15));
 

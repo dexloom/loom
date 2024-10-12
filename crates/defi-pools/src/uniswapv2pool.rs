@@ -3,17 +3,17 @@ use alloy_provider::{Network, Provider};
 use alloy_rpc_types::BlockNumberOrTag;
 use alloy_sol_types::SolInterface;
 use alloy_transport::Transport;
+use defi_abi::uniswap2::IUniswapV2Pair;
+use defi_abi::IERC20;
+use defi_address_book::Factory;
+use defi_entities::required_state::RequiredState;
+use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use eyre::{eyre, ErrReport, Result};
 use lazy_static::lazy_static;
+use loom_revm_db::LoomInMemoryDB;
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::debug;
-
-use defi_abi::uniswap2::IUniswapV2Pair;
-use defi_abi::IERC20;
-use defi_entities::required_state::RequiredState;
-use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
-use loom_revm_db::LoomInMemoryDB;
 
 use crate::state_readers::UniswapV2StateReader;
 
@@ -82,30 +82,21 @@ impl UniswapV2Pool {
     }
 
     fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
-        let uni2_factory: Address = "0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f".parse().unwrap();
-        let nomiswap_stable_factory: Address = "0x818339b4E536E707f14980219037c5046b049dD4".parse().unwrap();
-        let sushiswap_factory: Address = "0xC0AEe478e3658e2610c5F7A4A2E1777cE9e4f2Ac".parse().unwrap();
-        let dooarswap_factory: Address = "0x1e895bFe59E3A5103e8B7dA3897d1F2391476f3c".parse().unwrap();
-        let safeswap_factory: Address = "0x7F09d4bE6bbF4b0fF0C97ca5c486a166198aEAeE".parse().unwrap();
-        let miniswap_factory: Address = "0x2294577031F113DF4782B881cF0b140e94209a6F".parse().unwrap();
-        let shibaswap_factory: Address = "0x115934131916C8b277DD010Ee02de363c09d037c".parse().unwrap();
-        let og_pepe_factory: Address = "0x52fbA58f936833F8b643e881Ad308b2e37713a86".parse().unwrap();
-
-        if factory_address == uni2_factory {
+        if factory_address == Factory::UNISWAP_V2 {
             PoolProtocol::UniswapV2
-        } else if factory_address == sushiswap_factory {
+        } else if factory_address == Factory::SUSHISWAP_V2 {
             PoolProtocol::Sushiswap
-        } else if factory_address == nomiswap_stable_factory {
+        } else if factory_address == Factory::NOMISWAP {
             PoolProtocol::NomiswapStable
-        } else if factory_address == dooarswap_factory {
+        } else if factory_address == Factory::DOOARSWAP {
             PoolProtocol::DooarSwap
-        } else if factory_address == safeswap_factory {
+        } else if factory_address == Factory::SAFESWAP {
             PoolProtocol::Safeswap
-        } else if factory_address == miniswap_factory {
+        } else if factory_address == Factory::MINISWAP {
             PoolProtocol::Miniswap
-        } else if factory_address == shibaswap_factory {
+        } else if factory_address == Factory::SHIBASWAP {
             PoolProtocol::Shibaswap
-        } else if factory_address == og_pepe_factory {
+        } else if factory_address == Factory::OG_PEPE {
             PoolProtocol::OgPepe
         } else {
             PoolProtocol::UniswapV2Like
@@ -385,14 +376,13 @@ impl AbiSwapEncoder for UniswapV2AbiSwapEncoder {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use crate::protocols::UniswapV2Protocol;
-    use alloy_primitives::address;
     use debug_provider::AnvilDebugProviderFactory;
+    use defi_address_book::Token;
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::MarketState;
     use std::env;
-
-    use super::*;
 
     #[tokio::test]
     async fn test_pool() -> Result<()> {
@@ -404,9 +394,7 @@ mod tests {
 
         let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
-        let weth_address: Address = address!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2");
-        let usdc_address: Address = address!("A0b86991c6218b36c1d19D4a2e9Eb0cE3606eB48");
-        let pool_address: Address = UniswapV2Protocol::get_pool_address_for_tokens(weth_address, usdc_address);
+        let pool_address: Address = UniswapV2Protocol::get_pool_address_for_tokens(Token::WETH, Token::USDC);
 
         let pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
 

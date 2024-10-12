@@ -1,7 +1,7 @@
-use alloy_primitives::{Address, Bytes, B256};
+use alloy_primitives::{b256, Address, Bytes, B256};
 use alloy_sol_types::SolCall;
-
 use defi_abi::uniswap2::IUniswapV2Pair;
+use defi_address_book::Factory;
 
 use crate::protocols::helper::get_uniswap2pool_address;
 use crate::protocols::match_abi;
@@ -24,9 +24,8 @@ impl UniswapV2Protocol {
     }
 
     pub fn get_pool_address_for_tokens(token0: Address, token1: Address) -> Address {
-        let uni2_factory_address: Address = "0x5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f".parse().unwrap();
-        let init_code: B256 = "96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f".parse().unwrap();
-        get_uniswap2pool_address(token0, token1, uni2_factory_address, init_code)
+        let init_code: B256 = b256!("96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f");
+        get_uniswap2pool_address(token0, token1, Factory::UNISWAP_V2, init_code)
     }
 }
 
