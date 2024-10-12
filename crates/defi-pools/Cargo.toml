@@ -37,12 +37,13 @@ strum.workspace = true
 uniswap_v3_math.workspace = true
 
 
+
 [dev-dependencies]
 tokio.workspace = true
 env_logger.workspace = true
 defi-entities.workspace = true
 alloy-rpc-client.workspace = true
 alloy-transport.workspace = true
-
+rand.workspace = true
 url.workspace = true
 debug-provider.workspace = true
