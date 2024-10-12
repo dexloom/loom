@@ -42,6 +42,7 @@ impl Factory {
 pub struct Periphery;
 
 impl Periphery {
+    pub const UNISWAP_V2_ROUTER: Address = address!("7a250d5630b4cf539739df2c5dacb4c659f2488d");
     pub const UNISWAP_V3_QUOTER: Address = address!("b27308f9F90D607463bb33eA1BeBb41C27CE5AB6");
     pub const UNISWAP_V3_TICK_LENS: Address = address!("bfd8137f7d1516D3ea5cA83523914859ec47F573");
     pub const PANCAKE_V3_QUOTER: Address = address!("B048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997");
