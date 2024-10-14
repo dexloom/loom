@@ -4,13 +4,13 @@ use alloy_sol_types::SolInterface;
 use defi_abi::balancer::IVault;
 use defi_abi::lido::{IStEth, IWStEth};
 use defi_abi::{IMultiCaller, IERC20, IWETH};
-use defi_address_book::Token;
+use defi_address_book::TokenAddress;
 
 pub struct EncoderHelper;
 
 impl EncoderHelper {
     pub fn is_weth(address: Address) -> bool {
-        address == Token::WETH
+        address == TokenAddress::WETH
     }
 
     pub fn encode_weth_deposit() -> Bytes {

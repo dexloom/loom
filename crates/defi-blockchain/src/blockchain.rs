@@ -1,6 +1,6 @@
 use alloy::primitives::BlockHash;
 use alloy::primitives::ChainId;
-use defi_address_book::Token as TokenAddress;
+use defi_address_book::TokenAddress;
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
 use defi_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,

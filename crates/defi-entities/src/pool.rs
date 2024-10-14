@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::required_state::RequiredState;
 use alloy_primitives::{Address, Bytes, U256};
-use defi_address_book::Factory;
+use defi_address_book::FactoryAddress;
 use eyre::{eyre, ErrReport, Result};
 use loom_revm_db::LoomInMemoryDB;
 use revm::primitives::Env;
@@ -14,27 +14,27 @@ use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, EnumString, VariantNames};
 
 pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
-    if factory_address == Factory::UNISWAP_V2 {
+    if factory_address == FactoryAddress::UNISWAP_V2 {
         PoolProtocol::UniswapV2
-    } else if factory_address == Factory::UNISWAP_V3 {
+    } else if factory_address == FactoryAddress::UNISWAP_V3 {
         PoolProtocol::UniswapV3
-    } else if factory_address == Factory::PANCAKE_V3 {
+    } else if factory_address == FactoryAddress::PANCAKE_V3 {
         PoolProtocol::PancakeV3
-    } else if factory_address == Factory::NOMISWAP {
+    } else if factory_address == FactoryAddress::NOMISWAP {
         PoolProtocol::NomiswapStable
-    } else if factory_address == Factory::SUSHISWAP_V2 {
+    } else if factory_address == FactoryAddress::SUSHISWAP_V2 {
         PoolProtocol::Sushiswap
-    } else if factory_address == Factory::SUSHISWAP_V3 {
+    } else if factory_address == FactoryAddress::SUSHISWAP_V3 {
         PoolProtocol::SushiswapV3
-    } else if factory_address == Factory::DOOARSWAP {
+    } else if factory_address == FactoryAddress::DOOARSWAP {
         PoolProtocol::DooarSwap
-    } else if factory_address == Factory::SAFESWAP {
+    } else if factory_address == FactoryAddress::SAFESWAP {
         PoolProtocol::Safeswap
-    } else if factory_address == Factory::MINISWAP {
+    } else if factory_address == FactoryAddress::MINISWAP {
         PoolProtocol::Miniswap
-    } else if factory_address == Factory::SHIBASWAP {
+    } else if factory_address == FactoryAddress::SHIBASWAP {
         PoolProtocol::Shibaswap
-    } else if factory_address == Factory::MAVERICK {
+    } else if factory_address == FactoryAddress::MAVERICK {
         PoolProtocol::Maverick
     } else {
         PoolProtocol::Unknown

@@ -34,6 +34,7 @@ loom-utils.workspace = true
 loom-revm-db.workspace = true
 debug-provider.workspace = true
 defi-actors.workspace = true
+defi-address-book.workspace = true
 defi-types.workspace = true
 defi-entities.workspace = true
 defi-events.workspace = true

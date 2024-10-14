@@ -5,7 +5,7 @@ use alloy_sol_types::SolInterface;
 use alloy_transport::Transport;
 use defi_abi::uniswap2::IUniswapV2Pair;
 use defi_abi::IERC20;
-use defi_address_book::Factory;
+use defi_address_book::FactoryAddress;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use eyre::{eyre, ErrReport, Result};
@@ -83,21 +83,21 @@ impl UniswapV2Pool {
     }
 
     fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
-        if factory_address == Factory::UNISWAP_V2 {
+        if factory_address == FactoryAddress::UNISWAP_V2 {
             PoolProtocol::UniswapV2
-        } else if factory_address == Factory::SUSHISWAP_V2 {
+        } else if factory_address == FactoryAddress::SUSHISWAP_V2 {
             PoolProtocol::Sushiswap
-        } else if factory_address == Factory::NOMISWAP {
+        } else if factory_address == FactoryAddress::NOMISWAP {
             PoolProtocol::NomiswapStable
-        } else if factory_address == Factory::DOOARSWAP {
+        } else if factory_address == FactoryAddress::DOOARSWAP {
             PoolProtocol::DooarSwap
-        } else if factory_address == Factory::SAFESWAP {
+        } else if factory_address == FactoryAddress::SAFESWAP {
             PoolProtocol::Safeswap
-        } else if factory_address == Factory::MINISWAP {
+        } else if factory_address == FactoryAddress::MINISWAP {
             PoolProtocol::Miniswap
-        } else if factory_address == Factory::SHIBASWAP {
+        } else if factory_address == FactoryAddress::SHIBASWAP {
             PoolProtocol::Shibaswap
-        } else if factory_address == Factory::OG_PEPE {
+        } else if factory_address == FactoryAddress::OG_PEPE {
             PoolProtocol::OgPepe
         } else {
             PoolProtocol::UniswapV2Like
@@ -371,7 +371,7 @@ mod test {
     use alloy_rpc_types::BlockId;
     use debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use defi_abi::uniswap2::IUniswapV2Router;
-    use defi_address_book::Periphery;
+    use defi_address_book::PeripheryAddress;
     use defi_entities::required_state::RequiredStateReader;
     use rand::Rng;
     use std::env;
@@ -419,7 +419,7 @@ mod test {
         block_number: u64,
         amount_out: bool,
     ) -> Result<U256> {
-        let router_contract = IUniswapV2Router::new(Periphery::UNISWAP_V2_ROUTER, client.clone());
+        let router_contract = IUniswapV2Router::new(PeripheryAddress::UNISWAP_V2_ROUTER, client.clone());
 
         // get reserves
         let pool_contract = IUniswapV2Pair::new(pool_address, client.clone());

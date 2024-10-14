@@ -3179,6 +3179,7 @@ dependencies = [
  "debug-provider",
  "defi-abi",
  "defi-actors",
+ "defi-address-book",
  "defi-entities",
  "defi-events",
  "defi-types",

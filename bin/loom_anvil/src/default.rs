@@ -1,9 +1,10 @@
+use alloy_primitives::address;
 use alloy_provider::Provider;
 use tracing::{error, info};
 
 use debug_provider::DebugProviderExt;
 use defi_actors::{fetch_and_add_pool_by_address, fetch_state_and_add_pool};
-use defi_address_book::Token as TokenAddress;
+use defi_address_book::{CurvePoolAddress, TokenAddress};
 use defi_entities::{Market, MarketState, Pool, PoolClass, Token};
 use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
@@ -15,9 +16,21 @@ async fn load_pools<P: Provider + DebugProviderExt + Send + Sync + Clone + 'stat
     market: SharedState<Market>,
     market_state: SharedState<MarketState>,
 ) -> eyre::Result<()> {
-    if let Ok(curve_contract) =
-        CurveProtocol::get_contract_from_code(client.clone(), "0xbebc44782c7db0a1a60cb6fe97d0b483032ff1c7".parse().unwrap()).await
-    {
+    if let Ok(curve_contract) = CurveProtocol::get_contract_from_code(client.clone(), CurvePoolAddress::DAI_USDC_USDT).await {
+        let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
+        fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), curve_pool.into()).await?
+    } else {
+        error!("CURVE_POOL_NOT_LOADED");
+    }
+
+    if let Ok(curve_contract) = CurveProtocol::get_contract_from_code(client.clone(), CurvePoolAddress::FRXETH_WETH).await {
+        let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
+        fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), curve_pool.into()).await?
+    } else {
+        error!("CURVE_POOL_NOT_LOADED");
+    }
+
+    if let Ok(curve_contract) = CurveProtocol::get_contract_from_code(client.clone(), CurvePoolAddress::ETH).await {
         let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
         fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), curve_pool.into()).await?
     } else {
@@ -25,25 +38,7 @@ async fn load_pools<P: Provider + DebugProviderExt + Send + Sync + Clone + 'stat
     }
 
     if let Ok(curve_contract) =
-        CurveProtocol::get_contract_from_code(client.clone(), "0x9c3B46C0Ceb5B9e304FCd6D88Fc50f7DD24B31Bc".parse().unwrap()).await
-    {
-        let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
-        fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), curve_pool.into()).await?
-    } else {
-        error!("CURVE_POOL_NOT_LOADED");
-    }
-
-    if let Ok(curve_contract) =
-        CurveProtocol::get_contract_from_code(client.clone(), "0xa1F8A6807c402E4A15ef4EBa36528A3FED24E577".parse().unwrap()).await
-    {
-        let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
-        fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), curve_pool.into()).await?
-    } else {
-        error!("CURVE_POOL_NOT_LOADED");
-    }
-
-    if let Ok(curve_contract) =
-        CurveProtocol::get_contract_from_code(client.clone(), "0x4ebdf703948ddcea3b11f675b4d1fba9d2414a14".parse().unwrap()).await
+        CurveProtocol::get_contract_from_code(client.clone(), address!("4ebdf703948ddcea3b11f675b4d1fba9d2414a14")).await
     {
         let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
         fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), curve_pool.into()).await?

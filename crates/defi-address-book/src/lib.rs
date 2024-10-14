@@ -1,9 +1,9 @@
 use alloy_primitives::{address, Address};
 
 #[non_exhaustive]
-pub struct Token;
+pub struct TokenAddress;
 
-impl Token {
+impl TokenAddress {
     pub const WETH: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
     pub const USDC: Address = address!("a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
     pub const USDT: Address = address!("dac17f958d2ee523a2206206994597c13d831ec7");
@@ -16,9 +16,9 @@ impl Token {
 }
 
 #[non_exhaustive]
-pub struct Factory;
+pub struct FactoryAddress;
 
-impl Factory {
+impl FactoryAddress {
     // Uniswap V2 compatible
     pub const UNISWAP_V2: Address = address!("5c69bee701ef814a2b6a3edd4b1652cb9cc5aa6f");
     pub const SUSHISWAP_V2: Address = address!("c0aee478e3658e2610c5f7a4a2e1777ce9e4f2ac");
@@ -39,15 +39,66 @@ impl Factory {
 }
 
 #[non_exhaustive]
-pub struct Periphery;
+pub struct PeripheryAddress;
 
-impl Periphery {
+impl PeripheryAddress {
     pub const UNISWAP_V2_ROUTER: Address = address!("7a250d5630b4cf539739df2c5dacb4c659f2488d");
-    pub const UNISWAP_V3_QUOTER: Address = address!("b27308f9F90D607463bb33eA1BeBb41C27CE5AB6");
-    pub const UNISWAP_V3_TICK_LENS: Address = address!("bfd8137f7d1516D3ea5cA83523914859ec47F573");
-    pub const PANCAKE_V3_QUOTER: Address = address!("B048Bbc1Ee6b733FFfCFb9e9CeF7375518e25997");
-    pub const PANCAKE_V3_TICK_LENS: Address = address!("9a489505a00cE272eAa5e07Dba6491314CaE3796");
-    pub const MAVERICK_QUOTER: Address = address!("9980ce3b5570e41324904f46A06cE7B466925E23");
+    pub const UNISWAP_V3_QUOTER: Address = address!("b27308f9f90d607463bb33ea1bebb41c27ce5ab6");
+    pub const UNISWAP_V3_TICK_LENS: Address = address!("bfd8137f7d1516d3ea5ca83523914859ec47f573");
+    pub const PANCAKE_V3_QUOTER: Address = address!("b048bbc1ee6b733fffcfb9e9cef7375518e25997");
+    pub const PANCAKE_V3_TICK_LENS: Address = address!("9a489505a00ce272eaa5e07dba6491314cae3796");
+    pub const MAVERICK_QUOTER: Address = address!("9980ce3b5570e41324904f46a06ce7b466925e23");
+}
+
+#[non_exhaustive]
+pub struct UniswapV2PoolAddress;
+
+impl UniswapV2PoolAddress {
+    pub const LUSD_WETH: Address = address!("f20ef17b889b437c151eb5ba15a47bfc62bff469");
+    pub const WETH_USDT: Address = address!("0d4a11d5eeaac28ec3f61d100daf4d40471f1852");
+}
+
+#[non_exhaustive]
+pub struct UniswapV3PoolAddress;
+
+impl UniswapV3PoolAddress {
+    pub const USDC_USDT_100: Address = address!("3416cf6c708da44db2624d63ea0aaef7113527c6");
+    pub const USDC_WETH_500: Address = address!("88e6a0c2ddd26feeb64f039a2c41296fcb3f5640");
+    pub const USDC_WETH_3000: Address = address!("8ad599c3a0ff1de082011efddc58f1908eb6e6d8");
+    pub const WBTC_USDT_3000: Address = address!("9db9e0e53058c89e5b94e29621a205198648425b");
+    pub const WETH_USDT_3000: Address = address!("4e68ccd3e89f51c3074ca5072bbac773960dfa36");
+}
+
+#[non_exhaustive]
+pub struct PancakeV2PoolAddress;
+
+impl PancakeV2PoolAddress {
+    pub const WETH_USDT: Address = address!("17c1ae82d99379240059940093762c5e4539aba5");
+}
+
+#[non_exhaustive]
+pub struct PancakeV3PoolAddress;
+
+impl PancakeV3PoolAddress {
+    pub const USDC_USDT_100: Address = address!("04c8577958ccc170eb3d2cca76f9d51bc6e42d8f");
+}
+
+#[non_exhaustive]
+pub struct CurvePoolAddress;
+
+impl CurvePoolAddress {
+    pub const DAI_USDC_USDT: Address = address!("bebc44782c7db0a1a60cb6fe97d0b483032ff1c7");
+    pub const USDT_BTC_ETH: Address = address!("d51a44d3fae010294c616388b506acda1bfaae46");
+    pub const ETH_BTC_USD: Address = address!("7f86bf177dd4f3494b841a37e810a34dd56c829b");
+    pub const FRXETH_WETH: Address = address!("9c3b46c0ceb5b9e304fcd6d88fc50f7dd24b31bc");
+    pub const ETH: Address = address!("a1f8a6807c402e4a15ef4eba36528a3fed24e577");
+}
+
+#[non_exhaustive]
+pub struct CurveMetapoolAddress;
+
+impl CurveMetapoolAddress {
+    pub const LUSD: Address = address!("ed279fdd11ca84beef15af5d39bb4d4bee23f0ca");
 }
 
 #[cfg(test)]
@@ -56,6 +107,6 @@ mod test {
 
     #[test]
     fn test_token() {
-        assert_eq!(Token::WETH, address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"));
+        assert_eq!(TokenAddress::WETH, address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"));
     }
 }

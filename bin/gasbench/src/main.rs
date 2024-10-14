@@ -21,6 +21,7 @@ use crate::preloader::preload_pools;
 use crate::soltest::create_sol_test;
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::preload_market_state;
+use defi_address_book::UniswapV2PoolAddress;
 use defi_entities::{Market, MarketState, PoolWrapper, Swap, SwapAmountType, SwapLine};
 
 use loom_actors::SharedState;
@@ -87,7 +88,7 @@ async fn main() -> Result<()> {
     let market = market_instance.read().await;
 
     // Getting swap directions
-    let pool_address: Address = "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852".parse()?;
+    let pool_address: Address = UniswapV2PoolAddress::WETH_USDT;
 
     let pool = market.get_pool(&pool_address).ok_or_eyre("POOL_NOT_FOUND")?;
 

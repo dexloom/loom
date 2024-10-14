@@ -4,7 +4,7 @@ use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, Result};
 use tracing::{error, trace};
 
-use defi_address_book::Token as TokenAddress;
+use defi_address_book::TokenAddress;
 use defi_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 use defi_types::{MulticallerCall, MulticallerCalls};
 
