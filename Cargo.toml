@@ -116,38 +116,38 @@ alloy-pubsub = "0.4.2"
 alloy-signer = "0.4.2"
 alloy-signer-local = "0.4.2"
 
-reth = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0", features = ["asm-keccak"] }
-reth-db = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-rpc = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0", features = ["asm-keccak"] }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0", features = ["serde"] }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-tracing = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-node-core = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0", features = ["asm-keccak"] }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-node-types = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-node-builder = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
-reth-storage-api = { git = "https://github.com/paradigmxyz/reth", tag="v1.1.0" }
+reth = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e", features = ["asm-keccak"] }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-rpc = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e", features = ["asm-keccak"] }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e", features = ["serde"] }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-node-core = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e", features = ["asm-keccak"] }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-node-types = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
+reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" }
 
-reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev = "3345479" }
+reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev = "d84ed0b" }
 #reth-exex-grpc = { path = "../reth-exex-grpc" }
 
 
 tower = "0.5.1"
 
 criterion = { version = "0.5.1", features = ["async_tokio"] }
-rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "5a641ed" }
+rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "6dd1a52" }
 #rethdb-dexsync = { path = "../rethdb-dexsync" }
 
 [profile.test]
