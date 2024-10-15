@@ -7,7 +7,7 @@ use eyre::{eyre, Result};
 use revm::primitives::Env;
 use tracing::debug;
 
-use defi_address_book::Token as TokenAddress;
+use defi_address_book::TokenAddress;
 use defi_types::SwapError;
 use loom_revm_db::LoomInMemoryDB;
 

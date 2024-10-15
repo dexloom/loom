@@ -13,7 +13,7 @@ use defi_abi::pancake::{IPancakeQuoterV2, IPancakeV3Pool};
 use defi_abi::uniswap3::IUniswapV3Pool;
 use defi_abi::uniswap_periphery::ITickLens;
 use defi_abi::IERC20;
-use defi_address_book::Periphery;
+use defi_address_book::PeripheryAddress;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use eyre::{eyre, ErrReport, OptionExt, Result};
@@ -228,7 +228,7 @@ impl Pool for PancakeV3Pool {
         })
         .abi_encode();
 
-        let (value, gas_used) = evm_call(state_db, env, Periphery::PANCAKE_V3_QUOTER, call_data)?;
+        let (value, gas_used) = evm_call(state_db, env, PeripheryAddress::PANCAKE_V3_QUOTER, call_data)?;
 
         let ret = IPancakeQuoterV2::quoteExactInputSingleCall::abi_decode_returns(&value, false)?;
 
@@ -261,7 +261,7 @@ impl Pool for PancakeV3Pool {
         })
         .abi_encode();
 
-        let (value, gas_used) = evm_call(state_db, env, Periphery::PANCAKE_V3_QUOTER, call_data)?;
+        let (value, gas_used) = evm_call(state_db, env, PeripheryAddress::PANCAKE_V3_QUOTER, call_data)?;
 
         let ret = IPancakeQuoterV2::quoteExactOutputSingleCall::abi_decode_returns(&value, false)?;
 
@@ -321,7 +321,7 @@ impl Pool for PancakeV3Pool {
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode())
             .add_call(
-                Periphery::PANCAKE_V3_TICK_LENS,
+                PeripheryAddress::PANCAKE_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 4,
@@ -329,7 +329,7 @@ impl Pool for PancakeV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                Periphery::PANCAKE_V3_TICK_LENS,
+                PeripheryAddress::PANCAKE_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 3,
@@ -337,7 +337,7 @@ impl Pool for PancakeV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                Periphery::PANCAKE_V3_TICK_LENS,
+                PeripheryAddress::PANCAKE_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 2,
@@ -345,7 +345,7 @@ impl Pool for PancakeV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                Periphery::PANCAKE_V3_TICK_LENS,
+                PeripheryAddress::PANCAKE_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index - 1,
@@ -353,7 +353,7 @@ impl Pool for PancakeV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                Periphery::PANCAKE_V3_TICK_LENS,
+                PeripheryAddress::PANCAKE_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index,
@@ -361,7 +361,7 @@ impl Pool for PancakeV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                Periphery::PANCAKE_V3_TICK_LENS,
+                PeripheryAddress::PANCAKE_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 1,
@@ -369,7 +369,7 @@ impl Pool for PancakeV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                Periphery::PANCAKE_V3_TICK_LENS,
+                PeripheryAddress::PANCAKE_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 2,
@@ -377,7 +377,7 @@ impl Pool for PancakeV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                Periphery::PANCAKE_V3_TICK_LENS,
+                PeripheryAddress::PANCAKE_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 3,
@@ -385,15 +385,15 @@ impl Pool for PancakeV3Pool {
                 .abi_encode(),
             )
             .add_call(
-                Periphery::PANCAKE_V3_TICK_LENS,
+                PeripheryAddress::PANCAKE_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
                     tickBitmapIndex: tick_bitmap_index + 4,
                 })
                 .abi_encode(),
             )
-            .add_call(Periphery::PANCAKE_V3_QUOTER, quoter_swap_0_1_call)
-            .add_call(Periphery::PANCAKE_V3_QUOTER, quoter_swap_1_0_call)
+            .add_call(PeripheryAddress::PANCAKE_V3_QUOTER, quoter_swap_0_1_call)
+            .add_call(PeripheryAddress::PANCAKE_V3_QUOTER, quoter_swap_1_0_call)
             .add_slot_range(self.get_address(), U256::from(0), 0x20)
             .add_empty_slot_range(self.get_address(), U256::from(0x10000), 0x20);
 

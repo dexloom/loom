@@ -1,5 +1,5 @@
 use alloy_primitives::{Address, Bytes, U256};
-use defi_address_book::Token;
+use defi_address_book::TokenAddress;
 use defi_entities::{PoolWrapper, SwapAmountType};
 use defi_types::{MulticallerCall, MulticallerCalls};
 use eyre::{eyre, Result};
@@ -21,7 +21,7 @@ impl WstEthSwapEncoder {
         let pool_encoder = cur_pool.get_encoder();
         let pool_address = cur_pool.get_address();
 
-        if token_from_address == Token::WETH && token_to_address == Token::WSTETH {
+        if token_from_address == TokenAddress::WETH && token_to_address == TokenAddress::WSTETH {
             match amount_in {
                 SwapAmountType::Set(amount) => {
                     let weth_withdraw_opcode = MulticallerCall::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
@@ -95,8 +95,8 @@ impl WstEthSwapEncoder {
             return Ok(());
         }
 
-        if token_from_address == Token::STETH && token_to_address == Token::WSTETH
-            || token_from_address == Token::WSTETH && token_to_address == Token::STETH
+        if token_from_address == TokenAddress::STETH && token_to_address == TokenAddress::WSTETH
+            || token_from_address == TokenAddress::WSTETH && token_to_address == TokenAddress::STETH
         {
             match amount_in {
                 SwapAmountType::Set(amount) => {

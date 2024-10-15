@@ -8,7 +8,7 @@ use tracing::debug;
 use crate::build_swap_path_vec;
 use crate::{PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
-use defi_address_book::Token as TokenAddress;
+use defi_address_book::TokenAddress;
 
 /// The market struct contains all the pools and tokens.
 /// It keeps track if a pool is disabled or not and the swap paths.

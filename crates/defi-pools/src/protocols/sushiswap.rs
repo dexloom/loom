@@ -1,14 +1,14 @@
 use crate::protocols::helper::get_uniswap2pool_address;
 use crate::protocols::protocol::Protocol;
 use alloy_primitives::{Address, B256};
-use defi_address_book::Factory;
+use defi_address_book::FactoryAddress;
 
 pub struct SushiswapProtocol {}
 
 impl SushiswapProtocol {
     pub fn get_pool_address_for_tokens(token0: Address, token1: Address) -> Address {
         let init_code: B256 = "e18a34eb0e04b04f7a0ac29a6e80748dca96319b42c54d679cb821dca90c6303".parse().unwrap();
-        get_uniswap2pool_address(token0, token1, Factory::SUSHISWAP_V2, init_code)
+        get_uniswap2pool_address(token0, token1, FactoryAddress::SUSHISWAP_V2, init_code)
     }
 }
 

@@ -102,6 +102,7 @@ mod test {
     use tracing::debug;
 
     use debug_provider::AnvilDebugProviderFactory;
+    use defi_address_book::UniswapV3PoolAddress;
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::{MarketState, Pool};
     use loom_revm_db::LoomInMemoryDB;
@@ -125,7 +126,7 @@ mod test {
 
         market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
-        let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
+        let pool_address: Address = UniswapV3PoolAddress::USDC_WETH_500;
 
         let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
 

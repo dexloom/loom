@@ -6,7 +6,7 @@ use std::sync::RwLock;
 
 use alloy_primitives::utils::Unit;
 use alloy_primitives::{Address, I256, U256};
-use defi_address_book::Token as TokenAddress;
+use defi_address_book::TokenAddress;
 
 const ONE_ETHER: U256 = Unit::ETHER.wei_const();
 

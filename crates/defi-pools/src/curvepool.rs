@@ -5,7 +5,7 @@ use alloy_provider::{Network, Provider};
 use alloy_sol_types::SolCall;
 use alloy_transport::Transport;
 use defi_abi::IERC20;
-use defi_address_book::Token;
+use defi_address_book::TokenAddress;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use eyre::{eyre, Result};
@@ -102,7 +102,7 @@ where
         for tkn in tokens.iter_mut() {
             if *tkn == address!("EeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
                 //return Err(eyre!("ETH_CURVE_POOL_NOT_SUPPORTED"));
-                *tkn = Token::WETH;
+                *tkn = TokenAddress::WETH;
                 is_native = true;
             }
         }

@@ -14,6 +14,7 @@ use tokio::task::JoinHandle;
 use tracing::error;
 
 use debug_provider::AnvilDebugProviderFactory;
+use defi_address_book::UniswapV3PoolAddress;
 use defi_entities::required_state::RequiredStateReader;
 use defi_entities::{MarketState, Pool, PoolWrapper};
 use defi_pools::protocols::UniswapV3Protocol;
@@ -56,7 +57,7 @@ async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
 
     market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
-    let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
+    let pool_address: Address = UniswapV3PoolAddress::USDC_WETH_500;
     //let pool_address: Address = "0x5777d92f208679db4b9778590fa3cab3ac9e2168".parse().unwrap();
     let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
 
