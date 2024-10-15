@@ -1,6 +1,7 @@
 use alloy_sol_types::sol;
 
 sol! {
+    #[sol(abi = true, rpc)]
     #[derive(Debug, PartialEq, Eq)]
     interface IQuoterV2 {
     function quoteExactInput(bytes memory path, uint256 amountIn)

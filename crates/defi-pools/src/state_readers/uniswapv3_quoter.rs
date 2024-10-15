@@ -3,16 +3,15 @@ use std::convert::Infallible;
 use alloy_primitives::aliases::U24;
 use alloy_primitives::{Address, U160, U256};
 use alloy_sol_types::SolCall;
+use defi_abi::uniswap_periphery::IQuoterV2;
 use eyre::{eyre, Result};
+use loom_utils::evm::evm_call;
 use revm::primitives::Env;
 use revm::DatabaseRef;
 
-use defi_abi::uniswap_periphery::IQuoterV2;
-use loom_utils::evm::evm_call;
+pub struct UniswapV3QuoterV2Encoder {}
 
-pub struct UniswapV3QuoterEncoder {}
-
-impl UniswapV3QuoterEncoder {
+impl UniswapV3QuoterV2Encoder {
     pub fn quote_exact_output_encode(token_in: Address, token_out: Address, fee: U24, price_limit: U160, amount_out: U256) -> Vec<u8> {
         let params = IQuoterV2::QuoteExactOutputSingleParams {
             tokenIn: token_in,
@@ -48,14 +47,14 @@ impl UniswapV3QuoterEncoder {
         let ret = IQuoterV2::quoteExactOutputSingleCall::abi_decode_returns(data, false);
         match ret {
             Ok(r) => Ok(r.amountIn),
-            Err(_) => Err(eyre!("CANNOT_DECODE_EXACT_INPUT_RETURN")),
+            Err(_) => Err(eyre!("CANNOT_DECODE_EXACT_OUTPUT_RETURN")),
         }
     }
 }
 
-pub struct UniswapV3QuoterStateReader {}
+pub struct UniswapV3QuoterV2StateReader {}
 
-impl UniswapV3QuoterStateReader {
+impl UniswapV3QuoterV2StateReader {
     pub fn quote_exact_input<DB: DatabaseRef<Error = Infallible>>(
         db: DB,
         env: Env,
@@ -65,11 +64,11 @@ impl UniswapV3QuoterStateReader {
         fee: U24,
         amount: U256,
     ) -> Result<(U256, u64)> {
-        let call_data_vec = UniswapV3QuoterEncoder::quote_exact_input_encode(token_from, token_to, fee, U160::ZERO, amount);
+        let call_data_vec = UniswapV3QuoterV2Encoder::quote_exact_input_encode(token_from, token_to, fee, U160::ZERO, amount);
 
         let (value, gas_used) = evm_call(db, env, quoter_address, call_data_vec)?;
 
-        let ret = UniswapV3QuoterEncoder::quote_exact_input_result_decode(&value)?;
+        let ret = UniswapV3QuoterV2Encoder::quote_exact_input_result_decode(&value)?;
         Ok((ret, gas_used))
     }
 
@@ -82,11 +81,11 @@ impl UniswapV3QuoterStateReader {
         fee: U24,
         amount: U256,
     ) -> Result<(U256, u64)> {
-        let call_data_vec = UniswapV3QuoterEncoder::quote_exact_output_encode(token_from, token_to, fee, U160::ZERO, amount);
+        let call_data_vec = UniswapV3QuoterV2Encoder::quote_exact_output_encode(token_from, token_to, fee, U160::ZERO, amount);
 
         let (value, gas_used) = evm_call(db, env, quoter_address, call_data_vec)?;
 
-        let ret = UniswapV3QuoterEncoder::quote_exact_output_result_decode(&value)?;
+        let ret = UniswapV3QuoterV2Encoder::quote_exact_output_result_decode(&value)?;
         Ok((ret, gas_used))
     }
 }

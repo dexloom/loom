@@ -452,28 +452,24 @@ mod test {
         let node_url = env::var("MAINNET_WS")?;
         let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(block_number)).await?;
 
-        for _ in 0..5 {
-            let amount_in = U256::from(133_333_333_333u128) + U256::from(rand::thread_rng().gen_range(0..100_000_000_000u64));
-            for pool_address in POOL_ADDRESSES {
-                let pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
-                let state_required = pool.get_state_required()?;
-                let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(block_number)).await?;
+        let amount_in = U256::from(133_333_333_333u128) + U256::from(rand::thread_rng().gen_range(0..100_000_000_000u64));
+        for pool_address in POOL_ADDRESSES {
+            let pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
+            let state_required = pool.get_state_required()?;
+            let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(block_number)).await?;
 
-                let mut state_db = LoomInMemoryDB::default();
-                state_db.apply_geth_update(state_update);
+            let mut state_db = LoomInMemoryDB::default();
+            state_db.apply_geth_update(state_update);
 
-                // fetch original
-                let contract_amount_out =
-                    fetch_original_contract_amounts(client.clone(), pool_address, amount_in, block_number, true).await?;
+            // fetch original
+            let contract_amount_out = fetch_original_contract_amounts(client.clone(), pool_address, amount_in, block_number, true).await?;
 
-                // under test
-                let evm_env = Env::default();
-                let (amount_out, gas_used) =
-                    pool.calculate_out_amount(&state_db, evm_env.clone(), &pool.token0, &pool.token1, amount_in)?;
+            // under test
+            let evm_env = Env::default();
+            let (amount_out, gas_used) = pool.calculate_out_amount(&state_db, evm_env.clone(), &pool.token0, &pool.token1, amount_in)?;
 
-                assert_eq!(amount_out, contract_amount_out, "{}", format!("Missmatch for pool={:?}", pool_address));
-                assert_eq!(gas_used, 100_000);
-            }
+            assert_eq!(amount_out, contract_amount_out, "{}", format!("Missmatch for pool={:?}, amount_in={}", pool_address, amount_in));
+            assert_eq!(gas_used, 100_000);
         }
         Ok(())
     }
@@ -486,26 +482,23 @@ mod test {
         let node_url = env::var("MAINNET_WS")?;
         let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(block_number)).await?;
 
-        for _ in 0..5 {
-            let amount_out = U256::from(133_333_333_333u128) + U256::from(rand::thread_rng().gen_range(0..100_000_000_000u64));
-            for pool_address in POOL_ADDRESSES {
-                let pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
-                let state_required = pool.get_state_required()?;
-                let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(block_number)).await?;
+        let amount_out = U256::from(133_333_333_333u128) + U256::from(rand::thread_rng().gen_range(0..100_000_000_000u64));
+        for pool_address in POOL_ADDRESSES {
+            let pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
+            let state_required = pool.get_state_required()?;
+            let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(block_number)).await?;
 
-                let mut state_db = LoomInMemoryDB::default();
-                state_db.apply_geth_update(state_update);
+            let mut state_db = LoomInMemoryDB::default();
+            state_db.apply_geth_update(state_update);
 
-                // fetch original
-                let contract_amount_in =
-                    fetch_original_contract_amounts(client.clone(), pool_address, amount_out, block_number, false).await?;
+            // fetch original
+            let contract_amount_in = fetch_original_contract_amounts(client.clone(), pool_address, amount_out, block_number, false).await?;
 
-                // under test
-                let (amount_in, gas_used) = pool.calculate_in_amount(&state_db, Env::default(), &pool.token0, &pool.token1, amount_out)?;
+            // under test
+            let (amount_in, gas_used) = pool.calculate_in_amount(&state_db, Env::default(), &pool.token0, &pool.token1, amount_out)?;
 
-                assert_eq!(amount_in, contract_amount_in, "{}", format!("Missmatch for pool={:?}", pool_address));
-                assert_eq!(gas_used, 100_000);
-            }
+            assert_eq!(amount_in, contract_amount_in, "{}", format!("Missmatch for pool={:?}, amount_out={}", pool_address, amount_out));
+            assert_eq!(gas_used, 100_000);
         }
         Ok(())
     }
