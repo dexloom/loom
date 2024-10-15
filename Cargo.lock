@@ -2320,6 +2320,7 @@ dependencies = [
  "alloy-sol-types",
  "alloy-transport",
  "chrono",
+ "criterion",
  "debug-provider",
  "defi-abi",
  "defi-address-book",
