@@ -68,13 +68,8 @@ pub fn bench_swap_calculator(c: &mut Criterion) {
     println!("SwapLine: {}", swap_line);
     group.bench_function("calculate", |b| {
         b.iter(|| {
-            let mut tmp_swap_line = swap_line.clone();
-            SwapCalculator::calculate(black_box(&mut tmp_swap_line), black_box(&state_db), black_box(Env::default()))
+            SwapCalculator::calculate(black_box(&mut swap_line.clone()), black_box(&state_db), black_box(Env::default()))
                 .expect("Failed to calculate swap");
-            println!("SwapLine: {}", tmp_swap_line);
-            assert_eq!(tmp_swap_line.amount_in.unwrap(), U256::from(10000000000000000u128));
-            assert_eq!(tmp_swap_line.amount_out.unwrap(), U256::from(9987495733337400u128));
-            assert_eq!(tmp_swap_line.profit().unwrap(), I256::try_from(0u64).unwrap());
         })
     });
 

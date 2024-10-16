@@ -471,7 +471,12 @@ mod test {
                 let (amount_out, gas_used) =
                     pool.calculate_out_amount(&state_db, evm_env.clone(), &pool.token0, &pool.token1, amount_in)?;
 
-                assert_eq!(amount_out, contract_amount_out, "{}", format!("Missmatch for pool={:?}", pool_address));
+                assert_eq!(
+                    amount_out,
+                    contract_amount_out,
+                    "{}",
+                    format!("Missmatch for pool={:?}, amount_in={}", pool_address, amount_in)
+                );
                 assert_eq!(gas_used, 100_000);
             }
         }
@@ -503,7 +508,12 @@ mod test {
                 // under test
                 let (amount_in, gas_used) = pool.calculate_in_amount(&state_db, Env::default(), &pool.token0, &pool.token1, amount_out)?;
 
-                assert_eq!(amount_in, contract_amount_in, "{}", format!("Missmatch for pool={:?}", pool_address));
+                assert_eq!(
+                    amount_in,
+                    contract_amount_in,
+                    "{}",
+                    format!("Missmatch for pool={:?}, amount_out={}", pool_address, amount_out)
+                );
                 assert_eq!(gas_used, 100_000);
             }
         }
