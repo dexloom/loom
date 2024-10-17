@@ -35,6 +35,10 @@ tracing.workspace = true
 strum.workspace = true
 
 uniswap_v3_math.workspace = true
+uniswap-v3-sdk.workspace = true
+uniswap-sdk-core.workspace = true
+num-bigint.workspace = true
+
 
 [features]
 debug-calculation = []

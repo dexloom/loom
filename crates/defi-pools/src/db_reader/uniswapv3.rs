@@ -1,16 +1,16 @@
 use std::ops::{BitAnd, Shl, Shr};
 
-use alloy_primitives::{Address, Signed, Uint, B256, I256};
-use alloy_primitives::{U160, U256};
-use eyre::Result;
+use alloy_primitives::{b256, keccak256, Address, Signed, Uint, B256, I128, I256, U128, U160, U256};
+use alloy_primitives::aliases::{I24, I56};
+use alloy_sol_types::SolValue;
+use eyre::{eyre, Result};
 use lazy_static::lazy_static;
+use revm::DatabaseRef;
 use tracing::trace;
 
-use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
+use defi_abi::uniswap3::IUniswapV3Pool::{slot0Return, ticksReturn};
 use loom_revm_db::LoomInMemoryDB;
-use loom_utils::remv_db_direct_access::{try_read_cell, try_read_hashmap_cell};
-
-pub struct UniswapV3DBReader {}
+use loom_utils::remv_db_direct_access::{calc_hashmap_cell, try_read_cell, try_read_hashmap_cell};
 
 lazy_static! {
     static ref BITS160MASK: U256 = U256::from(1).shl(160) - U256::from(1);
@@ -20,6 +20,10 @@ lazy_static! {
     static ref BITS8MASK: U256 = U256::from(1).shl(8) - U256::from(1);
     static ref BITS1MASK: U256 = U256::from(1);
 }
+
+pub struct UniswapV3DBReader {}
+
+
 impl UniswapV3DBReader {
     pub fn fee_growth_global0_x128(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
         let cell = try_read_cell(db, &address, &U256::from(1))?;
@@ -45,15 +49,15 @@ impl UniswapV3DBReader {
     pub fn ticks_liquidity_net(db: &LoomInMemoryDB, address: Address, tick: i32) -> Result<i128> {
         //i24
         let cell = try_read_hashmap_cell(db, &address, &U256::from(5), &U256::from_be_bytes(I256::try_from(tick)?.to_be_bytes::<32>()))?;
-        let unsigned_liqudity: Uint<128, 2> = cell.shr(U256::from(128)).to();
-        let signed_liquidity: Signed<128, 2> = Signed::<128, 2>::from_raw(unsigned_liqudity);
-        let lu128: u128 = unsigned_liqudity.to();
+        let unsigned_liquidity: Uint<128, 2> = cell.shr(U256::from(128)).to();
+        let signed_liquidity: Signed<128, 2> = Signed::<128, 2>::from_raw(unsigned_liquidity);
+        let lu128: u128 = unsigned_liquidity.to();
         let li128: i128 = lu128 as i128;
         trace!("ticks_liquidity_net {address} {tick} {cell} -> {signed_liquidity}");
 
         Ok(li128)
     }
-    pub fn tick_bitmap(db: &LoomInMemoryDB, address: Address, tick: i16) -> Result<U256> {
+    pub fn tick_bitmap(db: &LoomInMemoryDB, address: Address, tick: i32) -> Result<U256> {
         //i16
         let cell = try_read_hashmap_cell(db, &address, &U256::from(6), &U256::from_be_bytes(I256::try_from(tick)?.to_be_bytes::<32>()))?;
         trace!("tickBitmap {address} {tick} {cell}");
@@ -91,14 +95,52 @@ impl UniswapV3DBReader {
             unlocked: ((Shr::<U256>::shr(cell, U256::from(160 + 24 + 16 + 16 + 16 + 8))) & *BITS1MASK).to(),
         })
     }
+
+    pub fn ticks(db: &LoomInMemoryDB, address: Address, tick: I24) -> Result<ticksReturn> {
+        let storage_key0 = U256::from_be_slice(keccak256((tick, &U256::from(5)).abi_encode()).as_slice());
+        let storage_key1 = storage_key0 + U256::from(1);
+        let storage_key2 = storage_key0 + U256::from(2);
+        let storage_key3 = storage_key0 + U256::from(3);
+
+        let storage_value0 = try_read_cell(db, &address, &storage_key0)?;
+        let storage_value1 = try_read_cell(db, &address, &storage_key1)?;
+        let storage_value2 = try_read_cell(db, &address, &storage_key2)?;
+        let storage_value3 = try_read_cell(db, &address, &storage_key3)?;
+
+        // slot0
+        let bytes: [u8; 32] = storage_value0.to_be_bytes();
+        let liquidity_net = i128::from_be_bytes(bytes[0..16].try_into()?);
+        let liquidity_gross = U128::from_be_slice(&bytes[16..32]).to();
+        // slot1
+        let fee_growth_outside_0x128 = U256::from(storage_value1);
+        // slot2
+        let fee_growth_outside_1x128 = U256::from(storage_value2);
+        // slot3
+        let bytes: [u8; 32] = storage_value3.to_be_bytes();
+        let initialized: bool = bytes[0] != 0;
+        let seconds_outside: u32 = u32::from_be_bytes([bytes[1], bytes[2], bytes[3], bytes[4]]);
+        let seconds_per_liquidity_outside_x128 = U160::from_be_slice(&bytes[5..25]);
+        let tick_cumulative_outside = I56::try_from_be_slice(&bytes[25..32]).unwrap();
+        Ok(ticksReturn {
+            liquidityGross: liquidity_gross,
+            liquidityNet: liquidity_net,
+            feeGrowthOutside0X128: fee_growth_outside_0x128,
+            feeGrowthOutside1X128: fee_growth_outside_1x128,
+            tickCumulativeOutside: tick_cumulative_outside,
+            secondsPerLiquidityOutsideX128: seconds_per_liquidity_outside_x128,
+            secondsOutside: seconds_outside,
+            initialized,
+        })
+    }
 }
 
 #[cfg(test)]
 mod test {
-    use alloy_primitives::Address;
+    use alloy_primitives::{Address, U160, U256};
     use eyre::Result;
     use revm::primitives::Env;
     use std::env;
+    use alloy_primitives::aliases::{I24, I56};
     use tracing::debug;
 
     use debug_provider::AnvilDebugProviderFactory;
@@ -114,24 +156,21 @@ mod test {
     #[tokio::test]
     async fn test_reader() -> Result<()> {
         let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or(
-            "info,defi_entities::required_state=off,defi_types::state_update=off,alloy_rpc_client::call=off,tungstenite=off",
+            "debug,defi_entities::required_state=off,defi_types::state_update=off,alloy_rpc_client::call=off,tungstenite=off",
         ));
 
         let node_url = env::var("MAINNET_WS")?;
-
         let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 20038285).await?;
 
         let mut market_state = MarketState::new(LoomInMemoryDB::default());
 
         let pool_address: Address = UniswapV3PoolAddress::USDC_WETH_500;
-
         let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
 
         let state_required = pool.get_state_required()?;
+        let geth_state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await?;
 
-        let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await?;
-
-        market_state.add_state(&state_required);
+        market_state.add_state(&geth_state_update);
 
         let evm_env = Env::default();
 
@@ -142,13 +181,21 @@ mod test {
         debug!("{factory_evm:?} {token0_evm:?} {token1_evm:?}");
 
         let slot0_evm = UniswapV3StateReader::slot0(&market_state.state_db, evm_env.clone(), pool_address)?;
-
         let slot0_db = UniswapV3DBReader::slot0(&market_state.state_db, pool_address)?;
 
-        debug!("evm : {slot0_evm:?}");
-        debug!("db  : {slot0_db:?}");
+        debug!("slot0 evm : {slot0_evm:?}");
+        debug!("slot0 db  : {slot0_db:?}");
 
         assert_eq!(slot0_evm, slot0_db);
+
+        let next_tick = slot0_evm.tick + I24::try_from(4)?;
+        let tick_evm = UniswapV3StateReader::ticks(&market_state.state_db, evm_env.clone(), pool_address, next_tick)?;
+        let tick_db = UniswapV3DBReader::ticks(&market_state.state_db, pool_address, next_tick)?;
+
+        debug!("tick evm : {tick_evm:?}");
+        debug!("tick db  : {tick_db:?}");
+        assert_eq!(tick_evm, tick_db);
+
 
         Ok(())
     }

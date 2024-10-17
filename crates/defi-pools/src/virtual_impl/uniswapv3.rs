@@ -84,7 +84,7 @@ pub struct Tick {
 }
 
 impl UniswapV3PoolVirtual {
-    pub fn simulate_swap_in_amount(db: &LoomInMemoryDB, pool: &UniswapV3Pool, token_in: Address, amount_in: U256) -> eyre::Result<U256> {
+    pub fn simulate_swap_in_amount(db: &LoomInMemoryDB, pool: &UniswapV3Pool, token_in: Address, amount_in: I256) -> eyre::Result<U256> {
         if amount_in.is_zero() {
             return Ok(U256::ZERO);
         }
@@ -105,7 +105,7 @@ impl UniswapV3PoolVirtual {
         let mut current_state = CurrentState {
             sqrt_price_x_96: slot0.sqrtPriceX96.to(),              //Active price on the pool
             amount_calculated: I256::ZERO,                         //Amount of token_out that has been calculated
-            amount_specified_remaining: I256::from_raw(amount_in), //Amount of token_in that has not been swapped
+            amount_specified_remaining: amount_in, //Amount of token_in that has not been swapped
             tick: slot0.tick.as_i32(),                             //Current i24 tick of the pool
             liquidity,                                             //Current available liquidity in the tick range
         };
@@ -122,7 +122,7 @@ impl UniswapV3PoolVirtual {
             let (word_pos, _bit_pos) = position(current_state.tick / (tick_spacing as i32));
 
             for i in word_pos - 1..=word_pos + 1 {
-                tick_bitmap.insert(i, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
+                tick_bitmap.insert(i, UniswapV3DBReader::tick_bitmap(db, pool_address, i as i32).unwrap_or_default());
             }
 
             // Get the next tick from the current tick
@@ -248,7 +248,7 @@ impl UniswapV3PoolVirtual {
             let (word_pos, _bit_pos) = position(current_state.tick / (tick_spacing as i32));
 
             for i in word_pos - 2..=word_pos + 2 {
-                tick_bitmap.insert(i, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
+                tick_bitmap.insert(i, UniswapV3DBReader::tick_bitmap(db, pool_address, i as i32).unwrap_or_default());
             }
 
             // Get the next tick from the current tick

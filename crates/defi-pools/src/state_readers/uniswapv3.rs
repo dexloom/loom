@@ -1,10 +1,10 @@
-use alloy_primitives::aliases::U24;
+use alloy_primitives::aliases::{I24, U24};
 use alloy_primitives::Address;
 use alloy_sol_types::{SolCall, SolInterface};
 use revm::primitives::Env;
 
 use defi_abi::uniswap3::IUniswapV3Pool;
-use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
+use defi_abi::uniswap3::IUniswapV3Pool::{slot0Return, ticksReturn};
 use loom_revm_db::LoomInMemoryDB;
 use loom_utils::evm::evm_call;
 
@@ -57,5 +57,12 @@ impl UniswapV3StateReader {
             evm_call(db, env, pool, IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode())?.0;
         let call_return = IUniswapV3Pool::liquidityCall::abi_decode_returns(&call_data_result, false)?;
         Ok(call_return._0)
+    }
+
+    pub fn ticks(db: &LoomInMemoryDB, env: Env, pool: Address, tick: I24) -> eyre::Result<ticksReturn> {
+        let call_data_result =
+            evm_call(db, env, pool, IUniswapV3Pool::IUniswapV3PoolCalls::ticks(IUniswapV3Pool::ticksCall { tick }).abi_encode())?.0;
+        let call_return = IUniswapV3Pool::ticksCall::abi_decode_returns(&call_data_result, false)?;
+        Ok(call_return)
     }
 }

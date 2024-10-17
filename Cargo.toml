@@ -143,7 +143,9 @@ reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev="9c8360e" 
 reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev = "d84ed0b" }
 #reth-exex-grpc = { path = "../reth-exex-grpc" }
 
-
+uniswap-v3-sdk = {path = "../uniswap-v3-sdk-rs", features = ["extensions", "std"] }
+uniswap-sdk-core = "3.0.0"
+num-bigint = "0.4"
 tower = "0.5.1"
 
 criterion = { version = "0.5.1", features = ["async_tokio"] }

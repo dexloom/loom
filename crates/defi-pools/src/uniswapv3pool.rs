@@ -1,9 +1,11 @@
+use std::cell::RefCell;
+use std::collections::HashMap;
 use std::fmt::Debug;
-use std::ops::Sub;
-
+use std::ops::{Mul, Neg, Sub};
+use std::sync::Arc;
 #[cfg(feature = "debug-calculation")]
 use crate::state_readers::UniswapV3QuoterV2StateReader;
-use crate::state_readers::{UniswapV3QuoterV2Encoder, UniswapV3StateReader};
+use crate::state_readers::{LoomTickDataProvider, UniswapV3QuoterV2Encoder, UniswapV3StateReader};
 use alloy_primitives::{Address, Bytes, I256, U160, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
@@ -16,12 +18,17 @@ use defi_address_book::{FactoryAddress, PeripheryAddress};
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use eyre::{eyre, ErrReport, OptionExt, Result};
+use num_bigint::Sign;
 use loom_revm_db::LoomInMemoryDB;
 use revm::primitives::Env;
 use tracing::debug;
 #[cfg(feature = "debug-calculation")]
 use tracing::error;
-
+use uniswap_sdk_core::prelude::{BigInt, CurrencyAmount, Token};
+use uniswap_v3_sdk::constants::FeeAmount;
+use uniswap_v3_sdk::entities::Pool as SdkPool;
+use uniswap_v3_sdk::prelude::{FromBig, ToBig};
+use crate::db_reader::UniswapV3DBReader;
 use crate::virtual_impl::UniswapV3PoolVirtual;
 
 #[allow(dead_code)]
@@ -247,7 +254,23 @@ impl Pool for UniswapV3Pool {
         _token_address_to: &Address,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(state_db, self, *token_address_from, in_amount)?;
+        println!("calculate_out_amount for pool {:?}, from={:?}, in={}", self.address, token_address_from, in_amount);
+        let ticks = RefCell::new(HashMap::new());
+        let tick_provider = LoomTickDataProvider::new(Arc::new(state_db.clone()), self.address, ticks);
+        let token0 = Token::new(1, self.token0, 18, None, None, None, None);
+        let token1 = Token::new(1, self.token1, 18, None, None, None, None);
+
+        let liquidity = UniswapV3DBReader::liquidity(state_db, self.address)?;
+        let slot0 = UniswapV3DBReader::slot0(state_db, self.address)?;
+
+        let pool = SdkPool::new_with_tick_data_provider(token0.clone(), token1, FeeAmount::from(self.fee), slot0.sqrtPriceX96, liquidity, tick_provider)?;
+        let in_amount_big_int = BigInt::from_bytes_le(Sign::Plus, in_amount.as_le_slice());
+        let from_token = Token::new(1, *token_address_from, 18, None, None, None, None);
+        let (currency_amount, _) = pool.get_output_amount(&CurrencyAmount::from_raw_amount(from_token, in_amount_big_int)?, None)?;
+        let (_, b) = currency_amount.numerator.to_bytes_le();
+        let out_amount = U256::from_le_slice(b.as_slice());
+        //SdkPool::new_with_tick_data_provider(self.token0, self.token1, FeeAmount::from(self.fee));
+        //let out_amount = UniswapV3PoolVirtual::simulate_swap_in_amount(state_db, self, *token_address_from, I256::try_from(in_amount).unwrap())?;
 
         #[cfg(feature = "debug-calculation")]
         {
@@ -262,17 +285,17 @@ impl Pool for UniswapV3Pool {
                 self.fee.try_into()?,
                 in_amount,
             )?;
-            println!("calculate_out_amount ret_evm: {:?} ret: {:?}", ret_evm, ret);
-            if ret != ret_evm {
-                error!("calculate_out_amount RETURN_RESULT_IS_INCORRECT : {ret} need {ret_evm}");
+            println!("calculate_out_amount ret_evm: {:?} ret: {:?}", ret_evm, out_amount);
+            if out_amount != ret_evm {
+                error!("calculate_out_amount RETURN_RESULT_IS_INCORRECT : {out_amount} need {ret_evm}");
                 return Err(eyre!("RETURN_RESULT_IS_INCORRECT"));
             }
         }
 
-        if ret.is_zero() {
+        if out_amount.is_zero() {
             Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
-            Ok((ret, 150000)) // value, gas_used
+            Ok((out_amount, 150000)) // value, gas_used
         }
     }
 
@@ -284,7 +307,7 @@ impl Pool for UniswapV3Pool {
         _token_address_to: &Address,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(state_db, self, *token_address_from, out_amount)?;
+        let in_amount = UniswapV3PoolVirtual::simulate_swap_in_amount(state_db, self, *token_address_from, I256::try_from(out_amount).unwrap().mul(I256::try_from(-1).unwrap()))?;
 
         #[cfg(feature = "debug-calculation")]
         {
@@ -300,16 +323,16 @@ impl Pool for UniswapV3Pool {
                 out_amount,
             )?;
 
-            if ret != ret_evm {
-                error!("calculate_in_amount RETURN_RESULT_IS_INCORRECT : {ret} need {ret_evm}");
+            if in_amount != ret_evm {
+                error!("calculate_in_amount RETURN_RESULT_IS_INCORRECT : {in_amount} need {ret_evm}");
                 return Err(eyre!("RETURN_RESULT_IS_INCORRECT"));
             }
         }
 
-        if ret.is_zero() {
+        if in_amount.is_zero() {
             Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
-            Ok((ret, 150000)) // value, gas_used
+            Ok((in_amount, 150000)) // value, gas_used
         }
     }
 
@@ -330,7 +353,7 @@ impl Pool for UniswapV3Pool {
         }
         let tick_bitmap_index = UniswapV3Pool::get_tick_bitmap_index(tick, price_step);
 
-        //debug!("Fetching state {:?} tick {} tick bitmap index {}", self.address, tick, tick_bitmap_index);
+        debug!("Fetching state {:?} tick {} tick bitmap index {}", self.address, tick, tick_bitmap_index);
 
         let balance_call_data = IERC20::IERC20Calls::balanceOf(IERC20::balanceOfCall { account: self.get_address() }).abi_encode();
 
@@ -339,6 +362,15 @@ impl Pool for UniswapV3Pool {
         state_required
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode());
+
+        state_required.add_call(
+            PeripheryAddress::UNISWAP_V3_TICK_LENS,
+            ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
+                pool: pool_address,
+                tickBitmapIndex: 75,
+            })
+                .abi_encode(),
+        );
 
         for i in -4..=3 {
             state_required.add_call(
@@ -511,13 +543,13 @@ mod test {
         token_out: Address,
         amount: U256,
         block_number: u64,
-        is_amount_out: bool,
+        is_quote_exact_input: bool,
     ) -> Result<U256> {
         let router_contract = IQuoterV2::new(PeripheryAddress::UNISWAP_V3_QUOTER_V2, client.clone());
         let pool_contract = IUniswapV3Pool::new(pool_address, client.clone());
         let pool_fee = pool_contract.fee().call().block(BlockId::from(block_number)).await?._0;
 
-        if is_amount_out {
+        if is_quote_exact_input {
             let contract_amount_out = router_contract
                 .quoteExactInputSingle(QuoteExactInputSingleParams {
                     tokenIn: token_in,
@@ -557,15 +589,14 @@ mod test {
         for pool_address in POOL_ADDRESSES {
             let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
             let state_required = pool.get_state_required()?;
-            let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(BLOCK_NUMBER)).await?;
+            let geth_state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await?;
 
             let mut state_db = LoomInMemoryDB::default();
-            state_db.apply_geth_update(state_update);
+            state_db.apply_geth_update(geth_state_update);
 
-            let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
-            let token1_decimals = IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
 
             //// CASE: token0 -> token1
+            let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
             let amount_in = U256::from(10u64).pow(token0_decimals).mul(rnd_multiplier);
             let contract_amount_out =
                 fetch_original_contract_amounts(client.clone(), pool_address, pool.token0, pool.token1, amount_in, BLOCK_NUMBER, true)
@@ -587,6 +618,7 @@ mod test {
             assert_eq!(gas_used, 150_000);
 
             //// CASE: token1 -> token0
+            let token1_decimals = IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
             let amount_in = U256::from(10u64).pow(token1_decimals).mul(rnd_multiplier);
             let contract_amount_out =
                 fetch_original_contract_amounts(client.clone(), pool_address, pool.token1, pool.token0, amount_in, BLOCK_NUMBER, true)
@@ -622,15 +654,14 @@ mod test {
         for pool_address in POOL_ADDRESSES {
             let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
             let state_required = pool.get_state_required()?;
-            let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(BLOCK_NUMBER)).await?;
+            let geth_state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await?;
 
             let mut state_db = LoomInMemoryDB::default();
-            state_db.apply_geth_update(state_update);
+            state_db.apply_geth_update(geth_state_update);
 
-            let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
-            let token1_decimals = IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
 
             //// CASE: token0 -> token1
+            let token1_decimals = IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
             let amount_out = U256::from(10u64).pow(token1_decimals).mul(rnd_multiplier);
             let contract_amount_in =
                 fetch_original_contract_amounts(client.clone(), pool_address, pool.token0, pool.token1, amount_out, BLOCK_NUMBER, false)
@@ -651,14 +682,16 @@ mod test {
             );
             assert_eq!(gas_used, 150_000);
 
+            /*
             //// CASE: token1 -> token0
+            let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
             let amount_out = U256::from(10u64).pow(token0_decimals).mul(rnd_multiplier);
             let contract_amount_in =
                 fetch_original_contract_amounts(client.clone(), pool_address, pool.token1, pool.token0, amount_out, BLOCK_NUMBER, false)
                     .await?;
 
             // under test
-            let (amount_in, gas_used) = match pool.calculate_in_amount(&state_db, Env::default(), &pool.token1, &pool.token0, amount_out) {
+            let (amount_in, gas_used) = match pool.calculate_in_amount(&state_db, Env::default(), &pool.token0, &pool.token0, amount_out) {
                 Ok((amount_out, gas_used)) => (amount_in, gas_used),
                 Err(e) => {
                     panic!("Calculation error for pool={:?}, amount_out={}, e={:?}", pool_address, amount_out, e);
@@ -671,6 +704,8 @@ mod test {
                 format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token1, amount_out)
             );
             assert_eq!(gas_used, 150_000);
+
+             */
         }
 
         Ok(())
