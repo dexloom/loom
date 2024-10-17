@@ -17,7 +17,6 @@ use debug_provider::AnvilDebugProviderFactory;
 use defi_address_book::UniswapV3PoolAddress;
 use defi_entities::required_state::RequiredStateReader;
 use defi_entities::{MarketState, Pool, PoolWrapper};
-use defi_pools::protocols::UniswapV3Protocol;
 use defi_pools::UniswapV3Pool;
 use loom_revm_db::LoomInMemoryDB;
 
@@ -54,8 +53,6 @@ async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
     let client = AnvilDebugProviderFactory::from_node_on_block(node_url, block_number).await?;
 
     let mut market_state = MarketState::new(Default::default());
-
-    market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
     let pool_address: Address = UniswapV3PoolAddress::USDC_WETH_500;
     //let pool_address: Address = "0x5777d92f208679db4b9778590fa3cab3ac9e2168".parse().unwrap();

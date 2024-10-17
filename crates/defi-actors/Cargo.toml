@@ -69,7 +69,13 @@ rethdb-dexsync.workspace = true
 #pool-sync.workspace = true
 
 
+[[bench]]
+name = "swap_calculation_bench"
+harness = false
+
 [dev-dependencies]
 env_logger.workspace = true
 alloy-node-bindings.workspace = true
 alloy-rpc-client.workspace = true
+
+criterion = { version = "0.5.1", features = ["async_tokio"] }

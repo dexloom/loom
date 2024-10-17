@@ -108,7 +108,6 @@ mod test {
     use loom_revm_db::LoomInMemoryDB;
 
     use crate::db_reader::UniswapV3DBReader;
-    use crate::protocols::UniswapV3Protocol;
     use crate::state_readers::UniswapV3StateReader;
     use crate::UniswapV3Pool;
 
@@ -123,8 +122,6 @@ mod test {
         let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 20038285).await?;
 
         let mut market_state = MarketState::new(LoomInMemoryDB::default());
-
-        market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
         let pool_address: Address = UniswapV3PoolAddress::USDC_WETH_500;
 

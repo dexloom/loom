@@ -13,7 +13,6 @@ use tracing::{debug, error};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
-use defi_pools::protocols::UniswapV3Protocol;
 use defi_types::GethStateUpdate;
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
@@ -73,8 +72,6 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
     let mut market_state_guard = market_state.write().await;
-
-    market_state_guard.add_state(&UniswapV3Protocol::get_quoter_v3_state());
 
     let mut state: GethStateUpdate = BTreeMap::new();
 

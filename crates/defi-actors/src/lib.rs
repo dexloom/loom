@@ -1,5 +1,5 @@
 pub use accounts_monitor::NonceAndBalanceMonitorActor;
-pub use backrun::{PendingTxStateChangeProcessorActor, StateChangeArbActor, StateChangeArbSearcherActor};
+pub use backrun::{PendingTxStateChangeProcessorActor, StateChangeArbActor, StateChangeArbSearcherActor, SwapCalculator};
 pub use block_history::BlockHistoryActor;
 pub use blockchain_actors::BlockchainActors;
 pub use health_monitor::{PoolHealthMonitorActor, StateHealthMonitorActor, StuffingTxMonitorActor};
