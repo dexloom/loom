@@ -36,6 +36,8 @@ strum.workspace = true
 
 uniswap_v3_math.workspace = true
 
+[features]
+debug-calculation = []
 
 
 [dev-dependencies]

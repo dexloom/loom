@@ -1,11 +1,9 @@
 use std::fmt::Debug;
 use std::ops::Sub;
 
-#[cfg(any(test, debug_assertions))]
-use crate::protocols::UniswapV3Protocol;
-#[cfg(any(test, debug_assertions))]
-use crate::state_readers::UniswapCustomQuoterStateReader;
-use crate::state_readers::{UniswapV3QuoterEncoder, UniswapV3StateReader};
+#[cfg(feature = "debug-calculation")]
+use crate::state_readers::UniswapV3QuoterV2StateReader;
+use crate::state_readers::{UniswapV3QuoterV2Encoder, UniswapV3StateReader};
 use alloy_primitives::{Address, Bytes, I256, U160, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::{SolCall, SolInterface};
@@ -21,7 +19,7 @@ use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_revm_db::LoomInMemoryDB;
 use revm::primitives::Env;
 use tracing::debug;
-#[cfg(any(test, debug_assertions))]
+#[cfg(feature = "debug-calculation")]
 use tracing::error;
 
 use crate::virtual_impl::UniswapV3PoolVirtual;
@@ -244,31 +242,27 @@ impl Pool for UniswapV3Pool {
     fn calculate_out_amount(
         &self,
         state_db: &LoomInMemoryDB,
-        env: Env,
+        _env: Env,
         token_address_from: &Address,
         _token_address_to: &Address,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let mut env = env;
-        env.tx.gas_limit = 1_000_000;
-
-        let gas_used = 150000;
-
         let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(state_db, self, *token_address_from, in_amount)?;
 
-        #[cfg(any(test, debug_assertions))]
+        #[cfg(feature = "debug-calculation")]
         {
-            let (ret_evm, _gas_used) = UniswapCustomQuoterStateReader::quote_exact_input(
+            let mut env = _env;
+            env.tx.gas_limit = 1_000_000;
+            let (ret_evm, _gas_used) = UniswapV3QuoterV2StateReader::quote_exact_input(
                 state_db,
                 env,
-                UniswapV3Protocol::get_custom_quoter_address(),
-                self.get_address(),
+                PeripheryAddress::UNISWAP_V3_QUOTER_V2,
                 *token_address_from,
                 *_token_address_to,
                 self.fee.try_into()?,
                 in_amount,
             )?;
-
+            println!("calculate_out_amount ret_evm: {:?} ret: {:?}", ret_evm, ret);
             if ret != ret_evm {
                 error!("calculate_out_amount RETURN_RESULT_IS_INCORRECT : {ret} need {ret_evm}");
                 return Err(eyre!("RETURN_RESULT_IS_INCORRECT"));
@@ -278,36 +272,32 @@ impl Pool for UniswapV3Pool {
         if ret.is_zero() {
             Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
-            Ok((ret - U256::from(1), gas_used))
+            Ok((ret, 150000)) // value, gas_used
         }
     }
 
     fn calculate_in_amount(
         &self,
         state_db: &LoomInMemoryDB,
-        env: Env,
+        _env: Env,
         token_address_from: &Address,
         _token_address_to: &Address,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let mut env = env;
-        env.tx.gas_limit = 1_000_000;
+        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(state_db, self, *token_address_from, out_amount)?;
 
-        let gas_used = 150000;
-
-        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(state_db, self, *token_address_from, out_amount + U256::from(0))?;
-
-        #[cfg(any(test, debug_assertions))]
+        #[cfg(feature = "debug-calculation")]
         {
-            let (ret_evm, _gas_used) = UniswapCustomQuoterStateReader::quote_exact_output(
+            let mut env = _env;
+            env.tx.gas_limit = 1_000_000;
+            let (ret_evm, _gas_used) = UniswapV3QuoterV2StateReader::quote_exact_output(
                 state_db,
                 env,
-                UniswapV3Protocol::get_custom_quoter_address(),
-                self.get_address(),
+                PeripheryAddress::UNISWAP_V3_QUOTER_V2,
                 *token_address_from,
                 *_token_address_to,
                 self.fee.try_into()?,
-                out_amount + U256::from(0),
+                out_amount,
             )?;
 
             if ret != ret_evm {
@@ -319,7 +309,7 @@ impl Pool for UniswapV3Pool {
         if ret.is_zero() {
             Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
-            Ok((ret + U256::from(1), gas_used))
+            Ok((ret, 150000)) // value, gas_used
         }
     }
 
@@ -348,79 +338,19 @@ impl Pool for UniswapV3Pool {
 
         state_required
             .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
-            .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode())
-            .add_call(
+            .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode());
+
+        for i in -4..=3 {
+            state_required.add_call(
                 PeripheryAddress::UNISWAP_V3_TICK_LENS,
                 ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
                     pool: pool_address,
-                    tickBitmapIndex: tick_bitmap_index - 4,
+                    tickBitmapIndex: tick_bitmap_index + i,
                 })
                 .abi_encode(),
-            )
-            .add_call(
-                PeripheryAddress::UNISWAP_V3_TICK_LENS,
-                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
-                    pool: pool_address,
-                    tickBitmapIndex: tick_bitmap_index - 3,
-                })
-                .abi_encode(),
-            )
-            .add_call(
-                PeripheryAddress::UNISWAP_V3_TICK_LENS,
-                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
-                    pool: pool_address,
-                    tickBitmapIndex: tick_bitmap_index - 2,
-                })
-                .abi_encode(),
-            )
-            .add_call(
-                PeripheryAddress::UNISWAP_V3_TICK_LENS,
-                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
-                    pool: pool_address,
-                    tickBitmapIndex: tick_bitmap_index - 1,
-                })
-                .abi_encode(),
-            )
-            .add_call(
-                PeripheryAddress::UNISWAP_V3_TICK_LENS,
-                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
-                    pool: pool_address,
-                    tickBitmapIndex: tick_bitmap_index,
-                })
-                .abi_encode(),
-            )
-            .add_call(
-                PeripheryAddress::UNISWAP_V3_TICK_LENS,
-                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
-                    pool: pool_address,
-                    tickBitmapIndex: tick_bitmap_index + 1,
-                })
-                .abi_encode(),
-            )
-            .add_call(
-                PeripheryAddress::UNISWAP_V3_TICK_LENS,
-                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
-                    pool: pool_address,
-                    tickBitmapIndex: tick_bitmap_index + 2,
-                })
-                .abi_encode(),
-            )
-            .add_call(
-                PeripheryAddress::UNISWAP_V3_TICK_LENS,
-                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
-                    pool: pool_address,
-                    tickBitmapIndex: tick_bitmap_index + 3,
-                })
-                .abi_encode(),
-            )
-            .add_call(
-                PeripheryAddress::UNISWAP_V3_TICK_LENS,
-                ITickLens::ITickLensCalls::getPopulatedTicksInWord(ITickLens::getPopulatedTicksInWordCall {
-                    pool: pool_address,
-                    tickBitmapIndex: tick_bitmap_index + 4,
-                })
-                .abi_encode(),
-            )
+            );
+        }
+        state_required
             .add_call(self.token0, balance_call_data.clone())
             .add_call(self.token1, balance_call_data)
             .add_slot_range(self.get_address(), U256::from(0), 0x20)
@@ -434,18 +364,18 @@ impl Pool for UniswapV3Pool {
             let amount = self.liquidity0 / U256::from(100);
             let price_limit = UniswapV3Pool::get_price_limit(&self.token0, &self.token1);
             let quoter_swap_0_1_call =
-                UniswapV3QuoterEncoder::quote_exact_input_encode(self.token0, self.token1, self.fee.try_into()?, price_limit, amount);
+                UniswapV3QuoterV2Encoder::quote_exact_input_encode(self.token0, self.token1, self.fee.try_into()?, price_limit, amount);
 
             let price_limit = UniswapV3Pool::get_price_limit(&self.token1, &self.token0);
             let amount = self.liquidity1 / U256::from(100);
 
             let quoter_swap_1_0_call =
-                UniswapV3QuoterEncoder::quote_exact_input_encode(self.token1, self.token0, self.fee.try_into()?, price_limit, amount);
+                UniswapV3QuoterV2Encoder::quote_exact_input_encode(self.token1, self.token0, self.fee.try_into()?, price_limit, amount);
 
             // TODO: How about Sushiswap?
             state_required
-                .add_call(PeripheryAddress::UNISWAP_V3_QUOTER, quoter_swap_0_1_call)
-                .add_call(PeripheryAddress::UNISWAP_V3_QUOTER, quoter_swap_1_0_call);
+                .add_call(PeripheryAddress::UNISWAP_V3_QUOTER_V2, quoter_swap_0_1_call)
+                .add_call(PeripheryAddress::UNISWAP_V3_QUOTER_V2, quoter_swap_1_0_call);
         }
 
         Ok(state_required)
@@ -532,96 +462,217 @@ impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
     }
 }
 
+// The test are using the deployed contracts for comparison to allow to adjust the test easily
 #[cfg(test)]
-mod tests {
-    use alloy_primitives::U256;
-    use revm::primitives::Env;
-    use std::env;
-
-    use debug_provider::AnvilDebugProviderFactory;
-    use defi_entities::required_state::RequiredStateReader;
-    use defi_entities::{MarketState, Pool};
-
-    use crate::UniswapV3Pool;
-
+mod test {
     use super::*;
+    use alloy_primitives::{address, BlockNumber};
+    use alloy_rpc_types::BlockId;
+    use debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
+    use defi_abi::uniswap_periphery::IQuoterV2;
+    use defi_abi::uniswap_periphery::IQuoterV2::{QuoteExactInputSingleParams, QuoteExactOutputSingleParams};
+    use defi_address_book::{PeripheryAddress, UniswapV3PoolAddress};
+    use defi_entities::required_state::RequiredStateReader;
+    use rand::Rng;
+    use std::env;
+    use std::ops::Mul;
+
+    const POOL_ADDRESSES: [Address; 4] = [
+        address!("15153da0e9e13cfc167b3d417d3721bf545479bb"), // Neiro/WETH pool 3000
+        UniswapV3PoolAddress::USDC_WETH_3000,                 // USDC/WETH pool
+        UniswapV3PoolAddress::WETH_USDT_3000,                 // WETH/USDT pool
+        address!("11950d141ecb863f01007add7d1a342041227b58"), // PEPE/WETH pool 3000
+    ];
+    const BLOCK_NUMBER: u64 = 20935488u64;
 
     #[tokio::test]
-    async fn test_pool() -> Result<()> {
-        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("info,defi_pools=off"));
-
+    async fn test_pool_tokens() -> Result<()> {
         let node_url = env::var("MAINNET_WS")?;
+        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(BLOCK_NUMBER)).await?;
 
-        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 20045799).await?;
+        for pool_address in POOL_ADDRESSES {
+            let pool_contract = IUniswapV3Pool::new(pool_address, client.clone());
+            let token0 = pool_contract.token0().call().await?._0;
+            let token1 = pool_contract.token1().call().await?._0;
 
-        let mut market_state = MarketState::new(LoomInMemoryDB::default());
+            let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
 
-        market_state.add_state(&UniswapV3Protocol::get_quoter_v3_state());
+            assert_eq!(token0, pool.token0);
+            assert_eq!(token1, pool.token1);
+        }
 
-        //let pool_address: Address = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640".parse().unwrap();
-        let pool_address: Address = "0x48DA0965ab2d2cbf1C17C09cFB5Cbe67Ad5B1406".parse().unwrap();
+        Ok(())
+    }
 
-        let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
+    async fn fetch_original_contract_amounts(
+        client: AnvilDebugProviderType,
+        pool_address: Address,
+        token_in: Address,
+        token_out: Address,
+        amount: U256,
+        block_number: u64,
+        is_amount_out: bool,
+    ) -> Result<U256> {
+        let router_contract = IQuoterV2::new(PeripheryAddress::UNISWAP_V3_QUOTER_V2, client.clone());
+        let pool_contract = IUniswapV3Pool::new(pool_address, client.clone());
+        let pool_fee = pool_contract.fee().call().block(BlockId::from(block_number)).await?._0;
 
-        let state_required = pool.get_state_required()?;
+        if is_amount_out {
+            let contract_amount_out = router_contract
+                .quoteExactInputSingle(QuoteExactInputSingleParams {
+                    tokenIn: token_in,
+                    tokenOut: token_out,
+                    amountIn: amount,
+                    fee: pool_fee,
+                    sqrtPriceLimitX96: U160::ZERO,
+                })
+                .call()
+                .block(BlockId::from(block_number))
+                .await?;
+            Ok(contract_amount_out.amountOut)
+        } else {
+            let contract_amount_in = router_contract
+                .quoteExactOutputSingle(QuoteExactOutputSingleParams {
+                    tokenIn: token_in,
+                    tokenOut: token_out,
+                    amount,
+                    fee: pool_fee,
+                    sqrtPriceLimitX96: U160::ZERO,
+                })
+                .call()
+                .block(BlockId::from(block_number))
+                .await?;
+            Ok(contract_amount_in.amountIn)
+        }
+    }
 
-        let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await?;
+    #[tokio::test]
+    async fn test_calculate_out_amount() -> Result<()> {
+        // Verify that the calculated out amount is the same as the contract's out amount
+        let node_url = env::var("MAINNET_WS")?;
+        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(BLOCK_NUMBER)).await?;
 
-        market_state.add_state(&state_required);
+        let rnd_multiplier = U256::from(rand::thread_rng().gen_range(1..10u64));
 
-        let evm_env = Env::default();
+        for pool_address in POOL_ADDRESSES {
+            let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
+            let state_required = pool.get_state_required()?;
+            let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(BLOCK_NUMBER)).await?;
 
-        let in_amount = U256::from(pool.liquidity0 / U256::from(10));
-        let (out_amount, gas_used) =
-            pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, in_amount).unwrap();
-        debug!("out {} -> {} {}", in_amount, out_amount, gas_used);
-        assert_ne!(out_amount, U256::ZERO);
-        assert!(gas_used > 100000);
+            let mut state_db = LoomInMemoryDB::default();
+            state_db.apply_geth_update(state_update);
 
-        let (in_amount2, gas_used) =
-            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token0, &pool.token1, out_amount).unwrap();
-        debug!("in {} -> {} {} {} ", out_amount, in_amount2, in_amount2 >= in_amount, gas_used);
-        assert_ne!(in_amount2, U256::ZERO);
-        assert!(gas_used > 100000);
+            let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
+            let token1_decimals = IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
 
-        let in_amount = U256::from(pool.liquidity1 / U256::from(10));
-        let (out_amount, gas_used) =
-            pool.calculate_out_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, in_amount).unwrap();
-        debug!("out {} -> {} {}", in_amount, out_amount, gas_used);
-        assert_ne!(out_amount, U256::ZERO);
-        assert!(gas_used > 100000);
+            //// CASE: token0 -> token1
+            let amount_in = U256::from(10u64).pow(token0_decimals).mul(rnd_multiplier);
+            let contract_amount_out =
+                fetch_original_contract_amounts(client.clone(), pool_address, pool.token0, pool.token1, amount_in, BLOCK_NUMBER, true)
+                    .await?;
 
-        let (in_amount2, gas_used) =
-            pool.calculate_in_amount(&market_state.state_db, evm_env.clone(), &pool.token1, &pool.token0, out_amount).unwrap();
-        debug!("in {} -> {} {} {}", out_amount, in_amount2, in_amount2 >= in_amount, gas_used);
-        assert_ne!(in_amount2, U256::ZERO);
-        assert!(gas_used > 100000);
+            // under test
+            let (amount_out, gas_used) = match pool.calculate_out_amount(&state_db, Env::default(), &pool.token0, &pool.token1, amount_in) {
+                Ok((amount_out, gas_used)) => (amount_out, gas_used),
+                Err(e) => {
+                    panic!("Calculation error for pool={:?}, amount_in={}, e={:?}", pool_address, amount_in, e);
+                }
+            };
+            assert_eq!(
+                amount_out,
+                contract_amount_out,
+                "{}",
+                format!("Missmatch for pool={:?}, token_out={}, amount_in={}", pool_address, &pool.token1, amount_in)
+            );
+            assert_eq!(gas_used, 150_000);
 
-        let (out_amount, gas_used) = pool
-            .calculate_out_amount(
-                &market_state.state_db,
-                evm_env.clone(),
-                &pool.token0,
-                &pool.token1,
-                U256::from(pool.liquidity0 / U256::from(10)),
-            )
-            .unwrap();
+            //// CASE: token1 -> token0
+            let amount_in = U256::from(10u64).pow(token1_decimals).mul(rnd_multiplier);
+            let contract_amount_out =
+                fetch_original_contract_amounts(client.clone(), pool_address, pool.token1, pool.token0, amount_in, BLOCK_NUMBER, true)
+                    .await?;
 
-        debug!("{} {}", out_amount, gas_used);
-        assert_ne!(out_amount, U256::ZERO);
-        assert!(gas_used > 100000);
-        let (out_amount, gas_used) = pool
-            .calculate_out_amount(
-                &market_state.state_db,
-                evm_env.clone(),
-                &pool.token1,
-                &pool.token0,
-                U256::from(pool.liquidity1 / U256::from(10)),
-            )
-            .unwrap();
-        debug!("{} {}", out_amount, gas_used);
-        assert_ne!(out_amount, U256::ZERO);
-        assert!(gas_used > 100000);
+            // under test
+            let (amount_out, gas_used) = match pool.calculate_out_amount(&state_db, Env::default(), &pool.token1, &pool.token0, amount_in) {
+                Ok((amount_out, gas_used)) => (amount_out, gas_used),
+                Err(e) => {
+                    panic!("Calculation error for pool={:?}, amount_in={}, e={:?}", pool_address, amount_in, e);
+                }
+            };
+            assert_eq!(
+                amount_out,
+                contract_amount_out,
+                "{}",
+                format!("Missmatch for pool={:?}, token_out={}, amount_in={}", pool_address, &pool.token0, amount_in)
+            );
+            assert_eq!(gas_used, 150_000);
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_calculate_in_amount() -> Result<()> {
+        // Verify that the calculated out amount is the same as the contract's out amount
+        let node_url = env::var("MAINNET_WS")?;
+        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(BLOCK_NUMBER)).await?;
+
+        let rnd_multiplier = U256::from(1u64); //U256::from(rand::thread_rng().gen_range(1..10u64));
+
+        for pool_address in POOL_ADDRESSES {
+            let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
+            let state_required = pool.get_state_required()?;
+            let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(BLOCK_NUMBER)).await?;
+
+            let mut state_db = LoomInMemoryDB::default();
+            state_db.apply_geth_update(state_update);
+
+            let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
+            let token1_decimals = IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
+
+            //// CASE: token0 -> token1
+            let amount_out = U256::from(10u64).pow(token1_decimals).mul(rnd_multiplier);
+            let contract_amount_in =
+                fetch_original_contract_amounts(client.clone(), pool_address, pool.token0, pool.token1, amount_out, BLOCK_NUMBER, false)
+                    .await?;
+
+            // under test
+            let (amount_in, gas_used) = match pool.calculate_in_amount(&state_db, Env::default(), &pool.token0, &pool.token1, amount_out) {
+                Ok((amount_in, gas_used)) => (amount_in, gas_used),
+                Err(e) => {
+                    panic!("Calculation error for pool={:?}, amount_out={}, e={:?}", pool_address, amount_out, e);
+                }
+            };
+            assert_eq!(
+                amount_in,
+                contract_amount_in,
+                "{}",
+                format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token0, amount_out)
+            );
+            assert_eq!(gas_used, 150_000);
+
+            //// CASE: token1 -> token0
+            let amount_out = U256::from(10u64).pow(token0_decimals).mul(rnd_multiplier);
+            let contract_amount_in =
+                fetch_original_contract_amounts(client.clone(), pool_address, pool.token1, pool.token0, amount_out, BLOCK_NUMBER, false)
+                    .await?;
+
+            // under test
+            let (amount_in, gas_used) = match pool.calculate_in_amount(&state_db, Env::default(), &pool.token1, &pool.token0, amount_out) {
+                Ok((amount_in, gas_used)) => (amount_in, gas_used),
+                Err(e) => {
+                    panic!("Calculation error for pool={:?}, amount_out={}, e={:?}", pool_address, amount_out, e);
+                }
+            };
+            assert_eq!(
+                amount_in,
+                contract_amount_in,
+                "{}",
+                format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token1, amount_out)
+            );
+            assert_eq!(gas_used, 150_000);
+        }
+
         Ok(())
     }
 }
