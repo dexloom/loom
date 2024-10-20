@@ -2,7 +2,8 @@ use alloy_rpc_types::BlockId;
 use reth_chainspec::ChainSpecBuilder;
 use reth_db::mdbx::DatabaseArguments;
 use reth_db::{open_db_read_only, ClientVersion, DatabaseEnv};
-use reth_node_builder::{FullNode, FullNodeComponents, NodeAddOns, NodeTypesWithDBAdapter};
+use reth_node_builder::rpc::RethRpcAddOns;
+use reth_node_builder::{FullNode, FullNodeComponents, NodeTypesWithDBAdapter};
 use reth_node_ethereum::EthereumNode;
 use reth_provider::providers::StaticFileProvider;
 use reth_provider::{ProviderFactory, ProviderResult, StateProviderBox, StateProviderFactory};
@@ -11,8 +12,8 @@ use revm::db::CacheDB;
 use std::path::PathBuf;
 use std::sync::Arc;
 
-#[derive(Clone, Default)]
-pub struct RethAdapter<Node: FullNodeComponents, AddOns: NodeAddOns<Node>> {
+#[derive(Default)]
+pub struct RethAdapter<Node: FullNodeComponents, AddOns: RethRpcAddOns<Node>> {
     pub node: Option<FullNode<Node, AddOns>>,
     pub factory: Option<ProviderFactory<NodeTypesWithDBAdapter<EthereumNode, Arc<DatabaseEnv>>>>,
 }
@@ -20,7 +21,7 @@ pub struct RethAdapter<Node: FullNodeComponents, AddOns: NodeAddOns<Node>> {
 impl<Node, AddOns> RethAdapter<Node, AddOns>
 where
     Node: FullNodeComponents,
-    AddOns: NodeAddOns<Node>,
+    AddOns: RethRpcAddOns<Node>,
 {
     pub fn new() -> Self {
         Self { node: None, factory: None }
