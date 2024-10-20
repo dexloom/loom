@@ -28,7 +28,8 @@ use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_multicaller::MulticallerSwapEncoder;
 use loom_utils::tokens::{ETH_NATIVE_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
-use reth_node_api::{FullNodeComponents, NodeAddOns};
+use reth_node_api::FullNodeComponents;
+use reth_node_builder::rpc::RethRpcAddOns;
 
 pub struct BlockchainActors<P, T> {
     provider: P,
@@ -430,12 +431,12 @@ where
 
     pub fn with_pool_db_loader<Node, AddOns>(
         &mut self,
-        reth_adapter: RethAdapter<Node, AddOns>,
+        reth_adapter: Arc<RethAdapter<Node, AddOns>>,
         pools_config: PoolsConfig,
     ) -> Result<&mut Self>
     where
-        Node: FullNodeComponents + Clone,
-        AddOns: NodeAddOns<Node> + Clone,
+        Node: FullNodeComponents,
+        AddOns: RethRpcAddOns<Node> + 'static,
     {
         self.actor_manager.start(DbPoolLoaderOneShotActor::new(reth_adapter, pools_config).on_bc(&self.bc))?;
         Ok(self)

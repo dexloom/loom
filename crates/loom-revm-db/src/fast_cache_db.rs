@@ -110,21 +110,20 @@ impl FastInMemoryDB {
                     error!("apply_geth_update :{}", e);
                 }
             }
-            if let Ok(account) = self.load_account(addr) {
-                if let Some(code) = acc_state.code.clone() {
-                    let bytecode = Bytecode::new_raw(code);
-                    account.info.code_hash = bytecode.hash_slow();
-                    account.info.code = Some(bytecode);
-                }
-                if let Some(nonce) = acc_state.nonce {
-                    //trace!("nonce : {} -> {}", account.info.nonce, nonce);
-                    account.info.nonce = nonce;
-                }
-                if let Some(balance) = acc_state.balance {
-                    account.info.balance = balance;
-                }
-                account.account_state = AccountState::Touched;
+            let Ok(account) = self.load_account(addr);
+            if let Some(code) = acc_state.code.clone() {
+                let bytecode = Bytecode::new_raw(code);
+                account.info.code_hash = bytecode.hash_slow();
+                account.info.code = Some(bytecode);
             }
+            if let Some(nonce) = acc_state.nonce {
+                //trace!("nonce : {} -> {}", account.info.nonce, nonce);
+                account.info.nonce = nonce;
+            }
+            if let Some(balance) = acc_state.balance {
+                account.info.balance = balance;
+            }
+            account.account_state = AccountState::Touched;
         }
     }
 

@@ -8,6 +8,7 @@ use loom_topology::TopologyConfig;
 use reth::chainspec::EthereumChainSpecParser;
 use reth::cli::Cli;
 use reth_node_ethereum::EthereumNode;
+use std::sync::Arc;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter, Layer};
@@ -35,7 +36,7 @@ fn main() -> eyre::Result<()> {
                 .launch()
                 .await?;
 
-            let reth_adapter = RethAdapter::new_with_node(handle.node.clone());
+            let reth_adapter = Arc::new(RethAdapter::new_with_node(handle.node.clone()));
 
             let mempool = handle.node.pool.clone();
             let ipc_provider = ProviderBuilder::new().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;

@@ -66,7 +66,7 @@ impl Topology {
                 }
                 _ => {
                     info!("Starting WS connection");
-                    let transport = WsConnect { url: config_params.url, auth: None };
+                    let transport = WsConnect { url: config_params.url, auth: None, config: None };
                     ClientBuilder::default().ws(transport).await
                 }
             };

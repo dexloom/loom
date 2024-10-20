@@ -9,10 +9,12 @@ use defi_entities::{PoolClass, RethAdapter};
 use defi_pools::PoolsConfig;
 use eyre::OptionExt;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
+use reth::builder::rpc::RethRpcAddOns;
 use reth_exex::ExExContext;
-use reth_node_api::{FullNodeComponents, NodeAddOns};
+use reth_node_api::FullNodeComponents;
 use std::env;
 use std::future::Future;
+use std::sync::Arc;
 use tracing::info;
 
 pub async fn init<Node: FullNodeComponents>(
@@ -27,13 +29,13 @@ pub async fn start_loom<P, T, Node, AddOns>(
     provider: P,
     bc: Blockchain,
     topology_config: TopologyConfig,
-    reth_adapter: RethAdapter<Node, AddOns>,
+    reth_adapter: Arc<RethAdapter<Node, AddOns>>,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-    Node: FullNodeComponents + Clone,
-    AddOns: NodeAddOns<Node> + Clone,
+    Node: FullNodeComponents,
+    AddOns: RethRpcAddOns<Node> + 'static,
 {
     let chain_id = provider.get_chain_id().await?;
 

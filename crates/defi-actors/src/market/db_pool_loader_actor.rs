@@ -5,23 +5,25 @@ use defi_pools::{PoolsConfig, Slot0, UniswapV2Pool, UniswapV3Pool};
 use eyre::eyre;
 use loom_actors::{Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
-use reth_node_api::{FullNodeComponents, NodeAddOns};
+use reth_node_api::FullNodeComponents;
+use reth_node_builder::rpc::RethRpcAddOns;
 use reth_provider::{BlockReaderIdExt, StateProviderFactory};
 use rethdb_dexsync::univ2::{PoolFilter, UniV2Factory, UNI_V2_FACTORY};
 use rethdb_dexsync::univ3::{UniV3PositionManager, UNI_V3_FACTORY, UNI_V3_POSITION_MANAGER};
+use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::oneshot;
 use tracing::{error, info};
 
 async fn pool_loader_one_shot_worker<Node, AddOns>(
-    reth_adapter: RethAdapter<Node, AddOns>,
+    reth_adapter: Arc<RethAdapter<Node, AddOns>>,
     market: SharedState<Market>,
     _market_state: SharedState<MarketState>,
     pools_config: PoolsConfig,
 ) -> WorkerResult
 where
-    Node: FullNodeComponents + Clone,
-    AddOns: NodeAddOns<Node> + Clone,
+    Node: FullNodeComponents,
+    AddOns: RethRpcAddOns<Node>,
 {
     if pools_config.is_enabled(PoolClass::UniswapV2) {
         let now = Instant::now();
@@ -132,10 +134,10 @@ where
 #[derive(Accessor)]
 pub struct DbPoolLoaderOneShotActor<Node, AddOns>
 where
-    Node: FullNodeComponents + Clone,
-    AddOns: NodeAddOns<Node> + Clone,
+    Node: FullNodeComponents,
+    AddOns: RethRpcAddOns<Node>,
 {
-    reth_adapter: RethAdapter<Node, AddOns>,
+    reth_adapter: Arc<RethAdapter<Node, AddOns>>,
     market: Option<SharedState<Market>>,
     market_state: Option<SharedState<MarketState>>,
     pools_config: PoolsConfig,
@@ -143,10 +145,10 @@ where
 
 impl<Node, AddOns> DbPoolLoaderOneShotActor<Node, AddOns>
 where
-    Node: FullNodeComponents + Clone,
-    AddOns: NodeAddOns<Node> + Clone,
+    Node: FullNodeComponents,
+    AddOns: RethRpcAddOns<Node>,
 {
-    pub fn new(reth_adapter: RethAdapter<Node, AddOns>, pools_config: PoolsConfig) -> DbPoolLoaderOneShotActor<Node, AddOns> {
+    pub fn new(reth_adapter: Arc<RethAdapter<Node, AddOns>>, pools_config: PoolsConfig) -> DbPoolLoaderOneShotActor<Node, AddOns> {
         DbPoolLoaderOneShotActor { reth_adapter, market: None, market_state: None, pools_config }
     }
 
@@ -157,8 +159,8 @@ where
 
 impl<Node, AddOns> Actor for DbPoolLoaderOneShotActor<Node, AddOns>
 where
-    Node: FullNodeComponents + Clone,
-    AddOns: NodeAddOns<Node> + Clone,
+    Node: FullNodeComponents,
+    AddOns: RethRpcAddOns<Node> + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(pool_loader_one_shot_worker(
