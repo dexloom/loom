@@ -3,9 +3,8 @@ name: Test
 on:
   push:
     branches: [main]
-  workflow_run:
-    workflows: [Lint]
-    types: [completed]
+  pull_request_target:
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
