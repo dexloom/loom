@@ -8,16 +8,15 @@ use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
-use eyre::{eyre, Result};
-use tracing::{debug, error};
-
+use defi_address_book::TokenAddress;
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
 use defi_types::GethStateUpdate;
+use eyre::{eyre, Result};
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
-use loom_utils::tokens::ETH_NATIVE_ADDRESS;
 use loom_utils::{BalanceCheater, NWETH};
+use tracing::{debug, error};
 
 async fn fetch_account_state<P, T, N>(client: P, address: Address) -> Result<AccountState>
 where
@@ -100,7 +99,7 @@ where
     }
 
     for (token, owner, balance) in token_balances_vec {
-        if token == ETH_NATIVE_ADDRESS {
+        if token == TokenAddress::ETH_NATIVE {
             match state.entry(owner) {
                 Entry::Vacant(e) => {
                     e.insert(AccountState { balance: Some(balance), nonce: Some(0), code: None, storage: BTreeMap::new() });

@@ -23,7 +23,7 @@ tx_2 = { hash = "0x054a3f0c4ff3cf582c167669ed845f50b39f92007683c03b2ea53c522749d
 weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
 
 
-[results]
+[assertions]
 swaps_encoded = 1
 swaps_ok = 1
 best_profit_eth = 0.029

@@ -25,7 +25,7 @@ weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH"
 ito = { address = "0x465dbC39F46f9D43C581a5d90A43e4a0F2A6fF2d", symbol = "ITO", decimals = 9, basic = false, middle = false }
 kabosu = { address = "0xceb67a66c2c8a90980da3a50a3f96c07525a26cb", symbol = "KABOSU", decimals = 9, basic = false, middle = false }
 
-[results]
+[assertions]
 swaps_encoded = 2
 swaps_ok = 2
 best_profit_eth = 0.00958

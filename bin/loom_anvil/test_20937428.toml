@@ -32,7 +32,7 @@ tsuka = { address = "0xc5fb36dd2fb59d3b98deff88425a3f425ee469ed", symbol = "TSUK
 odin = { address = "0xdfc5964141c018485b4d017634660f85aa667714", symbol = "ODIN", decimals = 18, basic = false, middle = false }
 wbtc = { address = "0x2260fac5e5542a773aa44fbcfedf7c193bc2c599", symbol = "WBTC", decimals = 8, basic = false, middle = false }
 
-[results]
+[assertions]
 swaps_encoded = 2
 swaps_ok = 2
 best_profit_eth = 0.00958
