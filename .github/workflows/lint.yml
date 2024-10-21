@@ -1,4 +1,4 @@
-name: Loom
+name: Lint
 
 on:
   push:
