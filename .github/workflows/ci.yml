@@ -44,6 +44,17 @@ jobs:
       - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
       - run: make fmt-check
 
+  taplo:
+    if: github.repository == 'dexloom/loom'
+    name: make taplo-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@clippy
+      - run: cargo install taplo-cli --version ^0.9 --locked
+      - run: make taplo-check
+
   clippy:
     if: github.repository == 'dexloom/loom'
     name: make clippy
@@ -65,6 +76,7 @@ jobs:
     if: github.repository == 'dexloom/loom'
     name: cargo deny check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: EmbarkStudios/cargo-deny-action@v1
@@ -72,12 +84,3 @@ jobs:
           log-level: warn
           command: check
           arguments: --all-features
-  taplo:
-    name: make taplo-check
-    runs-on: ubuntu-20.04
-    timeout-minutes: 60
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@clippy
-      - run: cargo install taplo-cli --version ^0.9 --locked
-      - run: make taplo-check

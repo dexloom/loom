@@ -127,7 +127,6 @@ impl SwapStep {
                 ret += 1;
             }
         }
-
         ret
     }
 
