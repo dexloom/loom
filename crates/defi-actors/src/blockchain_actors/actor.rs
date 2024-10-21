@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::backrun::BlockStateChangeProcessorActor;
-use crate::market::DbPoolLoaderOneShotActor;
 use crate::{
     ArbSwapPathMergerActor, BlockHistoryActor, CurvePoolLoaderOneShotActor, DiffPathMergerActor, EvmEstimatorActor,
     FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderOneShotActor, InitializeSignersOneShotBlockingActor,
@@ -18,7 +17,7 @@ use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_blockchain::Blockchain;
 use defi_entities::required_state::RequiredState;
-use defi_entities::{PoolClass, RethAdapter, TxSigners};
+use defi_entities::{PoolClass, TxSigners};
 use defi_pools::PoolsConfig;
 use eyre::{eyre, Result};
 use flashbots::client::RelayConfig;
@@ -28,8 +27,7 @@ use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_multicaller::MulticallerSwapEncoder;
 use loom_utils::tokens::{ETH_NATIVE_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
-use reth_node_api::FullNodeComponents;
-use reth_node_builder::rpc::RethRpcAddOns;
+
 
 pub struct BlockchainActors<P, T> {
     provider: P,
@@ -426,19 +424,6 @@ where
     /// Start block latency recorder
     pub fn with_block_latency_recorder(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(BlockLatencyRecorderActor::new().on_bc(&self.bc))?;
-        Ok(self)
-    }
-
-    pub fn with_pool_db_loader<Node, AddOns>(
-        &mut self,
-        reth_adapter: Arc<RethAdapter<Node, AddOns>>,
-        pools_config: PoolsConfig,
-    ) -> Result<&mut Self>
-    where
-        Node: FullNodeComponents,
-        AddOns: RethRpcAddOns<Node> + 'static,
-    {
-        self.actor_manager.start(DbPoolLoaderOneShotActor::new(reth_adapter, pools_config).on_bc(&self.bc))?;
         Ok(self)
     }
 }

@@ -29,7 +29,7 @@ pub async fn start_loom<P, T, Node, AddOns>(
     provider: P,
     bc: Blockchain,
     topology_config: TopologyConfig,
-    reth_adapter: Arc<RethAdapter<Node, AddOns>>,
+    _reth_adapter: Arc<RethAdapter<Node, AddOns>>,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
@@ -90,9 +90,6 @@ where
         .with_backrun_block()? // load backrun searcher for incoming block
         .with_backrun_mempool()? // load backrun searcher for mempool txes
     ;
-    if env::var("EXPERIMENTAL").unwrap_or_default() != "" {
-        bc_actors.with_pool_db_loader(reth_adapter, pools_config)?; // EXPERIMENTAL load pools directly from db. Currently, does not add state + swap paths
-    }
 
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors

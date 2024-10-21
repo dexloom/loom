@@ -4,7 +4,7 @@ pub use block_history::BlockHistoryActor;
 pub use blockchain_actors::BlockchainActors;
 pub use health_monitor::{PoolHealthMonitorActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 pub use market::{
-    fetch_and_add_pool_by_address, fetch_state_and_add_pool, CurvePoolLoaderOneShotActor, DbPoolLoaderOneShotActor,
+    fetch_and_add_pool_by_address, fetch_state_and_add_pool, CurvePoolLoaderOneShotActor,
     HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, RequiredPoolLoaderActor,
 };
 pub use market_state::{preload_market_state, MarketStatePreloadedOneShotActor};
