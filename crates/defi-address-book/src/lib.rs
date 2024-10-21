@@ -4,6 +4,7 @@ use alloy_primitives::{address, Address};
 pub struct TokenAddress;
 
 impl TokenAddress {
+    pub const ETH_NATIVE: Address = Address::ZERO;
     pub const WETH: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
     pub const USDC: Address = address!("a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
     pub const USDT: Address = address!("dac17f958d2ee523a2206206994597c13d831ec7");
@@ -13,6 +14,7 @@ impl TokenAddress {
     pub const CRV: Address = address!("d533a949740bb3306d119cc777fa900ba034cd52");
     pub const STETH: Address = address!("ae7ab96520de3a18e5e111b5eaab095312d7fe84");
     pub const WSTETH: Address = address!("7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0");
+    pub const LUSD: Address = address!("5f98805a4e8be255a32880fdec7f6728c6568ba0");
 }
 
 #[non_exhaustive]
