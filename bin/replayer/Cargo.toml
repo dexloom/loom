@@ -22,6 +22,7 @@ tracing-subscriber.workspace = true
 debug-provider.workspace = true
 
 defi-actors.workspace = true
+defi-address-book.workspace = true
 defi-blockchain.workspace = true
 defi-entities.workspace = true
 defi-events.workspace = true

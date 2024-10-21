@@ -109,6 +109,7 @@ swap-test:
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -ne 0 ]; then \
 		echo "\n\033[0;31mError: Anvil swap tester exited with code $$EXIT_CODE\033[0m\n"; \
+		exit 1; \
 	else \
 		echo "\n\033[0;32mAnvil swap test passed successfully.\033[0m"; \
 	fi
