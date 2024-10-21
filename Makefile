@@ -55,10 +55,25 @@ bench:
 clippy:
 	cargo clippy --all-targets --all-features -- -D warnings
 
+# format loom
+.PHONY: fmt
+fmt:
+	cargo +stable fmt --all
+
 # check files format fmt
 .PHONY: fmt-check
 fmt-check:
 	cargo +stable fmt --all --check
+
+# format toml
+.PHONY: taplo
+taplo:
+	taplo format
+
+# check files format with taplo
+.PHONY: taplo-check
+taplo-check:
+	taplo format --check
 
 # check licences
 .PHONY: deny-check
@@ -70,11 +85,6 @@ deny-check:
 pre-release:
 	cargo +stable fmt --all --check
 	cargo clippy --all-targets --all-features -- -D warnings
-
-# format loom
-.PHONY: fmt
-fmt:
-	cargo +stable fmt --all
 
 # replayer test
 .PHONY: replayer

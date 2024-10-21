@@ -7,23 +7,23 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tokio.workspace = true
 env_logger.workspace = true
-tracing.workspace = true
 eyre.workspace = true
 futures.workspace = true
+tokio.workspace = true
+tracing.workspace = true
 
 debug-provider.workspace = true
 flashbots.workspace = true
 
-loom-topology.workspace = true
+defi-actors.workspace = true
+defi-entities.workspace = true
+defi-events.workspace = true
+defi-pools.workspace = true
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
 loom-metrics.workspace = true
-defi-entities.workspace = true
-defi-actors.workspace = true
-defi-pools.workspace = true
-defi-events.workspace = true
+loom-topology.workspace = true
 
 loom-multicaller.workspace = true
 

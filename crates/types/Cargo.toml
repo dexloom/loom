@@ -8,31 +8,30 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+alloy-consensus.workspace = true
+alloy-eips.workspace = true
+alloy-primitives.workspace = true
+alloy-provider.workspace = true
+alloy-rlp.workspace = true
 alloy-rpc-types.workspace = true
 alloy-rpc-types-eth.workspace = true
-alloy-consensus.workspace = true
-alloy-provider.workspace = true
-alloy-primitives.workspace = true
 alloy-rpc-types-trace.workspace = true
-alloy-eips.workspace = true
-alloy-rlp.workspace = true
-revm.workspace = true
 alloy-transport.workspace = true
+revm.workspace = true
 
 debug-provider.workspace = true
 
 chrono.workspace = true
 eyre.workspace = true
-tracing.workspace = true
+hex.workspace = true
 lazy_static.workspace = true
 tokio.workspace = true
-hex.workspace = true
+tracing.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true
-url.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+url.workspace = true
 
 alloy-rpc-client.workspace = true
-

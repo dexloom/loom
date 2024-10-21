@@ -8,12 +8,12 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-tracing.workspace = true
-revm.workspace = true
-rand.workspace = true
 alloy.workspace = true
-serde = { workspace = true, optional = true}
-serde_json = { workspace = true, optional = true}
+rand.workspace = true
+revm.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tracing.workspace = true
 
 [features]
 serde = ["dep:serde"]
@@ -25,5 +25,5 @@ chrono.workspace = true
 criterion.workspace = true
 
 [[bench]]
-name = "benchmark"
 harness = false
+name = "benchmark"

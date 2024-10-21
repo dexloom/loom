@@ -9,8 +9,8 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
-tokio.workspace = true
 eyre.workspace = true
+tokio.workspace = true
 tonic.workspace = true
 
 
@@ -18,4 +18,3 @@ reth-exex.workspace = true
 reth-tracing.workspace = true
 
 reth-exex-grpc.workspace = true
-

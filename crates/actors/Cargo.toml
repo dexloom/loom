@@ -8,9 +8,9 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-eyre.workspace = true
 async-trait.workspace = true
+eyre.workspace = true
+futures.workspace = true
 loom-actors-macros.workspace = true
 tokio.workspace = true
-futures.workspace = true
 tracing.workspace = true

@@ -9,19 +9,15 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
-clap.workspace = true
-tokio.workspace = true
-eyre.workspace = true
 chrono.workspace = true
-futures.workspace = true
+clap.workspace = true
 env_logger.workspace = true
+eyre.workspace = true
+futures.workspace = true
+tokio.workspace = true
 
 alloy.workspace = true
 
-defi-events.workspace = true
 defi-actors.workspace = true
 defi-blockchain.workspace = true
-
-
-
-
+defi-events.workspace = true
