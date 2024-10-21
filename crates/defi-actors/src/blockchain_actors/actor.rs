@@ -28,7 +28,6 @@ use loom_multicaller::MulticallerSwapEncoder;
 use loom_utils::tokens::{ETH_NATIVE_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
 
-
 pub struct BlockchainActors<P, T> {
     provider: P,
     bc: Blockchain,

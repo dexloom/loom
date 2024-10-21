@@ -1,5 +1,3 @@
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [workspace]
 default-members = [
   "bin/exex_grpc_node",
@@ -45,9 +43,9 @@ resolver = "2"
 [workspace.package]
 edition = "2021"
 exclude = [".github/"]
-homepage = ""
+homepage = "https://github.com/dexloom/loom"
 license = "MIT OR Apache-2.0"
-repository = ""
+repository = "https://github.com/dexloom/loom"
 rust-version = "1.82"
 version = "0.2.0"
 
@@ -73,57 +71,66 @@ loom-utils = { path = "crates/utils" } #, features = ["trace-calls"] }
 reth-exex-grpc = { path = "crates/reth-exex-grpc" }
 uniswap_v3_math = { path = "crates/uniswap-v3-math" }
 
-aes = "0.8.3"
-async-stream = "0.3.6"
-async-trait = "0.1.80"
+# logging
+env_logger = "0.11"
+tracing = "0.1"
+tracing-subscriber = "0.3"
+
+# error handling
+eyre = "0.6"
+thiserror = "1.0"
+
+# async
+async-stream = "0.3"
+async-trait = "0.1"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+
+# misc
+aes = "0.8"
 bincode = "1.3"
-chrono = "0.4.26"
-clap = { version = "4.5.4", features = ["derive"] }
-colored = "2.0.4"
-env_logger = "0.11.1"
-eyre = "0.6.12"
-futures = "0.3.30"
-futures-util = "0.3.30"
-hex = "0.4.3"
-indexmap = "2.5.0"
-influxdb = "0.7.2"
-k256 = "0.13.3"
-lazy_static = "1.4.0"
-num_cpus = "1.16.0"
+chrono = "0.4"
+clap = { version = "4.5", features = ["derive"] }
+colored = "2.0"
+futures = "0.3"
+futures-util = "0.3"
+hex = "0.4"
+indexmap = "2.5"
+influxdb = "0.7"
+k256 = "0.13"
+lazy_static = "1.4"
+num_cpus = "1.16"
 proc-macro2 = "1.0"
 prost = "0.13"
 quote = "1.0"
-rand = "0.8.5"
-rayon = "1.8.1"
-reqwest = { version = "0.12.4", features = ["json", "trust-dns"] }
-serde = "1.0.203"
-serde_json = "1.0.119"
-sha2 = "0.10.7"
-strum = { version = "0.26.2" }
-strum_macros = { version = "0.26.2" }
-syn = { version = "2.0.60", features = ["fold", "full"] }
-thiserror = "^1.0.61"
-tokio = { version = "1.37.0", features = ["full"] }
-tokio-stream = "0.1.15"
-toml = "^0.8.12"
+rand = "0.8"
+rayon = "1.8"
+reqwest = { version = "0.12", features = ["json", "trust-dns"] }
+serde = "1.0"
+serde_json = "1.0"
+sha2 = "0.10"
+strum = { version = "0.26" }
+strum_macros = { version = "0.26" }
+syn = { version = "2.0", features = ["fold", "full"] }
+toml = "0.8"
 tonic = "0.12"
-tracing = "0.1.40"
-tracing-subscriber = "0.3.18"
-url = "2.4.1"
+tower = "0.5.1"
+url = "2.4"
 
+# build
+tonic-build = "0.12"
+
+# testing
+criterion = { version = "0.5.1", features = ["async_tokio"] }
+
+## We keep revm and alloy dependencies pinned to specific versions as reth depends on them
+
+# revm
 revm = { version = "16.0.0", features = ["blst", "optional_balance_check", "secp256k1", "std"], default-features = false }
 revm-inspectors = "0.9.0"
 revm-primitives = { version = "12.0.0", features = ["std"], default-features = false }
 
-alloy-chains = "0.1.32"
-alloy-dyn-abi = { version = "0.8.7", features = ["json", "std"] }
-alloy-primitives = { version = "0.8.7", features = ["rand"] }
-alloy-sol-macro = { version = "0.8.7", features = ["json"] }
-alloy-sol-types = { version = "0.8.7", features = ["json"] }
-
-alloy-rlp = "0.3.8"
-alloy-trie = "0.7.2"
-
+# alloy
 alloy = { version = "0.5.2", features = [
   "consensus",
   "full",
@@ -136,15 +143,18 @@ alloy = { version = "0.5.2", features = [
   "rpc-types-trace",
   "serde",
 ] }
-
+alloy-chains = "0.1.32"
 alloy-consensus = "0.5.2"
 alloy-contract = "0.5.2"
+alloy-dyn-abi = { version = "0.8.7", features = ["json", "std"] }
 alloy-eips = "0.5.2"
 alloy-json-rpc = "0.5.2"
 alloy-network = "0.5.2"
 alloy-node-bindings = "0.5.2"
+alloy-primitives = { version = "0.8.7", features = ["rand"] }
 alloy-provider = { version = "0.5.2", features = ["anvil-api", "anvil-node", "debug-api", "ipc", "pubsub", "reqwest", "ws"] }
 alloy-pubsub = "0.5.2"
+alloy-rlp = "0.3.8"
 alloy-rpc-client = { version = "0.5.2", features = ["ipc", "pubsub", "reqwest", "ws"] }
 alloy-rpc-types = "0.5.2"
 alloy-rpc-types-anvil = "0.5.2"
@@ -155,11 +165,15 @@ alloy-rpc-types-trace = "0.5.2"
 alloy-serde = "0.5.2"
 alloy-signer = "0.5.2"
 alloy-signer-local = "0.5.2"
+alloy-sol-macro = { version = "0.8.7", features = ["json"] }
+alloy-sol-types = { version = "0.8.7", features = ["json"] }
 alloy-transport = "0.5.2"
 alloy-transport-http = "0.5.2"
 alloy-transport-ipc = "0.5.2"
 alloy-transport-ws = "0.5.2"
+alloy-trie = "0.7.2"
 
+# reth
 reth = { git = "https://github.com/paradigmxyz/reth", rev = "de07436", features = ["asm-keccak"] }
 reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "de07436" }
 reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev = "de07436" }
@@ -183,14 +197,6 @@ reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev = "de07436
 reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "de07436" }
 reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "de07436" }
 reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", rev = "de07436" }
-
-tower = "0.5.1"
-
-# build
-tonic-build = "0.12"
-
-# testing
-criterion = { version = "0.5.1", features = ["async_tokio"] }
 
 [profile.test]
 debug = 1
