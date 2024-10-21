@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
 
     let args = Commands::parse();
 
-    let test_config = TestConfig::from_file(args.config).await?;
+    let test_config = TestConfig::from_file(args.config.clone()).await?;
 
     let node_url = env::var("MAINNET_WS")?;
 
@@ -522,12 +522,12 @@ async fn main() -> Result<()> {
         }
     });
 
-    println!("Test is started!");
+    println!("Test '{}' is started!", args.config);
 
     let mut tx_compose_sub = tx_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
-    let timeout_duration = Duration::from_secs(5);
+    let timeout_duration = Duration::from_secs(10);
 
     loop {
         tokio::select! {
