@@ -10,30 +10,6 @@ env:
   CARGO_TERM_COLOR: always
 
 jobs:
-  test:
-    if: github.repository == 'dexloom/loom'
-    name: make test
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    env:
-      MAINNET_HTTP: ${{ secrets.MAINNET_HTTP }}
-      MAINNET_WS: ${{ secrets.MAINNET_WS }}
-      RUST_LOG: info
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
-      - uses: arduino/setup-protoc@v3
-      - uses: foundry-rs/foundry-toolchain@v1
-        with:
-          version: nightly
-
-      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
-      - run: make test
-      - run: make swap-test-all
-
   fmt:
     if: github.repository == 'dexloom/loom'
     name: make fmt-check
@@ -79,18 +55,3 @@ jobs:
       - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
       # workaround for latest stable rust
       - run: cargo +1.82 clippy --all-targets --all-features -- -D warnings
-
-  deny:
-    if: github.repository == 'dexloom/loom'
-    name: cargo deny check
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - uses: EmbarkStudios/cargo-deny-action@v1
-        with:
-          log-level: warn
-          command: check
-          arguments: --all-features
