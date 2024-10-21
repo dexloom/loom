@@ -71,3 +71,12 @@ jobs:
           log-level: warn
           command: check
           arguments: --all-features
+  taplo:
+    name: Taplo
+    runs-on: ubuntu-20.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@clippy
+      - run: cargo install taplo-cli --version ^0.9 --locked
+      - run: make taplo-check

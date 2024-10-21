@@ -6,17 +6,16 @@ rust-version.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-exclude.workspace = true
 
 [dependencies]
-loom-actors.workspace = true
-loom-actors-macros.workspace = true
 defi-blockchain.workspace = true
 defi-events.workspace = true
+loom-actors.workspace = true
+loom-actors-macros.workspace = true
 
-eyre.workspace = true
-tokio.workspace = true
 async-trait.workspace = true
-tracing.workspace = true
-influxdb.workspace = true
 chrono.workspace = true
+eyre.workspace = true
+influxdb.workspace = true
+tokio.workspace = true
+tracing.workspace = true

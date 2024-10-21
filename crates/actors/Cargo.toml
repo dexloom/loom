@@ -1,15 +1,16 @@
 [package]
 name = "loom-actors"
-version = "0.1.0"
-edition = "2021"
-license = "MIT OR Apache-2.0"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
 
 [dependencies]
-eyre = "0.6.8"
-async-trait = "0.1.68"
+async-trait.workspace = true
+eyre.workspace = true
+futures.workspace = true
 loom-actors-macros.workspace = true
 tokio.workspace = true
-futures.workspace = true
 tracing.workspace = true

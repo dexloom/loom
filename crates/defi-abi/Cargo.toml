@@ -6,10 +6,9 @@ rust-version.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-exclude.workspace = true
 
 [dependencies]
+alloy-contract.workspace = true
 alloy-primitives.workspace = true
 alloy-sol-macro.workspace = true
 alloy-sol-types.workspace = true
-alloy-contract.workspace = true

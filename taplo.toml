@@ -1,0 +1,21 @@
+include = ["**/Cargo.toml"]
+
+[formatting]
+reorder_arrays = true
+array_trailing_comma = true
+align_comments = false
+allowed_blank_lines = 2
+compact_arrays = true
+column_width = 140
+reorder_keys = true
+
+[[rule]]
+# Do not reorder to keep name and version on top
+keys = ["package"]
+formatting = { reorder_keys = false }
+
+[[rule]]
+keys = ["package", "build-dependencies", "dependencies", "dev-dependencies"]
+
+[[rule]]
+keys = ["workspace.package", "workspace.dependencies", "profile.test", "profile.release", "profile.maxperf"]
