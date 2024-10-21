@@ -73,6 +73,16 @@ where
                         if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block_hash) {
                             e.insert(Utc::now());
 
+                            if block_processed.len() > 10 {
+                                let oldest_hash = block_processed.keys()
+                                  .min_by_key(|&&hash| block_processed[&hash])
+                                  .cloned();
+
+                               if let Some(oldest_hash) = oldest_hash {
+                                        block_processed.remove(&oldest_hash);
+                                    }
+                        }
+
                             if let Some(block_headers_channel) = &new_block_headers_channel {
                                 if let Err(e) = block_headers_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new( block.header.clone()))).await {
                                     error!("Block header broadcaster error {}", e);
