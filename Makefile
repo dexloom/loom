@@ -85,6 +85,7 @@ deny-check:
 pre-release:
 	cargo +stable fmt --all --check
 	cargo clippy --all-targets --all-features -- -D warnings
+	taplo format --check
 
 # replayer test
 .PHONY: replayer
