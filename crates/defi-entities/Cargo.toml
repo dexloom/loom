@@ -6,10 +6,6 @@ rust-version.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-exclude.workspace = true
-
-#[build-dependencies]
-#rand.workspace = true
 
 [dependencies]
 alloy-transport.workspace = true

@@ -7,8 +7,6 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
 [dependencies]
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
@@ -66,8 +64,6 @@ reth-transaction-pool.workspace = true
 reth-node-builder.workspace = true
 
 reth-exex-grpc.workspace = true
-rethdb-dexsync.workspace = true
-#pool-sync.workspace = true
 
 
 [[bench]]

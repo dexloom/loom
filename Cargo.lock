@@ -2391,7 +2391,6 @@ dependencies = [
  "reth-rpc",
  "reth-rpc-types-compat",
  "reth-transaction-pool",
- "rethdb-dexsync",
  "revm",
  "tokio",
  "tracing",
@@ -3063,7 +3062,7 @@ checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
 
 [[package]]
 name = "flashbots"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "alloy-consensus",
  "alloy-json-rpc",
@@ -4705,7 +4704,7 @@ dependencies = [
 
 [[package]]
 name = "loom-actors"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "eyre",
@@ -4717,7 +4716,7 @@ dependencies = [
 
 [[package]]
 name = "loom-actors-macros"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -9019,34 +9018,6 @@ dependencies = [
  "reth-trie",
  "reth-trie-db",
  "thiserror",
- "tracing",
-]
-
-[[package]]
-name = "rethdb-dexsync"
-version = "0.0.1"
-source = "git+https://github.com/cakevm/rethdb-dexsync?rev=f0c62e0#f0c62e0427ac51f84ee3bacc181d359297c90dc3"
-dependencies = [
- "alloy",
- "alloy-primitives",
- "alloy-sol-types",
- "bincode",
- "eyre",
- "lazy_static",
- "reth-blockchain-tree",
- "reth-chainspec",
- "reth-db",
- "reth-node-ethereum",
- "reth-node-types",
- "reth-primitives",
- "reth-provider",
- "reth-rpc",
- "reth-rpc-eth-types",
- "reth-stages",
- "reth-storage-api",
- "serde",
- "thiserror",
- "tokio",
  "tracing",
 ]
 
