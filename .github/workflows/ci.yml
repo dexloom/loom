@@ -1,0 +1,114 @@
+name: Loom
+
+on:
+  push:
+    branches: [main]
+  pull_request_target:
+    branches: [main]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  # https://datachain.ai/blog/testing-external-contributions-using-github-actions-secrets
+  authorize:
+    environment:
+      ${{ github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name != github.repository &&
+      'external' || 'internal' }}
+    runs-on: ubuntu-latest
+    steps:
+      - run: true
+  test:
+    needs: authorize
+    if: github.repository == 'dexloom/loom'
+    name: make test
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MAINNET_HTTP: ${{ secrets.MAINNET_HTTP }}
+      MAINNET_WS: ${{ secrets.MAINNET_WS }}
+      RUST_LOG: info
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
+      - run: make test
+      - run: make swap-test-all
+
+  fmt:
+    needs: authorize
+    if: github.repository == 'dexloom/loom'
+    name: make fmt-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+
+      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
+      - run: make fmt-check
+
+  taplo:
+    needs: authorize
+    if: github.repository == 'dexloom/loom'
+    name: make taplo-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@clippy
+      - run: cargo install taplo-cli --version ^0.9 --locked
+      - run: make taplo-check
+
+  clippy:
+    if: github.repository == 'dexloom/loom'
+    name: make clippy
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@clippy
+        with:
+          toolchain: "1.82"
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
+
+      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
+      # workaround for latest stable rust
+      - run: cargo +1.82 clippy --all-targets --all-features -- -D warnings
+
+  deny:
+    needs: authorize
+    if: github.repository == 'dexloom/loom'
+    name: cargo deny check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: EmbarkStudios/cargo-deny-action@v1
+        with:
+          log-level: warn
+          command: check
+          arguments: --all-features
