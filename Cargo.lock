@@ -2945,6 +2945,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "exex-grpc-node"
+version = "0.2.0"
+dependencies = [
+ "eyre",
+ "reth",
+ "reth-exex",
+ "reth-exex-grpc",
+ "reth-node-api",
+ "reth-node-ethereum",
+ "reth-tracing",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+]
+
+[[package]]
 name = "exex_grpc_loom"
 version = "0.2.0"
 dependencies = [
@@ -7621,7 +7637,6 @@ dependencies = [
 [[package]]
 name = "reth-exex-grpc"
 version = "0.2.0"
-source = "git+https://github.com/dexloom/reth-exex-grpc?rev=cfaaa21#cfaaa2124ecccea9ce0e1b56b03f0264e069ad5c"
 dependencies = [
  "alloy-consensus",
  "alloy-eips",
@@ -7636,6 +7651,7 @@ dependencies = [
  "reth",
  "reth-execution-types",
  "reth-exex",
+ "reth-exex-test-utils",
  "reth-node-api",
  "reth-node-ethereum",
  "reth-primitives",

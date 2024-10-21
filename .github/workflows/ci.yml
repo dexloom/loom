@@ -52,6 +52,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@clippy
+        with:
+          toolchain: "1.82"
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
 

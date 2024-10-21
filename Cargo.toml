@@ -5,8 +5,9 @@ members = [
     "bin/loom_backrun", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex",
     "crates/defi-abi", "crates/defi-actors", "crates/defi-entities", "crates/defi-events", "crates/defi-pools",
     "crates/multicaller", "crates/topology", "crates/types", "crates/utils", "crates/flashbots", "crates/debug-provider", "crates/defi-blockchain",
-    "crates/loom-revm-db", "bin/exex_grpc_loom", "crates/loom", "crates/uniswap-v3-math", "crates/loom-metrics", "crates/defi-address-book"]
-default-members = ["bin/loom_backrun", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex"]
+    "crates/loom-revm-db", "bin/exex_grpc_loom", "crates/loom", "crates/uniswap-v3-math", "crates/loom-metrics", "crates/defi-address-book",
+    "crates/reth-exex-grpc", "bin/exex_grpc_node"]
+default-members = ["bin/loom_backrun", "bin/keys", "bin/loom_anvil", "bin/gasbench", "bin/nodebench", "bin/replayer", "bin/loom_exex", "bin/exex_grpc_node"]
 resolver = "2"
 
 [workspace.package]
@@ -38,6 +39,7 @@ defi-blockchain = { path = "crates/defi-blockchain" }
 flashbots = { path = "crates/flashbots" }
 debug-provider = { path = "crates/debug-provider" }
 uniswap_v3_math = { path = "crates/uniswap-v3-math" }
+reth-exex-grpc = { path = "crates/reth-exex-grpc" }
 
 tokio = { version = "1.37.0", features = ["full"] }
 tokio-stream = "0.1.15"
@@ -70,6 +72,9 @@ thiserror = "^1.0.61"
 colored = "2.0.4"
 indexmap = "2.5.0"
 influxdb = "0.7.2"
+async-stream = "0.3.6"
+bincode = "1.3"
+prost = "0.13"
 
 revm = { version = "16.0.0", features = [
     "std",
@@ -140,9 +145,6 @@ reth-node-builder = { git = "https://github.com/paradigmxyz/reth", rev="de07436"
 reth-revm = { git = "https://github.com/paradigmxyz/reth", rev="de07436" }
 reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev="de07436" }
 
-reth-exex-grpc = { git = "https://github.com/dexloom/reth-exex-grpc", rev = "cfaaa21" }
-#reth-exex-grpc = { path = "../reth-exex-grpc" }
-
 
 tower = "0.5.1"
 
@@ -150,6 +152,9 @@ criterion = { version = "0.5.1", features = ["async_tokio"] }
 
 rethdb-dexsync = { git = "https://github.com/cakevm/rethdb-dexsync", rev = "f0c62e0" }
 #rethdb-dexsync = { path = "../rethdb-dexsync" }
+
+# build
+tonic-build = "0.12"
 
 [profile.test]
 debug = 1

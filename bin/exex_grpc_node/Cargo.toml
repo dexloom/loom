@@ -1,0 +1,29 @@
+[package]
+name = "exex-grpc-node"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+exclude.workspace = true
+default-run = "exex-grpc-node"
+
+[dependencies]
+eyre.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
+
+reth-exex-grpc.workspace = true
+
+reth.workspace = true
+reth-exex.workspace = true
+reth-node-api.workspace = true
+reth-node-ethereum.workspace = true
+reth-tracing.workspace = true
+
+
+[[bin]]
+name = "exex-grpc-node"
+path = "src/main.rs"
