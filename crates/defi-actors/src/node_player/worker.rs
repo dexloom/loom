@@ -11,9 +11,7 @@ use defi_events::{
 };
 use defi_types::{debug_trace_block, Mempool};
 use loom_actors::{Broadcaster, SharedState, WorkerResult};
-use loom_revm_db::LoomInMemoryDB;
 use std::ops::RangeInclusive;
-use std::sync::Arc;
 use std::time::Duration;
 use tracing::{debug, error};
 
@@ -150,7 +148,7 @@ where
                                     marker_state_guard.state_db.apply_geth_update(state_update.clone());
                                 }
                             }
-                            marker_state_guard.state_db = LoomInMemoryDB::new(Arc::new(marker_state_guard.state_db.merge()));
+                            marker_state_guard.state_db = marker_state_guard.state_db.clone().merge();
                         }
                     }
                 }

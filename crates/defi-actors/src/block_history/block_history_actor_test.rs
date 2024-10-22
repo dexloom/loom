@@ -20,7 +20,7 @@ mod test {
     use defi_types::{GethStateUpdate, GethStateUpdateVec};
     use eyre::eyre;
     use loom_actors::Actor;
-    use loom_revm_db::LoomInMemoryDB;
+    use loom_revm_db::LoomDBType;
     use loom_utils::geth_state_update::{account_state_add_storage, account_state_with_nonce_and_balance, geth_state_update_add_account};
     use std::time::Duration;
     use tracing::info;
@@ -98,7 +98,7 @@ mod test {
 
         let state_update_0 = vec![state_0];
 
-        let mut db = LoomInMemoryDB::default();
+        let mut db = LoomDBType::default();
         db.apply_geth_update_vec(state_update_0);
 
         bc.market_state().write().await.state_db = db;

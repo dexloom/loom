@@ -26,7 +26,7 @@ use defi_entities::{Market, MarketState, PoolWrapper, Swap, SwapAmountType, Swap
 
 use loom_actors::SharedState;
 use loom_multicaller::{MulticallerDeployer, MulticallerEncoder, MulticallerSwapEncoder};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use loom_utils::{BalanceCheater, NWETH};
 
 mod cli;
@@ -67,7 +67,7 @@ async fn main() -> Result<()> {
     BalanceCheater::set_anvil_token_balance_float(client.clone(), NWETH::ADDRESS, multicaller_address, 1.0).await?;
 
     // Initialization
-    let cache_db = LoomInMemoryDB::default();
+    let cache_db = LoomDBType::default();
 
     let market_instance = Market::default();
 

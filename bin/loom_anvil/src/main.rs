@@ -33,7 +33,7 @@ use defi_pools::CurvePool;
 use defi_types::{debug_trace_block, ChainParameters, Mempool};
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 
 use crate::test_config::TestConfig;
 
@@ -132,7 +132,7 @@ async fn main() -> Result<()> {
 
     let block_header_with_txes = client.get_block(block_nr.into(), BlockTransactionsKind::Full).await?.unwrap();
 
-    let cache_db = LoomInMemoryDB::default();
+    let cache_db = LoomDBType::default();
     let market_instance = Market::default();
     let market_state_instance = MarketState::new(cache_db.clone());
 

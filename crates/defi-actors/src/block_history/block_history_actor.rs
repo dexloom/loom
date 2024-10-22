@@ -11,11 +11,9 @@ use defi_types::ChainParameters;
 use eyre::{eyre, Result};
 use loom_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
-use loom_revm_db::LoomInMemoryDB;
 use std::borrow::BorrowMut;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
-use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info, trace};
 
@@ -295,7 +293,7 @@ where
                     tokio::task::spawn( async move{
                         let merged_db = new_market_state_db.merge();
                         let mut market_state_guard = market_state_clone.write().await;
-                        market_state_guard.state_db = LoomInMemoryDB::new( Arc::new(merged_db));
+                        market_state_guard.state_db = merged_db;
                         debug!("Merged DB stored in MarketState at block {}", msg_block_number)
                     });
                 }

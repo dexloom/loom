@@ -16,7 +16,7 @@ use defi_address_book::{FactoryAddress, PeripheryAddress};
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use eyre::{eyre, ErrReport, OptionExt, Result};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use revm::primitives::Env;
 use tracing::debug;
 #[cfg(feature = "debug-calculation")]
@@ -153,7 +153,7 @@ impl UniswapV3Pool {
         }
     }
 
-    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self> {
+    pub fn fetch_pool_data_evm(db: &LoomDBType, env: Env, address: Address) -> Result<Self> {
         let token0 = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1 = UniswapV3StateReader::token1(db, env.clone(), address)?;
         let fee: u32 = UniswapV3StateReader::fee(db, env.clone(), address)?.to();
@@ -241,7 +241,7 @@ impl Pool for UniswapV3Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomInMemoryDB,
+        state_db: &LoomDBType,
         _env: Env,
         token_address_from: &Address,
         _token_address_to: &Address,
@@ -278,7 +278,7 @@ impl Pool for UniswapV3Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomInMemoryDB,
+        state_db: &LoomDBType,
         _env: Env,
         token_address_from: &Address,
         _token_address_to: &Address,
@@ -467,12 +467,13 @@ impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
 mod test {
     use super::*;
     use alloy_primitives::{address, BlockNumber};
-    use alloy_rpc_types::BlockId;
+    use alloy_rpc_types::{BlockId, BlockNumberOrTag};
     use debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use defi_abi::uniswap_periphery::IQuoterV2;
     use defi_abi::uniswap_periphery::IQuoterV2::{QuoteExactInputSingleParams, QuoteExactOutputSingleParams};
     use defi_address_book::{PeripheryAddress, UniswapV3PoolAddress};
     use defi_entities::required_state::RequiredStateReader;
+    use loom_revm_db::{AlloyDB, LoomDB};
     use rand::Rng;
     use std::env;
     use std::ops::Mul;
@@ -559,7 +560,7 @@ mod test {
             let state_required = pool.get_state_required()?;
             let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(BLOCK_NUMBER)).await?;
 
-            let mut state_db = LoomInMemoryDB::default();
+            let mut state_db = LoomDBType::default();
             state_db.apply_geth_update(state_update);
 
             let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
@@ -624,7 +625,7 @@ mod test {
             let state_required = pool.get_state_required()?;
             let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(BLOCK_NUMBER)).await?;
 
-            let mut state_db = LoomInMemoryDB::default();
+            let mut state_db = LoomDBType::default();
             state_db.apply_geth_update(state_update);
 
             let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
@@ -672,6 +673,96 @@ mod test {
             );
             assert_eq!(gas_used, 150_000);
         }
+
+        Ok(())
+    }
+
+    #[test]
+    fn test_calculate_in_amount_with_ext_db() -> Result<()> {
+        // Verify that the calculated out amount is the same as the contract's out amount
+
+        let rt = tokio::runtime::Runtime::new().unwrap();
+
+        rt.block_on(async move {
+            let node_url = env::var("MAINNET_WS")?;
+            let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(BLOCK_NUMBER)).await?;
+
+            let rnd_multiplier = U256::from(1u64); //U256::from(rand::thread_rng().gen_range(1..10u64));
+
+            for pool_address in POOL_ADDRESSES {
+                let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
+
+                let alloy_db = AlloyDB::new(client.clone(), BlockNumberOrTag::Number(BLOCK_NUMBER).into()).unwrap();
+
+                let mut state_db = LoomDB::new().with_ext_db(alloy_db);
+
+                let token0_decimals =
+                    IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
+                let token1_decimals =
+                    IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
+
+                //// CASE: token0 -> token1
+                let amount_out = U256::from(10u64).pow(token1_decimals).mul(rnd_multiplier);
+                let contract_amount_in = fetch_original_contract_amounts(
+                    client.clone(),
+                    pool_address,
+                    pool.token0,
+                    pool.token1,
+                    amount_out,
+                    BLOCK_NUMBER,
+                    false,
+                )
+                .await?;
+
+                // under test
+                let (amount_in, gas_used) =
+                    match pool.calculate_in_amount(&state_db, Env::default(), &pool.token0, &pool.token1, amount_out) {
+                        Ok((amount_in, gas_used)) => (amount_in, gas_used),
+                        Err(e) => {
+                            panic!("Calculation error for pool={:?}, amount_out={}, e={:?}", pool_address, amount_out, e);
+                        }
+                    };
+                assert_eq!(
+                    amount_in,
+                    contract_amount_in,
+                    "{}",
+                    format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token0, amount_out)
+                );
+                assert_eq!(gas_used, 150_000);
+
+                //// CASE: token1 -> token0
+                let amount_out = U256::from(10u64).pow(token0_decimals).mul(rnd_multiplier);
+                let contract_amount_in = fetch_original_contract_amounts(
+                    client.clone(),
+                    pool_address,
+                    pool.token1,
+                    pool.token0,
+                    amount_out,
+                    BLOCK_NUMBER,
+                    false,
+                )
+                .await?;
+
+                // under test
+                let (amount_in, gas_used) =
+                    match pool.calculate_in_amount(&state_db, Env::default(), &pool.token1, &pool.token0, amount_out) {
+                        Ok((amount_in, gas_used)) => (amount_in, gas_used),
+                        Err(e) => {
+                            panic!("Calculation error for pool={:?}, amount_out={}, e={:?}", pool_address, amount_out, e);
+                        }
+                    };
+                assert_eq!(
+                    amount_in,
+                    contract_amount_in,
+                    "{}",
+                    format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token1, amount_out)
+                );
+                assert_eq!(gas_used, 150_000);
+                println!("pool={:?}, token_in={:?}, amount_in={} amount_out={}", pool_address, &pool.token1, amount_in, amount_out)
+            }
+            Result::<(), ErrReport>::Ok(())
+        })
+        .unwrap();
 
         Ok(())
     }

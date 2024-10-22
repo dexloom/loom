@@ -9,7 +9,7 @@ use defi_address_book::TokenAddress;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use eyre::{eyre, Result};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use loom_utils::evm::evm_call;
 use revm::primitives::Env;
 use tracing::error;
@@ -197,7 +197,7 @@ where
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomInMemoryDB,
+        state_db: &LoomDBType,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -247,7 +247,7 @@ where
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomInMemoryDB,
+        state_db: &LoomDBType,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -521,7 +521,7 @@ mod tests {
     use defi_entities::{MarketState, Pool};
     use env_logger::Env as EnvLog;
     use loom_revm_db::fast_cache_db::FastCacheDB;
-    use loom_revm_db::LoomInMemoryDB;
+    use loom_revm_db::LoomDBType;
     use revm::db::EmptyDB;
     use tracing::debug;
 
@@ -536,7 +536,7 @@ mod tests {
 
         let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 20045799).await?;
 
-        let mut market_state = MarketState::new(LoomInMemoryDB::new(Arc::new(FastCacheDB::new(EmptyDB::default()))));
+        let mut market_state = MarketState::new(LoomDBType::new());
 
         let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
 

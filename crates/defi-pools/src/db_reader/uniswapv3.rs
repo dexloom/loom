@@ -7,7 +7,7 @@ use lazy_static::lazy_static;
 use tracing::trace;
 
 use defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use loom_utils::remv_db_direct_access::{try_read_cell, try_read_hashmap_cell};
 
 pub struct UniswapV3DBReader {}
@@ -21,28 +21,28 @@ lazy_static! {
     static ref BITS1MASK: U256 = U256::from(1);
 }
 impl UniswapV3DBReader {
-    pub fn fee_growth_global0_x128(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
+    pub fn fee_growth_global0_x128(db: &LoomDBType, address: Address) -> Result<U256> {
         let cell = try_read_cell(db, &address, &U256::from(1))?;
         Ok(cell)
     }
 
-    pub fn fee_growth_global1_x128(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
+    pub fn fee_growth_global1_x128(db: &LoomDBType, address: Address) -> Result<U256> {
         let cell = try_read_cell(db, &address, &U256::from(2))?;
         Ok(cell)
     }
 
-    pub fn protocol_fees(db: &LoomInMemoryDB, address: Address) -> Result<U256> {
+    pub fn protocol_fees(db: &LoomDBType, address: Address) -> Result<U256> {
         let cell = try_read_cell(db, &address, &U256::from(3))?;
         Ok(cell)
     }
 
-    pub fn liquidity(db: &LoomInMemoryDB, address: Address) -> Result<u128> {
+    pub fn liquidity(db: &LoomDBType, address: Address) -> Result<u128> {
         let cell = try_read_cell(db, &address, &U256::from(4))?;
         let cell: u128 = cell.saturating_to();
         Ok(cell)
     }
 
-    pub fn ticks_liquidity_net(db: &LoomInMemoryDB, address: Address, tick: i32) -> Result<i128> {
+    pub fn ticks_liquidity_net(db: &LoomDBType, address: Address, tick: i32) -> Result<i128> {
         //i24
         let cell = try_read_hashmap_cell(db, &address, &U256::from(5), &U256::from_be_bytes(I256::try_from(tick)?.to_be_bytes::<32>()))?;
         let unsigned_liqudity: Uint<128, 2> = cell.shr(U256::from(128)).to();
@@ -53,27 +53,27 @@ impl UniswapV3DBReader {
 
         Ok(li128)
     }
-    pub fn tick_bitmap(db: &LoomInMemoryDB, address: Address, tick: i16) -> Result<U256> {
+    pub fn tick_bitmap(db: &LoomDBType, address: Address, tick: i16) -> Result<U256> {
         //i16
         let cell = try_read_hashmap_cell(db, &address, &U256::from(6), &U256::from_be_bytes(I256::try_from(tick)?.to_be_bytes::<32>()))?;
         trace!("tickBitmap {address} {tick} {cell}");
         Ok(cell)
     }
 
-    pub fn position_info(db: &LoomInMemoryDB, address: Address, position: B256) -> Result<U256> {
+    pub fn position_info(db: &LoomDBType, address: Address, position: B256) -> Result<U256> {
         //i16
         let position: U256 = position.into();
         let cell = try_read_hashmap_cell(db, &address, &U256::from(7), &position)?;
         Ok(cell)
     }
 
-    pub fn observations(db: &LoomInMemoryDB, address: Address, idx: u32) -> Result<U256> {
+    pub fn observations(db: &LoomDBType, address: Address, idx: u32) -> Result<U256> {
         //i16
         let cell = try_read_hashmap_cell(db, &address, &U256::from(7), &U256::from(idx))?;
         Ok(cell)
     }
 
-    pub fn slot0(db: &LoomInMemoryDB, address: Address) -> Result<slot0Return> {
+    pub fn slot0(db: &LoomDBType, address: Address) -> Result<slot0Return> {
         let cell = try_read_cell(db, &address, &U256::from(0))?;
         let tick: Uint<24, 1> = ((Shr::<U256>::shr(cell, U256::from(160))) & *BITS24MASK).to();
         let tick: Signed<24, 1> = Signed::<24, 1>::from_raw(tick);
@@ -105,7 +105,7 @@ mod test {
     use defi_address_book::UniswapV3PoolAddress;
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::{MarketState, Pool};
-    use loom_revm_db::LoomInMemoryDB;
+    use loom_revm_db::LoomDBType;
 
     use crate::db_reader::UniswapV3DBReader;
     use crate::state_readers::UniswapV3StateReader;
@@ -121,7 +121,7 @@ mod test {
 
         let client = AnvilDebugProviderFactory::from_node_on_block(node_url, 20038285).await?;
 
-        let mut market_state = MarketState::new(LoomInMemoryDB::default());
+        let mut market_state = MarketState::new(LoomDBType::default());
 
         let pool_address: Address = UniswapV3PoolAddress::USDC_WETH_500;
 

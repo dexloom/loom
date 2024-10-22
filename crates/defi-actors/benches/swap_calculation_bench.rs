@@ -9,7 +9,7 @@ use defi_address_book::TokenAddress;
 use defi_entities::required_state::RequiredStateReader;
 use defi_entities::{Market, PoolClass, PoolWrapper, SwapLine, SwapPath, Token};
 use defi_pools::{UniswapV2Pool, UniswapV3Pool};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use reth_primitives::revm_primitives::Env;
 
 pub fn bench_swap_calculator(c: &mut Criterion) {
@@ -24,7 +24,7 @@ pub fn bench_swap_calculator(c: &mut Criterion) {
     let block_number = 20935488u64;
     let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
 
-    let mut state_db = LoomInMemoryDB::default();
+    let mut state_db = LoomDBType::default();
     let (swap_path, state_db) = rt
         .block_on(async {
             let node_url = env::var("MAINNET_WS")?;
@@ -57,7 +57,7 @@ pub fn bench_swap_calculator(c: &mut Criterion) {
             directions.insert(last_pool.clone(), last_pool.get_swap_directions());
             let swap_path = market.build_swap_path_vec(&directions).unwrap().get(0).unwrap().clone();
 
-            Ok::<(SwapPath, LoomInMemoryDB), eyre::Error>((swap_path, state_db.clone()))
+            Ok::<(SwapPath, LoomDBType), eyre::Error>((swap_path, state_db.clone()))
         })
         .expect("Could not fetch state");
 

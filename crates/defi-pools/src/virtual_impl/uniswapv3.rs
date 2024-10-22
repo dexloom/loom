@@ -6,7 +6,7 @@ use uniswap_v3_math::tick_bitmap::position;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
 
 use defi_entities::Pool;
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 
 use crate::db_reader::UniswapV3DBReader;
 use crate::UniswapV3Pool;
@@ -84,7 +84,7 @@ pub struct Tick {
 }
 
 impl UniswapV3PoolVirtual {
-    pub fn simulate_swap_in_amount(db: &LoomInMemoryDB, pool: &UniswapV3Pool, token_in: Address, amount_in: U256) -> eyre::Result<U256> {
+    pub fn simulate_swap_in_amount(db: &LoomDBType, pool: &UniswapV3Pool, token_in: Address, amount_in: U256) -> eyre::Result<U256> {
         if amount_in.is_zero() {
             return Ok(U256::ZERO);
         }
@@ -210,7 +210,7 @@ impl UniswapV3PoolVirtual {
         }
     }
 
-    pub fn simulate_swap_out_amount(db: &LoomInMemoryDB, pool: &UniswapV3Pool, token_in: Address, amount_out: U256) -> eyre::Result<U256> {
+    pub fn simulate_swap_out_amount(db: &LoomDBType, pool: &UniswapV3Pool, token_in: Address, amount_out: U256) -> eyre::Result<U256> {
         if amount_out.is_zero() {
             return Ok(U256::ZERO);
         }

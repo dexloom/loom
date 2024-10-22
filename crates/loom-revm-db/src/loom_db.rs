@@ -17,6 +17,7 @@ use revm::primitives::{AccountInfo, Bytecode};
 use revm::{Database, DatabaseRef};
 use std::collections::hash_map::Entry;
 use std::collections::BTreeMap;
+use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tracing::{error, trace};
 //
@@ -50,6 +51,12 @@ where
     pub read_only_db: Option<Arc<LoomDB>>,
     #[cfg_attr(feature = "serde", serde(skip))]
     pub ext_db: Option<Arc<dyn DatabaseRef<Error = TransportError> + Send + Sync>>,
+}
+
+impl Debug for LoomDB {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("LoomDB").field("accounts", &self.accounts).finish()
+    }
 }
 
 #[allow(dead_code)]

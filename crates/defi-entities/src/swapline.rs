@@ -9,7 +9,7 @@ use tracing::debug;
 
 use defi_address_book::TokenAddress;
 use defi_types::SwapError;
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 
 use crate::swappath::SwapPath;
 use crate::{PoolWrapper, SwapStep, Token};
@@ -330,7 +330,7 @@ impl SwapLine {
         Err(eyre!("CANNOT_CALCULATE"))
     }
 
-    pub fn calculate_with_in_amount(&self, state: &LoomInMemoryDB, env: Env, in_amount: U256) -> Result<(U256, u64), SwapError> {
+    pub fn calculate_with_in_amount(&self, state: &LoomDBType, env: Env, in_amount: U256) -> Result<(U256, u64), SwapError> {
         let mut out_amount = in_amount;
         let mut gas_used = 0;
         for (i, pool) in self.pools().iter().enumerate() {
@@ -367,7 +367,7 @@ impl SwapLine {
         Ok((out_amount, gas_used))
     }
 
-    pub fn calculate_with_out_amount(&self, state: &LoomInMemoryDB, env: Env, out_amount: U256) -> Result<(U256, u64), SwapError> {
+    pub fn calculate_with_out_amount(&self, state: &LoomDBType, env: Env, out_amount: U256) -> Result<(U256, u64), SwapError> {
         let mut in_amount = out_amount;
         let mut gas_used = 0;
         let mut pool_reverse = self.pools().clone();
@@ -414,7 +414,7 @@ impl SwapLine {
         I256::from_raw(out_amount) - I256::from_raw(in_amount)
     }
 
-    pub fn optimize_with_in_amount(&mut self, state: &LoomInMemoryDB, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
+    pub fn optimize_with_in_amount(&mut self, state: &LoomDBType, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
         let mut current_in_amount = in_amount;
         let mut bestprofit: Option<I256> = None;
         let mut current_step = U256::from(10000);

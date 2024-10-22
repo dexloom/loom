@@ -227,7 +227,7 @@ mod tests {
     use alloy_primitives::{Address, U256};
     use eyre::ErrReport;
     use eyre::Result;
-    use loom_revm_db::LoomInMemoryDB;
+    use loom_revm_db::LoomDBType;
     use reth_revm::primitives::Env;
 
     #[derive(Clone)]
@@ -260,7 +260,7 @@ mod tests {
 
         fn calculate_out_amount(
             &self,
-            state: &LoomInMemoryDB,
+            state: &LoomDBType,
             env: Env,
             token_address_from: &Address,
             token_address_to: &Address,
@@ -271,7 +271,7 @@ mod tests {
 
         fn calculate_in_amount(
             &self,
-            state: &LoomInMemoryDB,
+            state: &LoomDBType,
             env: Env,
             token_address_from: &Address,
             token_address_to: &Address,
