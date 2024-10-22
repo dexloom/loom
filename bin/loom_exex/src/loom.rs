@@ -5,16 +5,14 @@ use alloy::transports::Transport;
 use debug_provider::DebugProviderExt;
 use defi_actors::{loom_exex, BlockchainActors, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
-use defi_entities::{PoolClass, RethAdapter};
+use defi_entities::PoolClass;
 use defi_pools::PoolsConfig;
 use eyre::OptionExt;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
-use reth::builder::rpc::RethRpcAddOns;
 use reth_exex::ExExContext;
 use reth_node_api::FullNodeComponents;
 use std::env;
 use std::future::Future;
-use std::sync::Arc;
 use tracing::info;
 
 pub async fn init<Node: FullNodeComponents>(
@@ -25,17 +23,10 @@ pub async fn init<Node: FullNodeComponents>(
     Ok(loom_exex(ctx, bc, config.clone()))
 }
 
-pub async fn start_loom<P, T, Node, AddOns>(
-    provider: P,
-    bc: Blockchain,
-    topology_config: TopologyConfig,
-    _reth_adapter: Arc<RethAdapter<Node, AddOns>>,
-) -> eyre::Result<()>
+pub async fn start_loom<P, T>(provider: P, bc: Blockchain, topology_config: TopologyConfig) -> eyre::Result<()>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-    Node: FullNodeComponents,
-    AddOns: RethRpcAddOns<Node> + 'static,
 {
     let chain_id = provider.get_chain_id().await?;
 
