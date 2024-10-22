@@ -33,7 +33,6 @@ async fn estimator_task(
     let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
 
     let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
-    //let gas_cost = U256::from(100_000 * gas_price);
 
     let (to, call_value, call_data, _) = swap_encoder.encode(
         estimate_request.swap.clone(),
