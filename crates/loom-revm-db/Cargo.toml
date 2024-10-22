@@ -13,6 +13,9 @@ tracing.workspace = true
 revm.workspace = true
 rand.workspace = true
 alloy.workspace = true
+
+eyre.workspace = true
+tokio.workspace = true
 serde = { workspace = true, optional = true}
 serde_json = { workspace = true, optional = true}
 
@@ -22,8 +25,12 @@ serde-json = ["dep:serde_json"]
 
 
 [dev-dependencies]
+url.workspace = true
 chrono.workspace = true
 criterion.workspace = true
+tracing.workspace = true
+tracing-subscriber = { workspace = true, features = ["env-filter"]}
+env_logger.workspace = true
 
 [[bench]]
 name = "benchmark"

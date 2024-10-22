@@ -26,11 +26,11 @@ pub fn try_write_cell(db: &mut InMemoryDB, account: &Address, cell: U256, value:
     }
 }
 
-pub fn try_read_cell<DB: DatabaseRef<Error = Infallible>>(db: DB, account: &Address, cell: &U256) -> Result<U256> {
+pub fn try_read_cell<DB: DatabaseRef>(db: DB, account: &Address, cell: &U256) -> Result<U256> {
     db.storage_ref(*account, *cell).map_err(|_| eyre!("READ_CELL_FAILED"))
 }
 
-pub fn try_read_hashmap_cell<DB: DatabaseRef<Error = Infallible>>(
+pub fn try_read_hashmap_cell<DB: DatabaseRef>(
     db: DB,
     account: &Address,
     hashmap_offset: &U256,
