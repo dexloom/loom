@@ -48,6 +48,7 @@ where
     pub logs: Vec<Log>,
     pub block_hashes: HashMap<BlockNumber, B256>,
     pub read_only_db: Option<Arc<LoomDB>>,
+    #[skip]
     pub ext_db: Option<Arc<dyn DatabaseRef<Error = TransportError> + Send + Sync>>,
 }
 
@@ -664,7 +665,7 @@ mod test1 {
         init_state.insert_account_info(account, AccountInfo { nonce, ..Default::default() });
 
         let serialized = serde_json::to_string(&init_state).unwrap();
-        let deserialized: FastCacheDB<EmptyDB> = serde_json::from_str(&serialized).unwrap();
+        let deserialized: LoomDB = serde_json::from_str(&serialized).unwrap();
 
         assert!(deserialized.accounts.contains_key(&account));
         assert_eq!(deserialized.accounts.get(&account).unwrap().info.nonce, nonce);
