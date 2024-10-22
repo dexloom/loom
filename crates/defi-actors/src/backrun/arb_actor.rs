@@ -13,12 +13,13 @@ use defi_types::Mempool;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
-use crate::backrun::block_state_change_processor::BlockStateChangeProcessorActor;
-
 use super::{PendingTxStateChangeProcessorActor, StateChangeArbSearcherActor};
+use crate::backrun::block_state_change_processor::BlockStateChangeProcessorActor;
+use crate::BackrunConfig;
 
 #[derive(Accessor, Consumer, Producer)]
 pub struct StateChangeArbActor<P, T, N> {
+    backrun_config: BackrunConfig,
     client: P,
     use_blocks: bool,
     use_mempool: bool,
@@ -50,8 +51,9 @@ where
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, use_blocks: bool, use_mempool: bool) -> StateChangeArbActor<P, T, N> {
+    pub fn new(client: P, use_blocks: bool, use_mempool: bool, backrun_config: BackrunConfig) -> StateChangeArbActor<P, T, N> {
         StateChangeArbActor {
+            backrun_config,
             client,
             use_blocks,
             use_mempool,
@@ -80,7 +82,7 @@ where
         let searcher_pool_update_channel = Broadcaster::new(100);
         let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
 
-        let mut state_update_searcher = StateChangeArbSearcherActor::new(true);
+        let mut state_update_searcher = StateChangeArbSearcherActor::new(self.backrun_config.clone());
         match state_update_searcher
             .access(self.market.clone().unwrap())
             .consume(searcher_pool_update_channel.clone())

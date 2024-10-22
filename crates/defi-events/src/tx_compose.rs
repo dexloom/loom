@@ -83,6 +83,9 @@ impl RlpState {
 
 #[derive(Clone, Debug)]
 pub struct TxComposeData {
+    /// The EOA address that will be used to sign the transaction.
+    /// If this is None, the transaction will be signed by a random signer.
+    pub eoa: Option<Address>,
     pub signer: Option<TxSigner>,
     pub nonce: u64,
     pub eth_balance: U256,
@@ -154,6 +157,7 @@ impl TxComposeData {
 impl Default for TxComposeData {
     fn default() -> Self {
         Self {
+            eoa: None,
             signer: None,
             nonce: Default::default(),
             eth_balance: Default::default(),

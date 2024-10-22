@@ -11,7 +11,7 @@ use alloy_rpc_types::{BlockId, BlockNumberOrTag, BlockTransactionsKind};
 use clap::Parser;
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
-    fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BlockHistoryActor,
+    fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BackrunConfig, BlockHistoryActor,
     DiffPathMergerActor, EvmEstimatorActor, InitializeSignersOneShotBlockingActor, MarketStatePreloadedOneShotActor, NodeBlockActor,
     NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapRouterActor,
     TxSignersActor,
@@ -375,8 +375,12 @@ async fn main() -> Result<()> {
     //
     if test_config.modules.arb_block || test_config.modules.arb_mempool {
         info!("Starting state change arb actor");
-        let mut state_change_arb_actor =
-            StateChangeArbActor::new(client.clone(), test_config.modules.arb_block, test_config.modules.arb_mempool);
+        let mut state_change_arb_actor = StateChangeArbActor::new(
+            client.clone(),
+            test_config.modules.arb_block,
+            test_config.modules.arb_mempool,
+            BackrunConfig::default(),
+        );
         match state_change_arb_actor
             .access(mempool_instance.clone())
             .access(latest_block.clone())

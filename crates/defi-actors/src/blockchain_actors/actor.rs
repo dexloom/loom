@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 use crate::backrun::BlockStateChangeProcessorActor;
 use crate::{
-    ArbSwapPathMergerActor, BlockHistoryActor, CurvePoolLoaderOneShotActor, DiffPathMergerActor, EvmEstimatorActor,
+    ArbSwapPathMergerActor, BackrunConfig, BlockHistoryActor, CurvePoolLoaderOneShotActor, DiffPathMergerActor, EvmEstimatorActor,
     FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderOneShotActor, InitializeSignersOneShotBlockingActor,
     MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor,
     NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PoolLoaderActor, PriceActor,
@@ -394,9 +394,9 @@ where
     }
 
     /// Start backrun on block
-    pub fn with_backrun_block(&mut self) -> Result<&mut Self> {
+    pub fn with_backrun_block(&mut self, backrun_config: BackrunConfig) -> Result<&mut Self> {
         if !self.has_state_update {
-            self.actor_manager.start(StateChangeArbSearcherActor::new(true).on_bc(&self.bc))?;
+            self.actor_manager.start(StateChangeArbSearcherActor::new(backrun_config).on_bc(&self.bc))?;
             self.has_state_update = true
         }
         self.actor_manager.start(BlockStateChangeProcessorActor::new().on_bc(&self.bc))?;
@@ -404,9 +404,9 @@ where
     }
 
     /// Start backrun for pending txs
-    pub fn with_backrun_mempool(&mut self) -> Result<&mut Self> {
+    pub fn with_backrun_mempool(&mut self, backrun_config: BackrunConfig) -> Result<&mut Self> {
         if !self.has_state_update {
-            self.actor_manager.start(StateChangeArbSearcherActor::new(true).on_bc(&self.bc))?;
+            self.actor_manager.start(StateChangeArbSearcherActor::new(backrun_config).on_bc(&self.bc))?;
             self.has_state_update = true
         }
         self.actor_manager.start(PendingTxStateChangeProcessorActor::new(self.provider.clone()).on_bc(&self.bc))?;
@@ -414,8 +414,8 @@ where
     }
 
     /// Start backrun for blocks and pending txs
-    pub async fn with_backrun(&mut self) -> Result<&mut Self> {
-        self.with_backrun_block()?.with_backrun_mempool()
+    pub async fn with_backrun(&mut self, backrun_config: BackrunConfig) -> Result<&mut Self> {
+        self.with_backrun_block(backrun_config.clone())?.with_backrun_mempool(backrun_config)
     }
 
     /// Start influxdb writer

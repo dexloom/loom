@@ -91,3 +91,7 @@ relays = [
 mainnet = { type = "evm", bc = "mainnet", encoder = "mainnet" }
 # Node estimator. Geth estimator is ok for nodes supporting eth_callBundle method only
 #mainnet = { client = "local", bc = "mainnet", type = "geth", encoder = "mainnet" }
+
+[backrun_strategy]
+#eoa = ""
+smart = true
