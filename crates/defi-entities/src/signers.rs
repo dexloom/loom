@@ -100,7 +100,7 @@ impl TxSigners {
         self.add_privkey(Bytes::from(hex!("507485ea5bcf6864596cb51b2e727bb2d8ed5e64bb4f3d8c77a734d2fd610c6e")))
     }
 
-    pub fn get_randon_signer(&self) -> Option<TxSigner> {
+    pub fn get_random_signer(&self) -> Option<TxSigner> {
         if self.is_empty() {
             None
         } else {
@@ -227,7 +227,7 @@ mod tests {
     fn test_get_random_signer() {
         let mut signers = TxSigners::new();
         signers.add_testkey();
-        assert!(signers.get_randon_signer().is_some());
+        assert!(signers.get_random_signer().is_some());
     }
 
     #[test]

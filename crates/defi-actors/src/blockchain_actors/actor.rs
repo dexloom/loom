@@ -8,7 +8,8 @@ use crate::{
     FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderOneShotActor, InitializeSignersOneShotBlockingActor,
     MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor,
     NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PoolLoaderActor, PriceActor,
-    RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapRouterActor, TxSignersActor,
+    RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, StuffingTxMonitorActor,
+    SwapRouterActor, TxSignersActor,
 };
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, B256, U256};
@@ -310,7 +311,7 @@ where
 
     /// Starts stuffing tx monitor
     pub fn with_health_monitor_stuffing_tx(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(StateHealthMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(StuffingTxMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 

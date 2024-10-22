@@ -24,7 +24,7 @@ async fn router_task(
 ) -> Result<()> {
     debug!("Routing started {}", route_request.swap);
 
-    let signer = signers.read().await.get_randon_signer();
+    let signer = signers.read().await.get_random_signer();
     match signer {
         Some(signer) => {
             let nonce = account_monitor.read().await.get_account(&signer.address()).unwrap().get_nonce();
