@@ -1,8 +1,7 @@
-use std::collections::BTreeMap;
-use std::convert::Infallible;
-use std::fmt::{Debug, Display};
 use alloy::eips::BlockNumHash;
 use alloy::primitives::TxHash;
+use std::collections::BTreeMap;
+use std::fmt::Display;
 
 use alloy::rpc::types::trace::geth::AccountState;
 #[cfg(feature = "trace-calls")]
@@ -76,16 +75,15 @@ where
         };
 
         value.ok_or_eyre("CALL_RESULT_IS_EMPTY")
-    } else{
+    } else {
         Err(eyre!("TRANSACT_ERROR"))
     }
-
 }
 
 pub fn evm_transact<DB>(evm: &mut Evm<(), DB>, tx: &Transaction) -> Result<()>
 where
     DB: Database + DatabaseCommit,
-    <DB as Database>::Error : Display,
+    <DB as Database>::Error: Display,
 {
     let env = evm.context.env_mut();
 
@@ -126,9 +124,9 @@ lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
-pub fn evm_access_list<DB : DatabaseRef>(state_db: DB, env: &Env, tx: &TransactionRequest) -> Result<(u64, AccessList)>
+pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &TransactionRequest) -> Result<(u64, AccessList)>
 where
-    <DB as DatabaseRef>::Error : Display
+    <DB as DatabaseRef>::Error: Display,
 {
     let mut env = env.clone();
 
@@ -241,7 +239,7 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> En
 pub fn evm_call_tx_in_block<DB, T: Into<Transaction>>(tx: T, state_db: DB, header: &Header) -> Result<ResultAndState>
 where
     DB: DatabaseRef,
-    <DB as DatabaseRef>::Error : Display,
+    <DB as DatabaseRef>::Error: Display,
 {
     let env = evm_env_from_tx(tx, header);
 

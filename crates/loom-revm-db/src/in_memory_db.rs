@@ -1,85 +1,13 @@
-use crate::alloydb::AlloyDB;
 use crate::fast_cache_db::FastCacheDB;
-use alloy::eips::BlockNumberOrTag;
-use alloy::primitives::{Address, B256, U256};
-use alloy::providers::RootProvider;
+use alloy::primitives::Address;
 use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
-use alloy::transports::BoxTransport;
-use eyre::{eyre, ErrReport};
 use revm::db::{AccountState, EmptyDB};
-use revm::primitives::{AccountInfo, Bytecode};
-use revm::DatabaseRef;
+use revm::primitives::Bytecode;
 use std::collections::BTreeMap;
-use std::fmt;
 use std::sync::Arc;
 use tracing::{error, trace};
 
-#[derive(Clone, Default)]
-pub enum ExtDB {
-    #[default]
-    Empty,
-    RPC(RootProvider<BoxTransport>),
-}
-
-impl fmt::Debug for ExtDB {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            ExtDB::Empty => {
-                write!(f, "EmptyDB")
-            }
-            ExtDB::RPC(_) => {
-                write!(f, "RPC")
-            }
-        }
-    }
-}
-
-impl DatabaseRef for ExtDB {
-    type Error = ErrReport;
-
-    fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        match self.clone() {
-            ExtDB::Empty => Ok(None),
-            ExtDB::RPC(provider) => match AlloyDB::new(provider, BlockNumberOrTag::Latest.into()) {
-                Some(alloy_db) => alloy_db.basic_ref(address).map_err(|_| eyre!("ERROR_READING_BASIC_REF")),
-                None => Err(eyre!("ALLOY_DB_NOT_CREATED")),
-            },
-        }
-    }
-
-    fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
-        Err(eyre!("NE"))
-    }
-
-    fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        Err(eyre!("NE"))
-    }
-
-    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
-        Err(eyre!("NE"))
-    }
-}
-
 pub type LoomInMemoryDB = FastCacheDB<Arc<FastCacheDB<EmptyDB>>>;
-
-/*impl Default for LoomInMemoryDB {
-    fn default() -> Self {
-        FastCacheDB::new(Arc::new(FastCacheDB::new(Default::default())))
-    }
-}
-
- */
-
-/*impl Deref for LoomInMemoryDB {
-    type Target = FastCacheDB<Arc<FastCacheDB<ExtDB>>>;
-    fn deref(&self) -> &Self::Target {
-        self
-    }
-}
-
- */
-
-//pub type FastInMemoryDB = FastCacheDB<Arc<FastCacheDB<EmptyDB>>>;
 
 impl LoomInMemoryDB {
     pub fn with_db(self, db: Arc<FastCacheDB<EmptyDB>>) -> Self {
@@ -92,7 +20,7 @@ impl LoomInMemoryDB {
             logs: self.db.logs.clone(),
             contracts: self.db.contracts.clone(),
             block_hashes: self.db.block_hashes.clone(),
-            db: self.db.db.clone(),
+            db: self.db.db,
         };
         for (k, v) in self.block_hashes.iter() {
             db.block_hashes.insert(*k, *v);

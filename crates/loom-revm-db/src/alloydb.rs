@@ -1,13 +1,15 @@
-use revm::{
-    Database, DatabaseRef,
-    primitives::{AccountInfo, Address, Bytecode, B256, U256},
+use alloy::eips::BlockId;
+use alloy::providers::{
+    network::{BlockResponse, HeaderResponse},
+    Network, Provider,
 };
-use alloy::eips::{BlockId};
-use alloy::providers::{network::{BlockResponse, HeaderResponse}, Network, Provider};
-use std::future::IntoFuture;
 use alloy::transports::{Transport, TransportError};
+use revm::{
+    primitives::{AccountInfo, Address, Bytecode, B256, U256},
+    Database, DatabaseRef,
+};
+use std::future::IntoFuture;
 use tokio::runtime::{Handle, Runtime};
-
 
 #[derive(Debug)]
 pub(crate) enum HandleOrRuntime {
@@ -28,7 +30,6 @@ impl HandleOrRuntime {
         }
     }
 }
-
 
 /// An alloy-powered REVM [Database].
 ///
@@ -55,6 +56,7 @@ pub struct AlloyDB<T: Transport + Clone, N: Network, P: Provider<T, N>> {
 
  */
 
+#[allow(dead_code)]
 impl<T: Transport + Clone, N: Network, P: Provider<T, N>> AlloyDB<T, N, P> {
     /// Create a new AlloyDB instance, with a [Provider] and a block.
     ///
@@ -67,12 +69,7 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> AlloyDB<T, N, P> {
             },
             Err(_) => return None,
         };
-        Some(Self {
-            provider,
-            block_number,
-            rt,
-            _marker: std::marker::PhantomData,
-        })
+        Some(Self { provider, block_number, rt, _marker: std::marker::PhantomData })
     }
 
     /// Create a new AlloyDB instance, with a provider and a block and a runtime.
@@ -81,12 +78,7 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> AlloyDB<T, N, P> {
     /// If you are already using something like [tokio::main], call AlloyDB::new instead.
     pub fn with_runtime(provider: P, block_number: BlockId, runtime: Runtime) -> Self {
         let rt = HandleOrRuntime::Runtime(runtime);
-        Self {
-            provider,
-            block_number,
-            rt,
-            _marker: std::marker::PhantomData,
-        }
+        Self { provider, block_number, rt, _marker: std::marker::PhantomData }
     }
 
     /// Create a new AlloyDB instance, with a provider and a block and a runtime handle.
@@ -95,12 +87,7 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> AlloyDB<T, N, P> {
     /// to obtain a handle. If you are already in asynchronous world, like [tokio::main], use AlloyDB::new instead.
     pub fn with_handle(provider: P, block_number: BlockId, handle: Handle) -> Self {
         let rt = HandleOrRuntime::Handle(handle);
-        Self {
-            provider,
-            block_number,
-            rt,
-            _marker: std::marker::PhantomData,
-        }
+        Self { provider, block_number, rt, _marker: std::marker::PhantomData }
     }
 
     /// Internal utility function that allows us to block on a future regardless of the runtime flavor.
@@ -124,23 +111,10 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> DatabaseRef for AlloyD
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         let f = async {
-            let nonce = self
-                .provider
-                .get_transaction_count(address)
-                .block_id(self.block_number);
-            let balance = self
-                .provider
-                .get_balance(address)
-                .block_id(self.block_number);
-            let code = self
-                .provider
-                .get_code_at(address)
-                .block_id(self.block_number);
-            tokio::join!(
-                nonce.into_future(),
-                balance.into_future(),
-                code.into_future()
-            )
+            let nonce = self.provider.get_transaction_count(address).block_id(self.block_number);
+            let balance = self.provider.get_balance(address).block_id(self.block_number);
+            let code = self.provider.get_code_at(address).block_id(self.block_number);
+            tokio::join!(nonce.into_future(), balance.into_future(), code.into_future())
         };
 
         let (nonce, balance, code) = self.block_on(f);
@@ -169,10 +143,7 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> DatabaseRef for AlloyD
     }
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
-        let f = self
-            .provider
-            .get_storage_at(address, index)
-            .block_id(self.block_number);
+        let f = self.provider.get_storage_at(address, index).block_id(self.block_number);
         let slot_val = self.block_on(f.into_future())?;
         Ok(slot_val)
     }
@@ -204,9 +175,9 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> Database for AlloyDB<T
 
 #[cfg(test)]
 mod tests {
-    use std::env;
     use super::*;
     use alloy::providers::ProviderBuilder;
+    use std::env;
     use url::Url;
 
     #[test]
@@ -215,10 +186,7 @@ mod tests {
         let node_url = env::var("MAINNET_HTTP").unwrap();
         let node_url = Url::parse(node_url.as_str()).unwrap();
 
-
-        let client = ProviderBuilder::new().on_http(
-            node_url
-        );
+        let client = ProviderBuilder::new().on_http(node_url);
         let alloydb = AlloyDB::new(client, BlockId::from(16148323));
 
         if alloydb.is_none() {
@@ -226,10 +194,7 @@ mod tests {
         }
 
         // ETH/USDT pair on Uniswap V2
-        let address: Address = "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852"
-            .parse()
-            .unwrap();
-
+        let address: Address = "0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852".parse().unwrap();
 
         let acc_info = alloydb.unwrap().basic_ref(address).unwrap().unwrap();
         assert!(acc_info.exists());

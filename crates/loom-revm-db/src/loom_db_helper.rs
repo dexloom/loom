@@ -10,7 +10,7 @@ impl LoomDBHelper {
     #[inline]
     pub fn get_code_by_hash<DB: DatabaseRef<Error = ErrReport>>(read_only_db: &Option<DB>, code_hash: B256) -> eyre::Result<Bytecode> {
         match read_only_db {
-            Some(read_only_db) => read_only_db.code_by_hash_ref(code_hash).or_else(|_| Err(eyre!("CODE_HASH_NOT_FOUND"))),
+            Some(read_only_db) => read_only_db.code_by_hash_ref(code_hash).map_err(|_| eyre!("CODE_HASH_NOT_FOUND")),
             None => Err(eyre!("NO_RO_DB")),
         }
     }
@@ -80,7 +80,7 @@ impl LoomDBHelper {
     }
 
     #[inline]
-    pub fn get_or_fetch_block_hash_ref<DB: DatabaseRef<Error = ErrReport>, ExtDB: DatabaseRef<Error = TransportError>>(
+    pub fn get_or_fetch_block_hash<DB: DatabaseRef<Error = ErrReport>, ExtDB: DatabaseRef<Error = TransportError>>(
         read_only_db: &Option<DB>,
         ext_db: &Option<ExtDB>,
         number: BlockNumber,

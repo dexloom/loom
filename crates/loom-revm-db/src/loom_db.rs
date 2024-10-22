@@ -1,5 +1,5 @@
 use crate::alloydb::AlloyDB;
-use crate::fast_cache_db::{FastCacheDB, FastDbAccount};
+use crate::fast_cache_db::FastDbAccount;
 use crate::fast_hasher::SimpleBuildHasher;
 use crate::loom_db_helper::LoomDBHelper;
 use alloy::consensus::constants::KECCAK_EMPTY;
@@ -11,48 +11,47 @@ use alloy::providers::{Provider, ProviderBuilder};
 use alloy::rpc::client::ClientBuilder;
 use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
 use alloy::transports::{Transport, TransportError};
-use eyre::{eyre, ErrReport, OptionExt, Result};
-use revm::db::{AccountState, EmptyDB};
+use eyre::{ErrReport, OptionExt, Result};
+use revm::db::AccountState;
 use revm::primitives::{AccountInfo, Bytecode};
 use revm::{Database, DatabaseRef};
 use std::collections::hash_map::Entry;
 use std::collections::BTreeMap;
-use std::convert::Infallible;
-use std::fmt::Display;
 use std::sync::Arc;
 use tracing::{error, trace};
-
-pub trait LoomDatabaseExt {
-    fn accounts(&self) -> HashMap<Address, FastDbAccount>;
-    fn contracts(&self) -> HashMap<B256, Bytecode, SimpleBuildHasher>;
-    fn logs(&self) -> Vec<Log>;
-    fn block_hashes(&self) -> HashMap<BlockNumber, B256>;
-
-    fn accounts_mut(&mut self) -> &mut HashMap<Address, FastDbAccount>;
-    fn contracts_mut(&mut self) -> &mut HashMap<B256, Bytecode, SimpleBuildHasher>;
-    fn logs_mut(&self) -> &mut Vec<Log>;
-    fn block_hashes_mut(&self) -> &mut HashMap<BlockNumber, B256>;
-
-    fn read_only_db(&self) -> Option<Box<dyn LoomDatabase<Error = ErrReport>>>;
-    fn ext_db(&self) -> Option<Box<dyn DatabaseRef<Error = TransportError>>>;
-}
-
-pub trait LoomDatabase: DatabaseRef<Error = ErrReport> + LoomDatabaseExt {}
+//
+// pub trait LoomDatabaseExt {
+//     fn accounts(&self) -> HashMap<Address, FastDbAccount>;
+//     fn contracts(&self) -> HashMap<B256, Bytecode, SimpleBuildHasher>;
+//     fn logs(&self) -> Vec<Log>;
+//     fn block_hashes(&self) -> HashMap<BlockNumber, B256>;
+//
+//     fn accounts_mut(&mut self) -> &mut HashMap<Address, FastDbAccount>;
+//     fn contracts_mut(&mut self) -> &mut HashMap<B256, Bytecode, SimpleBuildHasher>;
+//     fn logs_mut(&self) -> &mut Vec<Log>;
+//     fn block_hashes_mut(&self) -> &mut HashMap<BlockNumber, B256>;
+//
+//     fn read_only_db(&self) -> Option<Box<dyn LoomDatabase<Error = ErrReport>>>;
+//     fn ext_db(&self) -> Option<Box<dyn DatabaseRef<Error = TransportError>>>;
+// }
+//
+// pub trait LoomDatabase: DatabaseRef<Error = ErrReport> + LoomDatabaseExt {}
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone, Default)]
 pub struct LoomDB
 where
-    Self: Sized,
+    Self: Sized + Send + Sync,
 {
     pub accounts: HashMap<Address, FastDbAccount>,
     pub contracts: HashMap<B256, Bytecode, SimpleBuildHasher>,
     pub logs: Vec<Log>,
     pub block_hashes: HashMap<BlockNumber, B256>,
     pub read_only_db: Option<Arc<LoomDB>>,
-    pub ext_db: Option<Arc<dyn DatabaseRef<Error = TransportError>>>,
+    pub ext_db: Option<Arc<dyn DatabaseRef<Error = TransportError> + Send + Sync>>,
 }
 
+#[allow(dead_code)]
 impl LoomDB {
     pub fn new() -> Self {
         let mut contracts = HashMap::with_hasher(SimpleBuildHasher::default());
@@ -71,10 +70,10 @@ impl LoomDB {
 
     pub fn with_ext_db<ExtDB>(self, ext_db: ExtDB) -> Self
     where
-        ExtDB: DatabaseRef<Error = TransportError> + 'static,
+        ExtDB: DatabaseRef<Error = TransportError> + Send + Sync + 'static,
         Self: Sized,
     {
-        let ext_db = Arc::new(ext_db) as Arc<dyn DatabaseRef<Error = TransportError>>;
+        let ext_db = Arc::new(ext_db) as Arc<dyn DatabaseRef<Error = TransportError> + Send + Sync>;
         Self { ext_db: Some(ext_db), ..self }
     }
 
@@ -84,7 +83,7 @@ impl LoomDB {
 
     pub fn new_with_ext_db<ExtDB>(db: LoomDB, ext_db: ExtDB) -> Self
     where
-        ExtDB: DatabaseRef<Error = TransportError> + 'static,
+        ExtDB: DatabaseRef<Error = TransportError> + Send + Sync + 'static,
         Self: Sized,
     {
         Self::new().with_ro_db(Some(db)).with_ext_db(ext_db)
@@ -320,7 +319,7 @@ impl DatabaseRef for LoomDB {
     fn block_hash_ref(&self, number: BlockNumber) -> Result<B256, Self::Error> {
         match self.block_hashes.get(&number) {
             Some(entry) => Ok(*entry),
-            None => LoomDBHelper::get_or_fetch_block_hash_ref(&self.read_only_db, &self.ext_db, number),
+            None => LoomDBHelper::get_or_fetch_block_hash(&self.read_only_db, &self.ext_db, number),
         }
     }
 }
@@ -342,12 +341,13 @@ impl Database for LoomDB {
     }
 
     fn code_by_hash(&mut self, code_hash: B256) -> std::result::Result<Bytecode, Self::Error> {
-        let bytecode = if self.contracts.contains_key(&code_hash) {
-            self.contracts.get(&code_hash).cloned()
-        } else {
-            self.contracts.insert(code_hash, LoomDBHelper::get_code_by_hash(&self.read_only_db, code_hash)?).clone()
-        };
-        bytecode.ok_or_eyre("BYTECODE_NOT_FOUND")
+        match self.contracts.entry(code_hash) {
+            Entry::Occupied(entry) => Ok(entry.get().clone()),
+            Entry::Vacant(entry) => {
+                // if you return code bytes when basic fn is called this function is not needed.
+                Ok(entry.insert(LoomDBHelper::get_code_by_hash(&self.read_only_db, code_hash)?).clone())
+            }
+        }
     }
 
     /// Get the value in an account's storage slot.
@@ -387,15 +387,14 @@ impl Database for LoomDB {
     }
 
     fn block_hash(&mut self, number: BlockNumber) -> std::result::Result<B256, Self::Error> {
-        // match self.block_hashes.entry(number) {
-        //     Entry::Occupied(entry) => Ok(*entry.get()),
-        //     Entry::Vacant(entry) => {
-        //         let hash = self.get_or_fetch_block_hash_ref(number)?;
-        //         entry.insert(hash);
-        //         Ok(hash)
-        //     }
-        // }
-        Err(eyre!("NE"))
+        match self.block_hashes.entry(number) {
+            Entry::Occupied(entry) => Ok(*entry.get()),
+            Entry::Vacant(entry) => {
+                let hash = LoomDBHelper::get_or_fetch_block_hash(&self.read_only_db, &self.ext_db, number)?;
+                entry.insert(hash);
+                Ok(hash)
+            }
+        }
     }
 }
 
@@ -403,9 +402,7 @@ impl Database for LoomDB {
 mod test1 {
     use super::GethAccountState;
     use crate::alloydb::AlloyDB;
-    use crate::fast_cache_db::FastCacheDB;
     use crate::loom_db::LoomDB;
-    use crate::LoomInMemoryDB;
     use alloy::eips::BlockNumberOrTag;
     use alloy::primitives::map::HashMap;
     use alloy::primitives::{Address, Bytes, B256, I256, U256};
@@ -415,7 +412,6 @@ mod test1 {
     use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
     use revm::{Database, DatabaseRef};
     use std::collections::BTreeMap;
-    use std::sync::Arc;
 
     #[test]
     fn test_new_with_provider() {

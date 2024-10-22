@@ -6,9 +6,8 @@ use alloy::primitives::BlockNumber;
 use alloy::{
     consensus::constants::KECCAK_EMPTY,
     primitives::{Address, Log, B256, U256},
-    rpc::types::trace::geth::AccountState as GethAccountState,
 };
-use revm::db::{AccountState, EmptyDB};
+use revm::db::AccountState;
 use revm::primitives::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 
@@ -305,9 +304,11 @@ mod tests {
     use std::collections::BTreeMap;
     use std::sync::Arc;
 
-    use super::{EmptyDB, FastCacheDB, GethAccountState};
+    use super::FastCacheDB;
     use crate::in_memory_db::LoomInMemoryDB;
     use alloy::primitives::{Bytes, B256};
+    use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
+    use revm::db::EmptyDB;
     use revm::primitives::{db::Database, AccountInfo, Address, Bytecode, I256, KECCAK_EMPTY, U256};
     use revm::DatabaseRef;
 
