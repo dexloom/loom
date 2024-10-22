@@ -10,7 +10,6 @@ pub use latest_block::LatestBlock;
 pub use market::Market;
 pub use market_state::MarketState;
 pub use pool::{get_protocol_by_factory, AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
-pub use reth_provider::RethAdapter;
 pub use signers::{TxSigner, TxSigners};
 pub use swap::Swap;
 pub use swap_encoder::SwapEncoder;
@@ -40,8 +39,8 @@ mod keystore;
 
 pub mod private;
 
+pub mod config;
 mod datafetcher;
-mod reth_provider;
 mod swap;
 mod swap_encoder;
 pub mod tips;

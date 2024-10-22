@@ -37,7 +37,5 @@ multiple-versions = "allow"
 
 [sources]
 allow-git = [
-    "https://github.com/cakevm/rethdb-dexsync",
-    "https://github.com/dexloom/reth-exex-grpc",
     "https://github.com/paradigmxyz/reth",
 ]

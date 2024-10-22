@@ -118,24 +118,6 @@ impl fmt::Display for SwapLine {
     }
 }
 
-/*
-impl Default for SwapLine {
-    fn default() -> Self {
-        SwapLine {
-            //tokens : Vec::new(),
-            //pools : Vec::new(),
-            path : Default::default(),
-            amount_in : SwapAmountType::NotSet,
-            amount_out : SwapAmountType::NotSet,
-            amounts : None,
-            swap_to : None,
-            gas_used : None,
-        }
-    }
-}
-
- */
-
 impl Hash for SwapLine {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.tokens().hash(state);
@@ -297,25 +279,34 @@ impl SwapLine {
     }
 
     pub fn abs_profit(&self) -> U256 {
-        if let Some(token_in) = self.tokens().first() {
-            if let Some(token_out) = self.tokens().last() {
-                if token_in == token_out {
-                    if let SwapAmountType::Set(amount_in) = self.amount_in {
-                        if let SwapAmountType::Set(amount_out) = self.amount_out {
-                            if amount_out > amount_in {
-                                return amount_out - amount_in;
-                            }
-                        }
-                    }
-                }
-            }
+        let Some(token_in) = self.tokens().first() else {
+            return U256::ZERO;
+        };
+        let Some(token_out) = self.tokens().last() else {
+            return U256::ZERO;
+        };
+        if token_in != token_out {
+            return U256::ZERO;
         }
+        let SwapAmountType::Set(amount_in) = self.amount_in else {
+            return U256::ZERO;
+        };
+        let SwapAmountType::Set(amount_out) = self.amount_out else {
+            return U256::ZERO;
+        };
+        if amount_out > amount_in {
+            return amount_out - amount_in;
+        }
+
         U256::ZERO
     }
 
     pub fn abs_profit_eth(&self) -> U256 {
         let profit = self.abs_profit();
-        self.get_first_token().unwrap().calc_eth_value(profit).unwrap_or(U256::ZERO)
+        let Some(first_token) = self.get_first_token() else {
+            return U256::ZERO;
+        };
+        first_token.calc_eth_value(profit).unwrap_or(U256::ZERO)
     }
 
     pub fn profit(&self) -> Result<I256> {

@@ -6,18 +6,14 @@ rust-version.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-exclude.workspace = true
 
 [dependencies]
-tracing.workspace = true
-revm.workspace = true
-rand.workspace = true
 alloy.workspace = true
-
-eyre.workspace = true
-tokio.workspace = true
-serde = { workspace = true, optional = true}
-serde_json = { workspace = true, optional = true}
+rand.workspace = true
+revm.workspace = true
+serde = { workspace = true, optional = true }
+serde_json = { workspace = true, optional = true }
+tracing.workspace = true
 
 [features]
 serde = ["dep:serde"]
@@ -33,5 +29,5 @@ tracing-subscriber = { workspace = true, features = ["env-filter"]}
 env_logger.workspace = true
 
 [[bench]]
-name = "benchmark"
 harness = false
+name = "benchmark"

@@ -125,13 +125,8 @@ async fn arb_swap_path_merger_worker(
                                     };
 
                                     let mut evm_env = Env::default();
-
-
                                     evm_env.block.number = U256::from(block_header.number + 1);
-                                    let timestamp = block_header.timestamp;
-                                    evm_env.block.timestamp = U256::from(timestamp +12);
-
-
+                                    evm_env.block.timestamp = U256::from(block_header.timestamp + 12);
 
                                     if let Some(db) = compose_data.poststate.clone() {
                                         tokio::task::spawn(
@@ -144,9 +139,7 @@ async fn arb_swap_path_merger_worker(
                                             )
                                         );
                                     }
-
                                     break; // only first
-
                                 }
                                 Err(e)=>{
                                     error!("SwapPath merge error : {} {}", ready_requests.len(), e);
@@ -159,7 +152,6 @@ async fn arb_swap_path_merger_worker(
                     }
                     Err(e)=>{error!("{}",e)}
                 }
-
             }
         }
     }
@@ -218,34 +210,45 @@ impl Actor for ArbSwapPathMergerActor {
 
 #[cfg(test)]
 mod test {
-    use alloy_primitives::U256;
+    use alloy_primitives::{Address, U256};
+    use std::sync::Arc;
 
-    use defi_entities::{Swap, SwapAmountType, SwapLine};
+    use defi_entities::{Swap, SwapAmountType, SwapLine, SwapPath, Token};
     use defi_events::TxComposeData;
 
     #[test]
     pub fn test_sort() {
         let mut ready_requests: Vec<TxComposeData> = Vec::new();
+        let token = Arc::new(Token::new(Address::random()));
 
-        let mut sp0 = SwapLine::new();
-        let mut sp1 = SwapLine::new();
-        //let token = Token::new("0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2".parse::<Address>().unwrap());
-        sp0.amount_in = SwapAmountType::Set(U256::from(1));
-        sp0.amount_out = SwapAmountType::Set(U256::from(2));
-        sp1.amount_in = SwapAmountType::Set(U256::from(10));
-        sp1.amount_out = SwapAmountType::Set(U256::from(20));
-        //sp0.tokens = vec![token.clone(), token.clone()];
-        //sp1.tokens = vec![token.clone(), token.clone()];
+        let sp0 = SwapLine {
+            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![] },
+            amount_in: SwapAmountType::Set(U256::from(1)),
+            amount_out: SwapAmountType::Set(U256::from(2)),
+            ..Default::default()
+        };
+        ready_requests.push(TxComposeData { swap: Swap::BackrunSwapLine(sp0), ..TxComposeData::default() });
 
-        let r0 = TxComposeData { swap: Swap::BackrunSwapLine(sp0), ..TxComposeData::default() };
-        let r1 = TxComposeData { swap: Swap::BackrunSwapLine(sp1), ..TxComposeData::default() };
+        let sp1 = SwapLine {
+            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![] },
+            amount_in: SwapAmountType::Set(U256::from(10)),
+            amount_out: SwapAmountType::Set(U256::from(20)),
+            ..Default::default()
+        };
+        ready_requests.push(TxComposeData { swap: Swap::BackrunSwapLine(sp1), ..TxComposeData::default() });
 
-        ready_requests.push(r0);
-        ready_requests.push(r1);
+        let sp2 = SwapLine {
+            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![] },
+            amount_in: SwapAmountType::Set(U256::from(3)),
+            amount_out: SwapAmountType::Set(U256::from(5)),
+            ..Default::default()
+        };
+        ready_requests.push(TxComposeData { swap: Swap::BackrunSwapLine(sp2), ..TxComposeData::default() });
 
-        ready_requests.sort_by(|r0, r1| r1.swap.abs_profit().cmp(&r0.swap.abs_profit()));
-        for r in ready_requests.iter() {
-            println!("{:?}", r.swap);
-        }
+        ready_requests.sort_by(|a, b| a.swap.abs_profit().cmp(&b.swap.abs_profit()));
+
+        assert_eq!(ready_requests[0].swap.abs_profit(), U256::from(1));
+        assert_eq!(ready_requests[1].swap.abs_profit(), U256::from(2));
+        assert_eq!(ready_requests[2].swap.abs_profit(), U256::from(10));
     }
 }

@@ -6,6 +6,7 @@ use defi_actors::{
     ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateChangeArbActor, StateHealthMonitorActor, StuffingTxMonitorActor,
     SwapRouterActor,
 };
+use defi_entities::config::load_from_file;
 use defi_events::MarketEvents;
 use loom_actors::{Accessor, Actor, Consumer, Producer};
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
@@ -27,13 +28,14 @@ async fn main() -> Result<()> {
     let blockchain = topology.get_blockchain(Some("mainnet".to_string()).as_ref())?;
     let tx_signers = topology.get_signers(Some("env_signer".to_string()).as_ref())?;
 
+    let backrun_config = load_from_file("config.toml".to_string().into()).await?;
     let block_nr = client.get_block_number().await?;
     info!("Block : {}", block_nr);
 
     info!("Creating shared state");
 
     info!("Starting state change arb actor");
-    let mut state_change_arb_actor = StateChangeArbActor::new(client.clone(), true, true);
+    let mut state_change_arb_actor = StateChangeArbActor::new(client.clone(), true, true, backrun_config);
     match state_change_arb_actor
         .access(blockchain.mempool())
         .access(blockchain.latest_block())

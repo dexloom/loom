@@ -1,7 +1,9 @@
 # Define the RUSTFLAGS to treat warnings as errors
 RELEASEFLAGS = -D warnings -C target-cpu=native
 
-# Target to run all tests
+#### Targets ####
+## All targets
+# Target to build the project
 .PHONY: build
 build:
 	cargo build --all
@@ -16,6 +18,23 @@ release:
 maxperf:
 	export RELEASEFLAGS | cargo build --profile maxperf
 
+## Exex gRPC node
+# Target to build the Exex gRPC node
+.PHONY: build-exex-node
+build-exex-node:
+	cargo build --bin exex-grpc-node
+
+# Build release for Exex gRPC node
+.PHONY: release-exex-node
+release-exex-node:
+	export RELEASEFLAGS | cargo build --bin exex-grpc-node --release
+
+# Build optimized release of Exex gRPC node
+.PHONY: maxperf-exex-node
+maxperf-exex-node:
+	export RELEASEFLAGS | cargo build --bin exex-grpc-node --profile maxperf
+
+## Development commands
 # Target to run all tests
 .PHONY: test
 test:
@@ -36,10 +55,25 @@ bench:
 clippy:
 	cargo clippy --all-targets --all-features -- -D warnings
 
+# format loom
+.PHONY: fmt
+fmt:
+	cargo +stable fmt --all
+
 # check files format fmt
 .PHONY: fmt-check
 fmt-check:
 	cargo +stable fmt --all --check
+
+# format toml
+.PHONY: taplo
+taplo:
+	taplo format
+
+# check files format with taplo
+.PHONY: taplo-check
+taplo-check:
+	taplo format --check
 
 # check licences
 .PHONY: deny-check
@@ -51,11 +85,7 @@ deny-check:
 pre-release:
 	cargo +stable fmt --all --check
 	cargo clippy --all-targets --all-features -- -D warnings
-
-# format loom
-.PHONY: fmt
-fmt:
-	cargo +stable fmt --all
+	taplo format --check
 
 # replayer test
 .PHONY: replayer

@@ -1,0 +1,14 @@
+# See https://pre-commit.com for more information
+repos:
+  - repo: local
+    hooks:
+      - id: make-fmt
+        name: make-fmt
+        language: system
+        entry: make fmt
+        pass_filenames: false
+      - id: make-taplo
+        name: make-taplo
+        language: system
+        entry: make taplo
+        pass_filenames: false

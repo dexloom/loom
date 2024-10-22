@@ -186,9 +186,7 @@ impl UniswapV2Pool {
     fn fetch_reserves(&self, state_db: &LoomInMemoryDB, env: Env) -> Result<(U256, U256)> {
         let (reserve_0, reserve_1) = match self.reserves_cell {
             Some(cell) => {
-                let Ok(storage_value) = state_db.storage_ref(self.get_address(), cell) else {
-                    return Err(eyre!("FAILED_GETTING_STORAGE_CELL"));
-                };
+                let Ok(storage_value) = state_db.storage_ref(self.get_address(), cell);
                 Self::storage_to_reserves(storage_value)
             }
             None => UniswapV2StateReader::get_reserves(state_db, env, self.get_address())?,

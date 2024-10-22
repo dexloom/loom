@@ -3,11 +3,15 @@ use alloy::providers::ProviderBuilder;
 use clap::{CommandFactory, FromArgMatches, Parser};
 use defi_actors::{mempool_worker, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
-use defi_entities::RethAdapter;
 use loom_topology::TopologyConfig;
+use reth::builder::engine_tree_config::TreeConfig;
+use reth::builder::EngineNodeLauncher;
 use reth::chainspec::EthereumChainSpecParser;
 use reth::cli::Cli;
+use reth_node_ethereum::node::EthereumAddOns;
 use reth_node_ethereum::EthereumNode;
+use reth_provider::providers::BlockchainProvider2;
+use tracing::error;
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter, Layer};
@@ -24,26 +28,36 @@ fn main() -> eyre::Result<()> {
     let app_args = AppArgs::from_arg_matches_mut(&mut AppArgs::command().ignore_errors(true).get_matches())?;
     match app_args.command {
         Command::Node(_) => Cli::<EthereumChainSpecParser, LoomArgs>::parse().run(|builder, loom_args: LoomArgs| async move {
-            let topology_config = TopologyConfig::load_from_file(loom_args.loom_config)?;
+            let topology_config = TopologyConfig::load_from_file(loom_args.loom_config.clone())?;
 
             let bc = Blockchain::new(builder.config().chain.chain.id());
             let bc_clone = bc.clone();
 
+            let engine_tree_config = TreeConfig::default()
+                .with_persistence_threshold(loom_args.persistence_threshold)
+                .with_memory_block_buffer_target(loom_args.memory_block_buffer_target);
             let handle = builder
-                .node(EthereumNode::default())
+                .with_types_and_provider::<EthereumNode, BlockchainProvider2<_>>()
+                .with_components(EthereumNode::components())
+                .with_add_ons(EthereumAddOns::default())
                 .install_exex("loom-exex", |node_ctx| loom::init(node_ctx, bc_clone, NodeBlockActorConfig::all_enabled()))
-                .launch()
+                .launch_with_fn(|builder| {
+                    let launcher = EngineNodeLauncher::new(builder.task_executor().clone(), builder.config().datadir(), engine_tree_config);
+                    builder.launch_with(launcher)
+                })
                 .await?;
-
-            let reth_adapter = RethAdapter::new_with_node(handle.node.clone());
 
             let mempool = handle.node.pool.clone();
             let ipc_provider = ProviderBuilder::new().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;
-
-            tokio::task::spawn(loom::start_loom(ipc_provider, bc.clone(), topology_config, reth_adapter));
+            let bc_clone = bc.clone();
+            tokio::task::spawn(async move {
+                if let Err(e) = loom::start_loom(ipc_provider, bc_clone, topology_config, loom_args.loom_config.clone()).await {
+                    error!("Error starting loom: {:?}", e);
+                }
+            });
             tokio::task::spawn(mempool_worker(mempool, bc));
 
-            handle.wait_for_node_exit().await
+            handle.node_exit_future.await
         }),
         Command::Remote(_loom_args) => {
             // start remote mode without exex

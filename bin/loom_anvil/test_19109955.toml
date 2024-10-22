@@ -27,7 +27,7 @@ weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH"
 usdt = { address = "0xdAC17F958D2ee523a2206206994597C13D831ec7", symbol = "USDT", decimals = 6, basic = true, middle = false }
 
 
-[results]
+[assertions]
 swaps_encoded = 2
 swaps_ok = 1
 best_profit_eth = 0.00519

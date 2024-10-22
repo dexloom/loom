@@ -4,7 +4,7 @@ on:
   push:
     branches: [main]
   pull_request_target:
-    types: [opened,synchronize,reopened]
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -21,6 +21,9 @@ jobs:
       RUST_LOG: info
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
@@ -39,10 +42,27 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
 
       - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
       - run: make fmt-check
+
+  taplo:
+    if: github.repository == 'dexloom/loom'
+    name: make taplo-check
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@clippy
+      - run: cargo install taplo-cli --version ^0.9 --locked
+      - run: make taplo-check
 
   clippy:
     if: github.repository == 'dexloom/loom'
@@ -51,19 +71,29 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@clippy
+        with:
+          toolchain: "1.82"
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
 
       - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
-      - run: make clippy
+      # workaround for latest stable rust
+      - run: cargo +1.82 clippy --all-targets --all-features -- -D warnings
 
   deny:
     if: github.repository == 'dexloom/loom'
     name: cargo deny check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: EmbarkStudios/cargo-deny-action@v1
         with:
           log-level: warn

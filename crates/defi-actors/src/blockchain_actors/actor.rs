@@ -3,22 +3,23 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use crate::backrun::BlockStateChangeProcessorActor;
-use crate::market::DbPoolLoaderOneShotActor;
 use crate::{
-    ArbSwapPathMergerActor, BlockHistoryActor, CurvePoolLoaderOneShotActor, DiffPathMergerActor, EvmEstimatorActor,
+    ArbSwapPathMergerActor, BackrunConfig, BlockHistoryActor, CurvePoolLoaderOneShotActor, DiffPathMergerActor, EvmEstimatorActor,
     FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderOneShotActor, InitializeSignersOneShotBlockingActor,
     MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor,
     NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PoolLoaderActor, PriceActor,
-    RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, SwapRouterActor, TxSignersActor,
+    RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, StuffingTxMonitorActor,
+    SwapRouterActor, TxSignersActor,
 };
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
+use defi_address_book::TokenAddress;
 use defi_blockchain::Blockchain;
 use defi_entities::required_state::RequiredState;
-use defi_entities::{PoolClass, RethAdapter, TxSigners};
+use defi_entities::{PoolClass, TxSigners};
 use defi_pools::PoolsConfig;
 use eyre::{eyre, Result};
 use flashbots::client::RelayConfig;
@@ -26,9 +27,7 @@ use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_multicaller::MulticallerSwapEncoder;
-use loom_utils::tokens::{ETH_NATIVE_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
-use reth_node_api::{FullNodeComponents, NodeAddOns};
 
 pub struct BlockchainActors<P, T> {
     provider: P,
@@ -175,7 +174,7 @@ where
         for address in address_vec {
             //            market_state_preloader = market_state_preloader.with_new_account(address, 0, NWETH::from_float(10.0), None);
             market_state_preloader = market_state_preloader.with_copied_account(address).with_token_balance(
-                ETH_NATIVE_ADDRESS,
+                TokenAddress::ETH_NATIVE,
                 address,
                 NWETH::from_float(10.0),
             );
@@ -190,8 +189,11 @@ where
             loom_multicaller::MulticallerDeployer::new().account_info().code,
         );
 
-        market_state_preloader =
-            market_state_preloader.with_token_balance(WETH_ADDRESS, loom_multicaller::DEFAULT_VIRTUAL_ADDRESS, NWETH::from_float(10.0));
+        market_state_preloader = market_state_preloader.with_token_balance(
+            TokenAddress::WETH,
+            loom_multicaller::DEFAULT_VIRTUAL_ADDRESS,
+            NWETH::from_float(10.0),
+        );
 
         self.mutlicaller_address = Some(loom_multicaller::DEFAULT_VIRTUAL_ADDRESS);
 
@@ -312,7 +314,7 @@ where
 
     /// Starts stuffing tx monitor
     pub fn with_health_monitor_stuffing_tx(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(StateHealthMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(StuffingTxMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
 
@@ -392,9 +394,9 @@ where
     }
 
     /// Start backrun on block
-    pub fn with_backrun_block(&mut self) -> Result<&mut Self> {
+    pub fn with_backrun_block(&mut self, backrun_config: BackrunConfig) -> Result<&mut Self> {
         if !self.has_state_update {
-            self.actor_manager.start(StateChangeArbSearcherActor::new(true).on_bc(&self.bc))?;
+            self.actor_manager.start(StateChangeArbSearcherActor::new(backrun_config).on_bc(&self.bc))?;
             self.has_state_update = true
         }
         self.actor_manager.start(BlockStateChangeProcessorActor::new().on_bc(&self.bc))?;
@@ -402,9 +404,9 @@ where
     }
 
     /// Start backrun for pending txs
-    pub fn with_backrun_mempool(&mut self) -> Result<&mut Self> {
+    pub fn with_backrun_mempool(&mut self, backrun_config: BackrunConfig) -> Result<&mut Self> {
         if !self.has_state_update {
-            self.actor_manager.start(StateChangeArbSearcherActor::new(true).on_bc(&self.bc))?;
+            self.actor_manager.start(StateChangeArbSearcherActor::new(backrun_config).on_bc(&self.bc))?;
             self.has_state_update = true
         }
         self.actor_manager.start(PendingTxStateChangeProcessorActor::new(self.provider.clone()).on_bc(&self.bc))?;
@@ -412,8 +414,8 @@ where
     }
 
     /// Start backrun for blocks and pending txs
-    pub async fn with_backrun(&mut self) -> Result<&mut Self> {
-        self.with_backrun_block()?.with_backrun_mempool()
+    pub async fn with_backrun(&mut self, backrun_config: BackrunConfig) -> Result<&mut Self> {
+        self.with_backrun_block(backrun_config.clone())?.with_backrun_mempool(backrun_config)
     }
 
     /// Start influxdb writer
@@ -425,19 +427,6 @@ where
     /// Start block latency recorder
     pub fn with_block_latency_recorder(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(BlockLatencyRecorderActor::new().on_bc(&self.bc))?;
-        Ok(self)
-    }
-
-    pub fn with_pool_db_loader<Node, AddOns>(
-        &mut self,
-        reth_adapter: RethAdapter<Node, AddOns>,
-        pools_config: PoolsConfig,
-    ) -> Result<&mut Self>
-    where
-        Node: FullNodeComponents + Clone,
-        AddOns: NodeAddOns<Node> + Clone,
-    {
-        self.actor_manager.start(DbPoolLoaderOneShotActor::new(reth_adapter, pools_config).on_bc(&self.bc))?;
         Ok(self)
     }
 }

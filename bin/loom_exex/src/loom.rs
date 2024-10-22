@@ -3,14 +3,15 @@ use alloy::primitives::Address;
 use alloy::providers::Provider;
 use alloy::transports::Transport;
 use debug_provider::DebugProviderExt;
-use defi_actors::{loom_exex, BlockchainActors, NodeBlockActorConfig};
+use defi_actors::{loom_exex, BackrunConfigSection, BlockchainActors, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
-use defi_entities::{PoolClass, RethAdapter};
+use defi_entities::config::load_from_file;
+use defi_entities::PoolClass;
 use defi_pools::PoolsConfig;
 use eyre::OptionExt;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use reth_exex::ExExContext;
-use reth_node_api::{FullNodeComponents, NodeAddOns};
+use reth_node_api::FullNodeComponents;
 use std::env;
 use std::future::Future;
 use tracing::info;
@@ -23,17 +24,15 @@ pub async fn init<Node: FullNodeComponents>(
     Ok(loom_exex(ctx, bc, config.clone()))
 }
 
-pub async fn start_loom<P, T, Node, AddOns>(
+pub async fn start_loom<P, T>(
     provider: P,
     bc: Blockchain,
     topology_config: TopologyConfig,
-    reth_adapter: RethAdapter<Node, AddOns>,
+    loom_config_filepath: String,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-    Node: FullNodeComponents + Clone,
-    AddOns: NodeAddOns<Node> + Clone,
 {
     let chain_id = provider.get_chain_id().await?;
 
@@ -63,6 +62,8 @@ where
 
     let pools_config = PoolsConfig::disable_all().enable(PoolClass::UniswapV2).enable(PoolClass::UniswapV3);
 
+    let backrun_config = load_from_file::<BackrunConfigSection>(loom_config_filepath.into()).await?.backrun_strategy;
+
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), relays);
     bc_actors
         .mempool()?
@@ -85,12 +86,9 @@ where
         .with_swap_path_merger()? // load merger for multiple swap paths
         .with_diff_path_merger()? // load merger for different swap paths
         .with_same_path_merger()? // load merger for same swap paths with different stuffing txes
-        .with_backrun_block()? // load backrun searcher for incoming block
-        .with_backrun_mempool()? // load backrun searcher for mempool txes
+        .with_backrun_block(backrun_config.clone())? // load backrun searcher for incoming block
+        .with_backrun_mempool(backrun_config)? // load backrun searcher for mempool txes
     ;
-    if env::var("EXPERIMENTAL").unwrap_or_default() != "" {
-        bc_actors.with_pool_db_loader(reth_adapter, pools_config)?; // EXPERIMENTAL load pools directly from db. Currently, does not add state + swap paths
-    }
 
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors

@@ -14,7 +14,7 @@ pub struct TestConfig {
     pub pools: HashMap<String, PoolConfig>,
     pub txs: HashMap<String, TransactionConfig>,
     pub tokens: HashMap<String, TokenConfig>,
-    pub results: Option<ResultsConfig>,
+    pub assertions: AssertionsConfig,
 }
 
 fn default_true() -> bool {
@@ -23,7 +23,7 @@ fn default_true() -> bool {
 
 #[allow(dead_code)]
 #[derive(Default, Deserialize, Debug, Clone)]
-pub struct ResultsConfig {
+pub struct AssertionsConfig {
     pub swaps_encoded: Option<usize>,
     pub swaps_ok: Option<usize>,
     pub best_profit_eth: Option<f64>,
@@ -114,15 +114,15 @@ tx_2 = { hash = "0x1ec982c2d4eb5475192b26f7208b797328eab88f8e5be053f797f74bcb87a
 [tokens]
 weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
 
-[results]
+[assertions]
 swaps_encoded = 14
 swaps_ok = 11
 best_profit_eth = 181.37
         "#;
         let config: TestConfig = toml::from_str(cfg).unwrap();
         assert_eq!(config.settings.block, 19101579);
-        assert_eq!(config.results.clone().unwrap_or_default().swaps_encoded.unwrap_or_default(), 14);
-        assert_eq!(config.results.clone().unwrap_or_default().swaps_ok.unwrap_or_default(), 11);
-        assert_eq!(config.results.clone().unwrap_or_default().best_profit_eth.unwrap_or_default(), 181.37);
+        assert_eq!(config.assertions.swaps_encoded.unwrap_or_default(), 14);
+        assert_eq!(config.assertions.swaps_ok.unwrap_or_default(), 11);
+        assert_eq!(config.assertions.best_profit_eth.unwrap_or_default(), 181.37);
     }
 }

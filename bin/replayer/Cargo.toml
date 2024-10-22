@@ -9,26 +9,27 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
-tokio.workspace = true
+clap.workspace = true
 env_logger.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
 eyre.workspace = true
 futures.workspace = true
-clap.workspace = true
 serde.workspace = true
+tokio.workspace = true
 toml.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
 
 debug-provider.workspace = true
 
+defi-actors.workspace = true
+defi-address-book.workspace = true
+defi-blockchain.workspace = true
+defi-entities.workspace = true
+defi-events.workspace = true
+defi-pools.workspace = true
+defi-types.workspace = true
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
-defi-entities.workspace = true
-defi-types.workspace = true
-defi-actors.workspace = true
-defi-pools.workspace = true
-defi-events.workspace = true
-defi-blockchain.workspace = true
 loom-utils.workspace = true
 
 
@@ -36,4 +37,3 @@ loom-multicaller.workspace = true
 
 alloy.workspace = true
 url = "2.5.2"
-

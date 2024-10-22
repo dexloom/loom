@@ -6,33 +6,32 @@ rust-version.workspace = true
 license.workspace = true
 homepage.workspace = true
 repository.workspace = true
-exclude.workspace = true
 
 [dependencies]
 lazy_static.workspace = true
 
 
-defi-entities.workspace = true
 defi-abi.workspace = true
-defi-types.workspace = true
 defi-address-book.workspace = true
-loom-utils.workspace = true
+defi-entities.workspace = true
+defi-types.workspace = true
 loom-revm-db.workspace = true
+loom-utils.workspace = true
 
 alloy-primitives.workspace = true
-alloy-sol-macro.workspace = true
-alloy-sol-types.workspace = true
 alloy-provider.workspace = true
 alloy-rpc-types.workspace = true
 alloy-rpc-types-trace.workspace = true
+alloy-sol-macro.workspace = true
+alloy-sol-types.workspace = true
 alloy-transport.workspace = true
 
-revm.workspace = true
 reth-storage-api.workspace = true
+revm.workspace = true
 
 eyre.workspace = true
-tracing.workspace = true
 strum.workspace = true
+tracing.workspace = true
 
 uniswap_v3_math.workspace = true
 
@@ -41,11 +40,11 @@ debug-calculation = []
 
 
 [dev-dependencies]
-tokio.workspace = true
-env_logger.workspace = true
-defi-entities.workspace = true
 alloy-rpc-client.workspace = true
 alloy-transport.workspace = true
-rand.workspace = true
-url.workspace = true
 debug-provider.workspace = true
+defi-entities.workspace = true
+env_logger.workspace = true
+rand.workspace = true
+tokio.workspace = true
+url.workspace = true
