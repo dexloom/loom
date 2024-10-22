@@ -24,40 +24,35 @@ async fn router_task(
 ) -> Result<()> {
     debug!("Routing started {}", route_request.swap);
 
-    let signer = signers.read().await.get_random_signer();
-    match signer {
-        Some(signer) => {
-            let nonce = account_monitor.read().await.get_account(&signer.address()).unwrap().get_nonce();
-            let eth_balance = account_monitor.read().await.get_account(&signer.address()).unwrap().get_eth_balance();
+    let signer = match route_request.eoa {
+        Some(eoa) => signers.read().await.get_signer_by_address(&eoa)?,
+        None => signers.read().await.get_random_signer().ok_or(eyre!("NO_SIGNER"))?,
+    };
 
-            if route_request.next_block_base_fee == 0 {
-                error!("Block base fee is not set");
-                Err(eyre!("NO_BLOCK_GAS_FEE"))
-            } else {
-                let gas = (route_request.swap.pre_estimate_gas()) * 2;
-                let value = U256::ZERO;
+    let nonce = account_monitor.read().await.get_account(&signer.address()).unwrap().get_nonce();
+    let eth_balance = account_monitor.read().await.get_account(&signer.address()).unwrap().get_eth_balance();
 
-                let priority_gas_fee: u64 = if route_request.next_block_base_fee > *PRIORITY_GAS_FEE {
-                    *PRIORITY_GAS_FEE
-                } else {
-                    route_request.next_block_base_fee
-                };
+    if route_request.next_block_base_fee == 0 {
+        error!("Block base fee is not set");
+        Err(eyre!("NO_BLOCK_GAS_FEE"))
+    } else {
+        let gas = (route_request.swap.pre_estimate_gas()) * 2;
+        let value = U256::ZERO;
 
-                let estimate_request =
-                    TxComposeData { signer: Some(signer), nonce, eth_balance, gas, priority_gas_fee, value, ..route_request };
+        let priority_gas_fee: u64 =
+            if route_request.next_block_base_fee > *PRIORITY_GAS_FEE { *PRIORITY_GAS_FEE } else { route_request.next_block_base_fee };
 
-                let estimate_request = MessageTxCompose::estimate(estimate_request);
+        let estimate_request = TxComposeData { signer: Some(signer), nonce, eth_balance, gas, priority_gas_fee, value, ..route_request };
 
-                match compose_channel_tx.send(estimate_request).await {
-                    Err(e) => {
-                        error!("{e}");
-                        Err(eyre!(e))
-                    }
-                    Ok(_) => Ok(()),
-                }
+        let estimate_request = MessageTxCompose::estimate(estimate_request);
+
+        match compose_channel_tx.send(estimate_request).await {
+            Err(e) => {
+                error!("{e}");
+                Err(eyre!(e))
             }
+            Ok(_) => Ok(()),
         }
-        None => Err(eyre!("NO_SIGNER_AVAILABLE")),
     }
 }
 

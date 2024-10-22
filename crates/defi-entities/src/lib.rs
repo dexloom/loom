@@ -39,6 +39,7 @@ mod keystore;
 
 pub mod private;
 
+pub mod config;
 mod datafetcher;
 mod swap;
 mod swap_encoder;

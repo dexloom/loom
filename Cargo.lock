@@ -2392,6 +2392,7 @@ dependencies = [
  "reth-rpc-types-compat",
  "reth-transaction-pool",
  "revm",
+ "serde",
  "tokio",
  "tracing",
 ]
@@ -2456,7 +2457,9 @@ dependencies = [
  "sha2 0.10.8",
  "strum",
  "strum_macros",
+ "thiserror",
  "tokio",
+ "toml",
  "tracing",
 ]
 

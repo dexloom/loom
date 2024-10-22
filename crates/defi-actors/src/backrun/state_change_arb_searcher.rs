@@ -13,8 +13,10 @@ use tracing::warn;
 use tracing::{debug, error, info, trace};
 
 use crate::backrun::SwapCalculator;
+use crate::BackrunConfig;
 use alloy_primitives::utils::parse_units;
 use defi_blockchain::Blockchain;
+use defi_entities::config::StrategyConfig;
 use defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData};
 use defi_types::SwapError;
@@ -24,7 +26,7 @@ use loom_actors_macros::{Accessor, Consumer, Producer};
 
 async fn state_change_arb_searcher_task(
     thread_pool: Arc<ThreadPool>,
-    smart: bool,
+    backrun_config: BackrunConfig,
     state_update_event: StateUpdateEvent,
     market: SharedState<Market>,
     swap_request_tx: Broadcaster<MessageTxCompose>,
@@ -140,6 +142,7 @@ async fn state_change_arb_searcher_task(
         match swap_line_result {
             Ok(swap_line) => {
                 let encode_request = TxCompose::Route(TxComposeData {
+                    eoa: backrun_config.eoa(),
                     next_block_number: state_update_event.next_block_number,
                     next_block_timestamp: state_update_event.next_block_timestamp,
                     next_block_base_fee: state_update_event.next_base_fee,
@@ -154,7 +157,7 @@ async fn state_change_arb_searcher_task(
                     ..TxComposeData::default()
                 });
 
-                if !smart || best_answers.check(&encode_request) {
+                if !backrun_config.smart() || best_answers.check(&encode_request) {
                     if let Err(e) = swap_request_tx_clone.send(Message::new(encode_request)).await {
                         error!("swap_request_tx_clone.send {}", e)
                     }
@@ -184,7 +187,7 @@ async fn state_change_arb_searcher_task(
 }
 
 pub async fn state_change_arb_searcher_worker(
-    smart: bool,
+    backrun_config: BackrunConfig,
     market: SharedState<Market>,
     search_request_rx: Broadcaster<StateUpdateEvent>,
     swap_request_tx: Broadcaster<MessageTxCompose>,
@@ -204,7 +207,7 @@ pub async fn state_change_arb_searcher_worker(
                     tokio::task::spawn(
                         state_change_arb_searcher_task(
                             thread_pool.clone(),
-                            smart,
+                            backrun_config.clone(),
                             msg,
                             market.clone(),
                             swap_request_tx.clone(),
@@ -223,7 +226,7 @@ lazy_static! {
 
 #[derive(Accessor, Consumer, Producer)]
 pub struct StateChangeArbSearcherActor {
-    smart: bool,
+    backrun_config: BackrunConfig,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[consumer]
@@ -235,8 +238,8 @@ pub struct StateChangeArbSearcherActor {
 }
 
 impl StateChangeArbSearcherActor {
-    pub fn new(smart: bool) -> StateChangeArbSearcherActor {
-        StateChangeArbSearcherActor { smart, market: None, state_update_rx: None, compose_tx: None, pool_health_monitor_tx: None }
+    pub fn new(backrun_config: BackrunConfig) -> StateChangeArbSearcherActor {
+        StateChangeArbSearcherActor { backrun_config, market: None, state_update_rx: None, compose_tx: None, pool_health_monitor_tx: None }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -253,7 +256,7 @@ impl StateChangeArbSearcherActor {
 impl Actor for StateChangeArbSearcherActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_change_arb_searcher_worker(
-            self.smart,
+            self.backrun_config.clone(),
             self.market.clone().unwrap(),
             self.state_update_rx.clone().unwrap(),
             self.compose_tx.clone().unwrap(),
