@@ -210,13 +210,19 @@ async fn estimator_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Send 
                 match compose_request_msg {
                     Ok(compose_request) =>{
                         if let TxCompose::Estimate(estimate_request) = compose_request.inner {
-                            tokio::task::spawn(
-                                estimator_task(
-                                    estimate_request,
-                                    client.clone(),
-                                    encoder.clone(),
-                                    compose_channel_tx.clone(),
-                                )
+                            let compose_channel_tx_cloned = compose_channel_tx.clone();
+                            let client_cloned = client.clone();
+                            let encoder_cloned = encoder.clone();
+                            tokio::task::spawn(async move {
+                                if let Err(e) = estimator_task(
+                                    estimate_request.clone(),
+                                    client_cloned,
+                                    encoder_cloned,
+                                    compose_channel_tx_cloned,
+                                ).await {
+                                        error!("Error in Geth estimator_task: {:?}", e);
+                                    }
+                                }
                             );
                         }
                     }
