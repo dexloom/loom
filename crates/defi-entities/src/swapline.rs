@@ -303,7 +303,10 @@ impl SwapLine {
 
     pub fn abs_profit_eth(&self) -> U256 {
         let profit = self.abs_profit();
-        self.get_first_token().unwrap().calc_eth_value(profit).unwrap_or(U256::ZERO)
+        let Some(first_token) = self.get_first_token() else {
+            return U256::ZERO;
+        };
+        first_token.calc_eth_value(profit).unwrap_or(U256::ZERO)
     }
 
     pub fn profit(&self) -> Result<I256> {

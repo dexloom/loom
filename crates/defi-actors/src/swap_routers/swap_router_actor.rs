@@ -1,19 +1,12 @@
-use alloy_primitives::utils::parse_units;
-use alloy_primitives::U256;
 use defi_blockchain::Blockchain;
 use defi_entities::{AccountNonceAndBalanceState, TxSigners};
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData};
 use eyre::{eyre, Result};
-use lazy_static::lazy_static;
 use loom_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error, info};
-
-lazy_static! {
-    static ref PRIORITY_GAS_FEE: u64 = parse_units("9", "gwei").unwrap().get_absolute().to::<u64>();
-}
 
 /// encoder task performs encode for request
 async fn router_task(
@@ -34,25 +27,20 @@ async fn router_task(
 
     if route_request.next_block_base_fee == 0 {
         error!("Block base fee is not set");
-        Err(eyre!("NO_BLOCK_GAS_FEE"))
-    } else {
-        let gas = (route_request.swap.pre_estimate_gas()) * 2;
-        let value = U256::ZERO;
+        return Err(eyre!("NO_BLOCK_GAS_FEE"));
+    }
 
-        let priority_gas_fee: u64 =
-            if route_request.next_block_base_fee > *PRIORITY_GAS_FEE { *PRIORITY_GAS_FEE } else { route_request.next_block_base_fee };
+    let gas = (route_request.swap.pre_estimate_gas()) * 2;
 
-        let estimate_request = TxComposeData { signer: Some(signer), nonce, eth_balance, gas, priority_gas_fee, value, ..route_request };
+    let estimate_request = TxComposeData { signer: Some(signer), nonce, eth_balance, gas, ..route_request };
+    let estimate_request = MessageTxCompose::estimate(estimate_request);
 
-        let estimate_request = MessageTxCompose::estimate(estimate_request);
-
-        match compose_channel_tx.send(estimate_request).await {
-            Err(e) => {
-                error!("{e}");
-                Err(eyre!(e))
-            }
-            Ok(_) => Ok(()),
+    match compose_channel_tx.send(estimate_request).await {
+        Err(e) => {
+            error!("{e}");
+            Err(eyre!(e))
         }
+        Ok(_) => Ok(()),
     }
 }
 
