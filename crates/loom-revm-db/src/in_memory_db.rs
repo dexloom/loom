@@ -90,6 +90,7 @@ impl LoomInMemoryDB {
         db
     }
 
+    #[allow(irrefutable_let_patterns)]
     pub fn apply_geth_update(&mut self, update: BTreeMap<Address, GethAccountState>) {
         for (addr, acc_state) in update {
             trace!("apply_geth_update {} is code {} storage_len {} ", addr, acc_state.code.is_some(), acc_state.storage.len());
@@ -99,6 +100,7 @@ impl LoomInMemoryDB {
                     error!("apply_geth_update :{}", e);
                 }
             }
+
             if let Ok(account) = self.load_account(addr) {
                 if let Some(code) = acc_state.code.clone() {
                     let bytecode = Bytecode::new_raw(code);

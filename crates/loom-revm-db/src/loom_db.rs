@@ -48,7 +48,7 @@ where
     pub logs: Vec<Log>,
     pub block_hashes: HashMap<BlockNumber, B256>,
     pub read_only_db: Option<Arc<LoomDB>>,
-    #[skip]
+    #[cfg_attr(feature = "serde", serde(skip))]
     pub ext_db: Option<Arc<dyn DatabaseRef<Error = TransportError> + Send + Sync>>,
 }
 

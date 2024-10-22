@@ -8,6 +8,8 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+eyre.workspace = true
+tokio.workspace = true
 alloy.workspace = true
 rand.workspace = true
 revm.workspace = true
@@ -25,7 +27,7 @@ url.workspace = true
 chrono.workspace = true
 criterion.workspace = true
 tracing.workspace = true
-tracing-subscriber = { workspace = true, features = ["env-filter"]}
+tracing-subscriber = { workspace = true, features = ["env-filter"] }
 env_logger.workspace = true
 
 [[bench]]
