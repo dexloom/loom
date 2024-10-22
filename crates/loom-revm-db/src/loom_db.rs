@@ -408,7 +408,6 @@ mod test1 {
     use alloy::primitives::{Address, Bytes, B256, I256, U256};
     use alloy::providers::{Provider, ProviderBuilder};
     use eyre::ErrReport;
-    use revm::db::EmptyDB;
     use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
     use revm::{Database, DatabaseRef};
     use std::collections::BTreeMap;
@@ -422,7 +421,6 @@ mod test1 {
 
         rt.block_on(async move {
             let test_addr = Address::parse_checksummed("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", None).unwrap();
-            let block = provider.get_block_number().await?;
 
             let balance = provider.get_balance(test_addr).await?;
 
@@ -446,7 +444,6 @@ mod test1 {
 
         rt.block_on(async move {
             let test_addr = Address::parse_checksummed("0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266", None).unwrap();
-            let block = provider.get_block_number().await?;
 
             let balance = provider.get_balance(test_addr).await?;
 

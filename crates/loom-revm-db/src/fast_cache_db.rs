@@ -360,15 +360,12 @@ mod tests {
 
         new_state.replace_account_storage(account, hm).unwrap();
 
-        //TODO : Restore
-        /*let mut new_state = new_state.merge();
+        let mut new_state = new_state.merge();
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce);
-        assert_eq!(new_state.storage(account, key0), Ok(value0));
-        assert_eq!(new_state.storage(account, key1), Ok(value1));
+        assert_eq!(new_state.storage(account, key0).unwrap(), value0);
+        assert_eq!(new_state.storage(account, key1).unwrap(), value1);
         assert_eq!(new_state.accounts.len(), 1);
-
-         */
     }
 
     #[test]
