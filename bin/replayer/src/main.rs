@@ -12,6 +12,7 @@ use url::Url;
 
 use debug_provider::HttpCachedTransport;
 use defi_actors::{BlockchainActors, NodeBlockPlayerActor};
+use defi_address_book::{TokenAddress, UniswapV3PoolAddress};
 use defi_blockchain::Blockchain;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{PoolClass, Swap, SwapAmountType, SwapLine};
@@ -19,7 +20,6 @@ use defi_events::{MessageTxCompose, TxComposeData};
 use defi_pools::state_readers::ERC20StateReader;
 use loom_multicaller::EncoderHelper;
 use loom_utils::evm::env_for_block;
-use loom_utils::tokens::{USDC_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
 use tracing::{debug, error, info};
 use tracing_subscriber::layer::SubscriberExt;
@@ -59,11 +59,10 @@ async fn main() -> Result<()> {
     // new blockchain
     let bc = Blockchain::new(1);
 
-    const POOL_ADDRESS: Address = address!("88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640");
     const TARGET_ADDRESS: Address = address!("A69babEF1cA67A37Ffaf7a485DfFF3382056e78C");
 
     let mut required_state = RequiredState::new();
-    required_state.add_call(WETH_ADDRESS, EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS));
+    required_state.add_call(TokenAddress::WETH, EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS));
 
     // instead fo code above
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), vec![]);
@@ -71,7 +70,7 @@ async fn main() -> Result<()> {
         .with_nonce_and_balance_monitor_only_events()?
         .initialize_signers_with_anvil()?
         .with_market_state_preloader_virtual(vec![])?
-        .with_preloaded_state(vec![(POOL_ADDRESS, PoolClass::UniswapV3)], Some(required_state))?
+        .with_preloaded_state(vec![(UniswapV3PoolAddress::USDC_WETH_500, PoolClass::UniswapV3)], Some(required_state))?
         .with_block_history()?
         .with_swap_encoder(None)?
         .with_evm_estimator()?;
@@ -105,7 +104,7 @@ async fn main() -> Result<()> {
                         cur_header = header.clone();
 
                         if header.number % 10 == 0 {
-                            let swap_path = market.read().await.swap_path(vec![WETH_ADDRESS, USDC_ADDRESS], vec![POOL_ADDRESS])?;
+                            let swap_path = market.read().await.swap_path(vec![TokenAddress::WETH, TokenAddress::USDC], vec![UniswapV3PoolAddress::USDC_WETH_500])?;
                             let mut swap_line = SwapLine::from(swap_path);
                             swap_line.amount_in = SwapAmountType::Set( NWETH::from_float(0.1));
                             swap_line.gas_used = Some(300000);
@@ -166,17 +165,17 @@ async fn main() -> Result<()> {
                         let mut state_db = market_state.read().await.state_db.clone();
                         state_db.apply_geth_update_vec(state_update.state_update);
 
-                        if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), WETH_ADDRESS, TARGET_ADDRESS ) {
+                        if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddress::WETH, TARGET_ADDRESS ) {
                             info!("------Balance of {} : {}", TARGET_ADDRESS, balance);
-                            let fetched_balance = CallBuilder::new_raw(node_provider.clone(), EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS)).to(WETH_ADDRESS).block(cur_header.number.into()).call().await?;
+                            let fetched_balance = CallBuilder::new_raw(node_provider.clone(), EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS)).to(TokenAddress::WETH).block(cur_header.number.into()).call().await?;
 
                             let fetched_balance = U256::from_be_slice(fetched_balance.to_vec().as_slice());
                             if fetched_balance != balance {
                                 error!("Balance is wrong {:#x} need {:#x}", balance, fetched_balance);
                             }
                         }
-                        if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), WETH_ADDRESS, POOL_ADDRESS ) {
-                            info!("------Balance of {} : {}", POOL_ADDRESS, balance);
+                        if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddress::WETH, UniswapV3PoolAddress::USDC_WETH_500 ) {
+                            info!("------Balance of {} : {}", UniswapV3PoolAddress::USDC_WETH_500, balance);
                         }
 
 

@@ -4,7 +4,7 @@ use std::process::exit;
 use std::time::Duration;
 
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::{Address, BlockHash, TxHash, U256};
+use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::network::eip2718::Encodable2718;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, BlockTransactionsKind};
@@ -99,14 +99,14 @@ struct Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "debug,alloy_rpc_client=off,loom_multicaller=trace".into());
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "debug,alloy_rpc_client=off".into());
     let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(false).with_line_number(true).with_filter(env_filter);
 
     tracing_subscriber::registry().with(fmt_layer).init();
 
     let args = Commands::parse();
 
-    let test_config = TestConfig::from_file(args.config).await?;
+    let test_config = TestConfig::from_file(args.config.clone()).await?;
 
     let node_url = env::var("MAINNET_WS")?;
 
@@ -133,9 +133,7 @@ async fn main() -> Result<()> {
     let block_header_with_txes = client.get_block(block_nr.into(), BlockTransactionsKind::Full).await?.unwrap();
 
     let cache_db = LoomInMemoryDB::default();
-
     let market_instance = Market::default();
-
     let market_state_instance = MarketState::new(cache_db.clone());
 
     let mempool_instance = Mempool::new();
@@ -153,11 +151,8 @@ async fn main() -> Result<()> {
     let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(100);
 
     let market_instance = SharedState::new(market_instance);
-
     let market_state = SharedState::new(market_state_instance);
-
     let mempool_instance = SharedState::new(mempool_instance);
-
     let block_history_state = SharedState::new(BlockHistory::new(10));
 
     let tx_signers = TxSigners::new();
@@ -166,12 +161,17 @@ async fn main() -> Result<()> {
     let tx_signers = SharedState::new(tx_signers);
     let accounts_state = SharedState::new(accounts_state);
 
-    let block_hash: BlockHash = block_header.hash;
-
-    let latest_block = SharedState::new(LatestBlock::new(block_nr, block_hash));
+    let latest_block = SharedState::new(LatestBlock::new(block_nr, block_header.hash));
 
     let (_, post) = debug_trace_block(client.clone(), BlockId::Number(BlockNumberOrTag::Number(block_nr)), true).await?;
-    latest_block.write().await.update(block_nr, block_hash, Some(block_header.clone()), Some(block_header_with_txes), None, Some(post));
+    latest_block.write().await.update(
+        block_nr,
+        block_header.hash,
+        Some(block_header.clone()),
+        Some(block_header_with_txes),
+        None,
+        Some(post),
+    );
 
     info!("Starting initialize signers actor");
 
@@ -522,12 +522,12 @@ async fn main() -> Result<()> {
         }
     });
 
-    println!("Test is started!");
+    println!("Test '{}' is started!", args.config);
 
     let mut tx_compose_sub = tx_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
-    let timeout_duration = Duration::from_secs(5);
+    let timeout_duration = Duration::from_secs(10);
 
     loop {
         tokio::select! {
@@ -535,16 +535,23 @@ async fn main() -> Result<()> {
                 match msg {
                     Ok(msg) => match msg.inner {
                         TxCompose::Sign(sign_message) => {
-                            debug!(swap=%sign_message.swap, "Sign message" );
+                            debug!(swap=%sign_message.swap, "Sign message");
                             stat.sign_counter += 1;
+
                             if stat.best_profit_eth < sign_message.swap.abs_profit_eth() {
                                 stat.best_profit_eth = sign_message.swap.abs_profit_eth();
                                 stat.best_swap = Some(sign_message.swap.clone());
                             }
+
+                            if let Some(swaps_ok) = test_config.assertions.swaps_ok {
+                                if stat.sign_counter >= swaps_ok  {
+                                    break;
+                                }
+                            }
                         }
                         TxCompose::Route(encode_message) => {
-                            debug!(swap=%encode_message.swap, "Route message" );
-                            stat.found_counter +=1;
+                            debug!(swap=%encode_message.swap, "Route message");
+                            stat.found_counter += 1;
                         }
                         _ => {}
                     },
@@ -562,30 +569,28 @@ async fn main() -> Result<()> {
 
     println!("\n\n-------------------\nStat : {}\n-------------------\n", stat);
 
-    if let Some(results) = test_config.results {
-        if let Some(swaps_encoded) = results.swaps_encoded {
-            if swaps_encoded > stat.found_counter {
-                error!("Test failed. Not enough encoded swaps : {} need {}", stat.found_counter, swaps_encoded);
-                exit(1)
-            } else {
-                info!("Test passed. Encoded swaps : {} required {}", stat.found_counter, swaps_encoded);
-            }
+    if let Some(swaps_encoded) = test_config.assertions.swaps_encoded {
+        if swaps_encoded > stat.found_counter {
+            println!("Test failed. Not enough encoded swaps : {} need {}", stat.found_counter, swaps_encoded);
+            exit(1)
+        } else {
+            println!("Test passed. Encoded swaps : {} required {}", stat.found_counter, swaps_encoded);
         }
-        if let Some(swaps_ok) = results.swaps_ok {
-            if swaps_ok > stat.sign_counter {
-                error!("Test failed. Not enough verified swaps : {} need {}", stat.sign_counter, swaps_ok);
-                exit(1)
-            } else {
-                info!("Test passed. swaps : {} required {}", stat.sign_counter, swaps_ok);
-            }
+    }
+    if let Some(swaps_ok) = test_config.assertions.swaps_ok {
+        if swaps_ok > stat.sign_counter {
+            println!("Test failed. Not enough verified swaps : {} need {}", stat.sign_counter, swaps_ok);
+            exit(1)
+        } else {
+            println!("Test passed. swaps : {} required {}", stat.sign_counter, swaps_ok);
         }
-        if let Some(best_profit) = results.best_profit_eth {
-            if NWETH::from_float(best_profit) > stat.best_profit_eth {
-                error!("Profit is too small {} need {}", NWETH::to_float(stat.best_profit_eth), best_profit);
-                exit(1)
-            } else {
-                info!("Test passed. best profit : {} > {}", NWETH::to_float(stat.best_profit_eth), best_profit);
-            }
+    }
+    if let Some(best_profit) = test_config.assertions.best_profit_eth {
+        if NWETH::from_float(best_profit) > stat.best_profit_eth {
+            println!("Profit is too small {} need {}", NWETH::to_float(stat.best_profit_eth), best_profit);
+            exit(1)
+        } else {
+            println!("Test passed. best profit : {} > {}", NWETH::to_float(stat.best_profit_eth), best_profit);
         }
     }
 

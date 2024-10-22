@@ -8,4 +8,3 @@ pub mod geth_state_update;
 mod nweth;
 pub mod reth_types;
 mod revm_balances;
-pub mod tokens;

@@ -16,6 +16,7 @@ use alloy_primitives::{Address, B256, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
+use defi_address_book::TokenAddress;
 use defi_blockchain::Blockchain;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{PoolClass, TxSigners};
@@ -26,7 +27,6 @@ use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_multicaller::MulticallerSwapEncoder;
-use loom_utils::tokens::{ETH_NATIVE_ADDRESS, WETH_ADDRESS};
 use loom_utils::NWETH;
 
 pub struct BlockchainActors<P, T> {
@@ -174,7 +174,7 @@ where
         for address in address_vec {
             //            market_state_preloader = market_state_preloader.with_new_account(address, 0, NWETH::from_float(10.0), None);
             market_state_preloader = market_state_preloader.with_copied_account(address).with_token_balance(
-                ETH_NATIVE_ADDRESS,
+                TokenAddress::ETH_NATIVE,
                 address,
                 NWETH::from_float(10.0),
             );
@@ -189,8 +189,11 @@ where
             loom_multicaller::MulticallerDeployer::new().account_info().code,
         );
 
-        market_state_preloader =
-            market_state_preloader.with_token_balance(WETH_ADDRESS, loom_multicaller::DEFAULT_VIRTUAL_ADDRESS, NWETH::from_float(10.0));
+        market_state_preloader = market_state_preloader.with_token_balance(
+            TokenAddress::WETH,
+            loom_multicaller::DEFAULT_VIRTUAL_ADDRESS,
+            NWETH::from_float(10.0),
+        );
 
         self.mutlicaller_address = Some(loom_multicaller::DEFAULT_VIRTUAL_ADDRESS);
 
