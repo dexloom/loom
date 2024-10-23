@@ -511,7 +511,6 @@ where
 #[cfg(test)]
 mod tests {
     use eyre::Result;
-    use std::sync::Arc;
 
     use alloy_primitives::U256;
     use alloy_provider::Provider;
@@ -520,9 +519,7 @@ mod tests {
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::{MarketState, Pool};
     use env_logger::Env as EnvLog;
-    use loom_revm_db::fast_cache_db::FastCacheDB;
     use loom_revm_db::LoomDBType;
-    use revm::db::EmptyDB;
     use tracing::debug;
 
     use crate::protocols::CurveProtocol;
@@ -549,7 +546,7 @@ mod tests {
             debug!("Pool state fetched {} {}", pool.address, state_required.len());
 
             market_state.add_state(&state_required);
-            debug!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.accounts_len(), market_state.storage_len());
+            debug!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.state_db.accounts_len(), market_state.storage_len());
 
             let block_header = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.unwrap().unwrap().header;
             debug!("Block {} {}", block_header.number, block_header.timestamp);
