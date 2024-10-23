@@ -694,7 +694,7 @@ mod test {
 
                 let alloy_db = AlloyDB::new(client.clone(), BlockNumberOrTag::Number(BLOCK_NUMBER).into()).unwrap();
 
-                let mut state_db = LoomDB::new().with_ext_db(alloy_db);
+                let state_db = LoomDB::new().with_ext_db(alloy_db);
 
                 let token0_decimals =
                     IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;

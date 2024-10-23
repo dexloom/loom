@@ -178,9 +178,7 @@ async fn main() -> Result<()> {
                             info!("------Balance of {} : {}", UniswapV3PoolAddress::USDC_WETH_500, balance);
                         }
 
-
-
-                        info!("StateDB : Accounts: {} {} Contracts : {} {}", state_db.accounts.len(), state_db.db.accounts.len(), state_db.contracts.len(), state_db.db.contracts.len())
+                        info!("StateDB : Accounts: {} / {} Contracts : {} / {}", state_db.accounts_len(), state_db.ro_accounts_len(), state_db.contracts_len(), state_db.ro_contracts_len())
 
                     }
                     Err(e)=>{

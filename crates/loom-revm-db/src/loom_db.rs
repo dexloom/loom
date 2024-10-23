@@ -4,17 +4,16 @@ use crate::fast_hasher::SimpleBuildHasher;
 use crate::loom_db_helper::LoomDBHelper;
 use alloy::consensus::constants::KECCAK_EMPTY;
 use alloy::eips::BlockNumberOrTag;
-use alloy::network::Ethereum;
 use alloy::primitives::map::HashMap;
 use alloy::primitives::{Address, BlockNumber, Log, B256, U256};
-use alloy::providers::{Provider, ProviderBuilder};
+use alloy::providers::{Network, Provider, ProviderBuilder};
 use alloy::rpc::client::ClientBuilder;
 use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
 use alloy::transports::{Transport, TransportError};
 use eyre::{ErrReport, OptionExt, Result};
 use revm::db::AccountState;
-use revm::primitives::{AccountInfo, Bytecode};
-use revm::{Database, DatabaseRef};
+use revm::primitives::{Account, AccountInfo, Bytecode};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::hash_map::Entry;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
@@ -61,6 +60,9 @@ impl Debug for LoomDB {
 
 #[allow(dead_code)]
 impl LoomDB {
+    pub fn empty() -> Self {
+        Self::default()
+    }
     pub fn new() -> Self {
         let mut contracts = HashMap::with_hasher(SimpleBuildHasher::default());
         contracts.insert(KECCAK_EMPTY, Bytecode::default());
@@ -74,6 +76,31 @@ impl LoomDB {
             logs: Default::default(),
             block_hashes: Default::default(),
         }
+    }
+
+    pub fn read_only_db(&self) -> Self {
+        self.read_only_db.clone().map_or(LoomDB::empty(), |a| a.as_ref().clone())
+    }
+    pub fn contracts_len(&self) -> usize {
+        self.contracts.len()
+    }
+    pub fn accounts_len(&self) -> usize {
+        self.accounts.len()
+    }
+
+    pub fn ro_contracts_len(&self) -> usize {
+        self.read_only_db.as_ref().map_or(0, |db| db.contracts_len())
+    }
+
+    pub fn ro_accounts_len(&self) -> usize {
+        self.read_only_db.as_ref().map_or(0, |db| db.accounts_len())
+    }
+
+    pub fn storage_len(&self) -> usize {
+        self.accounts.values().map(|a| a.storage.len()).sum()
+    }
+    pub fn ro_storage_len(&self) -> usize {
+        self.read_only_db.as_ref().map_or(0, |db| db.accounts.values().map(|a| a.storage.len()).sum())
     }
 
     pub fn with_ext_db<ExtDB>(self, ext_db: ExtDB) -> Self
@@ -104,17 +131,19 @@ impl LoomDB {
         match self.accounts.entry(address) {
             Entry::Occupied(entry) => Ok(entry.into_mut()),
             Entry::Vacant(entry) => Ok(entry.insert(
-                LoomDBHelper::get_or_fetch_basic(&self.read_only_db, &self.ext_db, address)?
+                LoomDBHelper::get_or_fetch_basic(&self.read_only_db, &self.ext_db, address)
+                    .unwrap_or_default()
                     .map(|info| FastDbAccount { info, ..Default::default() })
                     .unwrap_or_else(FastDbAccount::new_not_existing),
             )),
         }
     }
 
-    pub fn new_with_provider<P, T>(db: Option<LoomDB>, client: P) -> Result<Self>
+    pub fn new_with_ro_db_and_provider<P, T, N>(read_only_db: Option<LoomDB>, client: P) -> Result<Self>
     where
+        N: Network,
         T: Transport + Clone,
-        P: Provider<T, Ethereum> + 'static,
+        P: Provider<T, N> + 'static,
         Self: Sized,
     {
         let box_transport = client.client().transport().clone().boxed();
@@ -127,7 +156,7 @@ impl LoomDB {
 
         let ext_db = ext_db.ok_or_eyre("EXT_DB_NOT_CREATED")?;
 
-        Ok(Self::new().with_ro_db(db).with_ext_db(ext_db))
+        Ok(Self::new().with_ro_db(read_only_db).with_ext_db(ext_db))
     }
 
     pub fn insert_contract(&mut self, account: &mut AccountInfo) {
@@ -406,6 +435,39 @@ impl Database for LoomDB {
     }
 }
 
+impl DatabaseCommit for LoomDB {
+    fn commit(&mut self, changes: HashMap<Address, Account>) {
+        for (address, mut account) in changes {
+            if !account.is_touched() {
+                continue;
+            }
+            if account.is_selfdestructed() {
+                let db_account = self.accounts.entry(address).or_default();
+                db_account.storage.clear();
+                db_account.account_state = AccountState::NotExisting;
+                db_account.info = AccountInfo::default();
+                continue;
+            }
+            let is_newly_created = account.is_created();
+            self.insert_contract(&mut account.info);
+
+            let db_account = self.accounts.entry(address).or_default();
+            db_account.info = account.info;
+
+            db_account.account_state = if is_newly_created {
+                db_account.storage.clear();
+                AccountState::StorageCleared
+            } else if db_account.account_state.is_storage_cleared() {
+                // Preserve old account state if it already exists
+                AccountState::StorageCleared
+            } else {
+                AccountState::Touched
+            };
+            db_account.storage.extend(account.storage.into_iter().map(|(key, value)| (key, value.present_value())));
+        }
+    }
+}
+
 #[cfg(test)]
 mod test1 {
     use super::GethAccountState;
@@ -432,7 +494,7 @@ mod test1 {
 
             let balance = provider.get_balance(test_addr).await?;
 
-            let db = LoomDB::new_with_provider(Some(db), provider.clone()).unwrap();
+            let db = LoomDB::new_with_ro_db_and_provider(Some(db), provider.clone()).unwrap();
 
             let info = db.basic_ref(test_addr).unwrap().unwrap();
 

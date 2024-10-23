@@ -272,18 +272,18 @@ where
 
                     debug!("Block History len :{}", block_history_guard.len());
 
-                    let accounts_len = market_state_guard.accounts_len();
-                    let accounts_db_len = market_state_guard.accounts_db_len();
-                    let storage_len = market_state_guard.storage_len();
-                    let storage_db_len = market_state_guard.storage_db_len();
+                    let accounts_len = market_state_guard.state_db.accounts_len();
+                    let accounts_db_len = market_state_guard.state_db.ro_accounts_len();
+                    let storage_len = market_state_guard.state_db.storage_len();
+                    let storage_db_len = market_state_guard.state_db.ro_storage_len();
                     trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
 
                     market_state_guard.state_db = new_market_state_db.clone();
                     market_state_guard.block_hash = msg_block_hash;
                     market_state_guard.block_number = latest_block_number;
 
-                    info!("market state updated ok records : update len: {} accounts: {} contracts: {}", msg.state_update.len(),
-                        new_market_state_db.accounts.len(),  new_market_state_db.contracts.len()  );
+                    info!("market state updated ok records : update len: {} accounts: {} / {} contracts: {} / {}", msg.state_update.len(),
+                        new_market_state_db.accounts_len(), new_market_state_db.ro_accounts_len(), new_market_state_db.contracts_len(), new_market_state_db.ro_contracts_len()  );
 
                     run_async!(market_events_tx.send(MarketEvents::BlockStateUpdate{ block_hash : msg_block_hash} ));
 

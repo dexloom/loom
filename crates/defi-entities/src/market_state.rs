@@ -45,14 +45,6 @@ impl MarketState {
         (self.block_number, self.block_hash)
     }
 
-    pub fn accounts_len(&self) -> usize {
-        self.state_db.accounts.len()
-    }
-
-    pub fn accounts_db_len(&self) -> usize {
-        self.state_db.accounts.len()
-    }
-
     pub fn storage_len(&self) -> usize {
         let mut ret = 0;
         for (_, a) in self.state_db.accounts.iter() {
@@ -135,14 +127,17 @@ impl MarketState {
             }
         }
 
-        let account = self.state_db.load_account(*address).unwrap();
-        account.account_state = DbAccountState::Touched;
-        trace!(
-            "after apply_account_info account: {address} state: {:?} storage len: {} code len : {}",
-            account.account_state,
-            account.storage.len(),
-            account.info.code.clone().map_or(0, |c| c.len())
-        );
+        if let Ok(account) = self.state_db.load_account(*address) {
+            account.account_state = DbAccountState::Touched;
+            trace!(
+                "after apply_account_info account: {address} state: {:?} storage len: {} code len : {}",
+                account.account_state,
+                account.storage.len(),
+                account.info.code.clone().map_or(0, |c| c.len())
+            );
+        } else {
+            trace!(%address, "account not found after apply");
+        }
     }
 
     pub fn apply_account_storage(&mut self, address: &Address, acc_state: &AccountState, insert: bool, only_new: bool) {
