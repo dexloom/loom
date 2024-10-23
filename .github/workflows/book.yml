@@ -71,11 +71,8 @@ jobs:
           curl -sSL https://github.com/sgoudham/mdbook-template/releases/latest/download/mdbook-template-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=./mdbook-template
           echo $(pwd)/mdbook-template >> $GITHUB_PATH
 
-      - name: Build book
-        run: mdbook build
-
-      - name: Build docs
-        run: cargo doc --workspace --all-features --no-deps
+      - run: mdbook build
+      - run: make doc
 
       - name: Move docs to book folder
         run: mv target/doc target/book/docs

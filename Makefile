@@ -34,6 +34,11 @@ release-exex-node:
 maxperf-exex-node:
 	export RELEASEFLAGS | cargo build --bin exex-grpc-node --profile maxperf
 
+# Build docs
+.PHONY: doc
+doc:
+	cargo doc --workspace --all-features --no-deps
+
 ## Development commands
 # Target to run all tests
 .PHONY: test
