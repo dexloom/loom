@@ -1,0 +1,10 @@
+[book]
+authors = ["Loom Contributors"]
+language = "en"
+multilingual = false
+src = "book"
+title = "Loom documentation"
+
+
+[build]
+build-dir = "target/book"
