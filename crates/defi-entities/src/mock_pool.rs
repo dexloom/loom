@@ -3,7 +3,7 @@ use crate::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol};
 use alloy_primitives::{Address, U256};
 use eyre::ErrReport;
 use eyre::Result;
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDB;
 use revm::primitives::Env;
 
 #[derive(Clone)]
@@ -36,7 +36,7 @@ impl Pool for MockPool {
 
     fn calculate_out_amount(
         &self,
-        state: &LoomInMemoryDB,
+        state: &LoomDB,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -47,7 +47,7 @@ impl Pool for MockPool {
 
     fn calculate_in_amount(
         &self,
-        state: &LoomInMemoryDB,
+        state: &LoomDB,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
