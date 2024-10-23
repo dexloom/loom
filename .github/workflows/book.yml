@@ -76,7 +76,7 @@ jobs:
         run: mdbook build
 
       - name: Build docs
-        run: cargo docs --exclude "example-*"
+        run: cargo docs
         env:
           # Keep in sync with ./ci.yml:jobs.docs
           RUSTDOCFLAGS:
