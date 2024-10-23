@@ -222,10 +222,8 @@ impl Market {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::required_state::RequiredState;
-    use crate::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol};
-    use alloy_primitives::{Address, U256};
-    use eyre::ErrReport;
+    use crate::mock_pool::MockPool;
+    use alloy_primitives::Address;
     use eyre::Result;
     use loom_revm_db::LoomDBType;
     use reth_revm::primitives::Env;

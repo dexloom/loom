@@ -1,18 +1,23 @@
-include = ["**/Cargo.toml"]
+include = ["**/Cargo.toml", "config-example.toml", "deny.toml", "rust-toolchain.toml", "rustfmt.toml"]
 
 [formatting]
-reorder_arrays = true
-array_trailing_comma = true
 align_comments = false
 allowed_blank_lines = 2
-compact_arrays = true
+array_trailing_comma = true
 column_width = 140
+compact_arrays = true
+reorder_arrays = true
 reorder_keys = true
 
 [[rule]]
 # Do not reorder to keep name and version on top
 keys = ["package"]
 formatting = { reorder_keys = false }
+
+[[rule]]
+# Keep relay order in config-example.toml
+keys = ["actors"]
+formatting = { reorder_arrays = false }
 
 [[rule]]
 keys = ["package", "build-dependencies", "dependencies", "dev-dependencies"]

@@ -114,7 +114,7 @@ async fn estimator_task(
         nonce: Some(estimate_request.nonce),
         access_list: Some(access_list),
         max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-        max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128), // TODO: Why not prio + base fee?
+        max_fee_per_gas: Some(estimate_request.priority_gas_fee as u128 + estimate_request.next_block_base_fee as u128),
         ..TransactionRequest::default()
     };
 
@@ -181,12 +181,18 @@ async fn estimator_worker(
                 match compose_request_msg {
                     Ok(compose_request) =>{
                         if let TxCompose::Estimate(estimate_request) = compose_request.inner {
+                            let compose_channel_tx_cloned = compose_channel_tx.clone();
+                            let encoder_cloned = encoder.clone();
                             tokio::task::spawn(
-                                estimator_task(
-                                    estimate_request,
-                                    encoder.clone(),
-                                    compose_channel_tx.clone(),
-                                )
+                                async move {
+                                if let Err(e) = estimator_task(
+                                    estimate_request.clone(),
+                                    encoder_cloned,
+                                    compose_channel_tx_cloned,
+                                ).await {
+                                        error!("Error in EVM estimator_task: {:?}", e);
+                                    }
+                                }
                             );
                         }
                     }
