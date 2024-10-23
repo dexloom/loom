@@ -15,6 +15,11 @@ keys = ["package"]
 formatting = { reorder_keys = false }
 
 [[rule]]
+# Keep relay order in config-example.toml
+keys = ["actors"]
+formatting = { reorder_arrays = false }
+
+[[rule]]
 keys = ["package", "build-dependencies", "dependencies", "dev-dependencies"]
 
 [[rule]]

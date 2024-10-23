@@ -69,12 +69,6 @@ type = "flashbots"
 # optional custom relays, if not set default relays will be used
 relays = [
   { id = 1, name = "flashbots", url = "https://relay.flashbots.net" },
-  { id = 10, name = "fibio", url = "https://rpc.f1b.io" },
-  { id = 11, name = "loki", url = "https://rpc.lokibuilder.xyz" },
-  { id = 12, name = "ibuilder", url = "https://rpc.ibuilder.xyz" },
-  { id = 13, name = "jetbuilder", url = "https://rpc.jetbldr.xyz" },
-  { id = 14, name = "penguinbuilder", url = "https://rpc.penguinbuild.org" },
-  { id = 15, name = "gambitbuilder", url = "https://builder.gmbit.co/rpc" },
   { id = 2, name = "beaverbuild", url = "https://rpc.beaverbuild.org/", no_sign = true },
   { id = 3, name = "titan", url = "https://rpc.titanbuilder.xyz" },
   { id = 4, name = "rsync", url = "https://rsync-builde00r.xyz" },
@@ -83,6 +77,12 @@ relays = [
   { id = 7, name = "secureapi", url = "https://api.securerpc.com/v1", no_sign = true },
   { id = 8, name = "buildai", url = "https://BuildAI.net", no_sign = true },
   { id = 9, name = "payloadde", url = "https://rpc.payload.de", no_sign = true },
+  { id = 10, name = "fibio", url = "https://rpc.f1b.io" },
+  { id = 11, name = "loki", url = "https://rpc.lokibuilder.xyz" },
+  { id = 12, name = "ibuilder", url = "https://rpc.ibuilder.xyz" },
+  { id = 13, name = "jetbuilder", url = "https://rpc.jetbldr.xyz" },
+  { id = 14, name = "penguinbuilder", url = "https://rpc.penguinbuild.org" },
+  { id = 15, name = "gambitbuilder", url = "https://builder.gmbit.co/rpc" },
 ]
 
 # Transaction estimators
