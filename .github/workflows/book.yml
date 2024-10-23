@@ -79,11 +79,6 @@ jobs:
 
       - name: Build docs
         run: cargo doc --workspace --all-features --no-deps
-        env:
-          # Keep in sync with ./ci.yml:jobs.docs
-          RUSTDOCFLAGS:
-            --cfg docsrs --show-type-layout --generate-link-to-definition --enable-index-page
-            -Zunstable-options
 
       - name: Move docs to book folder
         run: |
