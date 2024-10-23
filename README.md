@@ -58,6 +58,26 @@ To get encrypted key run:
 cargo run --bin keys encrypt --key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80
 ```
 
+### Setup database
+Install postgresql and create database and user.
+
+Create user and db:
+```shell
+su - postgres
+createuser loom
+createdb loom
+```
+
+Run `psql` and update user and privileges:
+```psql
+alter user loom with encrypted password 'loom';
+grant all privileges on database loom to loom;
+create schema loom;
+grant usage on schema loom to loom;
+grant create on schema loom to loom;
+\q
+```
+
 ### Starting loom
 
 ```sh

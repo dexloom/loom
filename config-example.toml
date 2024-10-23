@@ -1,6 +1,12 @@
 [node]
 mode = "ws"
 
+[webserver]
+host = "0.0.0.0:3333"
+
+[database]
+url = "postgres://loom:loom@localhost/loom?application_name=loom&options=-c search_path%3Dloom"
+
 # Optional influxdb configuration
 [influxdb]
 database = "loom"

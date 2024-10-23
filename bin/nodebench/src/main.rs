@@ -15,8 +15,9 @@ use eyre::{eyre, Result};
 use futures::future::join_all;
 use tokio::{select, sync::RwLock, task::JoinHandle};
 
-use defi_actors::{BlockchainActors, NodeBlockActorConfig};
+use defi_actors::NodeBlockActorConfig;
 use defi_blockchain::Blockchain;
+use defi_blockchain_actors::BlockchainActors;
 use defi_events::MempoolEvents;
 
 use crate::cli::Cli;

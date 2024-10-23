@@ -200,6 +200,22 @@ pub struct PoolsConfig {
 }
 
 #[derive(Debug, Deserialize)]
+pub struct WebserverConfig {
+    pub host: String,
+}
+
+impl Default for WebserverConfig {
+    fn default() -> Self {
+        WebserverConfig { host: "127.0.0.1:3333".to_string() }
+    }
+}
+
+#[derive(Debug, Deserialize)]
+pub struct DatabaseConfig {
+    pub url: String,
+}
+
+#[derive(Debug, Deserialize)]
 pub struct ActorConfig {
     pub broadcaster: Option<HashMap<String, BroadcasterConfig>>,
     pub node: Option<HashMap<String, BlockchainClientConfig>>,
@@ -220,6 +236,8 @@ pub struct TopologyConfig {
     pub signers: HashMap<String, SignersConfig>,
     pub encoders: HashMap<String, EncoderConfig>,
     pub preloaders: Option<HashMap<String, PreloaderConfig>>,
+    pub webserver: Option<WebserverConfig>,
+    pub database: Option<DatabaseConfig>,
 }
 
 impl TopologyConfig {

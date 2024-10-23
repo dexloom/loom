@@ -24,6 +24,7 @@ debug-provider.workspace = true
 defi-actors.workspace = true
 defi-address-book.workspace = true
 defi-blockchain.workspace = true
+defi-blockchain-actors.workspace = true
 defi-entities.workspace = true
 defi-events.workspace = true
 defi-pools.workspace = true

@@ -115,6 +115,12 @@ impl BlockStateChangeProcessorActor {
     }
 }
 
+impl Default for BlockStateChangeProcessorActor {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Actor for BlockStateChangeProcessorActor {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(block_state_change_worker(

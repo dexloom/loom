@@ -24,13 +24,17 @@ members = [
   "crates/defi-actors",
   "crates/defi-address-book",
   "crates/defi-blockchain",
+  "crates/defi-blockchain-actors",
   "crates/defi-entities",
   "crates/defi-events",
   "crates/defi-pools",
   "crates/flashbots",
   "crates/loom",
+  "crates/loom-db",
   "crates/loom-metrics",
   "crates/loom-revm-db",
+  "crates/loom-web",
+  "crates/loom-web-state",
   "crates/multicaller",
   "crates/reth-exex-grpc",
   "crates/topology",
@@ -55,6 +59,7 @@ defi-abi = { path = "crates/defi-abi" }
 defi-actors = { path = "crates/defi-actors" }
 defi-address-book = { path = "crates/defi-address-book" }
 defi-blockchain = { path = "crates/defi-blockchain" }
+defi-blockchain-actors = { path = "crates/defi-blockchain-actors" }
 defi-entities = { path = "crates/defi-entities" }
 defi-events = { path = "crates/defi-events" }
 defi-pools = { path = "crates/defi-pools" }
@@ -63,11 +68,14 @@ flashbots = { path = "crates/flashbots" }
 loom = { path = "crates/loom" }
 loom-actors = { path = "crates/actors" }
 loom-actors-macros = { path = "crates/actors-macros" }
+loom-db = { path = "crates/loom-db" }
 loom-metrics = { path = "crates/loom-metrics" }
 loom-multicaller = { path = "crates/multicaller" }
 loom-revm-db = { path = "crates/loom-revm-db" }
 loom-topology = { path = "crates/topology" }
 loom-utils = { path = "crates/utils" } #, features = ["trace-calls"] }
+loom-web = { path = "crates/loom-web" }
+loom-web-state = { path = "crates/loom-web-state" }
 reth-exex-grpc = { path = "crates/reth-exex-grpc" }
 uniswap_v3_math = { path = "crates/uniswap-v3-math" }
 
@@ -85,6 +93,7 @@ async-stream = "0.3"
 async-trait = "0.1"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
+tokio-util = "0.7"
 
 # misc
 aes = "0.8"
@@ -96,7 +105,6 @@ futures = "0.3"
 futures-util = "0.3"
 hex = "0.4"
 indexmap = "2.5"
-influxdb = "0.7"
 k256 = "0.13"
 lazy_static = "1.4"
 num_cpus = "1.16"
@@ -116,6 +124,19 @@ toml = "0.8"
 tonic = "0.12"
 tower = "0.5.1"
 url = "2.4"
+
+# db
+bb8 = "0.8"
+diesel = { version = "2.2", features = ["chrono", "numeric", "postgres"] }
+diesel-async = { git = "https://github.com/weiznich/diesel_async", rev = "6437e59", features = ["bb8", "postgres"] }
+diesel-derive-enum = { version = "2.1", features = ["postgres"] }
+influxdb = "0.7"
+
+# web
+axum = { version = "0.7", features = ["macros", "ws"] }
+tower-http = { version = "0.6", features = ["fs", "trace"] }
+utoipa = { version = "5.1", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "8.0", features = ["axum"] }
 
 # build
 tonic-build = "0.12"
