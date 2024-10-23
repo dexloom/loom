@@ -45,6 +45,8 @@ pub struct SwapLine {
     pub amount_in: SwapAmountType,
     /// Output token amount of the swap
     pub amount_out: SwapAmountType,
+    /// The input amounts for each swap step
+    pub amounts: Option<Vec<U256>>,
     /// Output token of the swap
     pub swap_to: Option<Address>,
     /// Gas used for the swap
@@ -91,10 +93,16 @@ impl fmt::Display for SwapLine {
             }
         };
 
+        let amounts = self
+            .amounts
+            .as_ref()
+            .map(|amounts| amounts.iter().map(|amount| amount.to_string()).collect::<Vec<String>>().join(", "))
+            .unwrap_or_else(|| "None".to_string());
+
         write!(
             f,
-            "SwapPath [{}, tokens=[{}], pools=[{}], amount_in={}, amount_out={}, gas_used={:?}]",
-            profit, tokens, pools, amount_in, amount_out, self.gas_used
+            "SwapPath [{}, tokens=[{}], pools=[{}], amount_in={}, amount_out={}, amounts={}, gas_used={:?}]",
+            profit, tokens, pools, amount_in, amount_out, amounts, self.gas_used
         )
     }
 }
@@ -196,6 +204,7 @@ impl SwapLine {
             path: SwapPath::new(self.tokens()[0..pool_index + 1].to_vec(), self.pools()[0..pool_index].to_vec()),
             amount_in: self.amount_in,
             amount_out: SwapAmountType::NotSet,
+            amounts: None,
             swap_to: None,
             gas_used: None,
         };
@@ -203,6 +212,7 @@ impl SwapLine {
             path: SwapPath::new(self.tokens()[pool_index..].to_vec(), self.pools()[pool_index..].to_vec()),
             amount_in: SwapAmountType::NotSet,
             amount_out: self.amount_out,
+            amounts: None,
             swap_to: None,
             gas_used: None,
         };
@@ -223,6 +233,7 @@ impl SwapLine {
             path: SwapPath::new(self.tokens()[0..pool_index + 1].to_vec(), self.pools()[0..pool_index].to_vec()),
             amount_in: self.amount_in,
             amount_out: SwapAmountType::NotSet,
+            amounts: None,
             swap_to: None,
             gas_used: None,
         };
@@ -230,6 +241,7 @@ impl SwapLine {
             path: SwapPath::new(self.tokens()[pool_index..].to_vec(), self.pools()[pool_index..].to_vec()),
             amount_in: SwapAmountType::NotSet,
             amount_out: self.amount_out,
+            amounts: None,
             swap_to: None,
             gas_used: None,
         };
@@ -486,6 +498,7 @@ mod tests {
             path: swap_path,
             amount_in: SwapAmountType::Set(parse_units("0.01", "ether").unwrap().get_absolute()),
             amount_out: SwapAmountType::Set(parse_units("0.03", "ether").unwrap().get_absolute()),
+            amounts: None,
             swap_to: Some(Address::default()),
             gas_used: Some(10000),
         };
