@@ -8,13 +8,13 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-eyre.workspace = true
-tokio.workspace = true
 alloy.workspace = true
+eyre.workspace = true
 rand.workspace = true
 revm.workspace = true
 serde = { workspace = true, optional = true }
 serde_json = { workspace = true, optional = true }
+tokio.workspace = true
 tracing.workspace = true
 
 [features]
@@ -23,12 +23,12 @@ serde-json = ["dep:serde_json"]
 
 
 [dev-dependencies]
-url.workspace = true
 chrono.workspace = true
 criterion.workspace = true
+env_logger.workspace = true
 tracing.workspace = true
 tracing-subscriber = { workspace = true, features = ["env-filter"] }
-env_logger.workspace = true
+url.workspace = true
 
 [[bench]]
 harness = false
