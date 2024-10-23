@@ -41,6 +41,7 @@ pub mod private;
 
 pub mod config;
 mod datafetcher;
+mod mock_pool;
 mod swap;
 mod swap_encoder;
 pub mod tips;
