@@ -26,6 +26,7 @@ use eyre::{eyre, Result};
 use flashbots::client::RelayConfig;
 use flashbots::Flashbots;
 use loom_actors::{Actor, ActorsManager, SharedState};
+use loom_db::DbPool;
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_multicaller::MulticallerSwapEncoder;
 use loom_utils::NWETH;
@@ -434,12 +435,12 @@ where
     }
 
     /// Start web server
-    pub fn with_web_server<S>(&mut self, host: String, router: Router<S>) -> Result<&mut Self>
+    pub fn with_web_server<S>(&mut self, host: String, router: Router<S>, db_pool: DbPool) -> Result<&mut Self>
     where
         S: Clone + Send + Sync + 'static,
         Router: From<Router<S>>,
     {
-        self.actor_manager.start(WebServerActor::new(host, router, CancellationToken::new()))?;
+        self.actor_manager.start(WebServerActor::new(host, router, db_pool, CancellationToken::new()).on_bc(&self.bc))?;
         Ok(self)
     }
 }

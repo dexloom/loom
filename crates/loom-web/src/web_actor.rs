@@ -3,7 +3,7 @@ use axum::Router;
 use defi_blockchain::Blockchain;
 use loom_actors::{Actor, ActorResult, WorkerResult};
 use loom_actors_macros::Consumer;
-use loom_db::init_db_pool;
+use loom_db::DbPool;
 use loom_web_state::AppState;
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
@@ -15,13 +15,13 @@ pub async fn start_web_server_worker<S>(
     host: String,
     extra_router: Router<S>,
     bc: Blockchain,
+    db_pool: DbPool,
     shutdown_token: CancellationToken,
 ) -> WorkerResult
 where
     S: Clone + Send + Sync + 'static,
     Router: From<Router<S>>,
 {
-    let db_pool = init_db_pool().await?;
     let app_state = AppState { db: db_pool, bc };
     let router = router(app_state);
     let router = router.merge(extra_router);
@@ -44,8 +44,9 @@ where
 #[derive(Consumer)]
 pub struct WebServerActor<S> {
     host: String,
-    router: Router<S>,
+    extra_router: Router<S>,
     shutdown_token: CancellationToken,
+    db_pool: DbPool,
     bc: Option<Blockchain>,
 }
 
@@ -54,11 +55,11 @@ where
     S: Clone + Send + Sync + 'static,
     Router: From<Router<S>>,
 {
-    pub fn new(host: String, router: Router<S>, shutdown_token: CancellationToken) -> Self {
-        Self { host, router, shutdown_token, bc: None }
+    pub fn new(host: String, extra_router: Router<S>, db_pool: DbPool, shutdown_token: CancellationToken) -> Self {
+        Self { host, extra_router, shutdown_token, db_pool, bc: None }
     }
 
-    pub fn on_bc(self, bc: Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self { bc: Some(bc.clone()), ..self }
     }
 }
@@ -71,8 +72,9 @@ where
     fn start(&self) -> ActorResult {
         let task = tokio::spawn(start_web_server_worker(
             self.host.clone(),
-            self.router.clone(),
+            self.extra_router.clone(),
             self.bc.clone().unwrap(),
+            self.db_pool.clone(),
             self.shutdown_token.clone(),
         ));
         Ok(vec![task])

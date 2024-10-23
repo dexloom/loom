@@ -10,11 +10,9 @@ pub enum PoolError {
 
 pub type DbPool = bb8::Pool<AsyncDieselConnectionManager<AsyncPgConnection>>;
 
-pub async fn init_db_pool() -> Result<DbPool, PoolError> {
-    let db_url = std::env::var("DATABASE_URL").unwrap();
-
+pub async fn init_db_pool(db_url: String) -> Result<DbPool, PoolError> {
     // set up connection pool
-    let config = AsyncDieselConnectionManager::<diesel_async::AsyncPgConnection>::new(db_url);
+    let config = AsyncDieselConnectionManager::<AsyncPgConnection>::new(db_url);
     let pool = bb8::Pool::builder().build(config).await?;
     Ok(pool)
 }

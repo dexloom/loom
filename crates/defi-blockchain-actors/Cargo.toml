@@ -17,6 +17,7 @@ defi-entities.workspace = true
 defi-pools.workspace = true
 flashbots.workspace = true
 loom-actors.workspace = true
+loom-db.workspace = true
 loom-metrics.workspace = true
 loom-multicaller.workspace = true
 loom-utils.workspace = true

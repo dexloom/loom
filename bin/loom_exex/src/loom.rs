@@ -2,6 +2,7 @@ use alloy::network::Ethereum;
 use alloy::primitives::Address;
 use alloy::providers::Provider;
 use alloy::transports::Transport;
+use axum::Router;
 use debug_provider::DebugProviderExt;
 use defi_actors::{loom_exex, BackrunConfigSection, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
@@ -12,7 +13,6 @@ use defi_pools::PoolsConfig;
 use eyre::OptionExt;
 use loom_db::init_db_pool;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
-use loom_web_state::AppState;
 use reth_exex::ExExContext;
 use reth_node_api::FullNodeComponents;
 use std::env;
@@ -51,8 +51,8 @@ where
     info!(address=?multicaller_address, "Multicaller");
 
     let webserver_host = topology_config.webserver.unwrap_or_default().host;
-    let db_pool = init_db_pool().await?;
-    let router = loom_web::router(AppState { db: db_pool, bc: bc.clone() });
+    let db_url = topology_config.database.unwrap().url;
+    let db_pool = init_db_pool(db_url).await?;
 
     // Get flashbots relays from config
     let relays = topology_config
@@ -93,7 +93,7 @@ where
         .with_same_path_merger()? // load merger for same swap paths with different stuffing txes
         .with_backrun_block(backrun_config.clone())? // load backrun searcher for incoming block
         .with_backrun_mempool(backrun_config)? // load backrun searcher for mempool txes
-        .with_web_server(webserver_host, router)? // start web server
+        .with_web_server(webserver_host, Router::new(), db_pool)? // start web server
     ;
 
     if let Some(influxdb_config) = topology_config.influxdb {

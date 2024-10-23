@@ -2485,6 +2485,7 @@ dependencies = [
  "eyre",
  "flashbots",
  "loom-actors",
+ "loom-db",
  "loom-metrics",
  "loom-multicaller",
  "loom-utils",
