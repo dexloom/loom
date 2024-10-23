@@ -8,7 +8,7 @@ use crate::required_state::RequiredState;
 use alloy_primitives::{Address, Bytes, U256};
 use defi_address_book::FactoryAddress;
 use eyre::{eyre, ErrReport, Result};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use revm::primitives::Env;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, EnumString, VariantNames};
@@ -220,7 +220,7 @@ pub trait Pool: Sync + Send {
 
     fn calculate_out_amount(
         &self,
-        state: &LoomInMemoryDB,
+        state: &LoomDBType,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -230,7 +230,7 @@ pub trait Pool: Sync + Send {
     // returns (in_amount, gas_used)
     fn calculate_in_amount(
         &self,
-        state: &LoomInMemoryDB,
+        state: &LoomDBType,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,

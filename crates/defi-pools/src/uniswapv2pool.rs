@@ -10,7 +10,7 @@ use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use eyre::{eyre, ErrReport, Result};
 use lazy_static::lazy_static;
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::ops::Div;
@@ -116,7 +116,7 @@ impl UniswapV2Pool {
         ((value >> 0) & *U112_MASK, (value >> (112)) & *U112_MASK)
     }
 
-    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self> {
+    pub fn fetch_pool_data_evm(db: &LoomDBType, env: Env, address: Address) -> Result<Self> {
         let token0 = UniswapV2StateReader::token0(db, env.clone(), address)?;
         let token1 = UniswapV2StateReader::token1(db, env.clone(), address)?;
         let factory = UniswapV2StateReader::factory(db, env.clone(), address)?;
@@ -183,11 +183,14 @@ impl UniswapV2Pool {
         Ok(ret)
     }
 
-    fn fetch_reserves(&self, state_db: &LoomInMemoryDB, env: Env) -> Result<(U256, U256)> {
+    fn fetch_reserves(&self, state_db: &LoomDBType, env: Env) -> Result<(U256, U256)> {
         let (reserve_0, reserve_1) = match self.reserves_cell {
             Some(cell) => {
-                let Ok(storage_value) = state_db.storage_ref(self.get_address(), cell);
-                Self::storage_to_reserves(storage_value)
+                if let Ok(storage_value) = state_db.storage_ref(self.get_address(), cell) {
+                    Self::storage_to_reserves(storage_value)
+                } else {
+                    return Err(eyre!("ERROR_READING_STATE_DB"));
+                }
             }
             None => UniswapV2StateReader::get_reserves(state_db, env, self.get_address())?,
         };
@@ -222,7 +225,7 @@ impl Pool for UniswapV2Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomInMemoryDB,
+        state_db: &LoomDBType,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -252,7 +255,7 @@ impl Pool for UniswapV2Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomInMemoryDB,
+        state_db: &LoomDBType,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -398,7 +401,7 @@ mod test {
             let state_required = pool.get_state_required()?;
             let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(block_number)).await?;
 
-            let mut state_db = LoomInMemoryDB::default();
+            let mut state_db = LoomDBType::default();
             state_db.apply_geth_update(state_update);
 
             // under test
@@ -456,7 +459,7 @@ mod test {
             let state_required = pool.get_state_required()?;
             let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(block_number)).await?;
 
-            let mut state_db = LoomInMemoryDB::default();
+            let mut state_db = LoomDBType::default();
             state_db.apply_geth_update(state_update);
 
             // fetch original
@@ -486,7 +489,7 @@ mod test {
             let state_required = pool.get_state_required()?;
             let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(block_number)).await?;
 
-            let mut state_db = LoomInMemoryDB::default();
+            let mut state_db = LoomDBType::default();
             state_db.apply_geth_update(state_update);
 
             // fetch original

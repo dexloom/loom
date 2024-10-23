@@ -26,7 +26,7 @@ use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, TRACING_CALL_OPTS};
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use loom_utils::evm::evm_transact;
 
 lazy_static! {
@@ -122,7 +122,7 @@ where
 
     let db_org = market_state.read().await.state_db.clone();
 
-    let rdb: Option<LoomInMemoryDB> = loop {
+    let rdb: Option<LoomDBType> = loop {
         counter += 1;
         if counter > 10 {
             break None;

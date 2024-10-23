@@ -17,7 +17,7 @@ use defi_address_book::PeripheryAddress;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use eyre::{eyre, ErrReport, OptionExt, Result};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use loom_utils::evm::evm_call;
 use revm::primitives::Env;
 
@@ -121,7 +121,7 @@ impl PancakeV3Pool {
             PoolProtocol::UniswapV3Like
         }
     }
-    pub fn fetch_pool_data_evm(db: &LoomInMemoryDB, env: Env, address: Address) -> Result<Self> {
+    pub fn fetch_pool_data_evm(db: &LoomDBType, env: Env, address: Address) -> Result<Self> {
         let token0: Address = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1: Address = UniswapV3StateReader::token1(db, env.clone(), address)?;
         let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
@@ -208,7 +208,7 @@ impl Pool for PancakeV3Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomInMemoryDB,
+        state_db: &LoomDBType,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -241,7 +241,7 @@ impl Pool for PancakeV3Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomInMemoryDB,
+        state_db: &LoomDBType,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -519,7 +519,7 @@ mod tests {
 
         let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await.unwrap();
 
-        let mut market_state = MarketState::new(LoomInMemoryDB::default());
+        let mut market_state = MarketState::new(LoomDBType::default());
 
         market_state.add_state(&state_update);
 

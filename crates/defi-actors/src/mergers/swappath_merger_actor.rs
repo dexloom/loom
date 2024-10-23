@@ -12,11 +12,11 @@ use defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_multicaller::SwapStepEncoder;
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 
 async fn arb_swap_steps_optimizer_task(
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-    state_db: Arc<LoomInMemoryDB>,
+    state_db: Arc<LoomDBType>,
     evm_env: Env,
     request: TxComposeData,
 ) -> Result<()> {

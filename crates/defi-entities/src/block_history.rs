@@ -11,7 +11,7 @@ use alloy_transport::Transport;
 use debug_provider::DebugProviderExt;
 use defi_types::{debug_trace_block, GethStateUpdateVec};
 use eyre::{eyre, ErrReport, OptionExt, Result};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use tokio::sync::RwLock;
 use tracing::{debug, error, trace};
 
@@ -23,10 +23,10 @@ pub struct BlockHistoryEntry {
     pub block: Option<Block>,
     pub logs: Option<Vec<Log>>,
     pub state_update: Option<GethStateUpdateVec>,
-    pub state_db: Option<LoomInMemoryDB>,
+    pub state_db: Option<LoomDBType>,
 }
 
-pub fn apply_state_update(db: LoomInMemoryDB, state_update: GethStateUpdateVec, market_state: &MarketState) -> LoomInMemoryDB {
+pub fn apply_state_update(db: LoomDBType, state_update: GethStateUpdateVec, market_state: &MarketState) -> LoomDBType {
     let mut db = db;
     for state_diff in state_update.into_iter() {
         for (address, account_state) in state_diff.into_iter() {
@@ -83,7 +83,7 @@ impl BlockHistoryEntry {
         block: Option<Block>,
         logs: Option<Vec<Log>>,
         state_update: Option<GethStateUpdateVec>,
-        state_db: Option<LoomInMemoryDB>,
+        state_db: Option<LoomDBType>,
     ) -> BlockHistoryEntry {
         BlockHistoryEntry { header, block, logs, state_update, state_db }
     }
@@ -226,12 +226,7 @@ impl BlockHistory {
         Ok(())
     }
 
-    pub fn add_state_diff(
-        &mut self,
-        block_hash: BlockHash,
-        state_db: Option<LoomInMemoryDB>,
-        state_diff: GethStateUpdateVec,
-    ) -> Result<()> {
+    pub fn add_state_diff(&mut self, block_hash: BlockHash, state_db: Option<LoomDBType>, state_diff: GethStateUpdateVec) -> Result<()> {
         let market_history_entry = self.get_or_insert_entry_mut(block_hash);
 
         if market_history_entry.state_db.is_none() {
@@ -255,7 +250,7 @@ impl BlockHistory {
         }
     }
 
-    pub fn add_db(&mut self, block_hash: BlockHash, db: LoomInMemoryDB) -> Result<()> {
+    pub fn add_db(&mut self, block_hash: BlockHash, db: LoomDBType) -> Result<()> {
         let market_history_entry = self.get_entry_mut(&block_hash).ok_or_eyre("ENTRY_NOT_FOUND")?;
         market_history_entry.state_db = Some(db);
         Ok(())
@@ -440,9 +435,9 @@ where
         block_history: &mut BlockHistory,
         market_state: &MarketState,
         parent_hash: BlockHash,
-    ) -> Result<LoomInMemoryDB> {
+    ) -> Result<LoomDBType> {
         let mut parent_hash = parent_hash;
-        let mut parent_db: Option<LoomInMemoryDB> = None;
+        let mut parent_db: Option<LoomDBType> = None;
         let mut missed_blocks: Vec<BlockHash> = vec![];
         let first_block_number = block_history.get_first_block_number();
         loop {
@@ -486,9 +481,9 @@ where
         block_history: &mut BlockHistory,
         market_state: &MarketState,
         parent_hash: BlockHash,
-    ) -> Result<LoomInMemoryDB> {
+    ) -> Result<LoomDBType> {
         let mut parent_hash = parent_hash;
-        let mut parent_db: Option<LoomInMemoryDB> = None;
+        let mut parent_db: Option<LoomDBType> = None;
         let mut missed_blocks: Vec<BlockHash> = vec![];
         let first_block_number = block_history.get_first_block_number();
 
@@ -533,7 +528,7 @@ where
         block_history: &mut BlockHistory,
         market_state: &MarketState,
         block_hash: BlockHash,
-    ) -> Result<LoomInMemoryDB> {
+    ) -> Result<LoomDBType> {
         let mut entry = block_history.get_or_insert_entry_mut(block_hash).clone();
         if !entry.is_fetched() {
             self.fetch_entry_data(&mut entry).await?;
@@ -641,7 +636,7 @@ mod test {
 
         let block_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
 
-        let market_state = Arc::new(RwLock::new(MarketState::new(LoomInMemoryDB::default())));
+        let market_state = Arc::new(RwLock::new(MarketState::new(LoomDBType::default())));
 
         let block_history_manager = BlockHistoryManager::new(provider.clone());
 

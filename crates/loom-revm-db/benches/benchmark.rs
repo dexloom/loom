@@ -9,7 +9,7 @@ use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
 use revm::DatabaseRef;
 
 use loom_revm_db::fast_hasher::{HashedAddress, HashedAddressCell, SimpleBuildHasher, SimpleHasher};
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 
 const N: usize = 100000;
 const N_ACC: usize = 10000;
@@ -45,7 +45,7 @@ fn fill_cache_db(db: &mut CacheDB<EmptyDB>, addr: &[Address], accs: &[DbAccount]
     }
 }
 
-fn fill_loom_db(db: &mut LoomInMemoryDB, addr: &[Address], accs: &[DbAccount]) {
+fn fill_loom_db(db: &mut LoomDBType, addr: &[Address], accs: &[DbAccount]) {
     for a in 0..addr.len() {
         db.insert_account_info(addr[a], accs[a].info.clone());
         for (k, v) in accs[a].storage.iter() {
@@ -60,7 +60,7 @@ fn test_insert_cache_db(addr: &[Address], accs: &[DbAccount]) {
 }
 
 fn test_insert_loom_db(addr: &[Address], accs: &[DbAccount]) {
-    let mut db = LoomInMemoryDB::default();
+    let mut db = LoomDBType::default();
     fill_loom_db(&mut db, addr, accs);
 }
 
@@ -74,7 +74,7 @@ fn test_read_cache_db(db: &CacheDB<EmptyDB>, addr: &[Address], accs: &[DbAccount
     }
 }
 
-fn test_read_loom_db(db: &LoomInMemoryDB, addr: &[Address], accs: &[DbAccount]) {
+fn test_read_loom_db(db: &LoomDBType, addr: &[Address], accs: &[DbAccount]) {
     for (i, a) in addr.iter().enumerate() {
         for (k, v) in accs[i].storage.iter() {
             if db.storage_ref(*a, *k).unwrap() != *v {
@@ -233,7 +233,7 @@ fn benchmark_test_group_hashmap(c: &mut Criterion) {
     let many_hm = build_many(&addr, &accs);
 
     let mut cache_db = CacheDB::new(EmptyDB::new());
-    let mut loom_db = LoomInMemoryDB::default();
+    let mut loom_db = LoomDBType::default();
 
     fill_cache_db(&mut cache_db, &addr, &accs);
     fill_loom_db(&mut loom_db, &addr, &accs);

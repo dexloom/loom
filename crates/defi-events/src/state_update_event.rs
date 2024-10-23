@@ -7,7 +7,7 @@ use revm::primitives::Env;
 
 use defi_entities::PoolWrapper;
 use defi_types::GethStateUpdateVec;
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 use loom_utils::evm::env_for_block;
 
 #[derive(Clone, Debug)]
@@ -15,7 +15,7 @@ pub struct StateUpdateEvent {
     pub next_block_number: BlockNumber,
     pub next_block_timestamp: u64,
     pub next_base_fee: u64,
-    market_state: LoomInMemoryDB,
+    market_state: LoomDBType,
     state_update: GethStateUpdateVec,
     state_required: Option<GethStateUpdateVec>,
     directions: BTreeMap<PoolWrapper, Vec<(Address, Address)>>,
@@ -31,7 +31,7 @@ impl StateUpdateEvent {
         next_block: u64,
         next_block_timestamp: u64,
         next_base_fee: u64,
-        market_state: LoomInMemoryDB,
+        market_state: LoomDBType,
         state_update: GethStateUpdateVec,
         state_required: Option<GethStateUpdateVec>,
         directions: BTreeMap<PoolWrapper, Vec<(Address, Address)>>,
@@ -63,7 +63,7 @@ impl StateUpdateEvent {
         &self.directions
     }
 
-    pub fn market_state(&self) -> &LoomInMemoryDB {
+    pub fn market_state(&self) -> &LoomDBType {
         &self.market_state
     }
 

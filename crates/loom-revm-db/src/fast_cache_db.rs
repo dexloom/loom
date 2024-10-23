@@ -1,5 +1,4 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
+use std::convert::Infallible;
 use std::vec::Vec;
 
 use alloy::primitives::map::{Entry, HashMap};
@@ -7,132 +6,12 @@ use alloy::primitives::BlockNumber;
 use alloy::{
     consensus::constants::KECCAK_EMPTY,
     primitives::{Address, Log, B256, U256},
-    rpc::types::trace::geth::AccountState as GethAccountState,
 };
-use revm::db::{AccountState, EmptyDB};
+use revm::db::AccountState;
 use revm::primitives::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
-use tracing::{error, trace};
 
 use crate::fast_hasher::SimpleBuildHasher;
-
-/// A [Database] implementation that stores all state changes in memory.
-
-pub type FastInMemoryDB = FastCacheDB<Arc<FastCacheDB<EmptyDB>>>;
-
-impl FastInMemoryDB {
-    pub fn with_db(self, db: Arc<FastCacheDB<EmptyDB>>) -> Self {
-        Self { db, ..self }
-    }
-
-    pub fn merge(&self) -> FastCacheDB<EmptyDB> {
-        let mut db: FastCacheDB<EmptyDB> = FastCacheDB {
-            accounts: self.db.accounts.clone(),
-            logs: self.db.logs.clone(),
-            contracts: self.db.contracts.clone(),
-            block_hashes: self.db.block_hashes.clone(),
-            db: EmptyDB::new(),
-        };
-        for (k, v) in self.block_hashes.iter() {
-            db.block_hashes.insert(*k, *v);
-        }
-        for (k, v) in self.contracts.iter() {
-            db.contracts.insert(*k, v.clone());
-        }
-        db.logs.clone_from(&self.logs);
-        for (address, account) in self.accounts.iter() {
-            let mut info = account.info.clone();
-            db.insert_contract(&mut info);
-
-            let entry = db.accounts.entry(*address).or_default();
-            entry.info = info;
-            for (k, v) in account.storage.iter() {
-                entry.storage.insert(*k, *v);
-            }
-        }
-        db
-    }
-
-    pub fn update_accounts(&self) -> FastCacheDB<EmptyDB> {
-        let mut db = self.db.as_ref().clone();
-
-        for (k, v) in self.block_hashes.iter() {
-            db.block_hashes.insert(*k, *v);
-        }
-        for (k, v) in self.contracts.iter() {
-            db.contracts.entry(*k).and_modify(|k| k.clone_from(v));
-        }
-        db.logs.clone_from(&self.logs);
-
-        for (address, account) in self.accounts.iter() {
-            db.accounts.entry(*address).and_modify(|db_account| {
-                let info = account.info.clone();
-                db_account.info = info;
-                for (k, v) in account.storage.iter() {
-                    db_account.storage.insert(*k, *v);
-                }
-                db_account.account_state = AccountState::Touched
-            });
-        }
-        db
-    }
-
-    pub fn update_cells(&self) -> FastCacheDB<EmptyDB> {
-        let mut db = self.db.as_ref().clone();
-
-        for (k, v) in self.block_hashes.iter() {
-            db.block_hashes.insert(*k, *v);
-        }
-        for (k, v) in self.contracts.iter() {
-            db.contracts.entry(*k).and_modify(|k| k.clone_from(v));
-        }
-        db.logs.clone_from(&self.logs);
-
-        for (address, account) in self.accounts.iter() {
-            db.accounts.entry(*address).and_modify(|db_account| {
-                let info = account.info.clone();
-                db_account.info = info;
-                for (k, v) in account.storage.iter() {
-                    db_account.storage.entry(*k).and_modify(|cv| cv.clone_from(v));
-                }
-                db_account.account_state = AccountState::Touched
-            });
-        }
-        db
-    }
-
-    pub fn apply_geth_update(&mut self, update: BTreeMap<Address, GethAccountState>) {
-        for (addr, acc_state) in update {
-            trace!("apply_geth_update {} is code {} storage_len {} ", addr, acc_state.code.is_some(), acc_state.storage.len());
-
-            for (k, v) in acc_state.storage.iter() {
-                if let Err(e) = self.insert_account_storage(addr, (*k).into(), (*v).into()) {
-                    error!("apply_geth_update :{}", e);
-                }
-            }
-            let Ok(account) = self.load_account(addr);
-            if let Some(code) = acc_state.code.clone() {
-                let bytecode = Bytecode::new_raw(code);
-                account.info.code_hash = bytecode.hash_slow();
-                account.info.code = Some(bytecode);
-            }
-            if let Some(nonce) = acc_state.nonce {
-                //trace!("nonce : {} -> {}", account.info.nonce, nonce);
-                account.info.nonce = nonce;
-            }
-            if let Some(balance) = acc_state.balance {
-                account.info.balance = balance;
-            }
-            account.account_state = AccountState::Touched;
-        }
-    }
-
-    pub fn apply_geth_update_vec(&mut self, update: Vec<BTreeMap<Address, GethAccountState>>) {
-        for entry in update.into_iter() {
-            self.apply_geth_update(entry);
-        }
-    }
-}
 
 /// A [Database] implementation that stores all state changes in memory.
 ///
@@ -159,14 +38,17 @@ pub struct FastCacheDB<ExtDB> {
     pub db: ExtDB,
 }
 
-impl<ExtDB: Default> Default for FastCacheDB<ExtDB> {
+impl<ExtDB: Default + DatabaseRef<Error = Infallible>> Default for FastCacheDB<ExtDB> {
     fn default() -> Self {
         Self::new(ExtDB::default())
     }
 }
 
 impl<ExtDB> FastCacheDB<ExtDB> {
-    pub fn new(db: ExtDB) -> Self {
+    pub fn new(db: ExtDB) -> Self
+    where
+        ExtDB: DatabaseRef<Error = Infallible>,
+    {
         let mut contracts = HashMap::with_hasher(SimpleBuildHasher::default());
         contracts.insert(KECCAK_EMPTY, Bytecode::default());
         contracts.insert(B256::ZERO, Bytecode::default());
@@ -422,11 +304,13 @@ mod tests {
     use std::collections::BTreeMap;
     use std::sync::Arc;
 
+    use super::FastCacheDB;
+    use crate::in_memory_db::LoomInMemoryDB;
     use alloy::primitives::{Bytes, B256};
+    use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
+    use revm::db::EmptyDB;
     use revm::primitives::{db::Database, AccountInfo, Address, Bytecode, I256, KECCAK_EMPTY, U256};
     use revm::DatabaseRef;
-
-    use super::{EmptyDB, FastCacheDB, FastInMemoryDB, GethAccountState};
 
     #[test]
     fn test_insert_account_storage() {
@@ -469,7 +353,7 @@ mod tests {
         let (key1, value1) = (U256::from(789), U256::from(999));
         init_state.insert_account_storage(account, key0, value0).unwrap();
 
-        let mut new_state = FastInMemoryDB::new(Arc::new(init_state));
+        let mut new_state = LoomInMemoryDB::new(Arc::new(init_state));
         assert_eq!(new_state.accounts.len(), 0);
         let mut hm: HashMap<U256, U256> = Default::default();
         hm.insert(key1, value1);
@@ -479,8 +363,8 @@ mod tests {
         let mut new_state = new_state.merge();
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce);
-        assert_eq!(new_state.storage(account, key0), Ok(value0));
-        assert_eq!(new_state.storage(account, key1), Ok(value1));
+        assert_eq!(new_state.storage(account, key0).unwrap(), value0);
+        assert_eq!(new_state.storage(account, key1).unwrap(), value1);
         assert_eq!(new_state.accounts.len(), 1);
     }
 
@@ -489,7 +373,7 @@ mod tests {
         let account = Address::with_last_byte(42);
         let nonce = 42;
         let code = Bytecode::new_raw(Bytes::from(vec![1, 2, 3]));
-        let mut init_state = FastCacheDB::new(EmptyDB::default());
+        let mut init_state = FastCacheDB::new(EmptyDB::new());
         init_state.insert_account_info(account, AccountInfo { nonce, code: Some(code.clone()), ..Default::default() });
 
         let (key0, value0) = (U256::from(123), U256::from(456));
@@ -497,7 +381,7 @@ mod tests {
         init_state.insert_account_storage(account, key0, value0).unwrap();
         init_state.insert_account_storage(account, key1, value1).unwrap();
 
-        let mut new_state = FastInMemoryDB::new(Arc::new(init_state));
+        let mut new_state = LoomInMemoryDB::new(Arc::new(init_state));
         assert_eq!(new_state.accounts.len(), 0);
 
         let update_record = GethAccountState {
@@ -521,8 +405,8 @@ mod tests {
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().code, Some(code.clone()));
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce + 1);
-        assert_eq!(new_state.storage_ref(account, key0), Ok(U256::from(333)));
-        assert_eq!(new_state.storage_ref(account, key1), Ok(value1));
+        assert_eq!(new_state.storage_ref(account, key0).unwrap(), U256::from(333));
+        assert_eq!(new_state.storage_ref(account, key1).unwrap(), value1);
         assert_eq!(new_state.accounts.len(), 1);
     }
 
@@ -540,7 +424,7 @@ mod tests {
         init_state.insert_account_storage(account, key0, value0).unwrap();
         init_state.insert_account_storage(account, key1, value1).unwrap();
 
-        let mut new_state = FastInMemoryDB::new(Arc::new(init_state));
+        let mut new_state = LoomInMemoryDB::new(Arc::new(init_state));
         assert_eq!(new_state.accounts.len(), 0);
 
         new_state.insert_account_info(
@@ -560,9 +444,9 @@ mod tests {
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().code, Some(Bytecode::new_raw(Bytes::from(vec![1, 2, 2]))));
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce + 1);
-        assert_eq!(new_state.storage_ref(account, key0), Ok(U256::from(333)));
-        assert_eq!(new_state.storage_ref(account, key1), Ok(value1));
-        assert_eq!(new_state.storage_ref(account, key2), Ok(value2));
+        assert_eq!(new_state.storage_ref(account, key0).unwrap(), U256::from(333));
+        assert_eq!(new_state.storage_ref(account, key1).unwrap(), value1);
+        assert_eq!(new_state.storage_ref(account, key2).unwrap(), value2);
         assert_eq!(new_state.accounts.len(), 1);
     }
 
@@ -581,7 +465,7 @@ mod tests {
         init_state.insert_account_storage(account, key0, value0).unwrap();
         init_state.insert_account_storage(account, key1, value1).unwrap();
 
-        let mut new_state = FastInMemoryDB::new(Arc::new(init_state));
+        let mut new_state = LoomInMemoryDB::new(Arc::new(init_state));
         assert_eq!(new_state.accounts.len(), 0);
 
         new_state.insert_account_info(
@@ -611,10 +495,10 @@ mod tests {
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().code, Some(Bytecode::new_raw(Bytes::from(vec![1, 2, 2]))));
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce + 1);
-        assert_eq!(new_state.storage_ref(account, key0), Ok(U256::from(333)));
-        assert_eq!(new_state.storage_ref(account, key1), Ok(value1));
-        assert_eq!(new_state.storage_ref(account, key2), Ok(U256::ZERO));
-        assert_eq!(new_state.storage_ref(account2, key0), Ok(U256::ZERO));
+        assert_eq!(new_state.storage_ref(account, key0).unwrap(), U256::from(333));
+        assert_eq!(new_state.storage_ref(account, key1).unwrap(), value1);
+        assert_eq!(new_state.storage_ref(account, key2).unwrap(), U256::ZERO);
+        assert_eq!(new_state.storage_ref(account2, key0).unwrap(), U256::ZERO);
         assert_eq!(new_state.accounts.len(), 1);
         assert_eq!(new_state.basic(account2).unwrap(), None);
         assert_eq!(new_state.accounts.len(), 2);

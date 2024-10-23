@@ -4778,11 +4778,16 @@ dependencies = [
  "alloy",
  "chrono",
  "criterion",
+ "env_logger",
+ "eyre",
  "rand",
  "revm",
  "serde",
  "serde_json",
+ "tokio",
  "tracing",
+ "tracing-subscriber",
+ "url",
 ]
 
 [[package]]

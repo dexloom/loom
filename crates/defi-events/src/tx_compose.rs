@@ -10,7 +10,7 @@ use eyre::{eyre, Result};
 
 use defi_entities::{Swap, TxSigner};
 use defi_types::GethStateUpdateVec;
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 
 use crate::Message;
 
@@ -100,8 +100,8 @@ pub struct TxComposeData {
     pub swap: Swap,
     pub tx_bundle: Option<Vec<TxState>>,
     pub rlp_bundle: Option<Vec<RlpState>>,
-    pub prestate: Option<Arc<LoomInMemoryDB>>,
-    pub poststate: Option<Arc<LoomInMemoryDB>>,
+    pub prestate: Option<Arc<LoomDBType>>,
+    pub poststate: Option<Arc<LoomDBType>>,
     pub poststate_update: Option<GethStateUpdateVec>,
     pub origin: Option<String>,
     pub tips_pct: Option<u32>,

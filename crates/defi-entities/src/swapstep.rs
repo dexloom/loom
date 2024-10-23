@@ -6,7 +6,7 @@ use eyre::{eyre, Result};
 use revm::primitives::Env;
 use tracing::error;
 
-use loom_revm_db::LoomInMemoryDB;
+use loom_revm_db::LoomDBType;
 
 use crate::{PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 
@@ -346,7 +346,7 @@ impl SwapStep {
         Ok(out_amount)
     }
 
-    pub fn calculate_with_in_amount(&mut self, state: &LoomInMemoryDB, env: Env, in_ammount: Option<U256>) -> Result<(U256, u64)> {
+    pub fn calculate_with_in_amount(&mut self, state: &LoomDBType, env: Env, in_ammount: Option<U256>) -> Result<(U256, u64)> {
         let mut out_amount = U256::ZERO;
         let mut gas_used = 0;
 
@@ -376,7 +376,7 @@ impl SwapStep {
         Ok((out_amount, gas_used))
     }
 
-    pub fn calculate_with_out_amount(&mut self, state: &LoomInMemoryDB, env: Env, out_amount: Option<U256>) -> Result<(U256, u64)> {
+    pub fn calculate_with_out_amount(&mut self, state: &LoomDBType, env: Env, out_amount: Option<U256>) -> Result<(U256, u64)> {
         let mut in_amount = U256::ZERO;
         let mut gas_used = 0;
 
@@ -458,7 +458,7 @@ impl SwapStep {
     }
 
     pub fn optimize_swap_steps(
-        state: &LoomInMemoryDB,
+        state: &LoomDBType,
         env: Env,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
@@ -472,7 +472,7 @@ impl SwapStep {
     }
 
     pub fn optimize_with_middle_amount(
-        state: &LoomInMemoryDB,
+        state: &LoomDBType,
         env: Env,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
@@ -639,7 +639,7 @@ impl SwapStep {
     }
 
     pub fn optimize_with_in_amount(
-        state: &LoomInMemoryDB,
+        state: &LoomDBType,
         env: Env,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,

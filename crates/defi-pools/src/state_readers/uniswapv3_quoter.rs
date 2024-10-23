@@ -1,5 +1,3 @@
-use std::convert::Infallible;
-
 use alloy_primitives::aliases::U24;
 use alloy_primitives::{Address, U160, U256};
 use alloy_sol_types::SolCall;
@@ -55,7 +53,7 @@ impl UniswapV3QuoterV2Encoder {
 pub struct UniswapV3QuoterV2StateReader {}
 
 impl UniswapV3QuoterV2StateReader {
-    pub fn quote_exact_input<DB: DatabaseRef<Error = Infallible>>(
+    pub fn quote_exact_input<DB: DatabaseRef>(
         db: DB,
         env: Env,
         quoter_address: Address,
@@ -72,7 +70,7 @@ impl UniswapV3QuoterV2StateReader {
         Ok((ret, gas_used))
     }
 
-    pub fn quote_exact_output<DB: DatabaseRef<Error = Infallible>>(
+    pub fn quote_exact_output<DB: DatabaseRef>(
         db: DB,
         env: Env,
         quoter_address: Address,
