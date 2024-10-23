@@ -5,7 +5,4 @@
 *.iml
 private.rs
 config.toml
-
-
-book/target
 *.bkp
