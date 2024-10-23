@@ -11,9 +11,10 @@ use tokio::select;
 use url::Url;
 
 use debug_provider::HttpCachedTransport;
-use defi_actors::{BlockchainActors, NodeBlockPlayerActor};
+use defi_actors::NodeBlockPlayerActor;
 use defi_address_book::{TokenAddress, UniswapV3PoolAddress};
 use defi_blockchain::Blockchain;
+use defi_blockchain_actors::BlockchainActors;
 use defi_entities::required_state::RequiredState;
 use defi_entities::{PoolClass, Swap, SwapAmountType, SwapLine};
 use defi_events::{MessageTxCompose, TxComposeData};

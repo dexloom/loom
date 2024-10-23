@@ -20,4 +20,5 @@ alloy.workspace = true
 
 defi-actors.workspace = true
 defi-blockchain.workspace = true
+defi-blockchain-actors.workspace = true
 defi-events.workspace = true

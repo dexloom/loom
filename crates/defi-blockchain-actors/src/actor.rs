@@ -2,8 +2,14 @@ use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
-use crate::backrun::BlockStateChangeProcessorActor;
-use crate::{
+use alloy_network::Ethereum;
+use alloy_primitives::{Address, B256, U256};
+use alloy_provider::Provider;
+use alloy_transport::Transport;
+use axum::Router;
+use debug_provider::DebugProviderExt;
+use defi_actors::backrun::BlockStateChangeProcessorActor;
+use defi_actors::{
     ArbSwapPathMergerActor, BackrunConfig, BlockHistoryActor, CurvePoolLoaderOneShotActor, DiffPathMergerActor, EvmEstimatorActor,
     FlashbotsBroadcastActor, GethEstimatorActor, HistoryPoolLoaderOneShotActor, InitializeSignersOneShotBlockingActor,
     MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor,
@@ -11,11 +17,6 @@ use crate::{
     RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, StuffingTxMonitorActor,
     SwapRouterActor, TxSignersActor,
 };
-use alloy_network::Ethereum;
-use alloy_primitives::{Address, B256, U256};
-use alloy_provider::Provider;
-use alloy_transport::Transport;
-use debug_provider::DebugProviderExt;
 use defi_address_book::TokenAddress;
 use defi_blockchain::Blockchain;
 use defi_entities::required_state::RequiredState;
@@ -28,6 +29,8 @@ use loom_actors::{Actor, ActorsManager, SharedState};
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_multicaller::MulticallerSwapEncoder;
 use loom_utils::NWETH;
+use loom_web::WebServerActor;
+use tokio_util::sync::CancellationToken;
 
 pub struct BlockchainActors<P, T> {
     provider: P,
@@ -427,6 +430,16 @@ where
     /// Start block latency recorder
     pub fn with_block_latency_recorder(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(BlockLatencyRecorderActor::new().on_bc(&self.bc))?;
+        Ok(self)
+    }
+
+    /// Start web server
+    pub fn with_web_server<S>(&mut self, host: String, router: Router<S>) -> Result<&mut Self>
+    where
+        S: Clone + Send + Sync + 'static,
+        Router: From<Router<S>>,
+    {
+        self.actor_manager.start(WebServerActor::new(host, router, CancellationToken::new()))?;
         Ok(self)
     }
 }
