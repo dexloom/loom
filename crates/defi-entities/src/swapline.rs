@@ -469,7 +469,7 @@ mod tests {
     use super::*;
     use crate::mock_pool::MockPool;
     use alloy_primitives::utils::parse_units;
-    use defi_address_book::{UniswapV2PoolAddress, UniswapV3PoolAddress};
+    use defi_address_book::{TokenAddress, UniswapV2PoolAddress, UniswapV3PoolAddress};
     use std::sync::Arc;
 
     fn default_swap_line() -> (MockPool, MockPool, SwapLine) {
