@@ -1,17 +1,20 @@
 use crate::arguments::{AppArgs, Command, LoomArgs};
-use alloy::providers::ProviderBuilder;
+use alloy::providers::{ProviderBuilder, WsConnect};
+use alloy::rpc::client::ClientBuilder;
 use clap::{CommandFactory, FromArgMatches, Parser};
 use defi_actors::{mempool_worker, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
 use loom_topology::TopologyConfig;
 use reth::builder::engine_tree_config::TreeConfig;
 use reth::builder::EngineNodeLauncher;
-use reth::chainspec::EthereumChainSpecParser;
+use reth::chainspec::{Chain, EthereumChainSpecParser};
 use reth::cli::Cli;
 use reth_node_ethereum::node::EthereumAddOns;
 use reth_node_ethereum::EthereumNode;
 use reth_provider::providers::BlockchainProvider2;
-use tracing::error;
+use std::time::Duration;
+use tokio::{signal, task};
+use tracing::{error, info};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter, Layer};
@@ -51,7 +54,7 @@ fn main() -> eyre::Result<()> {
             let ipc_provider = ProviderBuilder::new().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;
             let bc_clone = bc.clone();
             tokio::task::spawn(async move {
-                if let Err(e) = loom::start_loom(ipc_provider, bc_clone, topology_config, loom_args.loom_config.clone()).await {
+                if let Err(e) = loom::start_loom(ipc_provider, bc_clone, topology_config, loom_args.loom_config.clone(), true).await {
                     error!("Error starting loom: {:?}", e);
                 }
             });
@@ -59,9 +62,40 @@ fn main() -> eyre::Result<()> {
 
             handle.node_exit_future.await
         }),
-        Command::Remote(_loom_args) => {
-            // start remote mode without exex
-            todo!()
+        Command::Remote(loom_args) => {
+            let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build()?;
+
+            rt.block_on(async {
+                info!("Loading config from {}", loom_args.loom_config);
+                let topology_config = TopologyConfig::load_from_file(loom_args.loom_config.clone())?;
+
+                let client_config = topology_config.clients.get("remote").unwrap();
+                let transport = WsConnect { url: client_config.url(), auth: None, config: None };
+                let client = ClientBuilder::default().ws(transport).await?;
+                let provider = ProviderBuilder::new().on_client(client).boxed();
+                let bc = Blockchain::new(Chain::mainnet().id());
+                let bc_clone = bc.clone();
+
+                if let Err(e) = loom::start_loom(provider, bc_clone, topology_config, loom_args.loom_config.clone(), false).await {
+                    error!("Error starting loom: {:#?}", e);
+                    panic!("{}", e)
+                }
+
+                // keep loom running
+                tokio::select! {
+                    _ = signal::ctrl_c() => {
+                    info!("CTRL+C received... exiting");
+                }
+                _ = async {
+                        loop {
+                        tokio::time::sleep(Duration::from_secs(60)).await;
+                        task::yield_now().await;
+                        }
+                    } => {}
+                }
+                Ok::<(), eyre::Error>(())
+            })?;
+            Ok(())
         }
     }
 }

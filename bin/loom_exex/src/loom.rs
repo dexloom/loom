@@ -32,6 +32,7 @@ pub async fn start_loom<P, T>(
     bc: Blockchain,
     topology_config: TopologyConfig,
     loom_config_filepath: String,
+    is_exex: bool,
 ) -> eyre::Result<()>
 where
     T: Transport + Clone,
@@ -95,6 +96,10 @@ where
         .with_backrun_mempool(backrun_config)? // load backrun searcher for mempool txes
         .with_web_server(webserver_host, Router::new(), db_pool)? // start web server
     ;
+
+    if !is_exex {
+        bc_actors.with_block_events(NodeBlockActorConfig::all_enabled())?.with_remote_mempool(provider.clone())?;
+    }
 
     if let Some(influxdb_config) = topology_config.influxdb {
         bc_actors
