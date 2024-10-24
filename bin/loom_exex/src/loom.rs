@@ -74,6 +74,7 @@ where
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), relays);
     bc_actors
         .mempool()?
+        .with_wait_for_node_sync()? // wait for node to sync before
         .initialize_signers_with_encrypted_key(private_key_encrypted)? // initialize signer with encrypted key
         .with_block_history()? // collect blocks
         .with_price_station()? // calculate price fo tokens
