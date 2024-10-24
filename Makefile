@@ -134,6 +134,10 @@ swap-test-3: swap-test
 swap-test-4:FILE="./bin/loom_anvil/test_19109955.toml"
 swap-test-4: swap-test
 
+.PHONY: swap-test-5
+swap-test-5:FILE="./bin/loom_anvil/test_21035613.toml"
+swap-test-5: swap-test
+
 .PHONY: swap-test-all
 swap-test-all: RL=off
 swap-test-all:
@@ -141,5 +145,6 @@ swap-test-all:
 	@$(MAKE) swap-test-2 RL=$(RL)
 	@$(MAKE) swap-test-3 RL=$(RL)
 	@$(MAKE) swap-test-4 RL=$(RL)
+	@$(MAKE) swap-test-5 RL=$(RL)
 
 

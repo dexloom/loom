@@ -1,0 +1,32 @@
+# WETH -> GOAT -> GOAT -> WETH ARB CASE
+# replay tx with loom for 0x28243575d2f32061fb0044d6338e73907d3e5324aa3644cb849035e398ec375e
+[modules]
+signer = false
+
+
+[settings]
+block = 21035613
+coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
+multicaller = "0x3dd35b4da6534230ff53048f7477f17f7f4e7a70"
+skip_default = false
+
+[pools]
+# in order of swaps
+goat_weth_uni3 = { address = "0x8682fc63dc2525fd2e5ed4e28e207a2fd9f36dab", class = "uniswap3" }
+goat_weth_uni2 = { address = "0x1084a95c69bdc3325c1c42f86676b6eb66dce053", class = "uniswap2" }
+
+
+[txs]
+# block 21035614
+tx_1 = { hash = "0xccd80581ece52527eebba671b7a2bb9867195481244a92bca31177a75f58227a", send = "mempool" }
+
+
+[tokens]
+weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
+goat = { address = "0x5200b34e6a519f289f5258de4554ebd3db12e822", symbol = "GOAT", decimals = 9, basic = false, middle = false }
+
+
+[assertions]
+swaps_encoded = 1
+swaps_ok = 1
+best_profit_eth = 0.003
