@@ -38,7 +38,7 @@ where
                 if UniswapV2Protocol::is_code(code) {
                     match market.read().await.get_pool(address) {
                         None => {
-                            debug!("Loading UniswapV2 class pool {address:?}");
+                            debug!(?address, "Loading UniswapV2 class pool");
                             let env = Env::default();
 
                             let state_db = LoomDB::new_with_ro_db_and_provider(Some(market_state.state_db.clone()), client.clone())?;
@@ -47,21 +47,21 @@ where
                                 Ok(_factory_address) => match UniswapV2Pool::fetch_pool_data_evm(&state_db, env.clone(), *address) {
                                     Ok(pool) => {
                                         let pool = PoolWrapper::new(Arc::new(pool));
-                                        debug!("UniswapV2 Pool loaded {address:?} {}", pool.get_protocol());
+                                        debug!(?address, protocol = ?pool.get_protocol(), "UniswapV2 pool loaded");
                                         let swap_directions = pool.get_swap_directions();
                                         ret.insert(pool, swap_directions);
                                     }
-                                    Err(e) => {
-                                        error!("Error loading UniswapV2 pool @{address:?}: {e}");
+                                    Err(err) => {
+                                        error!(?address, %err, "Error loading UniswapV2 pool");
                                     }
                                 },
-                                Err(e) => {
-                                    error!("Error loading UniswapV2 factory {e}")
+                                Err(err) => {
+                                    error!(?address, %err, "Error loading UniswapV2 factory for pool")
                                 }
                             }
                         }
                         Some(pool) => {
-                            debug!("Pool already exists {address} {}", pool.get_protocol());
+                            debug!(?address, protocol = ?pool.get_protocol(), "Pool already exists");
                         }
                     }
                 }
@@ -69,7 +69,7 @@ where
                 if UniswapV3Protocol::is_code(code) {
                     match market.read().await.get_pool(address) {
                         None => {
-                            debug!("Loading UniswapV3 class pool : {address:?}");
+                            debug!(?address, "Loading UniswapV3 class pool");
                             let env = Env::default();
                             // TODO : Fix factory
                             let state_db = LoomDB::new_with_ro_db_and_provider(Some(market_state.state_db.clone()), client.clone())?;
@@ -80,12 +80,12 @@ where
                                             let pool = PancakeV3Pool::fetch_pool_data_evm(&state_db, env.clone(), *address);
                                             match pool {
                                                 Ok(pool) => {
-                                                    debug!("PancakeV3 Pool loaded {address:?} {}", pool.get_protocol());
+                                                    debug!(?address, protocol = ?pool.get_protocol(), "PancakeV3 Pool loaded");
                                                     let swap_directions = pool.get_swap_directions();
                                                     ret.insert(PoolWrapper::new(Arc::new(pool)), swap_directions);
                                                 }
-                                                Err(e) => {
-                                                    error!("Error loading PancakeV3 pool @{address:?}: {e}");
+                                                Err(err) => {
+                                                    error!(?address, %err, "Error loading PancakeV3 pool");
                                                 }
                                             }
                                         }
@@ -93,12 +93,12 @@ where
                                             let pool = MaverickPool::fetch_pool_data_evm(&state_db, env.clone(), *address);
                                             match pool {
                                                 Ok(pool) => {
-                                                    debug!("Maverick Pool loaded {address:?} {}", pool.get_protocol());
+                                                    debug!(?address, "Maverick Pool loaded");
                                                     let swap_directions = pool.get_swap_directions();
                                                     ret.insert(PoolWrapper::new(Arc::new(pool)), swap_directions);
                                                 }
-                                                Err(e) => {
-                                                    error!("Error loading Maverick pool @{address:?}: {e}");
+                                                Err(err) => {
+                                                    error!(?address, %err, "Error loading Maverick pool");
                                                 }
                                             }
                                         }
@@ -109,19 +109,19 @@ where
                                                 debug!("UniswapV3 Pool loaded {address:?} {} : {:?}", pool.get_protocol(), swap_directions);
                                                 ret.insert(pool, swap_directions);
                                             }
-                                            Err(e) => {
-                                                error!("Error loading UniswapV3 pool @{address:?}: {e}");
+                                            Err(err) => {
+                                                error!(?address, %err, "Error loading UniswapV3 pool");
                                             }
                                         },
                                     };
                                 }
-                                Err(e) => {
-                                    error!("Error loading UniswapV3 factory {e}")
+                                Err(err) => {
+                                    error!(?address, %err, "Error loading UniswapV3 factory for pool")
                                 }
                             }
                         }
                         Some(pool) => {
-                            debug!("Pool already exists {address} {}", pool.get_protocol())
+                            debug!(?address, protocol = ?pool.get_protocol(), "Pool already exists")
                         }
                     }
                 }
