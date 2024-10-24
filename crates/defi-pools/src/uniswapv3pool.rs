@@ -474,9 +474,7 @@ mod test {
     use defi_address_book::{PeripheryAddress, UniswapV3PoolAddress};
     use defi_entities::required_state::RequiredStateReader;
     use loom_revm_db::{AlloyDB, LoomDB};
-    use rand::Rng;
     use std::env;
-    use std::ops::Mul;
 
     const POOL_ADDRESSES: [Address; 4] = [
         address!("15153da0e9e13cfc167b3d417d3721bf545479bb"), // Neiro/WETH pool 3000
@@ -553,8 +551,6 @@ mod test {
         let node_url = env::var("MAINNET_WS")?;
         let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(BLOCK_NUMBER)).await?;
 
-        let rnd_multiplier = U256::from(rand::thread_rng().gen_range(1..10u64));
-
         for pool_address in POOL_ADDRESSES {
             let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
             let state_required = pool.get_state_required()?;
@@ -567,7 +563,7 @@ mod test {
             let token1_decimals = IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
 
             //// CASE: token0 -> token1
-            let amount_in = U256::from(10u64).pow(token0_decimals).mul(rnd_multiplier);
+            let amount_in = U256::from(10u64).pow(token0_decimals);
             let contract_amount_out =
                 fetch_original_contract_amounts(client.clone(), pool_address, pool.token0, pool.token1, amount_in, BLOCK_NUMBER, true)
                     .await?;
@@ -588,7 +584,7 @@ mod test {
             assert_eq!(gas_used, 150_000);
 
             //// CASE: token1 -> token0
-            let amount_in = U256::from(10u64).pow(token1_decimals).mul(rnd_multiplier);
+            let amount_in = U256::from(10u64).pow(token1_decimals);
             let contract_amount_out =
                 fetch_original_contract_amounts(client.clone(), pool_address, pool.token1, pool.token0, amount_in, BLOCK_NUMBER, true)
                     .await?;
@@ -618,8 +614,6 @@ mod test {
         let node_url = env::var("MAINNET_WS")?;
         let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(BLOCK_NUMBER)).await?;
 
-        let rnd_multiplier = U256::from(1u64); //U256::from(rand::thread_rng().gen_range(1..10u64));
-
         for pool_address in POOL_ADDRESSES {
             let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
             let state_required = pool.get_state_required()?;
@@ -632,7 +626,7 @@ mod test {
             let token1_decimals = IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
 
             //// CASE: token0 -> token1
-            let amount_out = U256::from(10u64).pow(token1_decimals).mul(rnd_multiplier);
+            let amount_out = U256::from(10u64).pow(token1_decimals);
             let contract_amount_in =
                 fetch_original_contract_amounts(client.clone(), pool_address, pool.token0, pool.token1, amount_out, BLOCK_NUMBER, false)
                     .await?;
@@ -653,7 +647,7 @@ mod test {
             assert_eq!(gas_used, 150_000);
 
             //// CASE: token1 -> token0
-            let amount_out = U256::from(10u64).pow(token0_decimals).mul(rnd_multiplier);
+            let amount_out = U256::from(10u64).pow(token0_decimals);
             let contract_amount_in =
                 fetch_original_contract_amounts(client.clone(), pool_address, pool.token1, pool.token0, amount_out, BLOCK_NUMBER, false)
                     .await?;
@@ -677,92 +671,64 @@ mod test {
         Ok(())
     }
 
-    #[test]
-    fn test_calculate_in_amount_with_ext_db() -> Result<()> {
+    #[tokio::test(flavor = "multi_thread", worker_threads = 1)]
+    async fn test_calculate_in_amount_with_ext_db() -> Result<()> {
         // Verify that the calculated out amount is the same as the contract's out amount
+        let node_url = env::var("MAINNET_WS")?;
+        let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(BLOCK_NUMBER)).await?;
 
-        let rt = tokio::runtime::Runtime::new().unwrap();
+        for pool_address in POOL_ADDRESSES {
+            let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
 
-        rt.block_on(async move {
-            let node_url = env::var("MAINNET_WS")?;
-            let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(BLOCK_NUMBER)).await?;
+            let alloy_db = AlloyDB::new(client.clone(), BlockNumberOrTag::Number(BLOCK_NUMBER).into()).unwrap();
 
-            let rnd_multiplier = U256::from(1u64); //U256::from(rand::thread_rng().gen_range(1..10u64));
+            let state_db = LoomDB::new().with_ext_db(alloy_db);
 
-            for pool_address in POOL_ADDRESSES {
-                let pool = UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?;
+            let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
+            let token1_decimals = IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
 
-                let alloy_db = AlloyDB::new(client.clone(), BlockNumberOrTag::Number(BLOCK_NUMBER).into()).unwrap();
+            //// CASE: token0 -> token1
+            let amount_out = U256::from(10u64).pow(token1_decimals);
+            let contract_amount_in =
+                fetch_original_contract_amounts(client.clone(), pool_address, pool.token0, pool.token1, amount_out, BLOCK_NUMBER, false)
+                    .await?;
 
-                let state_db = LoomDB::new().with_ext_db(alloy_db);
+            // under test
+            let (amount_in, gas_used) = match pool.calculate_in_amount(&state_db, Env::default(), &pool.token0, &pool.token1, amount_out) {
+                Ok((amount_in, gas_used)) => (amount_in, gas_used),
+                Err(e) => {
+                    panic!("Calculation error for pool={:?}, amount_out={}, e={:?}", pool_address, amount_out, e);
+                }
+            };
+            assert_eq!(
+                amount_in,
+                contract_amount_in,
+                "{}",
+                format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token0, amount_out)
+            );
+            assert_eq!(gas_used, 150_000);
 
-                let token0_decimals =
-                    IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
-                let token1_decimals =
-                    IERC20::new(pool.token1, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;
+            //// CASE: token1 -> token0
+            let amount_out = U256::from(10u64).pow(token0_decimals);
+            let contract_amount_in =
+                fetch_original_contract_amounts(client.clone(), pool_address, pool.token1, pool.token0, amount_out, BLOCK_NUMBER, false)
+                    .await?;
 
-                //// CASE: token0 -> token1
-                let amount_out = U256::from(10u64).pow(token1_decimals).mul(rnd_multiplier);
-                let contract_amount_in = fetch_original_contract_amounts(
-                    client.clone(),
-                    pool_address,
-                    pool.token0,
-                    pool.token1,
-                    amount_out,
-                    BLOCK_NUMBER,
-                    false,
-                )
-                .await?;
-
-                // under test
-                let (amount_in, gas_used) =
-                    match pool.calculate_in_amount(&state_db, Env::default(), &pool.token0, &pool.token1, amount_out) {
-                        Ok((amount_in, gas_used)) => (amount_in, gas_used),
-                        Err(e) => {
-                            panic!("Calculation error for pool={:?}, amount_out={}, e={:?}", pool_address, amount_out, e);
-                        }
-                    };
-                assert_eq!(
-                    amount_in,
-                    contract_amount_in,
-                    "{}",
-                    format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token0, amount_out)
-                );
-                assert_eq!(gas_used, 150_000);
-
-                //// CASE: token1 -> token0
-                let amount_out = U256::from(10u64).pow(token0_decimals).mul(rnd_multiplier);
-                let contract_amount_in = fetch_original_contract_amounts(
-                    client.clone(),
-                    pool_address,
-                    pool.token1,
-                    pool.token0,
-                    amount_out,
-                    BLOCK_NUMBER,
-                    false,
-                )
-                .await?;
-
-                // under test
-                let (amount_in, gas_used) =
-                    match pool.calculate_in_amount(&state_db, Env::default(), &pool.token1, &pool.token0, amount_out) {
-                        Ok((amount_in, gas_used)) => (amount_in, gas_used),
-                        Err(e) => {
-                            panic!("Calculation error for pool={:?}, amount_out={}, e={:?}", pool_address, amount_out, e);
-                        }
-                    };
-                assert_eq!(
-                    amount_in,
-                    contract_amount_in,
-                    "{}",
-                    format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token1, amount_out)
-                );
-                assert_eq!(gas_used, 150_000);
-                println!("pool={:?}, token_in={:?}, amount_in={} amount_out={}", pool_address, &pool.token1, amount_in, amount_out)
-            }
-            Result::<(), ErrReport>::Ok(())
-        })
-        .unwrap();
+            // under test
+            let (amount_in, gas_used) = match pool.calculate_in_amount(&state_db, Env::default(), &pool.token1, &pool.token0, amount_out) {
+                Ok((amount_in, gas_used)) => (amount_in, gas_used),
+                Err(e) => {
+                    panic!("Calculation error for pool={:?}, amount_out={}, e={:?}", pool_address, amount_out, e);
+                }
+            };
+            assert_eq!(
+                amount_in,
+                contract_amount_in,
+                "{}",
+                format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token1, amount_out)
+            );
+            assert_eq!(gas_used, 150_000);
+        }
 
         Ok(())
     }
