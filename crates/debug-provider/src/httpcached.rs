@@ -469,7 +469,7 @@ mod test {
 
         let trace_opts = GethDebugTracingOptions::default()
             .with_tracer(GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::PreStateTracer))
-            .with_prestate_config(PreStateConfig { diff_mode: Some(true) });
+            .with_prestate_config(PreStateConfig { diff_mode: Some(true), ..Default::default() });
 
         for i in 0..10 {
             debug!("Set next block: {}", i);
