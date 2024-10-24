@@ -1,46 +1,46 @@
 [workspace]
 default-members = [
-    "bin/exex_grpc_node",
-    "bin/gasbench",
-    "bin/keys",
-    "bin/loom_anvil",
-    "bin/loom_backrun",
-    "bin/loom_exex",
-    "bin/nodebench",
-    "bin/replayer",
+  "bin/exex_grpc_node",
+  "bin/gasbench",
+  "bin/keys",
+  "bin/loom_anvil",
+  "bin/loom_backrun",
+  "bin/loom_exex",
+  "bin/nodebench",
+  "bin/replayer",
 ]
 members = [
-    "bin/exex_grpc_loom",
-    "bin/exex_grpc_node",
-    "bin/gasbench",
-    "bin/keys",
-    "bin/loom_anvil",
-    "bin/loom_backrun",
-    "bin/loom_exex",
-    "bin/nodebench",
-    "bin/replayer",
-    "crates/debug-provider",
-    "crates/defi-abi",
-    "crates/defi-actors",
-    "crates/defi-address-book",
-    "crates/defi-blockchain",
-    "crates/defi-blockchain-actors",
-    "crates/defi-entities",
-    "crates/defi-events",
-    "crates/defi-pools",
-    "crates/flashbots",
-    "crates/loom",
-    "crates/loom-db",
-    "crates/loom-metrics",
-    "crates/loom-revm-db",
-    "crates/loom-web",
-    "crates/loom-web-state",
-    "crates/multicaller",
-    "crates/reth-exex-grpc",
-    "crates/topology",
-    "crates/types",
-    "crates/uniswap-v3-math",
-    "crates/utils",
+  "bin/exex_grpc_loom",
+  "bin/exex_grpc_node",
+  "bin/gasbench",
+  "bin/keys",
+  "bin/loom_anvil",
+  "bin/loom_backrun",
+  "bin/loom_exex",
+  "bin/nodebench",
+  "bin/replayer",
+  "crates/debug-provider",
+  "crates/defi-abi",
+  "crates/defi-actors",
+  "crates/defi-address-book",
+  "crates/defi-blockchain",
+  "crates/defi-blockchain-actors",
+  "crates/defi-entities",
+  "crates/defi-events",
+  "crates/defi-pools",
+  "crates/flashbots",
+  "crates/loom",
+  "crates/loom-db",
+  "crates/loom-metrics",
+  "crates/loom-revm-db",
+  "crates/loom-web",
+  "crates/loom-web-state",
+  "crates/multicaller",
+  "crates/reth-exex-grpc",
+  "crates/topology",
+  "crates/types",
+  "crates/uniswap-v3-math",
+  "crates/utils",
 ]
 resolver = "2"
 
@@ -147,32 +147,32 @@ criterion = { version = "0.5.1", features = ["async_tokio"] }
 ## We keep revm and alloy dependencies pinned to specific versions as reth depends on them
 
 # revm
-revm = { version = "17.0.0", features = ["blst", "optional_balance_check", "secp256k1", "std"], default-features = false }
+revm = { version = "17.1.0", features = ["blst", "optional_balance_check", "secp256k1", "std"], default-features = false }
 revm-inspectors = "0.10.0"
 revm-primitives = { version = "13.0.0", features = ["std"], default-features = false }
 
 # alloy
 alloy = { version = "0.5.4", features = [
-    "consensus",
-    "full",
-    "json-rpc",
-    "node-bindings",
-    "rand",
-    "rlp",
-    "rpc-types-anvil",
-    "rpc-types-json",
-    "rpc-types-trace",
-    "serde",
+  "consensus",
+  "full",
+  "json-rpc",
+  "node-bindings",
+  "rand",
+  "rlp",
+  "rpc-types-anvil",
+  "rpc-types-json",
+  "rpc-types-trace",
+  "serde",
 ] }
 alloy-chains = "0.1.32"
 alloy-consensus = "0.5.4"
 alloy-contract = "0.5.4"
-alloy-dyn-abi = { version = "0.8.9", features = ["json", "std"] }
+alloy-dyn-abi = { version = "0.8.7", features = ["json", "std"] }
 alloy-eips = "0.5.4"
 alloy-json-rpc = "0.5.4"
 alloy-network = "0.5.4"
 alloy-node-bindings = "0.5.4"
-alloy-primitives = { version = "0.8.9", features = ["rand"] }
+alloy-primitives = { version = "0.8.7", features = ["rand"] }
 alloy-provider = { version = "0.5.4", features = ["anvil-api", "anvil-node", "debug-api", "ipc", "pubsub", "reqwest", "ws"] }
 alloy-pubsub = "0.5.4"
 alloy-rlp = "0.3.8"
@@ -186,8 +186,8 @@ alloy-rpc-types-trace = "0.5.4"
 alloy-serde = "0.5.4"
 alloy-signer = "0.5.4"
 alloy-signer-local = "0.5.4"
-alloy-sol-macro = { version = "0.8.9", features = ["json"] }
-alloy-sol-types = { version = "0.8.9", features = ["json"] }
+alloy-sol-macro = { version = "0.8.7", features = ["json"] }
+alloy-sol-types = { version = "0.8.7", features = ["json"] }
 alloy-transport = "0.5.4"
 alloy-transport-http = "0.5.4"
 alloy-transport-ipc = "0.5.4"

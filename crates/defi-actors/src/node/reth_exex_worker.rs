@@ -197,7 +197,7 @@ where
                 if let Some(tx_notification) = tx_notification {
                     let recovered_tx = tx_notification.transaction.to_recovered_transaction();
                     let tx_hash: TxHash = recovered_tx.hash;
-                    let tx : alloy::rpc::types::eth::Transaction = reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(recovered_tx,&EthTxBuilder).inner;
+                    let tx : alloy::rpc::types::eth::Transaction = reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(recovered_tx, &EthTxBuilder).inner;
                     let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, "exex".to_string());
                     if let Err(e) =  mempool_tx.send(update_msg).await {
                         error!(error=?e.to_string(), "mempool_tx.send");
