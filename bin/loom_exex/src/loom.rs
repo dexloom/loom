@@ -12,6 +12,7 @@ use defi_entities::PoolClass;
 use defi_pools::PoolsConfig;
 use eyre::OptionExt;
 use loom_db::init_db_pool;
+use loom_test::SwapHealthMonitorActor;
 use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use reth_exex::ExExContext;
 use reth_node_api::FullNodeComponents;
@@ -108,6 +109,8 @@ where
             .with_influxdb_writer(influxdb_config.url, influxdb_config.database, influxdb_config.tags)?
             .with_block_latency_recorder()?;
     }
+
+    bc_actors.start(SwapHealthMonitorActor::new(provider.clone()).on_bc(&bc))?;
 
     bc_actors.wait().await;
 

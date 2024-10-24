@@ -33,6 +33,7 @@ members = [
   "crates/loom-db",
   "crates/loom-metrics",
   "crates/loom-revm-db",
+  "crates/loom-test",
   "crates/loom-web",
   "crates/loom-web-state",
   "crates/multicaller",
@@ -72,6 +73,7 @@ loom-db = { path = "crates/loom-db" }
 loom-metrics = { path = "crates/loom-metrics" }
 loom-multicaller = { path = "crates/multicaller" }
 loom-revm-db = { path = "crates/loom-revm-db" }
+loom-test = { path = "crates/loom-test" }
 loom-topology = { path = "crates/topology" }
 loom-utils = { path = "crates/utils" } #, features = ["trace-calls"] }
 loom-web = { path = "crates/loom-web" }

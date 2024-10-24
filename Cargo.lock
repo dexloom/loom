@@ -4948,6 +4948,30 @@ dependencies = [
 ]
 
 [[package]]
+name = "loom-test"
+version = "0.2.0"
+dependencies = [
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-transport",
+ "debug-provider",
+ "defi-abi",
+ "defi-address-book",
+ "defi-blockchain",
+ "defi-entities",
+ "defi-events",
+ "defi-pools",
+ "eyre",
+ "loom-actors",
+ "loom-revm-db",
+ "revm",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
 name = "loom-topology"
 version = "0.2.0"
 dependencies = [
@@ -5124,6 +5148,7 @@ dependencies = [
  "hex",
  "loom-actors",
  "loom-db",
+ "loom-test",
  "loom-topology",
  "loom-utils",
  "loom-web",
