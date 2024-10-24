@@ -33,6 +33,29 @@ jobs:
 
       - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
       - run: make test
+
+  swap-test-all:
+    if: github.repository == 'dexloom/loom'
+    name: make swap-test-all
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      MAINNET_HTTP: ${{ secrets.MAINNET_HTTP }}
+      MAINNET_WS: ${{ secrets.MAINNET_WS }}
+      RUST_LOG: info
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha || github.ref }}
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: arduino/setup-protoc@v3
+      - uses: foundry-rs/foundry-toolchain@v1
+        with:
+          version: nightly
+
+      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi-entities/src/private.rs'
       - run: make swap-test-all
 
   fmt:

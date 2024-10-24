@@ -85,6 +85,7 @@ impl MulticallerDeployer {
             .max_fee_per_gas(next_base_fee as u128)
             .max_priority_fee_per_gas(1)
             .input(TransactionInput::new(self.code.clone()))
+            //.to(Address::ZERO)
             .nonce(nonce);
         tx_request.to = Some(TxKind::Create);
 
@@ -98,7 +99,7 @@ impl MulticallerDeployer {
             eyre!("ERROR_SENDING_TX")
         })?;
 
-        /*let mut block_number = client.get_block_number().await?;
+        let mut block_number = client.get_block_number().await?;
 
         let final_block = block_number + 10;
         while block_number < final_block {
@@ -112,10 +113,6 @@ impl MulticallerDeployer {
         }
 
         Err(eyre!("NO_RECEIPT_FOUND"))
-         */
-
-        // TODO : Temporary fix
-        Ok(Self { address: Some(Address::random()), ..self })
         //let receipt = pending_tx.with_timeout(Some(Duration::new(10, 0))).get_receipt().await.map_err(|_| eyre!("CANNOT_GET_RECEIPT"))?;
         //let receipt = pending_tx.with_timeout(Some(Duration::new(100, 0))).watch().await.map_err(|_| eyre!("CANNOT_GET_RECEIPT"))?;
 
