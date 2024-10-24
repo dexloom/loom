@@ -24,7 +24,7 @@ local = { url = "PATH_TO_RETH_IPC_ENDPOINT", transport = "ipc", db_path = "PATH_
 
 [blockchains]
 # Ethereum mainnet. chain id = 1
-mainnet = {}
+mainnet = { }
 
 # Setup signer with encrypted private key
 [signers]
@@ -74,27 +74,29 @@ client = "remote"
 type = "flashbots"
 # optional custom relays, if not set default relays will be used
 relays = [
-  { id = 1, name = "flashbots", url = "https://relay.flashbots.net" },
-  { id = 2, name = "beaverbuild", url = "https://rpc.beaverbuild.org/", no_sign = true },
-  { id = 3, name = "titan", url = "https://rpc.titanbuilder.xyz" },
-  { id = 4, name = "rsync", url = "https://rsync-builde00r.xyz" },
-  { id = 5, name = "eden", url = "https://api.edennetwork.io/v1/bundle" },
-  { id = 6, name = "eth_builder", url = "https://eth-builder.com", no_sign = true },
-  { id = 7, name = "secureapi", url = "https://api.securerpc.com/v1", no_sign = true },
-  { id = 8, name = "buildai", url = "https://BuildAI.net", no_sign = true },
-  { id = 9, name = "payloadde", url = "https://rpc.payload.de", no_sign = true },
-  { id = 10, name = "fibio", url = "https://rpc.f1b.io" },
-  { id = 11, name = "loki", url = "https://rpc.lokibuilder.xyz" },
-  { id = 12, name = "ibuilder", url = "https://rpc.ibuilder.xyz" },
-  { id = 13, name = "jetbuilder", url = "https://rpc.jetbldr.xyz" },
-  { id = 14, name = "penguinbuilder", url = "https://rpc.penguinbuild.org" },
-  { id = 15, name = "gambitbuilder", url = "https://builder.gmbit.co/rpc" },
+    { id = 1, name = "flashbots", url = "https://relay.flashbots.net" },
+    { id = 2, name = "beaverbuild", url = "https://rpc.beaverbuild.org/", no_sign = true },
+    { id = 3, name = "titan", url = "https://rpc.titanbuilder.xyz" },
+    { id = 4, name = "rsync", url = "https://rsync-builde00r.xyz" },
+    { id = 5, name = "eden", url = "https://api.edennetwork.io/v1/bundle" },
+    { id = 6, name = "eth_builder", url = "https://eth-builder.com", no_sign = true },
+    { id = 7, name = "secureapi", url = "https://api.securerpc.com/v1", no_sign = true },
+    { id = 8, name = "buildai", url = "https://BuildAI.net", no_sign = true },
+    { id = 9, name = "payloadde", url = "https://rpc.payload.de", no_sign = true },
+    { id = 10, name = "fibio", url = "https://rpc.f1b.io" },
+    { id = 11, name = "loki", url = "https://rpc.lokibuilder.xyz" },
+    { id = 12, name = "ibuilder", url = "https://rpc.ibuilder.xyz" },
+    { id = 13, name = "jetbuilder", url = "https://rpc.jetbldr.xyz" },
+    { id = 14, name = "penguinbuilder", url = "https://rpc.penguinbuild.org" },
+    { id = 15, name = "gambitbuilder", url = "https://builder.gmbit.co/rpc" },
 ]
 
 # Transaction estimators
 [actors.estimator]
 # EVM estimator
 mainnet = { type = "evm", bc = "mainnet", encoder = "mainnet" }
+# EVM estimator with node provider
+#mainnet = { type = "evm", bc = "mainnet", encoder = "mainnet", client = "local"}
 # Node estimator. Geth estimator is ok for nodes supporting eth_callBundle method only
 #mainnet = { client = "local", bc = "mainnet", type = "geth", encoder = "mainnet" }
 

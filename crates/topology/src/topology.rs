@@ -415,7 +415,12 @@ impl Topology {
 
                 info!("Starting pool loader actor {name}");
                 let mut pool_loader_actor = PoolLoaderActor::new(client.clone());
-                match pool_loader_actor.access(blockchain.market()).consume(blockchain.tasks_channel()).start() {
+                match pool_loader_actor
+                    .access(blockchain.market())
+                    .access(blockchain.market_state())
+                    .consume(blockchain.tasks_channel())
+                    .start()
+                {
                     Ok(r) => {
                         tasks.extend(r);
                         info!("Pool loader actor started successfully")
@@ -433,9 +438,11 @@ impl Topology {
             for (name, params) in estimator_actors {
                 match params {
                     EstimatorConfig::Evm(params) => {
+                        let client = params.client.as_ref().map(|x| topology.get_client(Some(x))).transpose()?; //   topology.get_client(params.client.as_ref())?;
+
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
                         let encoder = topology.get_multicaller_encoder(params.encoder.as_ref())?;
-                        let mut evm_estimator_actor = EvmEstimatorActor::new(encoder);
+                        let mut evm_estimator_actor = EvmEstimatorActor::new_with_provider(encoder, client);
                         match evm_estimator_actor.consume(blockchain.compose_channel()).produce(blockchain.compose_channel()).start() {
                             Ok(r) => {
                                 tasks.extend(r);

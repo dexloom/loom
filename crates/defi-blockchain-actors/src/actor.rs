@@ -4,8 +4,8 @@ use std::sync::Arc;
 
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, B256, U256};
-use alloy_provider::Provider;
-use alloy_transport::Transport;
+use alloy_provider::{Provider, RootProvider};
+use alloy_transport::{BoxTransport, Transport};
 use axum::Router;
 use debug_provider::DebugProviderExt;
 use defi_actors::backrun::BlockStateChangeProcessorActor;
@@ -285,7 +285,19 @@ where
 
     /// Starts EVM gas estimator and tips filler
     pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(EvmEstimatorActor::new(self.encoder.clone().unwrap()).on_bc(&self.bc))?;
+        self.actor_manager.start(
+            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, MulticallerSwapEncoder>::new(
+                self.encoder.clone().unwrap(),
+            )
+            .on_bc(&self.bc),
+        )?;
+        Ok(self)
+    }
+
+    /// Starts EVM gas estimator and tips filler
+    pub fn with_evm_estimator_and_provider(&mut self) -> Result<&mut Self> {
+        self.actor_manager
+            .start(EvmEstimatorActor::new_with_provider(self.encoder.clone().unwrap(), Some(self.provider.clone())).on_bc(&self.bc))?;
         Ok(self)
     }
 

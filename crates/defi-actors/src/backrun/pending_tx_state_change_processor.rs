@@ -156,7 +156,7 @@ where
         Ok(affected_pools) => {
             let storage_len = accounts_vec_len(&state_update_vec);
 
-            debug!("Mempool affected pools {:?} {} update len : {} strg : {}", tx_hash, source, affected_pools.len(), storage_len);
+            debug!(%tx_hash, %source, pools = affected_pools.len(), storage = storage_len, "Mempool affected pools",);
 
             affecting_tx.write().await.insert(tx_hash, !affected_pools.is_empty());
 

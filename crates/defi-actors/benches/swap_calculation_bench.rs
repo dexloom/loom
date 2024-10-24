@@ -1,4 +1,4 @@
-use alloy_primitives::{address, BlockNumber, I256, U256};
+use alloy_primitives::{address, BlockNumber};
 use std::collections::BTreeMap;
 use std::env;
 

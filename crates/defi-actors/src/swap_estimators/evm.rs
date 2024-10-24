@@ -1,8 +1,14 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
+use alloy_eips::BlockNumberOrTag;
+use alloy_network::{Ethereum, Network};
 use alloy_primitives::{Bytes, TxKind, U256};
+use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
+use alloy_transport::Transport;
 use eyre::{eyre, Result};
+use std::marker::PhantomData;
+use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info};
 
@@ -13,13 +19,19 @@ use loom_utils::NWETH;
 use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
+use loom_revm_db::AlloyDB;
 use loom_utils::evm::{env_for_block, evm_access_list};
 
-async fn estimator_task(
-    estimate_request: TxComposeData,
+async fn estimator_task<T, N>(
+    client: Option<impl Provider<T, N> + 'static>,
     swap_encoder: impl SwapEncoder,
+    estimate_request: TxComposeData,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-) -> Result<()> {
+) -> Result<()>
+where
+    T: Transport + Clone,
+    N: Network,
+{
     debug!(
         gas_limit = estimate_request.gas,
         base_fee = NWETH::to_float_gwei(estimate_request.next_block_base_fee as u128),
@@ -61,6 +73,10 @@ async fn estimator_task(
         error!("StateDB is None");
         return Err(eyre!("STATE_DB_IS_NONE"));
     };
+
+    let db = client
+        .and_then(|client| AlloyDB::new(client, BlockNumberOrTag::Latest.into()))
+        .map_or(db.clone(), |ext_db| Arc::new(db.as_ref().clone().with_ext_db(ext_db)));
 
     let evm_env = env_for_block(estimate_request.next_block_number, estimate_request.next_block_timestamp);
 
@@ -167,11 +183,16 @@ async fn estimator_task(
     result
 }
 
-async fn estimator_worker(
+async fn estimator_worker<T, N>(
+    client: Option<impl Provider<T, N> + Send + Sync + Clone + 'static>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
     compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-) -> WorkerResult {
+) -> WorkerResult
+where
+    T: Transport + Clone,
+    N: Network,
+{
     subscribe!(compose_channel_rx);
 
     loop {
@@ -183,12 +204,14 @@ async fn estimator_worker(
                         if let TxCompose::Estimate(estimate_request) = compose_request.inner {
                             let compose_channel_tx_cloned = compose_channel_tx.clone();
                             let encoder_cloned = encoder.clone();
+                            let client_cloned = client.clone();
                             tokio::task::spawn(
                                 async move {
                                 if let Err(e) = estimator_task(
-                                    estimate_request.clone(),
-                                    encoder_cloned,
-                                    compose_channel_tx_cloned,
+                                        client_cloned,
+                                        encoder_cloned,
+                                        estimate_request.clone(),
+                                        compose_channel_tx_cloned,
                                 ).await {
                                         error!("Error in EVM estimator_task: {:?}", e);
                                     }
@@ -204,20 +227,30 @@ async fn estimator_worker(
 }
 
 #[derive(Consumer, Producer)]
-pub struct EvmEstimatorActor<E> {
+pub struct EvmEstimatorActor<P, T, N, E> {
     encoder: E,
+    client: Option<P>,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
     compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
+    _t: PhantomData<T>,
+    _n: PhantomData<N>,
 }
 
-impl<E> EvmEstimatorActor<E>
+impl<P, T, N, E> EvmEstimatorActor<P, T, N, E>
 where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, Ethereum>,
     E: SwapEncoder + Send + Sync + Clone + 'static,
 {
     pub fn new(encoder: E) -> Self {
-        Self { encoder, compose_channel_tx: None, compose_channel_rx: None }
+        Self { encoder, client: None, compose_channel_tx: None, compose_channel_rx: None, _t: PhantomData::<T>, _n: PhantomData::<N> }
+    }
+
+    pub fn new_with_provider(encoder: E, client: Option<P>) -> Self {
+        Self { encoder, client, compose_channel_tx: None, compose_channel_rx: None, _t: PhantomData::<T>, _n: PhantomData::<N> }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -225,12 +258,16 @@ where
     }
 }
 
-impl<E> Actor for EvmEstimatorActor<E>
+impl<P, T, N, E> Actor for EvmEstimatorActor<P, T, N, E>
 where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
     E: SwapEncoder + Clone + Send + Sync + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(
+            self.client.clone(),
             self.encoder.clone(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),

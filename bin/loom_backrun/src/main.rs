@@ -3,8 +3,8 @@ use eyre::Result;
 use tracing::{error, info};
 
 use defi_actors::{
-    ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor, StateChangeArbActor, StateHealthMonitorActor, StuffingTxMonitorActor,
-    SwapRouterActor,
+    ArbSwapPathMergerActor, BackrunConfig, BackrunConfigSection, DiffPathMergerActor, SamePathMergerActor, StateChangeArbActor,
+    StateHealthMonitorActor, StuffingTxMonitorActor, SwapRouterActor,
 };
 use defi_entities::config::load_from_file;
 use defi_events::MarketEvents;
@@ -28,7 +28,9 @@ async fn main() -> Result<()> {
     let blockchain = topology.get_blockchain(Some("mainnet".to_string()).as_ref())?;
     let tx_signers = topology.get_signers(Some("env_signer".to_string()).as_ref())?;
 
-    let backrun_config = load_from_file("config.toml".to_string().into()).await?;
+    let backrun_config: BackrunConfigSection = load_from_file("./config.toml".to_string().into()).await?;
+    let backrun_config: BackrunConfig = backrun_config.backrun_strategy;
+
     let block_nr = client.get_block_number().await?;
     info!("Block : {}", block_nr);
 

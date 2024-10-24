@@ -4,7 +4,7 @@ use alloy::providers::Provider;
 use alloy::transports::Transport;
 use axum::Router;
 use debug_provider::DebugProviderExt;
-use defi_actors::{loom_exex, BackrunConfigSection, NodeBlockActorConfig};
+use defi_actors::{loom_exex, BackrunConfig, BackrunConfigSection, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
 use defi_blockchain_actors::BlockchainActors;
 use defi_entities::config::load_from_file;
@@ -67,7 +67,8 @@ where
 
     let pools_config = PoolsConfig::disable_all().enable(PoolClass::UniswapV2).enable(PoolClass::UniswapV3);
 
-    let backrun_config = load_from_file::<BackrunConfigSection>(loom_config_filepath.into()).await?.backrun_strategy;
+    let backrun_config: BackrunConfigSection = load_from_file::<BackrunConfigSection>(loom_config_filepath.into()).await?;
+    let backrun_config: BackrunConfig = backrun_config.backrun_strategy;
 
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), relays);
     bc_actors

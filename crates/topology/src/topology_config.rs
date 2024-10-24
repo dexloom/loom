@@ -167,6 +167,7 @@ pub enum BroadcasterConfig {
 
 #[derive(Debug, Deserialize)]
 pub struct EvmEstimatorConfig {
+    pub client: Option<String>,
     #[serde(rename = "bc")]
     pub blockchain: Option<String>,
     pub encoder: Option<String>,

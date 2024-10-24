@@ -328,8 +328,8 @@ async fn main() -> Result<()> {
         }
     }
 
-    //let mut estimator_actor = HardhatEstimatorActor::new(client.clone(), encoder.clone());
-    let mut estimator_actor = EvmEstimatorActor::new(encoder.clone());
+    // Start estimator actor
+    let mut estimator_actor = EvmEstimatorActor::new_with_provider(encoder.clone(), Some(client.clone()));
     match estimator_actor.consume(tx_compose_channel.clone()).produce(tx_compose_channel.clone()).start() {
         Err(e) => error!("{e}"),
         _ => {
