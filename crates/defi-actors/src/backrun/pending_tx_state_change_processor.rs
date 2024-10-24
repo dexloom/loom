@@ -112,7 +112,7 @@ where
         }
     } else if transaction_type == EIP4844_TX_TYPE_ID {
         // ignore blob tx
-        warn!("Ignore EIP4844 transaction: hash={:?}", mempool_tx.tx_hash);
+        debug!("Ignore EIP4844 transaction: hash={:?}", mempool_tx.tx_hash);
         return Ok(());
     } else {
         warn!("Unknown transaction type: type={}, hash={:?}", transaction_type, mempool_tx.tx_hash);
