@@ -184,7 +184,7 @@ where
 }
 
 async fn estimator_worker<T, N>(
-    client: Option<impl Provider<T, N> + Send + Sync + Clone + 'static>,
+    client: Option<impl Provider<T, N> + Clone + 'static>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
     compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
