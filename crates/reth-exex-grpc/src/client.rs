@@ -50,7 +50,7 @@ impl ExExClient {
                     Ok(Some(transaction_proto)) => {
                         if let Ok(transaction) = TransactionSigned::try_from(&transaction_proto){
                             if let Some(transaction) = transaction.into_ecrecovered() {
-                                let transaction = reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(transaction);
+                                let transaction = reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(transaction, &EthTxBuilder);
                                 yield transaction;
                             }
                         }
@@ -120,7 +120,8 @@ impl ExExClient {
                                 sealed_block.unseal(),
                                 diff,
                                 BlockTransactionsKind::Full,
-                                Some(hash))
+                                Some(hash),
+                                &EthTxBuilder)
                             {
 
                                 let block_eth : Block = Block {

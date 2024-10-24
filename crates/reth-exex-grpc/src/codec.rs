@@ -238,11 +238,15 @@ impl TryFrom<&reth::primitives::TransactionSigned> for proto::Transaction {
                             address: authorization.address().to_vec(),
                             nonce: authorization.nonce(),
                         }),
-                        signature: Some(proto::Signature {
-                            r: authorization.signature().r().to_le_bytes_vec(),
-                            s: authorization.signature().s().to_le_bytes_vec(),
-                            y_parity: authorization.signature().v().y_parity(),
-                        }),
+                        signature: if let Ok(signature) = authorization.signature() {
+                            Some(proto::Signature {
+                                r: signature.r().to_le_bytes_vec(),
+                                s: signature.s().to_le_bytes_vec(),
+                                y_parity: signature.v().y_parity(),
+                            })
+                        } else {
+                            None
+                        },
                     })
                     .collect(),
                 input: input.to_vec(),

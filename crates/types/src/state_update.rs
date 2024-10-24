@@ -46,7 +46,7 @@ pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, 
 ) -> eyre::Result<(GethStateUpdateVec, GethStateUpdateVec)> {
     let tracer_opts = GethDebugTracingOptions { config: GethDefaultTracingOptions::default(), ..GethDebugTracingOptions::default() }
         .with_tracer(BuiltInTracer(PreStateTracer))
-        .with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
+        .with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode), disable_code: Some(false), disable_storage: Some(false) });
 
     let trace_result_vec = match block_id {
         BlockId::Number(block_number) => client.geth_debug_trace_block_by_number(block_number, tracer_opts).await?,
@@ -91,7 +91,7 @@ async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<
 ) -> Result<(GethStateUpdate, GethStateUpdate)> {
     let tracer_opts = GethDebugTracingOptions { config: GethDefaultTracingOptions::default(), ..GethDebugTracingOptions::default() }
         .with_tracer(BuiltInTracer(PreStateTracer))
-        .with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
+        .with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode), disable_code: Some(false), disable_storage: Some(false) });
 
     let tracer_call_opts = GethDebugTracingCallOptions {
         tracing_options: tracer_opts.clone(),
@@ -166,7 +166,7 @@ pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provid
 ) -> Result<(GethStateUpdate, GethStateUpdate)> {
     let tracer_opts = GethDebugTracingOptions { config: GethDefaultTracingOptions::default(), ..GethDebugTracingOptions::default() }
         .with_tracer(BuiltInTracer(PreStateTracer))
-        .with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode) });
+        .with_prestate_config(PreStateConfig { diff_mode: Some(diff_mode), disable_code: Some(false), disable_storage: Some(false) });
 
     let trace_result = client.debug_trace_transaction(req, tracer_opts).await?;
     trace!("{:?}", trace_result);

@@ -50,6 +50,7 @@ async fn process_chain_task(
             sealed_block.difficulty,
             BlockTransactionsKind::Full,
             Some(sealed_block.hash()),
+            &EthTxBuilder,
         ) {
             Ok(block) => {
                 if let Err(e) = block_with_tx_channel.send(block).await {
