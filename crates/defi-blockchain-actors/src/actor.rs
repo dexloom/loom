@@ -15,7 +15,7 @@ use defi_actors::{
     MarketStatePreloadedOneShotActor, MempoolActor, NewPoolLoaderActor, NodeBlockActor, NodeBlockActorConfig, NodeExExGrpcActor,
     NodeMempoolActor, NonceAndBalanceMonitorActor, PendingTxStateChangeProcessorActor, PoolHealthMonitorActor, PoolLoaderActor, PriceActor,
     RequiredPoolLoaderActor, SamePathMergerActor, StateChangeArbSearcherActor, StateHealthMonitorActor, StuffingTxMonitorActor,
-    SwapRouterActor, TxSignersActor,
+    SwapRouterActor, TxSignersActor, WaitForNodeSyncOneShotBlockingActor,
 };
 use defi_address_book::TokenAddress;
 use defi_blockchain::Blockchain;
@@ -453,6 +453,12 @@ where
         Router: From<Router<S>>,
     {
         self.actor_manager.start(WebServerActor::new(host, router, db_pool, CancellationToken::new()).on_bc(&self.bc))?;
+        Ok(self)
+    }
+
+    /// Wait for node sync
+    pub fn with_wait_for_node_sync(&mut self) -> Result<&mut Self> {
+        self.actor_manager.start_and_wait(WaitForNodeSyncOneShotBlockingActor::new(self.provider.clone()))?;
         Ok(self)
     }
 }

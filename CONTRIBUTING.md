@@ -23,3 +23,9 @@ Then run in the root of the repository:
 ```bash
 pre-commit install
 ```
+
+## Install tools
+To install the tools required to run the tests and format the code, run:
+```bash
+cargo install taplo-cli --locked
+```
