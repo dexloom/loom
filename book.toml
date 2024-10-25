@@ -5,6 +5,13 @@ multilingual = false
 src = "book"
 title = "Loom documentation"
 
-
 [build]
 build-dir = "target/book"
+
+[preprocessor]
+[preprocessor.mermaid]
+command = "mdbook-mermaid"
+
+[output]
+[output.html]
+additional-js = ["book/js/mermaid.min.js", "book/js/mermaid-init.js"]

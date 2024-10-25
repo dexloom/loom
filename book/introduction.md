@@ -8,7 +8,11 @@ Loom is a modular framework designed to streamline the development of automated 
 ## High level architecture
 The Loom framework is using the alloy type system and has a deep integration with reth to receive events.
 
+<div align="center">
+
 ![High level architecture](images/high_level_architecture.svg)
+
+</div>
 
 
 [tg-badge]: https://img.shields.io/badge/telegram-dexloom_com-2CA5E0?style=plastic&logo=telegram
