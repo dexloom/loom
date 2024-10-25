@@ -142,10 +142,12 @@ impl SwapLine {
         SwapLine::default()
     }
 
+    /// Check if the path contains a specific pool
     pub fn contains_pool(&self, pool: &PoolWrapper) -> bool {
         self.path.contains_pool(pool)
     }
 
+    /// Get the tokens in the path
     pub fn tokens(&self) -> &Vec<Arc<Token>> {
         &self.path.tokens
     }

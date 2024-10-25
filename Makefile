@@ -1,6 +1,9 @@
 # Define the RUSTFLAGS to treat warnings as errors
 RELEASEFLAGS = -D warnings -C target-cpu=native
 
+# Define thee RUSTDOCFLAGS to generate documentation
+RUSTDOCFLAGS = -D warnings -Z unstable-options --show-type-layout --generate-link-to-definition --enable-index-page
+
 #### Targets ####
 ## All targets
 # Target to build the project
@@ -37,7 +40,7 @@ maxperf-exex-node:
 # Build docs
 .PHONY: doc
 doc:
-	cargo doc --workspace --all-features --no-deps
+	cargo +nightly doc --workspace --all-features --no-deps
 
 ## Development commands
 # Target to run all tests
