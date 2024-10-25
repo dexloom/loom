@@ -5,3 +5,5 @@
 - [Architecture](architecture.md)
   - [Actor](actor.md) 
   - [State management](state_management.md)
+- [Tips & Tricks](tips_and_tricks.md)
+  - [Custom messages](custom_messages.md) 
