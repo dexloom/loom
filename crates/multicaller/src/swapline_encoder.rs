@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, Result};
-use tracing::{error, trace};
+use tracing::{trace, warn};
 
 use defi_address_book::TokenAddress;
 use defi_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
@@ -89,7 +89,7 @@ impl SwapLineEncoder {
                             ));
                         }
                         _ => {
-                            error!("InAmountTypeNotSet")
+                            warn!("InAmountTypeNotSet")
                         }
                     }
 

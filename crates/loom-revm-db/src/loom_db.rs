@@ -408,16 +408,37 @@ impl LoomDB {
 
     pub fn apply_account_storage(&mut self, address: &Address, acc_state: &GethAccountState, insert: bool, only_new: bool) {
         if insert {
-            for (slot, value) in acc_state.storage.iter() {
-                trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
-                let _ = self.insert_account_storage(*address, (*slot).into(), (*value).into());
+            if let Ok(account) = self.load_cached_account(*address) {
+                for (slot, value) in acc_state.storage.iter() {
+                    trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
+                    account.storage.insert((*slot).into(), (*value).into());
+                }
             }
         } else {
-            let account = self.load_cached_account(*address).cloned().unwrap();
-            for (slot, value) in acc_state.storage.iter() {
-                let is_slot = account.storage.contains_key::<U256>(&(*slot).into());
-                let _ = self.insert_account_storage(*address, (*slot).into(), (*value).into());
-                trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
+            if self.is_account(address) {
+                let slots_to_insert: Vec<_> = acc_state
+                    .storage
+                    .iter()
+                    .filter_map(|(slot, value)| {
+                        let is_slot = self.is_slot(address, &(*slot).into());
+                        if is_slot {
+                            Some(((*slot).into(), (*value).into()))
+                        } else {
+                            if only_new {
+                                Some(((*slot).into(), (*value).into()))
+                            } else {
+                                None
+                            }
+                        }
+                    })
+                    .collect();
+
+                if let Ok(account) = self.load_cached_account(*address) {
+                    for (slot, value) in slots_to_insert {
+                        account.storage.insert(slot, value);
+                        trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
+                    }
+                }
             }
         }
     }

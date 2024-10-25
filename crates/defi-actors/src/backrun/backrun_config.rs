@@ -20,8 +20,12 @@ impl StrategyConfig for BackrunConfig {
 }
 
 impl BackrunConfig {
-    pub(crate) fn smart(&self) -> bool {
+    pub fn smart(&self) -> bool {
         self.smart
+    }
+
+    pub fn new_dumb() -> Self {
+        Self { eoa: None, smart: false }
     }
 }
 

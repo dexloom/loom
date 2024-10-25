@@ -14,7 +14,6 @@ skip_default = false
 # in order of swaps
 goat_weth_uni3 = { address = "0x8682fc63dc2525fd2e5ed4e28e207a2fd9f36dab", class = "uniswap3" }
 goat_weth_uni2 = { address = "0x1084a95c69bdc3325c1c42f86676b6eb66dce053", class = "uniswap2" }
-weth_usdt_uni3 = { address = "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b", class = "uniswap3" }
 
 
 [txs]
@@ -30,4 +29,4 @@ goat = { address = "0x5200b34e6a519f289f5258de4554ebd3db12e822", symbol = "GOAT"
 [assertions]
 swaps_encoded = 1
 swaps_ok = 1
-best_profit_eth = 0.003
+best_profit_eth = 0.0032
