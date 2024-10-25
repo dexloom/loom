@@ -147,30 +147,37 @@ impl SwapLine {
         self.path.contains_pool(pool)
     }
 
-    /// Get the tokens in the path
+    /// Get all involved tokens in the swap line
     pub fn tokens(&self) -> &Vec<Arc<Token>> {
         &self.path.tokens
     }
 
+    /// Get all used pools in the swap line
     pub fn pools(&self) -> &Vec<PoolWrapper> {
         &self.path.pools
     }
 
+    /// Get the first token in the swap line
     pub fn get_first_token(&self) -> Option<&Arc<Token>> {
         self.tokens().first()
     }
 
+    /// Get the last token in the swap line
     pub fn get_last_token(&self) -> Option<&Arc<Token>> {
         self.tokens().last()
     }
 
+    /// Get the first pool in the swap line
     pub fn get_first_pool(&self) -> Option<&PoolWrapper> {
         self.pools().first()
     }
+
+    /// Get the last pool in the swap line
     pub fn get_last_pool(&self) -> Option<&PoolWrapper> {
         self.pools().last()
     }
 
+    /// Convert the swap line to two swap steps for flash swapping
     pub fn to_swap_steps(&self, multicaller: Address) -> Option<(SwapStep, SwapStep)> {
         let mut sp0: Option<SwapLine> = None;
         let mut sp1: Option<SwapLine> = None;
@@ -201,6 +208,7 @@ impl SwapLine {
         Some((step_0, step_1))
     }
 
+    /// Split the swap line into two swap lines at a specific pool index
     pub fn split(&self, pool_index: usize) -> Result<(SwapLine, SwapLine)> {
         let first = SwapLine {
             path: SwapPath::new(self.tokens()[0..pool_index + 1].to_vec(), self.pools()[0..pool_index].to_vec()),
@@ -221,6 +229,7 @@ impl SwapLine {
         Ok((first, second))
     }
 
+    /// Check if all pools in the swap line can be flash swapped
     pub fn can_flash_swap(&self) -> bool {
         for pool in self.pools().iter() {
             if !pool.can_flash_swap() {
@@ -230,26 +239,7 @@ impl SwapLine {
         true
     }
 
-    pub fn merge(&self, pool_index: usize) -> Result<(SwapLine, SwapLine)> {
-        let first = SwapLine {
-            path: SwapPath::new(self.tokens()[0..pool_index + 1].to_vec(), self.pools()[0..pool_index].to_vec()),
-            amount_in: self.amount_in,
-            amount_out: SwapAmountType::NotSet,
-            amounts: None,
-            swap_to: None,
-            gas_used: None,
-        };
-        let second = SwapLine {
-            path: SwapPath::new(self.tokens()[pool_index..].to_vec(), self.pools()[pool_index..].to_vec()),
-            amount_in: SwapAmountType::NotSet,
-            amount_out: self.amount_out,
-            amounts: None,
-            swap_to: None,
-            gas_used: None,
-        };
-        Ok((first, second))
-    }
-
+    /// Calculate the absolute profit of the swap line
     pub fn abs_profit(&self) -> U256 {
         let Some(token_in) = self.tokens().first() else {
             return U256::ZERO;
@@ -273,6 +263,7 @@ impl SwapLine {
         U256::ZERO
     }
 
+    /// Calculate the absolute profit of the swap line in ETH
     pub fn abs_profit_eth(&self) -> U256 {
         let profit = self.abs_profit();
         let Some(first_token) = self.get_first_token() else {
@@ -302,6 +293,7 @@ impl SwapLine {
         Err(eyre!("CANNOT_CALCULATE"))
     }
 
+    /// Calculate the out amount for the swap line for a given in amount
     pub fn calculate_with_in_amount(&self, state: &LoomDBType, env: Env, in_amount: U256) -> Result<(U256, u64), SwapError> {
         let mut out_amount = in_amount;
         let mut gas_used = 0;
@@ -339,6 +331,7 @@ impl SwapLine {
         Ok((out_amount, gas_used))
     }
 
+    /// Calculate the in amount for the swap line for a given out amount
     pub fn calculate_with_out_amount(&self, state: &LoomDBType, env: Env, out_amount: U256) -> Result<(U256, u64), SwapError> {
         let mut in_amount = out_amount;
         let mut gas_used = 0;
@@ -382,10 +375,7 @@ impl SwapLine {
         Ok((in_amount, gas_used))
     }
 
-    fn calc_profit(in_amount: U256, out_amount: U256) -> I256 {
-        I256::from_raw(out_amount) - I256::from_raw(in_amount)
-    }
-
+    /// Optimize the swap line for a given in amount
     pub fn optimize_with_in_amount(&mut self, state: &LoomDBType, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
         let mut current_in_amount = in_amount;
         let mut bestprofit: Option<I256> = None;
@@ -417,7 +407,7 @@ impl SwapLine {
                 }
             };
 
-            let current_profit = Self::calc_profit(next_amount, current_out_amount);
+            let current_profit = I256::from_raw(next_amount) - I256::from_raw(current_out_amount);
 
             if bestprofit.is_none() {
                 bestprofit = Some(current_profit);
