@@ -7,7 +7,12 @@ Loom is allow to fetch the state using three different methods:
 - **Direct DB**: Subscribing to new events like before using WebSocket or IPC, but fetching the state diff directly from the DB.
 - **ExEx**: Subscribing to new ExEx events and reading the execution outcome from reth.
 
+<div align="center">
+
 ![Receiving new state](images/receive_new_state.svg)
+
+</div>
+
 
 ## Processing the state
 Loom has its own database that implements the revm traits.

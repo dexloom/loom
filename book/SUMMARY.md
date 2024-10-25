@@ -1,5 +1,7 @@
 # Summary
 
 - [Introduction](introduction.md)
-- [Getting Started](getting_started.md)
-- [State management](state-management.md)
+- [Getting started](getting_started.md)
+- [Architecture](architecture.md)
+  - [Actor](actor.md) 
+  - [State management](state_management.md)

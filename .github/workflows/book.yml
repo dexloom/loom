@@ -71,6 +71,9 @@ jobs:
           curl -sSL https://github.com/sgoudham/mdbook-template/releases/latest/download/mdbook-template-x86_64-unknown-linux-gnu.tar.gz | tar -xz --directory=./mdbook-template
           echo $(pwd)/mdbook-template >> $GITHUB_PATH
 
+      - name: Install mdbook-mermaid
+        run: cargo install mdbook-mermaid
+
       - run: mdbook build
       - run: make doc
 
