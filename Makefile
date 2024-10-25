@@ -1,10 +1,3 @@
-# Define the RUSTFLAGS to treat warnings as errors
-RELEASEFLAGS = -D warnings -C target-cpu=native
-
-# Define thee RUSTDOCFLAGS to generate documentation
-RUSTDOCFLAGS = -D warnings -Z unstable-options --show-type-layout --generate-link-to-definition --enable-index-page
-
-#### Targets ####
 ## All targets
 # Target to build the project
 .PHONY: build
@@ -14,12 +7,12 @@ build:
 # Build release
 .PHONY: release
 release:
-	export RELEASEFLAGS | cargo build --release
+	RUSTFLAGS="-D warnings -C target-cpu=native" cargo build --release
 
 # Build optimized release
 .PHONY: maxperf
 maxperf:
-	export RELEASEFLAGS | cargo build --profile maxperf
+	RUSTFLAGS="-D warnings -C target-cpu=native" cargo build --profile maxperf
 
 ## Exex gRPC node
 # Target to build the Exex gRPC node
@@ -30,17 +23,18 @@ build-exex-node:
 # Build release for Exex gRPC node
 .PHONY: release-exex-node
 release-exex-node:
-	export RELEASEFLAGS | cargo build --bin exex-grpc-node --release
+	RUSTFLAGS="-D warnings -C target-cpu=native" cargo build --bin exex-grpc-node --release
 
 # Build optimized release of Exex gRPC node
 .PHONY: maxperf-exex-node
 maxperf-exex-node:
-	export RELEASEFLAGS | cargo build --bin exex-grpc-node --profile maxperf
+	RUSTFLAGS="-D warnings -C target-cpu=native" cargo build --bin exex-grpc-node --profile maxperf
 
 # Build docs
 .PHONY: doc
 doc:
-	cargo +nightly doc --workspace --all-features --no-deps
+	RUSTDOCFLAGS="--show-type-layout --generate-link-to-definition --enable-index-page -D warnings -Z unstable-options" \
+	cargo +nightly doc --workspace --all-features --no-deps --document-private-items
 
 ## Development commands
 # Target to run all tests
