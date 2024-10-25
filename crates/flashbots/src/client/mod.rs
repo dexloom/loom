@@ -1,10 +1,8 @@
-//! # Ethers Flashbots
+//! # Alloy Flashbots
 //!
-//! Provides an [ethers](https://docs.rs/ethers) compatible middleware for submitting
+//! Provides an [alloy](https://github.com/alloy-rs/alloy) compatible provider for submitting
 //! [Flashbots](https://docs.flashbots.net) bundles.
 //!
-//! In addition to leveraging the standard Ethers middleware API ([`send_transaction`][ethers::providers::Middleware::send_transaction]),
-//! custom bundles can be crafted, simulated and submitted.
 pub use body::make_signed_body;
 pub use bundle::{BundleHash, BundleRequest, BundleTransaction, SimulatedBundle, SimulatedTransaction};
 pub use jsonrpc::SendBundleResponseType;

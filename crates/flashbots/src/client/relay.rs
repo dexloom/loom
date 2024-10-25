@@ -27,7 +27,7 @@ pub struct RelayConfig {
 ///
 /// **Note**: You probably do not want to use this directly, unless
 /// you want to interact directly with the Relay. Most users should use
-/// [`FlashbotsMiddleware`](crate::FlashbotsMiddleware) instead.
+/// [`FlashbotsClient`](crate::FlashbotsClient) instead.
 #[derive(Clone)]
 pub struct Relay {
     id: Arc<AtomicU64>,
