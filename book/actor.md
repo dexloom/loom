@@ -28,7 +28,7 @@ There are three types of macros:
 
 ### Example
 Define a struct with the following fields and add the macros:
-```rust
+```rust,ignore
 #[derive(Accessor, Consumer, Producer)]
 pub struct ExampleActor {
     #[accessor]
@@ -40,7 +40,7 @@ pub struct ExampleActor {
 }
 ```
 The macro generates the following methods:
-```rust
+```rust,ignore
 fn init_example_actor() -> ExampleActor {
     let market_state = SharedState::new(MarketState::new());
     let mempool_events_channel = Broadcaster::new(10);
