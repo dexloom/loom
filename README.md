@@ -1,5 +1,25 @@
 # Loom project
 
+<div style="text-align: center;">
+
+[![CI status](https://github.com/dexloom/loom/workflows/Loom/badge.svg)][gh-loom]
+[![Book status](https://github.com/dexloom/loom/workflows/Book/badge.svg)][gh-book]
+[![Telegram Chat][tg-badge]][tg-url]
+
+| [User Book](https://dexloom.github.io/loom/)
+| [Crate Docs](https://dexloom.github.io/loom/docs/) |
+
+[gh-loom]: https://github.com/dexloom/loom/actions/workflows/ci.yml
+[gh-book]: https://github.com/dexloom/loom/actions/workflows/book.yml
+[tg-badge]: https://img.shields.io/badge/telegram-dexloom_com-2CA5E0?style=plastic&logo=telegram
+[tg-url]: https://t.me/dexloom_com
+
+</div>
+
+## What is Loom?
+
+Loom is a modular framework designed to streamline the development of automated strategies for decentralized exchanges (DEXs) or other blockchain applications.
+
 ## Crates
 
 - [actors](./crates/actors) - actors implementation
@@ -28,7 +48,6 @@
 - [gasbench](./bin/gasbench) - gas consumption benchmark utility
 - [nodebench](./bin/nodebench) - nodes benchmark utility
 
-Telegram chat : https://t.me/dexloom_com
 
 ## Starting
 
