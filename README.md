@@ -1,4 +1,4 @@
-# Loom project
+# Loom
 
 <div align="center">
 
