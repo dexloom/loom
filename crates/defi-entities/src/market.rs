@@ -31,7 +31,7 @@ pub struct Market {
 }
 
 impl Market {
-    /// Add a [`Token`](crate::Token) reference to the market.
+    /// Add a [`Token`] reference to the market.
     pub fn add_token<T: Into<Arc<Token>>>(&mut self, token: T) -> Result<()> {
         let arc_token: Arc<Token> = token.into();
         self.tokens.insert(arc_token.get_address(), arc_token);
@@ -136,12 +136,12 @@ impl Market {
         self.pools_disabled.get(address).cloned().unwrap_or(true)
     }
 
-    /// Get a [`Token`](crate::Token) reference from the market by the address of the token or create a new one.
+    /// Get a [`Token`] reference from the market by the address of the token or create a new one.
     pub fn get_token_or_default(&self, address: &Address) -> Arc<Token> {
         self.tokens.get(address).map_or(Arc::new(Token::new(*address)), |t| t.clone())
     }
 
-    /// Get a [`Token`](crate::Token) reference from the market by the address of the token.
+    /// Get a [`Token`] reference from the market by the address of the token.
     pub fn get_token(&self, address: &Address) -> Option<Arc<Token>> {
         self.tokens.get(address).cloned()
     }
@@ -203,7 +203,7 @@ impl Market {
         build_swap_path_vec(self, directions)
     }
 
-    /// get a [`SwapPath`](crate::SwapPath) from the given token and pool addresses.
+    /// get a [`SwapPath`] from the given token and pool addresses.
     pub fn swap_path(&self, token_address_vec: Vec<Address>, pool_address_vec: Vec<Address>) -> Result<SwapPath> {
         let mut tokens: Vec<Arc<Token>> = Vec::new();
         let mut pools: Vec<PoolWrapper> = Vec::new();
