@@ -32,7 +32,7 @@ pub fn apply_state_update(db: LoomDBType, state_update: GethStateUpdateVec, mark
         for (address, account_state) in state_diff.into_iter() {
             let address: Address = address;
             if let Some(balance) = account_state.balance {
-                if market_state.is_account(&address) {
+                if market_state.state_db.is_account(&address) {
                     match db.load_account(address) {
                         Ok(x) => {
                             x.info.balance = balance;
@@ -46,7 +46,7 @@ pub fn apply_state_update(db: LoomDBType, state_update: GethStateUpdateVec, mark
             }
 
             if let Some(nonce) = account_state.nonce {
-                if market_state.is_account(&address) {
+                if market_state.state_db.is_account(&address) {
                     match db.load_account(address) {
                         Ok(x) => {
                             x.info.nonce = nonce;
@@ -65,7 +65,7 @@ pub fn apply_state_update(db: LoomDBType, state_update: GethStateUpdateVec, mark
                     if let Err(e) = db.insert_account_storage(address, (*slot).into(), (*value).into()) {
                         error!("{}", e)
                     }
-                } else if market_state.is_slot(&address, &(*slot).into()) {
+                } else if market_state.state_db.is_slot(&address, &(*slot).into()) {
                     trace!("Slot updated {:#20x} {} {}", address, slot, value);
                     if let Err(e) = db.insert_account_storage(address, (*slot).into(), (*value).into()) {
                         error!("{}", e)

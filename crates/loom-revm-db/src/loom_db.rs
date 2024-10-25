@@ -11,7 +11,7 @@ use alloy::rpc::client::ClientBuilder;
 use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
 use alloy::transports::{Transport, TransportError};
 use eyre::{ErrReport, OptionExt, Result};
-use revm::db::AccountState;
+use revm::db::AccountState as DBAccountState;
 use revm::primitives::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::hash_map::Entry;
@@ -78,6 +78,24 @@ impl LoomDB {
         }
     }
 
+    pub fn is_account(&self, address: &Address) -> bool {
+        self.accounts.contains_key(address) || if let Some(db) = &self.read_only_db { db.accounts.contains_key(address) } else { false }
+    }
+
+    pub fn is_slot(&self, address: &Address, slot: &U256) -> bool {
+        if let Some(account) = self.accounts.get(address) {
+            account.storage.contains_key(slot)
+        } else if let Some(read_only_db) = &self.read_only_db {
+            if let Some(account) = read_only_db.accounts.get(address) {
+                account.storage.contains_key(slot)
+            } else {
+                false
+            }
+        } else {
+            false
+        }
+    }
+
     pub fn read_only_db(&self) -> Self {
         self.read_only_db.clone().map_or(LoomDB::empty(), |a| a.as_ref().clone())
     }
@@ -139,6 +157,21 @@ impl LoomDB {
         }
     }
 
+    // Returns the account for the given address.
+    ///
+    /// If the account was not found in the cache, it will be loaded from the underlying database.
+    pub fn load_cached_account(&mut self, address: Address) -> Result<&mut FastDbAccount> {
+        match self.accounts.entry(address) {
+            Entry::Occupied(entry) => Ok(entry.into_mut()),
+            Entry::Vacant(entry) => Ok(entry.insert(
+                LoomDBHelper::get_basic(&self.read_only_db, address)
+                    .unwrap_or_default()
+                    .map(|info| FastDbAccount { info, ..Default::default() })
+                    .unwrap_or_else(FastDbAccount::new_not_existing),
+            )),
+        }
+    }
+
     pub fn new_with_ro_db_and_provider<P, T, N>(read_only_db: Option<LoomDB>, client: P) -> Result<Self>
     where
         N: Network,
@@ -189,45 +222,40 @@ impl LoomDB {
     /// replace account storage without overriding account info
     pub fn replace_account_storage(&mut self, address: Address, storage: HashMap<U256, U256>) -> Result<()> {
         let account = self.load_account(address)?;
-        account.account_state = AccountState::StorageCleared;
+        account.account_state = DBAccountState::StorageCleared;
         account.storage = storage.into_iter().collect();
         Ok(())
     }
 
-    pub fn merge(self) -> LoomDB {
-        let read_only_db = if let Some(read_only_db) = self.read_only_db {
-            let mut read_only_db_clone = (*read_only_db).clone();
+    pub fn merge_all(self) -> LoomDB {
+        let mut read_only_db = self.read_only_db.unwrap_or_default().as_ref().clone();
 
-            for (k, v) in self.block_hashes.iter() {
-                read_only_db_clone.block_hashes.insert(*k, *v);
-            }
-            for (k, v) in self.block_hashes.iter() {
-                read_only_db_clone.block_hashes.insert(*k, *v);
-            }
-            for (k, v) in self.contracts.iter() {
-                read_only_db_clone.contracts.insert(*k, v.clone());
-            }
-            read_only_db_clone.logs.clone_from(&self.logs);
+        for (k, v) in self.block_hashes.iter() {
+            read_only_db.block_hashes.insert(*k, *v);
+        }
 
-            for (address, account) in self.accounts.iter() {
-                let mut info = account.info.clone();
-                read_only_db_clone.insert_contract(&mut info);
+        for (k, v) in self.contracts.iter() {
+            read_only_db.contracts.insert(*k, v.clone());
+        }
+        read_only_db.logs.clone_from(&self.logs);
 
-                let entry = read_only_db_clone.accounts.entry(*address).or_default();
-                entry.info = info;
-                for (k, v) in account.storage.iter() {
-                    entry.storage.insert(*k, *v);
-                }
+        for (address, account) in self.accounts.iter() {
+            let mut info = account.info.clone();
+            read_only_db.insert_contract(&mut info);
+
+            let entry = read_only_db.accounts.entry(*address).or_default();
+            entry.info = info;
+            for (k, v) in account.storage.iter() {
+                entry.storage.insert(*k, *v);
             }
-            Some(Arc::new(read_only_db_clone))
-        } else {
-            None
-        };
+        }
+
+        let read_only_db = Some(Arc::new(read_only_db));
 
         LoomDB { read_only_db, ext_db: self.ext_db, ..Default::default() }
     }
 
-    pub fn update_accounts(self) -> LoomDB {
+    pub fn merge_accounts(self) -> LoomDB {
         let read_only_db = if let Some(read_only_db) = self.read_only_db {
             let mut read_only_db_clone = (*read_only_db).clone();
 
@@ -246,7 +274,7 @@ impl LoomDB {
                     for (k, v) in account.storage.iter() {
                         db_account.storage.insert(*k, *v);
                     }
-                    db_account.account_state = AccountState::Touched
+                    db_account.account_state = DBAccountState::Touched
                 });
             }
             Some(Arc::new(read_only_db_clone))
@@ -257,7 +285,7 @@ impl LoomDB {
         LoomDB { read_only_db, ext_db: self.ext_db, ..Default::default() }
     }
 
-    pub fn update_cells(self) -> LoomDB {
+    pub fn merge_cells(self) -> LoomDB {
         let read_only_db = if let Some(read_only_db) = self.read_only_db {
             let mut read_only_db_clone = (*read_only_db).clone();
 
@@ -276,7 +304,7 @@ impl LoomDB {
                     for (k, v) in account.storage.iter() {
                         db_account.storage.entry(*k).and_modify(|cv| cv.clone_from(v));
                     }
-                    db_account.account_state = AccountState::Touched
+                    db_account.account_state = DBAccountState::Touched
                 });
             }
             Some(Arc::new(read_only_db_clone))
@@ -309,7 +337,7 @@ impl LoomDB {
                 if let Some(balance) = acc_state.balance {
                     account.info.balance = balance;
                 }
-                account.account_state = AccountState::Touched;
+                account.account_state = DBAccountState::Touched;
             }
         }
     }
@@ -318,6 +346,100 @@ impl LoomDB {
         for entry in update.into_iter() {
             self.apply_geth_update(entry);
         }
+    }
+
+    pub fn apply_account_info_btree(
+        &mut self,
+        address: &Address,
+        account_updated_state: &alloy::rpc::types::trace::geth::AccountState,
+        insert: bool,
+        only_new: bool,
+    ) {
+        let account = self.load_cached_account(*address);
+
+        if let Ok(account) = account {
+            if insert
+                || ((account.account_state == DBAccountState::NotExisting || account.account_state == DBAccountState::None) && only_new)
+                || (!only_new
+                    && (account.account_state == DBAccountState::Touched || account.account_state == DBAccountState::StorageCleared))
+            {
+                let code: Option<Bytecode> = match &account_updated_state.code {
+                    Some(c) => {
+                        if c.len() < 2 {
+                            account.info.code.clone()
+                        } else {
+                            Some(Bytecode::new_raw(c.clone()))
+                        }
+                    }
+                    None => account.info.code.clone(),
+                };
+
+                trace!(
+                    "apply_account_info {address}.  code len: {} storage len: {}",
+                    code.clone().map_or(0, |x| x.len()),
+                    account.storage.len()
+                );
+
+                let account_info = AccountInfo {
+                    balance: account_updated_state.balance.unwrap_or_default(),
+                    nonce: account_updated_state.nonce.unwrap_or_default(),
+                    code_hash: if code.is_some() { KECCAK_EMPTY } else { Default::default() },
+                    code,
+                };
+
+                self.insert_account_info(*address, account_info);
+            } else {
+                trace!("apply_account_info exists {address}. storage len: {}", account.storage.len(),);
+            }
+        }
+
+        if let Ok(account) = self.load_cached_account(*address) {
+            account.account_state = DBAccountState::Touched;
+            trace!(
+                "after apply_account_info account: {address} state: {:?} storage len: {} code len : {}",
+                account.account_state,
+                account.storage.len(),
+                account.info.code.clone().map_or(0, |c| c.len())
+            );
+        } else {
+            trace!(%address, "account not found after apply");
+        }
+    }
+
+    pub fn apply_account_storage(&mut self, address: &Address, acc_state: &GethAccountState, insert: bool, only_new: bool) {
+        if insert {
+            for (slot, value) in acc_state.storage.iter() {
+                trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
+                let _ = self.insert_account_storage(*address, (*slot).into(), (*value).into());
+            }
+        } else {
+            let account = self.load_cached_account(*address).cloned().unwrap();
+            for (slot, value) in acc_state.storage.iter() {
+                let is_slot = account.storage.contains_key::<U256>(&(*slot).into());
+                let _ = self.insert_account_storage(*address, (*slot).into(), (*value).into());
+                trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
+            }
+        }
+    }
+
+    pub fn apply_geth_state_update(
+        &mut self,
+        update_vec: &Vec<BTreeMap<Address, GethAccountState>>,
+        insert: bool,
+        only_new: bool,
+    ) -> &mut Self {
+        for update_record in update_vec {
+            for (address, acc_state) in update_record {
+                trace!(
+                    "updating {address} insert: {insert} only_new: {only_new} storage len {} code: {}",
+                    acc_state.storage.len(),
+                    acc_state.code.is_some()
+                );
+                self.apply_account_info_btree(address, acc_state, insert, only_new);
+                self.apply_account_storage(address, acc_state, insert, only_new);
+            }
+        }
+        self
     }
 }
 
@@ -342,7 +464,7 @@ impl DatabaseRef for LoomDB {
             Some(acc_entry) => match acc_entry.storage.get(&index) {
                 Some(entry) => Ok(*entry),
                 None => {
-                    if matches!(acc_entry.account_state, AccountState::StorageCleared | AccountState::NotExisting) {
+                    if matches!(acc_entry.account_state, DBAccountState::StorageCleared | DBAccountState::NotExisting) {
                         Ok(U256::ZERO)
                     } else {
                         LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, index)
@@ -397,7 +519,7 @@ impl Database for LoomDB {
                 match acc_entry.storage.entry(index) {
                     Entry::Occupied(entry) => Ok(*entry.get()),
                     Entry::Vacant(entry) => {
-                        if matches!(acc_entry.account_state, AccountState::StorageCleared | AccountState::NotExisting) {
+                        if matches!(acc_entry.account_state, DBAccountState::StorageCleared | DBAccountState::NotExisting) {
                             Ok(U256::ZERO)
                         } else {
                             let slot = LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, index)?;
@@ -444,7 +566,7 @@ impl DatabaseCommit for LoomDB {
             if account.is_selfdestructed() {
                 let db_account = self.accounts.entry(address).or_default();
                 db_account.storage.clear();
-                db_account.account_state = AccountState::NotExisting;
+                db_account.account_state = DBAccountState::NotExisting;
                 db_account.info = AccountInfo::default();
                 continue;
             }
@@ -456,12 +578,12 @@ impl DatabaseCommit for LoomDB {
 
             db_account.account_state = if is_newly_created {
                 db_account.storage.clear();
-                AccountState::StorageCleared
+                DBAccountState::StorageCleared
             } else if db_account.account_state.is_storage_cleared() {
                 // Preserve old account state if it already exists
-                AccountState::StorageCleared
+                DBAccountState::StorageCleared
             } else {
-                AccountState::Touched
+                DBAccountState::Touched
             };
             db_account.storage.extend(account.storage.into_iter().map(|(key, value)| (key, value.present_value())));
         }
@@ -579,7 +701,7 @@ mod test1 {
 
         new_state.replace_account_storage(account, hm).unwrap();
 
-        let mut new_state = new_state.merge();
+        let mut new_state = new_state.merge_all();
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce);
         assert_eq!(new_state.storage(account, key0).unwrap(), value0);
@@ -620,7 +742,7 @@ mod test1 {
         assert_eq!(new_state.storage_ref(account, key1).unwrap(), value1);
         assert_eq!(new_state.accounts.len(), 1);
 
-        let mut new_state = new_state.merge();
+        let mut new_state = new_state.merge_all();
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().code, Some(code.clone()));
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce + 1);
@@ -659,7 +781,7 @@ mod test1 {
         new_state.insert_account_storage(account, key0, U256::from(333)).unwrap();
         new_state.insert_account_storage(account, key2, value2).unwrap();
 
-        let mut new_state = new_state.merge();
+        let mut new_state = new_state.merge_all();
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().code, Some(Bytecode::new_raw(Bytes::from(vec![1, 2, 2]))));
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce + 1);
@@ -710,7 +832,7 @@ mod test1 {
         new_state.insert_account_storage(account, key0, U256::from(333)).unwrap();
         new_state.insert_account_storage(account, key2, value2).unwrap();
 
-        let mut new_state = new_state.update_cells();
+        let mut new_state = new_state.merge_cells();
 
         assert_eq!(new_state.basic(account).unwrap().unwrap().code, Some(Bytecode::new_raw(Bytes::from(vec![1, 2, 2]))));
         assert_eq!(new_state.basic(account).unwrap().unwrap().nonce, nonce + 1);

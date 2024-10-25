@@ -545,7 +545,7 @@ mod tests {
             let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await.unwrap();
             debug!("Pool state fetched {} {}", pool.address, state_required.len());
 
-            market_state.add_state(&state_required);
+            market_state.state_db.apply_geth_update(state_required);
             debug!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.state_db.accounts_len(), market_state.storage_len());
 
             let block_header = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.unwrap().unwrap().header;

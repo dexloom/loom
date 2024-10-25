@@ -56,6 +56,14 @@ impl LoomDBHelper {
     }
 
     #[inline]
+    pub fn get_basic<DB: DatabaseRef<Error = ErrReport>>(read_only_db: &Option<DB>, address: Address) -> eyre::Result<Option<AccountInfo>> {
+        read_only_db
+            .as_ref()
+            .and_then(|db| db.basic_ref(address).ok().flatten())
+            .map_or_else(|| Err(eyre!("NO_ACCOUNT")), |info| Ok(Some(info)))
+    }
+
+    #[inline]
     pub fn get_or_fetch_basic<DB: DatabaseRef<Error = ErrReport>, ExtDB: DatabaseRef<Error = TransportError>>(
         read_only_db: &Option<DB>,
         ext_db: &Option<ExtDB>,

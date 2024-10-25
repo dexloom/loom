@@ -265,7 +265,7 @@ async fn main() -> Result<()> {
     for (pool_name, pool_config) in test_config.pools {
         match pool_config.class {
             PoolClass::UniswapV2 | PoolClass::UniswapV3 => {
-                debug!("Loading uniswap pool");
+                debug!(address=%pool_config.address, class=%pool_config.class, "Loading pool");
                 fetch_and_add_pool_by_address(
                     client.clone(),
                     market_instance.clone(),
@@ -274,7 +274,7 @@ async fn main() -> Result<()> {
                     pool_config.class,
                 )
                 .await?;
-                debug!("Loaded uniswap pool ");
+                debug!(address=%pool_config.address, class=%pool_config.class, "Loaded pool");
             }
             PoolClass::Curve => {
                 debug!("Loading curve pool");
