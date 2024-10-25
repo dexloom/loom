@@ -1,6 +1,6 @@
 # Loom project
 
-<div style="text-align: center;">
+<div align="center">
 
 [![CI status](https://github.com/dexloom/loom/workflows/Loom/badge.svg)][gh-loom]
 [![Book status](https://github.com/dexloom/loom/workflows/Book/badge.svg)][gh-book]
