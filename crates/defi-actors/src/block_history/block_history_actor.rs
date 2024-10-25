@@ -274,6 +274,7 @@ where
 
                     let accounts_len = market_state_guard.state_db.accounts_len();
                     let accounts_db_len = market_state_guard.state_db.ro_accounts_len();
+
                     let storage_len = market_state_guard.state_db.storage_len();
                     let storage_db_len = market_state_guard.state_db.ro_storage_len();
                     trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
@@ -287,15 +288,35 @@ where
 
                     run_async!(market_events_tx.send(MarketEvents::BlockStateUpdate{ block_hash : msg_block_hash} ));
 
-                    // Merging DB in background and update market state
-                    let market_state_clone= market_state.clone();
 
-                    tokio::task::spawn( async move{
-                        let merged_db = new_market_state_db.merge();
-                        let mut market_state_guard = market_state_clone.write().await;
-                        market_state_guard.state_db = merged_db;
-                        debug!("Merged DB stored in MarketState at block {}", msg_block_number)
-                    });
+                    #[cfg(not(debug_assertions))]
+                    {
+                        // Merging DB in background and update market state
+                        let market_state_clone = market_state.clone();
+
+                        tokio::task::spawn( async move{
+                            let merged_db = new_market_state_db.merge_all();
+                            let mut market_state_guard = market_state_clone.write().await;
+                            market_state_guard.state_db = merged_db;
+                            debug!("Merged DB stored in MarketState at block {}", msg_block_number)
+                        });
+                    }
+
+                    #[cfg(debug_assertions)]
+                    {
+                        market_state_guard.state_db = new_market_state_db.merge_all();
+
+                        let accounts_len = market_state_guard.state_db.accounts_len();
+                        let accounts_db_len = market_state_guard.state_db.ro_accounts_len();
+
+                        let storage_len = market_state_guard.state_db.storage_len();
+                        let storage_db_len = market_state_guard.state_db.ro_storage_len();
+
+                        trace!("Merging finished. Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
+
+                    }
+
+
                 }
             }
         }

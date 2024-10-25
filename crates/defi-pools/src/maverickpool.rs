@@ -445,7 +445,7 @@ mod tests {
         debug!("{:?}", state_required);
 
         let mut market_state = MarketState::new(LoomDBType::default());
-        market_state.add_state(&state_required);
+        market_state.state_db.apply_geth_update(state_required);
 
         let block_number = client.get_block_number().await?;
         let block = client.get_block_by_number(BlockNumberOrTag::Number(block_number), false).await?.unwrap();

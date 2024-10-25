@@ -66,7 +66,7 @@ async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
 
     let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(block_number)).await?;
 
-    market_state.add_state(&state_required);
+    market_state.state_db.apply_geth_update(state_required);
 
     Ok((market_state, PoolWrapper::new(Arc::new(pool))))
 }

@@ -131,7 +131,7 @@ mod test {
 
         let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await?;
 
-        market_state.add_state(&state_required);
+        market_state.state_db.apply_geth_update(state_required);
 
         let evm_env = Env::default();
 

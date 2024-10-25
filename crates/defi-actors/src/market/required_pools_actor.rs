@@ -29,26 +29,28 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
 {
     for (pool_address, pool_class) in pools {
+        debug!(class=%pool_class, address=%pool_address, "Loading pool");
         match pool_class {
             PoolClass::UniswapV2 | PoolClass::UniswapV3 => {
-                debug!("Loading uniswap pool");
-                fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(), pool_address, pool_class).await?;
-                debug!("Loaded uniswap pool ");
+                if let Err(error) =
+                    fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(), pool_address, pool_class).await
+                {
+                    error!(%error, address = %pool_address, "fetch_and_add_pool_by_address")
+                }
             }
             PoolClass::Curve => {
-                debug!("Loading curve pool");
                 if let Ok(curve_contract) = CurveProtocol::get_contract_from_code(client.clone(), pool_address).await {
                     let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
                     fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), curve_pool.into()).await?
                 } else {
                     error!("CURVE_POOL_NOT_LOADED");
                 }
-                debug!("Loaded curve pool");
             }
             _ => {
                 error!("Unknown pool class")
             }
         }
+        debug!(class=%pool_class, address=%pool_address, "Loaded pool");
     }
 
     if let Some(required_state) = required_state {
@@ -56,7 +58,7 @@ where
         market_state.write().await.state_db.apply_geth_update(update);
     }
 
-    Ok("curve_protocol_loader_worker".to_string())
+    Ok("required_pools_loader_worker".to_string())
 }
 
 #[derive(Accessor, Consumer)]

@@ -123,7 +123,7 @@ where
 
         set_monitor_token_balance(account_nonce_balance_state.clone(), owner, token, balance).await;
     }
-    market_state_guard.add_state(&state);
+    market_state_guard.state_db.apply_geth_update(state);
 
     Ok("DONE".to_string())
 }

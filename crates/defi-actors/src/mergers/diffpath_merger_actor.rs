@@ -84,7 +84,7 @@ async fn diff_path_merger_worker(
                                     let mut state = MarketState::new(sign_request.poststate.clone().unwrap().as_ref().clone());
 
                                     for dbs in merge_list.iter() {
-                                        state.apply_state_update( dbs.poststate_update.as_ref().ok_or_eyre("NO_STATE_UPDATE")?, false, false );
+                                        state.state_db.apply_geth_state_update( dbs.poststate_update.as_ref().ok_or_eyre("NO_STATE_UPDATE")?, false, false );
                                     }
                                     let arc_db = Arc::new(state.state_db);
 

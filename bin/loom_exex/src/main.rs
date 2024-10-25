@@ -24,7 +24,7 @@ mod loom;
 
 fn main() -> eyre::Result<()> {
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
-    let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(true).with_line_number(true).with_filter(env_filter);
+    let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(false).with_line_number(true).with_filter(env_filter);
     tracing_subscriber::registry().with(fmt_layer).init();
 
     // ignore arguments used by reth

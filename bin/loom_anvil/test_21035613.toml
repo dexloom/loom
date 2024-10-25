@@ -14,6 +14,7 @@ skip_default = false
 # in order of swaps
 goat_weth_uni3 = { address = "0x8682fc63dc2525fd2e5ed4e28e207a2fd9f36dab", class = "uniswap3" }
 goat_weth_uni2 = { address = "0x1084a95c69bdc3325c1c42f86676b6eb66dce053", class = "uniswap2" }
+weth_usdt_uni3 = { address = "0xc7bbec68d12a0d1830360f8ec58fa599ba1b0e9b", class = "uniswap3" }
 
 
 [txs]

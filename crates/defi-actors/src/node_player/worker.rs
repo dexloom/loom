@@ -148,7 +148,7 @@ where
                                     marker_state_guard.state_db.apply_geth_update(state_update.clone());
                                 }
                             }
-                            marker_state_guard.state_db = marker_state_guard.state_db.clone().merge();
+                            marker_state_guard.state_db = marker_state_guard.state_db.clone().merge_all();
                         }
                     }
                 }
