@@ -48,7 +48,7 @@ where
 
     let (to, call_value, call_data, _) = swap_encoder.encode(
         estimate_request.swap.clone(),
-        estimate_request.tips_pct,
+        None,
         Some(estimate_request.next_block_number),
         None,
         Some(tx_signer.address()),

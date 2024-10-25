@@ -379,7 +379,7 @@ async fn main() -> Result<()> {
             client.clone(),
             test_config.modules.arb_block,
             test_config.modules.arb_mempool,
-            BackrunConfig::default(),
+            BackrunConfig::new_dumb(),
         );
         match state_change_arb_actor
             .access(mempool_instance.clone())

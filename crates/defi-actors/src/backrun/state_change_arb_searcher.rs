@@ -14,13 +14,11 @@ use tracing::{debug, error, info, trace};
 
 use crate::backrun::SwapCalculator;
 use crate::BackrunConfig;
-use alloy_primitives::utils::parse_units;
 use defi_blockchain::Blockchain;
 use defi_entities::config::StrategyConfig;
 use defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use defi_events::{BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData};
 use defi_types::SwapError;
-use lazy_static::lazy_static;
 use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_actors_macros::{Accessor, Consumer, Producer};
 
@@ -97,7 +95,7 @@ async fn state_change_arb_searcher_task(
                         trace!("Calc result received: {}", mut_item);
 
                         if let Ok(profit) = mut_item.profit() {
-                            if profit.is_positive() && mut_item.abs_profit_eth() > U256::from(state_update_event.next_base_fee * 200_000) {
+                            if profit.is_positive() && mut_item.abs_profit_eth() > U256::from(state_update_event.next_base_fee * 100_000) {
                                 if let Err(error) = swap_path_tx.try_send(Ok(mut_item)) {
                                     error!(%error, "swap_path_tx.try_send")
                                 }
@@ -218,10 +216,6 @@ pub async fn state_change_arb_searcher_worker(
             }
         }
     }
-}
-
-lazy_static! {
-    static ref START_OPTIMIZE_INPUT: U256 = parse_units("0.01", "ether").unwrap().get_absolute();
 }
 
 #[derive(Accessor, Consumer, Producer)]

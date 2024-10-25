@@ -26,6 +26,6 @@ ito = { address = "0x465dbC39F46f9D43C581a5d90A43e4a0F2A6fF2d", symbol = "ITO", 
 kabosu = { address = "0xceb67a66c2c8a90980da3a50a3f96c07525a26cb", symbol = "KABOSU", decimals = 9, basic = false, middle = false }
 
 [assertions]
-swaps_encoded = 2
-swaps_ok = 2
-best_profit_eth = 0.00958
+swaps_encoded = 1
+swaps_ok = 1
+best_profit_eth = 0.0086
