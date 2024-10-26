@@ -14,5 +14,15 @@ Loom is allow to fetch the state using three different methods:
 </div>
 
 
-## Processing the state
-Loom has its own database that implements the revm traits.
+## Adding new state to the DB
+Loom keeps all required state in-memory and optionally fetches missing state from an external database provider. The `LoomDB` is split in three parts to be efficient cloneable. The frst part is mutable where every new or changed state will be added.
+
+With each new block a background task will be spawned that merges all state to the inner read-only `LoomDB`. This inner `LoomDB` lives inside an `Arc`. The motivation is here to not wait for the merge and save costs for not cloning the whole state all the time.
+
+The third part in a `DatabaseRef` to an external database provider. This is used to fetch missing state thst was not prefetched. Both parts are optional e.g. for testing if the prefetched state is working correct.
+
+<div align="center">
+
+![Receiving new state](../images/loom_db.svg)
+
+</div>
