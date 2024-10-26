@@ -19,7 +19,7 @@ Loom keeps all required state in-memory and optionally fetches missing state fro
 
 With each new block a background task will be spawned that merges all state to the inner read-only `LoomDB`. This inner `LoomDB` lives inside an `Arc`. The motivation is here to not wait for the merge and save costs for not cloning the whole state all the time.
 
-The third part in a `DatabaseRef` to an external database provider. This is used to fetch missing state thst was not prefetched. Both parts are optional e.g. for testing if the prefetched state is working correct.
+The third part in a `DatabaseRef` to an external database provider. This is used to fetch missing state that was not prefetched. Both parts are optional e.g. for testing if the prefetched state is working correct.
 
 <div align="center">
 
