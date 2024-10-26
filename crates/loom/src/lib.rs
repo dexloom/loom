@@ -7,6 +7,7 @@ pub mod core {
 
 pub mod eth {
     pub use debug_provider;
+    pub use defi_address_book as address_book;
     pub use defi_blockchain as blockchain;
     pub use defi_entities as entities;
     pub use defi_events as events;

@@ -4838,6 +4838,7 @@ dependencies = [
  "debug-provider",
  "defi-abi",
  "defi-actors",
+ "defi-address-book",
  "defi-blockchain",
  "defi-entities",
  "defi-events",

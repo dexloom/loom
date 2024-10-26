@@ -11,6 +11,7 @@ repository.workspace = true
 debug-provider.workspace = true
 defi-abi.workspace = true
 defi-actors.workspace = true
+defi-address-book.workspace = true
 defi-blockchain.workspace = true
 defi-entities.workspace = true
 defi-events.workspace = true
