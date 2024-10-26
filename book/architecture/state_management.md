@@ -9,7 +9,7 @@ Loom is allow to fetch the state using three different methods:
 
 <div align="center">
 
-![Receiving new state](images/receive_new_state.svg)
+![Receiving new state](../images/receive_new_state.svg)
 
 </div>
 
