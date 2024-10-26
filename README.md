@@ -14,6 +14,9 @@
 [tg-badge]: https://img.shields.io/badge/telegram-dexloom_com-2CA5E0?style=plastic&logo=telegram
 [tg-url]: https://t.me/dexloom_com
 
+The toolbox for your DeFi strategies:
+![Loom components](book/images/loom_components.svg)
+
 </div>
 
 ## What is Loom?
