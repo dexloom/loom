@@ -25,7 +25,7 @@ Loom is a modular framework designed to streamline the development of automated 
 
 ## Who is Loom for?
 
-First of all, Loom in its current state will not generate revenue and is challenging for newcomers. The Loom framework is tailored for advanced users with prior experience in blockchain development. It’s specifically designed for developers building trading bots, arbitrage bots, block builders, solvers, or those looking to work with blockchain event.
+First of all, Loom will not generate any revenue and is challenging for newcomers. The Loom framework is tailored for advanced users with prior experience in blockchain development. It’s specifically designed for developers building trading bots, arbitrage bots, block builders, solvers, or those looking to work with blockchain events.
 
 ## Getting starting
 
