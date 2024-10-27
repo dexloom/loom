@@ -407,7 +407,7 @@ impl SwapLine {
                 }
             };
 
-            let current_profit = I256::from_raw(next_amount) - I256::from_raw(current_out_amount);
+            let current_profit = I256::from_raw(current_out_amount) - I256::from_raw(next_amount);
 
             if bestprofit.is_none() {
                 bestprofit = Some(current_profit);
