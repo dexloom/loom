@@ -298,6 +298,11 @@ where
                 if let Ok(msg) = msg {
                     let mempool_event_msg : MempoolEvents = msg;
                     if let MempoolEvents::MempoolActualTxUpdate{ tx_hash }  = mempool_event_msg {
+                        if cur_block_number.is_none() {
+                            warn!("Did not received block header update yet!");
+                            continue;
+                        }
+
                         tokio::task::spawn(
                             pending_tx_state_change_task(
                                 client.clone(),

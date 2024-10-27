@@ -521,7 +521,7 @@ mod tests {
 
         let mut market_state = MarketState::new(LoomDBType::default());
 
-        market_state.add_state(&state_update);
+        market_state.state_db.apply_geth_update(state_update);
 
         let evm_env = Env::default();
 

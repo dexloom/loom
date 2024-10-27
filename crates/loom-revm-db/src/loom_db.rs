@@ -414,30 +414,24 @@ impl LoomDB {
                     account.storage.insert((*slot).into(), (*value).into());
                 }
             }
-        } else {
-            if self.is_account(address) {
-                let slots_to_insert: Vec<_> = acc_state
-                    .storage
-                    .iter()
-                    .filter_map(|(slot, value)| {
-                        let is_slot = self.is_slot(address, &(*slot).into());
-                        if is_slot {
-                            Some(((*slot).into(), (*value).into()))
-                        } else {
-                            if only_new {
-                                Some(((*slot).into(), (*value).into()))
-                            } else {
-                                None
-                            }
-                        }
-                    })
-                    .collect();
-
-                if let Ok(account) = self.load_cached_account(*address) {
-                    for (slot, value) in slots_to_insert {
-                        account.storage.insert(slot, value);
-                        trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
+        } else if self.is_account(address) {
+            let slots_to_insert: Vec<_> = acc_state
+                .storage
+                .iter()
+                .filter_map(|(slot, value)| {
+                    let is_slot = self.is_slot(address, &(*slot).into());
+                    if is_slot || only_new {
+                        Some(((*slot).into(), (*value).into()))
+                    } else {
+                        None
                     }
+                })
+                .collect();
+
+            if let Ok(account) = self.load_cached_account(*address) {
+                for (slot, value) in slots_to_insert {
+                    account.storage.insert(slot, value);
+                    trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
                 }
             }
         }

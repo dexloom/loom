@@ -95,6 +95,14 @@ fn parse_tx_hashes(tx_hash_vec: Vec<&str>) -> Result<Vec<TxHash>> {
 struct Commands {
     #[arg(short, long)]
     config: String,
+
+    /// Timout in seconds after the test fails
+    #[arg(short, long, default_value = "10")]
+    timeout: u64,
+
+    /// Wait xx seconds before start re-broadcasting
+    #[arg(short, long, default_value = "1")]
+    wait_init: u64,
 }
 
 #[tokio::main]
@@ -458,6 +466,10 @@ async fn main() -> Result<()> {
         }
     }
 
+    // #### Blockchain events
+    // we need to wait for all actors to start. For the CI it can be a bit longer
+    tokio::time::sleep(Duration::from_secs(args.wait_init)).await;
+
     let next_block_base_fee = ChainParameters::ethereum().calc_next_block_base_fee(
         block_header.gas_used,
         block_header.gas_limit,
@@ -485,10 +497,10 @@ async fn main() -> Result<()> {
         error!("{}", e);
     }
 
+    // #### RE-BROADCASTER
     //starting broadcasting transactions from eth to anvil
     let client_clone = client.clone();
     tokio::spawn(async move {
-        tokio::time::sleep(Duration::from_millis(1000)).await;
         info!("Re-broadcaster task started");
 
         for (_, tx_config) in test_config.txs.iter() {
@@ -531,7 +543,7 @@ async fn main() -> Result<()> {
     let mut tx_compose_sub = tx_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
-    let timeout_duration = Duration::from_secs(10);
+    let timeout_duration = Duration::from_secs(args.timeout);
 
     loop {
         tokio::select! {

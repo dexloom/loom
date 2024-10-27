@@ -110,7 +110,7 @@ replayer:
 swap-test:
 	@echo "Running anvil swap test case: $(FILE)\n"
 	@RL=${RL:-info}; \
-	RUST_LOG=$(RL) cargo run --package loom_anvil --bin loom_anvil -- --config $(FILE); \
+    RUST_LOG=$(RL) cargo run --package loom_anvil --bin loom_anvil -- --config $(FILE) --timeout 25 --wait-init 3; \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -ne 0 ]; then \
 		echo "\n\033[0;31mError: Anvil swap tester exited with code $$EXIT_CODE\033[0m\n"; \
