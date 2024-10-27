@@ -8,6 +8,7 @@ pub mod swap_math;
 pub mod tick;
 pub mod tick_bitmap;
 pub mod tick_math;
+pub mod tick_provider;
 pub mod unsafe_math;
 
 const U256_1: U256 = U256::from_limbs([1, 0, 0, 0]);
