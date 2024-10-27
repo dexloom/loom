@@ -1,15 +1,12 @@
-use std::collections::HashMap;
-
 use alloy_primitives::{Address, I256, U256};
 use eyre::eyre;
-use uniswap_v3_math::tick_bitmap::position;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
 
+use crate::db_reader::UniswapV3DBReader;
+use crate::virtual_impl::tick_provider::TickProviderLoomDB;
+use crate::UniswapV3Pool;
 use defi_entities::Pool;
 use loom_revm_db::LoomDBType;
-
-use crate::db_reader::UniswapV3DBReader;
-use crate::UniswapV3Pool;
 
 pub struct UniswapV3PoolVirtual;
 
@@ -110,6 +107,8 @@ impl UniswapV3PoolVirtual {
             liquidity,                                             //Current available liquidity in the tick range
         };
 
+        let tick_provider = TickProviderLoomDB::new(db.clone(), pool_address);
+
         while current_state.amount_specified_remaining != I256::ZERO && current_state.sqrt_price_x_96 != sqrt_price_limit_x_96 {
             // Initialize a new step struct to hold the dynamic state of the pool at each step
             let mut step = StepComputations {
@@ -118,16 +117,9 @@ impl UniswapV3PoolVirtual {
                 ..Default::default()
             };
 
-            let mut tick_bitmap: HashMap<i16, U256> = HashMap::new();
-            let (word_pos, _bit_pos) = position(current_state.tick / (tick_spacing as i32));
-
-            for i in word_pos - 1..=word_pos + 1 {
-                tick_bitmap.insert(i, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
-            }
-
             // Get the next tick from the current tick
             (step.tick_next, step.initialized) = uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(
-                &tick_bitmap,
+                &tick_provider,
                 current_state.tick,
                 tick_spacing as i32,
                 zero_for_one,
@@ -244,16 +236,11 @@ impl UniswapV3PoolVirtual {
                 ..Default::default()
             };
 
-            let mut tick_bitmap: HashMap<i16, U256> = HashMap::new();
-            let (word_pos, _bit_pos) = position(current_state.tick / (tick_spacing as i32));
-
-            for i in word_pos - 2..=word_pos + 2 {
-                tick_bitmap.insert(i, UniswapV3DBReader::tick_bitmap(db, pool_address, i).unwrap_or_default());
-            }
+            let tick_provider = TickProviderLoomDB::new(db.clone(), pool_address);
 
             // Get the next tick from the current tick
             (step.tick_next, step.initialized) = uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(
-                &tick_bitmap,
+                &tick_provider,
                 current_state.tick,
                 tick_spacing as i32,
                 zero_for_one,

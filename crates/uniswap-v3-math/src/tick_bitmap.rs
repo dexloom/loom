@@ -1,3 +1,4 @@
+use crate::tick_provider::TickProvider;
 use crate::U256_1;
 use crate::{bit_math, error::UniswapV3MathError};
 use alloy::primitives::{Address, BlockNumber, U256};
@@ -27,8 +28,8 @@ pub fn flip_tick(tick_bitmap: &mut HashMap<i16, U256>, tick: i32, tick_spacing: 
 
 //Returns the next initialized tick contained in the same word (or adjacent word) as the tick that is either
 //to the left (less than or equal to) or right (greater than) of the given tick
-pub fn next_initialized_tick_within_one_word(
-    tick_bitmap: &HashMap<i16, U256>,
+pub fn next_initialized_tick_within_one_word<T: TickProvider>(
+    tick_provider: &T,
     tick: i32,
     tick_spacing: i32,
     lte: bool,
@@ -40,7 +41,7 @@ pub fn next_initialized_tick_within_one_word(
 
         let mask = (U256_1 << bit_pos) - U256_1 + (U256_1 << bit_pos);
 
-        let masked = *tick_bitmap.get(&word_pos).unwrap_or(&U256::ZERO) & mask;
+        let masked = tick_provider.get_tick(word_pos).unwrap_or(U256::ZERO) & mask;
 
         let initialized = !masked.is_zero();
 
@@ -56,7 +57,7 @@ pub fn next_initialized_tick_within_one_word(
 
         let mask = !((U256_1 << bit_pos) - U256_1);
 
-        let masked = *tick_bitmap.get(&word_pos).unwrap_or(&U256::ZERO) & mask;
+        let masked = tick_provider.get_tick(word_pos).unwrap_or(U256::ZERO) & mask;
 
         let initialized = !masked.is_zero();
 
@@ -148,21 +149,42 @@ pub fn position(tick: i32) -> (i16, u8) {
 mod test {
     use std::{collections::HashMap, vec};
 
+    use super::{flip_tick, next_initialized_tick_within_one_word};
+    use crate::tick_provider::TickProvider;
     use alloy::primitives::U256;
 
-    use super::{flip_tick, next_initialized_tick_within_one_word};
+    pub struct TickProviderHashMap {
+        tick_bitmap: HashMap<i16, U256>,
+    }
+    impl TickProviderHashMap {
+        pub fn new(tick_bitmap: HashMap<i16, U256>) -> Self {
+            Self { tick_bitmap }
+        }
+        pub fn mut_ref(&mut self) -> &mut HashMap<i16, U256> {
+            &mut self.tick_bitmap
+        }
+        pub fn clear(&mut self) {
+            self.tick_bitmap.clear();
+        }
+    }
+    impl TickProvider for TickProviderHashMap {
+        fn get_tick(&self, word_pos: i16) -> eyre::Result<U256> {
+            let val = self.tick_bitmap.get(&word_pos).cloned();
+            Ok(val.unwrap_or(U256::ZERO))
+        }
+    }
 
-    pub fn init_test_ticks() -> eyre::Result<HashMap<i16, U256>> {
+    pub fn init_test_ticks() -> eyre::Result<TickProviderHashMap> {
         let test_ticks = vec![-200, -55, -4, 70, 78, 84, 139, 240, 535];
         let mut tick_bitmap: HashMap<i16, U256> = HashMap::new();
         for tick in test_ticks {
             flip_tick(&mut tick_bitmap, tick, 1)?;
         }
-        Ok(tick_bitmap)
+        Ok(TickProviderHashMap::new(tick_bitmap))
     }
 
-    pub fn initialized(tick: i32, tick_bitmap: &HashMap<i16, U256>) -> eyre::Result<bool> {
-        let (next, initialized) = next_initialized_tick_within_one_word(tick_bitmap, tick, 1, true)?;
+    pub fn initialized<T: TickProvider>(tick: i32, tick_provider: &T) -> eyre::Result<bool> {
+        let (next, initialized) = next_initialized_tick_within_one_word(tick_provider, tick, 1, true)?;
         if next == tick {
             Ok(initialized)
         } else {
@@ -203,7 +225,7 @@ mod test {
         assert_eq!(initialized, true);
         tick_bitmap = init_test_ticks()?;
         //returns the next initialized tick from the next word
-        flip_tick(&mut tick_bitmap, 340, 1)?;
+        flip_tick(&mut tick_bitmap.mut_ref(), 340, 1)?;
         let (next, initialized) = next_initialized_tick_within_one_word(&tick_bitmap, 328, 1, false)?;
 
         assert_eq!(next, 340);
@@ -280,7 +302,7 @@ mod test {
         assert_eq!(initialized, false);
         tick_bitmap = init_test_ticks()?;
         //boundary is initialized
-        flip_tick(&mut tick_bitmap, 329, 1)?;
+        flip_tick(&mut tick_bitmap.mut_ref(), 329, 1)?;
         let (next, initialized) = next_initialized_tick_within_one_word(&tick_bitmap, 456, 1, true)?;
 
         assert_eq!(next, 329);
@@ -291,31 +313,31 @@ mod test {
     #[test]
     pub fn test_initialized() -> eyre::Result<()> {
         //is false at first
-        let mut tick_bitmap: HashMap<i16, U256> = HashMap::new();
+        let mut tick_bitmap = TickProviderHashMap::new(HashMap::new());
         let is_initialized = initialized(1, &tick_bitmap)?;
 
         assert_eq!(is_initialized, false);
         //is flipped by #flipTick
-        flip_tick(&mut tick_bitmap, 1, 1)?;
+        flip_tick(&mut tick_bitmap.mut_ref(), 1, 1)?;
         let is_initialized: bool = initialized(1, &tick_bitmap)?;
         assert_eq!(is_initialized, true);
 
         //is flipped back by #flipTick
         tick_bitmap.clear();
-        flip_tick(&mut tick_bitmap, 1, 1)?;
-        flip_tick(&mut tick_bitmap, 1, 1)?;
+        flip_tick(&mut tick_bitmap.mut_ref(), 1, 1)?;
+        flip_tick(&mut tick_bitmap.mut_ref(), 1, 1)?;
         let is_initialized = initialized(1, &tick_bitmap)?;
         assert_eq!(is_initialized, false);
 
         //is not changed by another flip to a different tick
         tick_bitmap.clear();
-        flip_tick(&mut tick_bitmap, 2, 1)?;
+        flip_tick(&mut tick_bitmap.mut_ref(), 2, 1)?;
         let is_initialized = initialized(1, &tick_bitmap)?;
         assert_eq!(is_initialized, false);
 
         //is not changed by another flip to a different tick on another word
         tick_bitmap.clear();
-        flip_tick(&mut tick_bitmap, 1 + 256, 1)?;
+        flip_tick(&mut tick_bitmap.mut_ref(), 1 + 256, 1)?;
         let is_initialized = initialized(257, &tick_bitmap)?;
         assert_eq!(is_initialized, true);
         let is_initialized = initialized(1, &tick_bitmap)?;
@@ -326,8 +348,8 @@ mod test {
     #[test]
     pub fn test_flip_tick() -> eyre::Result<()> {
         //flips only the specified tick
-        let mut tick_bitmap = HashMap::new();
-        flip_tick(&mut tick_bitmap, -230, 1)?;
+        let mut tick_bitmap = TickProviderHashMap::new(HashMap::new());
+        flip_tick(tick_bitmap.mut_ref(), -230, 1)?;
         let is_initialized = initialized(-230, &tick_bitmap)?;
         assert_eq!(is_initialized, true);
         let is_initialized = initialized(-231, &tick_bitmap)?;
@@ -338,7 +360,7 @@ mod test {
         assert_eq!(is_initialized, false);
         let is_initialized = initialized(-230 - 256, &tick_bitmap)?;
         assert_eq!(is_initialized, false);
-        flip_tick(&mut tick_bitmap, -230, 1)?;
+        flip_tick(tick_bitmap.mut_ref(), -230, 1)?;
         let is_initialized = initialized(-230, &tick_bitmap)?;
         assert_eq!(is_initialized, false);
         let is_initialized = initialized(-231, &tick_bitmap)?;
@@ -351,13 +373,13 @@ mod test {
         assert_eq!(is_initialized, false);
         //reverts only itself
         tick_bitmap.clear();
-        flip_tick(&mut tick_bitmap, -230, 1)?;
-        flip_tick(&mut tick_bitmap, -259, 1)?;
-        flip_tick(&mut tick_bitmap, -229, 1)?;
-        flip_tick(&mut tick_bitmap, 500, 1)?;
-        flip_tick(&mut tick_bitmap, -259, 1)?;
-        flip_tick(&mut tick_bitmap, -229, 1)?;
-        flip_tick(&mut tick_bitmap, -259, 1)?;
+        flip_tick(tick_bitmap.mut_ref(), -230, 1)?;
+        flip_tick(tick_bitmap.mut_ref(), -259, 1)?;
+        flip_tick(tick_bitmap.mut_ref(), -229, 1)?;
+        flip_tick(tick_bitmap.mut_ref(), 500, 1)?;
+        flip_tick(tick_bitmap.mut_ref(), -259, 1)?;
+        flip_tick(tick_bitmap.mut_ref(), -229, 1)?;
+        flip_tick(tick_bitmap.mut_ref(), -259, 1)?;
         let is_initialized = initialized(-259, &tick_bitmap)?;
         assert_eq!(is_initialized, true);
         let is_initialized = initialized(-229, &tick_bitmap)?;
