@@ -107,7 +107,7 @@ impl UniswapV3PoolVirtual {
             liquidity,                                             //Current available liquidity in the tick range
         };
 
-        let tick_provider = TickProviderLoomDB::new(db.clone(), pool_address);
+        let tick_provider = TickProviderLoomDB::new(db, pool_address);
 
         while current_state.amount_specified_remaining != I256::ZERO && current_state.sqrt_price_x_96 != sqrt_price_limit_x_96 {
             // Initialize a new step struct to hold the dynamic state of the pool at each step
@@ -236,7 +236,7 @@ impl UniswapV3PoolVirtual {
                 ..Default::default()
             };
 
-            let tick_provider = TickProviderLoomDB::new(db.clone(), pool_address);
+            let tick_provider = TickProviderLoomDB::new(db, pool_address);
 
             // Get the next tick from the current tick
             (step.tick_next, step.initialized) = uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(
