@@ -231,7 +231,7 @@ where
                 let bundle_result = client_clone.send_signed_body(body_clone, signature_clone).await;
                 match bundle_result {
                     Ok(_) => {
-                        info!("Flashbots bundle broadcast successfully {}", client_clone.name);
+                        debug!("Flashbots bundle broadcast successfully {}", client_clone.name);
                     }
                     Err(x) => {
                         error!("Broadcasting error to {} : {}", client_clone.name, x.to_string());

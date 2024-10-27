@@ -12,7 +12,7 @@ use tracing::{debug, trace};
 use url::Url;
 
 /// Configuration for a Flashbots relay.
-#[derive(Clone, PartialEq, Eq, Hash)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct RelayConfig {
     pub id: u16,
     pub name: String,

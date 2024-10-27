@@ -5029,6 +5029,7 @@ dependencies = [
 name = "loom-web"
 version = "0.2.0"
 dependencies = [
+ "alloy-consensus",
  "alloy-primitives",
  "axum",
  "defi-actors",
@@ -5044,6 +5045,7 @@ dependencies = [
  "revm",
  "serde",
  "serde_json",
+ "thiserror",
  "tokio",
  "tokio-util",
  "tower 0.5.1",
@@ -5149,6 +5151,7 @@ dependencies = [
  "hex",
  "loom-actors",
  "loom-db",
+ "loom-revm-db",
  "loom-test",
  "loom-topology",
  "loom-utils",
