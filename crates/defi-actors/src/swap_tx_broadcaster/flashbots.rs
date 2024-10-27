@@ -35,7 +35,7 @@ where
 
             tokio::time::sleep(Duration::from_millis(300)).await;
             client.broadcast_txes(stuffing_rlp_bundle, block_number + 1).await?;
-            client.broadcast_txes(backrun_rlp_bundle.clone(), block_number + 1).await?;
+            client.broadcast_txes(backrun_rlp_bundle, block_number + 1).await?;
             Ok(())
         }
     } else {

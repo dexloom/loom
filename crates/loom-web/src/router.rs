@@ -1,4 +1,5 @@
 use crate::handler::blocks::latest_block;
+use crate::handler::flashbots::flashbots;
 use crate::handler::pools::{market_stats, pool, pool_quote, pools};
 use crate::handler::ws::ws_handler;
 use crate::openapi::ApiDoc;
@@ -14,7 +15,8 @@ pub fn router(app_state: AppState) -> Router<()> {
             "/api/v1",
             Router::new()
                 .nest("/block", router_block()) // rename to node
-                .nest("/markets", router_market()),
+                .nest("/markets", router_market())
+                .nest("/flashbots", Router::new().route("/", post(flashbots))),
         )
         .route("/ws", get(ws_handler))
         .merge(SwaggerUi::new("/swagger-ui").url("/api-docs/openapi.json", ApiDoc::openapi()))

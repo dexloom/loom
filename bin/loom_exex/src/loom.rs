@@ -61,7 +61,7 @@ where
         .actors
         .broadcaster
         .as_ref()
-        .and_then(|b| b.get("flashbots"))
+        .and_then(|b| b.get("mainnet"))
         .map(|b| match b {
             BroadcasterConfig::Flashbots(f) => f.relays(),
         })
@@ -109,9 +109,9 @@ where
             .with_influxdb_writer(influxdb_config.url, influxdb_config.database, influxdb_config.tags)?
             .with_block_latency_recorder()?;
     }
-
-    bc_actors.start(SwapHealthMonitorActor::new(provider.clone()).on_bc(&bc))?;
-
+    if env::var("SWAP_HEALTH_MONITOR").unwrap_or_default() == "true" {
+        bc_actors.start(SwapHealthMonitorActor::new(provider.clone()).on_bc(&bc))?;
+    }
     bc_actors.wait().await;
 
     Ok(())

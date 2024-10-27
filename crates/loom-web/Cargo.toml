@@ -16,13 +16,16 @@ defi-types.workspace = true
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
 loom-db.workspace = true
-loom-utils.workspace = true
+loom-utils = {workspace = true, features = ["trace-calls"]}
 loom-web-state.workspace = true
 
-alloy-primitives.workspace = true
-revm.workspace = true
 serde.workspace = true
 serde_json.workspace = true
+thiserror.workspace = true
+
+alloy-primitives.workspace = true
+alloy-consensus.workspace = true
+revm.workspace = true
 
 # async
 tokio.workspace = true

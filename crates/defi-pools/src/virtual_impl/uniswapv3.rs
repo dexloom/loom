@@ -1,8 +1,7 @@
 use std::collections::HashMap;
 
-use alloy_primitives::{address, Address, I256, U256};
+use alloy_primitives::{Address, I256, U256};
 use eyre::eyre;
-use tracing::info;
 use uniswap_v3_math::tick_bitmap::position;
 use uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
 
@@ -101,16 +100,7 @@ impl UniswapV3PoolVirtual {
         let liquidity = UniswapV3DBReader::liquidity(db, pool_address)?;
         let tick_spacing = pool.tick_spacing();
         let fee = pool.fee;
-        if pool.get_address() == address!("8682fc63dc2525fd2e5ed4e28e207a2fd9f36dab") {
-            info!(
-                "address={:?}, slot0={:?}, liquidity={:?}, tick_spacing={:?}, fee={:?}",
-                pool.get_address(),
-                slot0,
-                liquidity,
-                tick_spacing,
-                fee
-            );
-        }
+
         // Initialize a mutable state struct to hold the dynamic simulated state of the pool
         let mut current_state = CurrentState {
             sqrt_price_x_96: slot0.sqrtPriceX96.to(),              //Active price on the pool
