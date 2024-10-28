@@ -1,0 +1,32 @@
+# WETH -> SATO -> SATO -> WETH ARB CASE
+# replay tx with loom for 0x3de3021d19af3ae7a14d149ecc88e5943ee6c282b814ff86e9b86e159cf749ed
+[modules]
+signer = true
+flashbots = true
+
+[settings]
+block = 21063544
+coinbase = "0x1dd35b4da6534230ff53048f7477f17f7f4e7a70"
+multicaller = "0x3dd35b4da6534230ff53048f7477f17f7f4e7a70"
+skip_default = false
+
+[pools]
+# in order of swaps
+sato_weth_uni2 = { address = "0x1e79d6529f271876d202cbb216b856165d862353", class = "uniswap2" }
+sato_weth_uni3 = { address = "0xf65c9da67e5cfdb097b7e9010e2f509a4b0d4cb2", class = "uniswap3" }
+
+
+[txs]
+# block 21063545
+tx_1 = { hash = "0xa3d5a476ce4fb9b087e0bca72f1718c76c6ed08df19a24adcdd6b076cadeb3db", send = "mempool" }
+
+
+[tokens]
+weth = { address = "0xC02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2", symbol = "WETH", decimals = 18, basic = true, middle = false }
+sato = { address = "0x5De758BbA013e58dAe2693aEA3f0B12B31a3023d", symbol = "SATO", decimals = 18, basic = false, middle = false }
+
+
+[assertions]
+swaps_encoded = 1
+swaps_ok = 1
+best_profit_eth = 0.005

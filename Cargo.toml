@@ -93,6 +93,7 @@ thiserror = "1.0"
 # async
 async-stream = "0.3"
 async-trait = "0.1"
+futures-core = "0.3"
 tokio = { version = "1", features = ["full"] }
 tokio-stream = "0.1"
 tokio-util = "0.7"
@@ -110,6 +111,7 @@ indexmap = "2.5"
 k256 = "0.13"
 lazy_static = "1.4"
 num_cpus = "1.16"
+pin-project = "1"
 proc-macro2 = "1.0"
 prost = "0.13"
 quote = "1.0"
@@ -145,6 +147,7 @@ tonic-build = "0.12"
 
 # testing
 criterion = { version = "0.5.1", features = ["async_tokio"] }
+wiremock = "0.6.2"
 
 ## We keep revm and alloy dependencies pinned to specific versions as reth depends on them
 

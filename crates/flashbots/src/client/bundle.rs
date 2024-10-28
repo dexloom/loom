@@ -190,13 +190,13 @@ impl BundleRequest {
      */
 
     /// Get the target block (if any).
-    pub fn block(&self) -> Option<U64> {
+    pub fn target_block(&self) -> Option<U64> {
         self.target_block
     }
 
     /// Set the target block of the bundle.
-    pub fn set_block(mut self, block: U64) -> Self {
-        self.target_block = Some(block);
+    pub fn set_target_block(mut self, target_block: U64) -> Self {
+        self.target_block = Some(target_block);
         self
     }
 

@@ -20,6 +20,9 @@ pub struct TestConfig {
 fn default_true() -> bool {
     true
 }
+fn default_false() -> bool {
+    false
+}
 
 #[allow(dead_code)]
 #[derive(Default, Deserialize, Debug, Clone)]
@@ -48,6 +51,8 @@ pub struct Modules {
     pub arb_block: bool,
     #[serde(default = "default_true")]
     pub arb_mempool: bool,
+    #[serde(default = "default_false")]
+    pub flashbots: bool,
 }
 
 #[allow(dead_code)]

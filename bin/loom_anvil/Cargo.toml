@@ -9,33 +9,33 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
-clap.workspace = true
-eyre.workspace = true
-futures.workspace = true
-serde.workspace = true
-tokio.workspace = true
-toml.workspace = true
-tracing.workspace = true
-tracing-subscriber.workspace = true
-
-
 debug-provider.workspace = true
-flashbots.workspace = true
-
 defi-actors.workspace = true
 defi-address-book.workspace = true
 defi-entities.workspace = true
 defi-events.workspace = true
 defi-pools.workspace = true
 defi-types.workspace = true
+flashbots.workspace = true
 loom-actors.workspace = true
 loom-actors-macros.workspace = true
+loom-multicaller.workspace = true
 loom-revm-db.workspace = true
 loom-utils.workspace = true
 
 
-loom-multicaller.workspace = true
+clap.workspace = true
+eyre.workspace = true
+futures.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+tokio.workspace = true
+toml.workspace = true
+tracing.workspace = true
+tracing-subscriber.workspace = true
+wiremock.workspace = true
 
+# alloy
 alloy-consensus.workspace = true
 alloy-node-bindings.workspace = true
 alloy-primitives.workspace = true
