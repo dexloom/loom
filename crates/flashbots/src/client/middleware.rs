@@ -89,7 +89,7 @@ where
     /// [fb_callBundle]: https://docs.flashbots.net/flashbots-auction/searchers/advanced/rpc-endpoint#eth_callbundle
     pub async fn simulate_bundle(&self, bundle: &BundleRequest) -> Result<SimulatedBundle, FlashbotsMiddlewareError> {
         bundle
-            .block()
+            .target_block()
             .and(bundle.simulation_block())
             .and(bundle.simulation_timestamp())
             .ok_or(FlashbotsMiddlewareError::MissingParameters)?;
@@ -116,7 +116,7 @@ where
     /// [fb_sendBundle]: https://docs.flashbots.net/flashbots-auction/searchers/advanced/rpc-endpoint#eth_sendbundle
     pub async fn send_bundle(&self, bundle: &BundleRequest) -> Result<(), FlashbotsMiddlewareError> {
         // The target block must be set
-        bundle.block().ok_or(FlashbotsMiddlewareError::MissingParameters)?;
+        bundle.target_block().ok_or(FlashbotsMiddlewareError::MissingParameters)?;
 
         // `min_timestamp` and `max_timestamp` must both either be unset or set.
         if bundle.min_timestamp().xor(bundle.max_timestamp()).is_some() {

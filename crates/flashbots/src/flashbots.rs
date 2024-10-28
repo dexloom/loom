@@ -195,7 +195,7 @@ where
         BundleTransaction: From<TX>,
     {
         let mut bundle = BundleRequest::new()
-            .set_block(U64::from(block_number + 1))
+            .set_target_block(U64::from(block_number + 1))
             .set_simulation_block(U64::from(block_number))
             .set_access_list_hashes(access_list_request);
 
@@ -206,11 +206,11 @@ where
         self.simulation_client.call_bundle(&bundle).await
     }
 
-    pub async fn broadcast_txes<TX>(&self, txs: Vec<TX>, block: u64) -> Result<()>
+    pub async fn broadcast_txes<TX>(&self, txs: Vec<TX>, target_block: u64) -> Result<()>
     where
         BundleTransaction: From<TX>,
     {
-        let mut bundle = BundleRequest::new().set_block(U64::from(block));
+        let mut bundle = BundleRequest::new().set_target_block(U64::from(target_block));
 
         for t in txs.into_iter() {
             bundle = bundle.push_transaction(t);
@@ -264,7 +264,7 @@ mod test {
 
         let tx = Bytes::from(vec![1, 1, 1, 1]);
 
-        let bundle_request = BundleRequest::new().set_block(U64::from(block)).push_transaction(tx);
+        let bundle_request = BundleRequest::new().set_target_block(U64::from(block)).push_transaction(tx);
 
         match flashbots_client.send_bundle(&bundle_request).await {
             Ok(resp) => {

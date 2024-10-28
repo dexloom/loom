@@ -3,6 +3,9 @@ use std::fmt::{Display, Formatter};
 use std::process::exit;
 use std::time::Duration;
 
+use crate::flashbots_mock::mount_flashbots_mock;
+use crate::flashbots_mock::BundleRequest;
+use crate::test_config::TestConfig;
 use alloy_consensus::TxEnvelope;
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::network::eip2718::Encodable2718;
@@ -12,18 +15,12 @@ use clap::Parser;
 use debug_provider::AnvilDebugProviderFactory;
 use defi_actors::{
     fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BackrunConfig, BlockHistoryActor,
-    DiffPathMergerActor, EvmEstimatorActor, InitializeSignersOneShotBlockingActor, MarketStatePreloadedOneShotActor, NodeBlockActor,
-    NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor, StateChangeArbActor, SwapRouterActor,
-    TxSignersActor,
+    DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, InitializeSignersOneShotBlockingActor,
+    MarketStatePreloadedOneShotActor, NodeBlockActor, NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor,
+    StateChangeArbActor, SwapRouterActor, TxSignersActor,
 };
+use defi_address_book::TokenAddress;
 use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners};
-use eyre::{OptionExt, Result};
-use loom_utils::NWETH;
-use tracing::{debug, error, info};
-use tracing_subscriber::layer::SubscriberExt;
-use tracing_subscriber::util::SubscriberInitExt;
-use tracing_subscriber::{fmt, EnvFilter, Layer};
-
 use defi_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageTxCompose, TxCompose,
@@ -31,13 +28,20 @@ use defi_events::{
 use defi_pools::protocols::CurveProtocol;
 use defi_pools::CurvePool;
 use defi_types::{debug_trace_block, ChainParameters, Mempool};
+use eyre::{OptionExt, Result};
+use flashbots::client::RelayConfig;
+use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
 use loom_revm_db::LoomDBType;
+use loom_utils::NWETH;
+use tracing::{debug, error, info};
+use tracing_subscriber::layer::SubscriberExt;
+use tracing_subscriber::util::SubscriberInitExt;
+use tracing_subscriber::{fmt, EnvFilter, Layer};
+use wiremock::MockServer;
 
-use crate::test_config::TestConfig;
-
-mod default;
+mod flashbots_mock;
 mod test_config;
 
 #[derive(Clone, Default, Debug)]
@@ -113,14 +117,17 @@ async fn main() -> Result<()> {
     tracing_subscriber::registry().with(fmt_layer).init();
 
     let args = Commands::parse();
-
     let test_config = TestConfig::from_file(args.config.clone()).await?;
-
     let node_url = env::var("MAINNET_WS")?;
-
     let client = AnvilDebugProviderFactory::from_node_on_block(node_url, test_config.settings.block).await?;
-
     let priv_key = client.privkey()?;
+
+    let mut mock_server: Option<MockServer> = None;
+    if test_config.modules.flashbots {
+        // Start flashbots mock server
+        mock_server = Some(MockServer::start().await);
+        mount_flashbots_mock(mock_server.as_ref().unwrap()).await;
+    }
 
     //let multicaller_address = MulticallerDeployer::new().deploy(client.clone(), priv_key.clone()).await?.address().ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     let multicaller_address = MulticallerDeployer::new()
@@ -132,17 +139,27 @@ async fn main() -> Result<()> {
 
     let encoder = MulticallerSwapEncoder::new(multicaller_address);
 
-    let block_nr = client.get_block_number().await?;
-    info!("Block : {}", block_nr);
+    let block_number = client.get_block_number().await?;
+    info!("Current block_number={}", block_number);
 
-    let block_header = client.get_block(block_nr.into(), BlockTransactionsKind::Hashes).await?.unwrap().header;
-    info!("Block header : {:?}", block_header);
+    let block_header = client.get_block(block_number.into(), BlockTransactionsKind::Hashes).await?.unwrap().header;
+    info!("Current block_header={:?}", block_header);
 
-    let block_header_with_txes = client.get_block(block_nr.into(), BlockTransactionsKind::Full).await?.unwrap();
+    let block_header_with_txes = client.get_block(block_number.into(), BlockTransactionsKind::Full).await?.unwrap();
 
     let cache_db = LoomDBType::default();
-    let market_instance = Market::default();
+    let mut market_instance = Market::default();
     let market_state_instance = MarketState::new(cache_db.clone());
+
+    // Add default tokens for price actor
+    let usdc_token = Token::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), true, false);
+    let usdt_token = Token::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), true, false);
+    let wbtc_token = Token::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), true, false);
+    let dai_token = Token::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), true, false);
+    market_instance.add_token(usdc_token)?;
+    market_instance.add_token(usdt_token)?;
+    market_instance.add_token(wbtc_token)?;
+    market_instance.add_token(dai_token)?;
 
     let mempool_instance = Mempool::new();
 
@@ -151,8 +168,6 @@ async fn main() -> Result<()> {
     let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
     let new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate> = Broadcaster::new(10);
     let new_block_logs_channel: Broadcaster<MessageBlockLogs> = Broadcaster::new(10);
-
-    //let new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate> = Broadcaster::new(500);
 
     let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(100);
     let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(500);
@@ -169,11 +184,11 @@ async fn main() -> Result<()> {
     let tx_signers = SharedState::new(tx_signers);
     let accounts_state = SharedState::new(accounts_state);
 
-    let latest_block = SharedState::new(LatestBlock::new(block_nr, block_header.hash));
+    let latest_block = SharedState::new(LatestBlock::new(block_number, block_header.hash));
 
-    let (_, post) = debug_trace_block(client.clone(), BlockId::Number(BlockNumberOrTag::Number(block_nr)), true).await?;
+    let (_, post) = debug_trace_block(client.clone(), BlockId::Number(BlockNumberOrTag::Number(block_number)), true).await?;
     latest_block.write().await.update(
-        block_nr,
+        block_number,
         block_header.hash,
         Some(block_header.clone()),
         Some(block_header_with_txes),
@@ -225,8 +240,6 @@ async fn main() -> Result<()> {
             info!("Market state preload actor started successfully")
         }
     }
-
-    //load_pools(client.clone(), market_instance.clone(), market_state.clone()).await?;
 
     info!("Starting node actor");
     let mut node_block_actor = NodeBlockActor::new(client.clone(), NodeBlockActorConfig::all_enabled());
@@ -380,7 +393,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    //
+    // Start state change arb actor
     if test_config.modules.arb_block || test_config.modules.arb_mempool {
         info!("Starting state change arb actor");
         let mut state_change_arb_actor = StateChangeArbActor::new(
@@ -446,6 +459,19 @@ async fn main() -> Result<()> {
             }
             _ => {
                 info!("Same path merger actor started successfully")
+            }
+        }
+    }
+    if test_config.modules.flashbots {
+        let relays = vec![RelayConfig { id: 1, url: mock_server.as_ref().unwrap().uri(), name: "relay".to_string(), no_sign: Some(false) }];
+        let flashbots = Flashbots::new(client.clone(), "https://unused", None).with_relays(relays);
+        let mut flashbots_broadcast_actor = FlashbotsBroadcastActor::new(flashbots, false, true);
+        match flashbots_broadcast_actor.consume(tx_compose_channel.clone()).start() {
+            Err(e) => {
+                error!("{}", e)
+            }
+            _ => {
+                info!("Flashbots broadcast actor started successfully")
             }
         }
     }
@@ -580,6 +606,28 @@ async fn main() -> Result<()> {
                 debug!(?msg, "Timed out");
                 break;
             }
+        }
+    }
+    if test_config.modules.flashbots {
+        // wait for flashbots mock server to receive all requests
+        tokio::time::sleep(Duration::from_secs(2)).await;
+        if let Some(last_requests) = mock_server.unwrap().received_requests().await {
+            if last_requests.is_empty() {
+                println!("Mock server did not received any request!")
+            } else {
+                println!("Received {} flashbots requests", last_requests.len());
+                for request in last_requests {
+                    let bundle_request: BundleRequest = serde_json::from_slice(&request.body)?;
+                    println!(
+                        "bundle_count={}, target_blocks={:?}, txs_in_bundles={:?}",
+                        bundle_request.params.len(),
+                        bundle_request.params.iter().map(|b| b.target_block).collect::<Vec<_>>(),
+                        bundle_request.params.iter().map(|b| b.transactions.len()).collect::<Vec<_>>()
+                    );
+                }
+            }
+        } else {
+            println!("Mock server did not received any request!")
         }
     }
 

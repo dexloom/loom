@@ -50,7 +50,7 @@ impl From<Bytes> for BundleTransaction {
 /// include:
 ///
 /// - At least one transaction ([`BundleRequest::push_transaction`])
-/// - A target block ([`BundleRequest::set_block`])
+/// - A target block ([`BundleRequest::set_target_block`])
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BundleRequest {
@@ -190,13 +190,13 @@ impl BundleRequest {
      */
 
     /// Get the target block (if any).
-    pub fn block(&self) -> Option<U64> {
+    pub fn target_block(&self) -> Option<U64> {
         self.target_block
     }
 
     /// Set the target block of the bundle.
-    pub fn set_block(mut self, block: U64) -> Self {
-        self.target_block = Some(block);
+    pub fn set_target_block(mut self, target_block: U64) -> Self {
+        self.target_block = Some(target_block);
         self
     }
 
@@ -423,7 +423,7 @@ mod tests {
         let bundle = BundleRequest::new()
             .push_transaction(Bytes::from(vec![0x1]))
             .push_revertible_transaction(Bytes::from(vec![0x2]))
-            .set_block(U64::from(2))
+            .set_target_block(U64::from(2))
             .set_min_timestamp(1000)
             .set_max_timestamp(2000)
             .set_simulation_timestamp(1000)
@@ -441,7 +441,7 @@ mod tests {
         let mut bundle = BundleRequest::new()
             .push_transaction(Bytes::from(vec![0x1]))
             .push_revertible_transaction(Bytes::from(vec![0x2]))
-            .set_block(U64::from(2))
+            .set_target_block(U64::from(2))
             .set_min_timestamp(1000)
             .set_max_timestamp(2000)
             .set_simulation_timestamp(1000)
