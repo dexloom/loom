@@ -50,7 +50,7 @@ impl From<Bytes> for BundleTransaction {
 /// include:
 ///
 /// - At least one transaction ([`BundleRequest::push_transaction`])
-/// - A target block ([`BundleRequest::set_block`])
+/// - A target block ([`BundleRequest::set_target_block`])
 #[derive(Clone, Debug, Default, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct BundleRequest {
