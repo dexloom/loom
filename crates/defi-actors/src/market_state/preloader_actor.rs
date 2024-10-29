@@ -16,7 +16,7 @@ use eyre::{eyre, Result};
 use loom_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_actors_macros::Accessor;
 use loom_utils::{BalanceCheater, NWETH};
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 
 async fn fetch_account_state<P, T, N>(client: P, address: Address) -> Result<AccountState>
 where
@@ -75,7 +75,7 @@ where
     let mut state: GethStateUpdate = BTreeMap::new();
 
     for address in copied_accounts_vec {
-        debug!("Loading address : {address}");
+        trace!("Loading address : {address}");
         let acc_state = fetch_account_state(client.clone(), address).await?;
 
         set_monitor_token_balance(
@@ -87,13 +87,13 @@ where
         .await;
 
         set_monitor_nonce(account_nonce_balance_state.clone(), address, acc_state.nonce.unwrap_or_default()).await;
-        debug!("Loaded address : {address} {:?}", acc_state);
+        trace!("Loaded address : {address} {:?}", acc_state);
 
         state.insert(address, acc_state);
     }
 
     for (address, nonce, balance, code) in new_accounts_vec {
-        debug!("new_accounts added {} {} {}", address, nonce, balance);
+        trace!("new_accounts added {} {} {}", address, nonce, balance);
         set_monitor_token_balance(account_nonce_balance_state.clone(), address, NWETH::NATIVE_ADDRESS, balance).await;
         state.insert(address, AccountState { balance: Some(balance), code, nonce: Some(nonce), storage: BTreeMap::new() });
     }
