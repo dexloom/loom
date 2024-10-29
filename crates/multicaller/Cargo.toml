@@ -8,6 +8,20 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
+debug-provider.workspace = true
+defi-abi.workspace = true
+defi-address-book.workspace = true
+defi-entities.workspace = true
+defi-types.workspace = true
+loom-utils.workspace = true
+
+eyre.workspace = true
+k256.workspace = true
+lazy_static.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# alloy
 alloy-eips.workspace = true
 alloy-network.workspace = true
 alloy-primitives.workspace = true
@@ -18,22 +32,8 @@ alloy-signer-local.workspace = true
 alloy-sol-macro.workspace = true
 alloy-sol-types.workspace = true
 alloy-transport.workspace = true
-lazy_static.workspace = true
-
-eyre.workspace = true
-k256.workspace = true
-tokio.workspace = true
-tracing.workspace = true
-
-debug-provider.workspace = true
-defi-abi.workspace = true
-defi-address-book.workspace = true
-defi-entities.workspace = true
-defi-types.workspace = true
-loom-utils.workspace = true
-
-env_logger.workspace = true
 
 
 [dev-dependencies]
+env_logger.workspace = true
 tokio.workspace = true

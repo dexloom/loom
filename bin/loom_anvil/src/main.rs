@@ -7,7 +7,7 @@ use crate::flashbots_mock::mount_flashbots_mock;
 use crate::flashbots_mock::BundleRequest;
 use crate::test_config::TestConfig;
 use alloy_consensus::TxEnvelope;
-use alloy_primitives::{Address, TxHash, U256};
+use alloy_primitives::{address, TxHash, U256};
 use alloy_provider::network::eip2718::Encodable2718;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, BlockTransactionsKind};
@@ -34,7 +34,9 @@ use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
 use loom_revm_db::LoomDBType;
+use loom_utils::evm::env_from_signed_tx;
 use loom_utils::NWETH;
+use revm::primitives::TxEnv;
 use tracing::{debug, error, info};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -111,7 +113,7 @@ struct Commands {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "debug,alloy_rpc_client=off".into());
+    let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "debug,alloy_rpc_client=off,loom_multicaller=trace".into());
     let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(false).with_line_number(true).with_filter(env_filter);
 
     tracing_subscriber::registry().with(fmt_layer).init();
@@ -131,7 +133,7 @@ async fn main() -> Result<()> {
 
     //let multicaller_address = MulticallerDeployer::new().deploy(client.clone(), priv_key.clone()).await?.address().ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     let multicaller_address = MulticallerDeployer::new()
-        .set_code(client.clone(), Address::repeat_byte(0x78))
+        .set_code(client.clone(), address!("FCfCfcfC0AC30164AFdaB927F441F2401161F358"))
         .await?
         .address()
         .ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
@@ -624,6 +626,14 @@ async fn main() -> Result<()> {
                         bundle_request.params.iter().map(|b| b.target_block).collect::<Vec<_>>(),
                         bundle_request.params.iter().map(|b| b.transactions.len()).collect::<Vec<_>>()
                     );
+                    // print all transactions
+                    for bundle in bundle_request.params {
+                        for tx in bundle.transactions {
+                            let mut tx_env = TxEnv::default();
+                            env_from_signed_tx(&mut tx_env, tx)?;
+                            println!("tx={:?}", tx_env);
+                        }
+                    }
                 }
             }
         } else {

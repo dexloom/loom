@@ -5050,6 +5050,7 @@ dependencies = [
  "reth-rpc-types-compat",
  "revm",
  "revm-inspectors",
+ "thiserror",
  "tracing",
 ]
 
@@ -5057,7 +5058,6 @@ dependencies = [
 name = "loom-web"
 version = "0.2.0"
 dependencies = [
- "alloy-consensus",
  "alloy-primitives",
  "axum",
  "defi-actors",

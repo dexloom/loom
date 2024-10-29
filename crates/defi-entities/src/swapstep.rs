@@ -130,7 +130,6 @@ impl SwapStep {
         ret
     }
 
-    #[allow(unused_variables)]
     pub fn merge_swap_paths(swap_path_0: SwapLine, swap_path_1: SwapLine, multicaller: Address) -> Result<(SwapStep, SwapStep)> {
         let mut split_index_start = 0;
         let mut split_index_end = 0;
