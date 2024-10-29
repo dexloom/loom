@@ -18,6 +18,7 @@ loom-revm-db.workspace = true
 axum.workspace = true
 eyre.workspace = true
 lazy_static.workspace = true
+thiserror.workspace = true
 tracing.workspace = true
 
 # revm

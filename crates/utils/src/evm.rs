@@ -1,8 +1,11 @@
 use alloy::eips::BlockNumHash;
-use alloy::primitives::TxHash;
+use alloy::primitives::{SignatureError, TxHash};
 use std::collections::BTreeMap;
 use std::fmt::Display;
 
+use alloy::consensus::TxEnvelope;
+use alloy::primitives::private::alloy_rlp;
+use alloy::rlp::Decodable;
 use alloy::rpc::types::trace::geth::AccountState;
 #[cfg(feature = "trace-calls")]
 use alloy::rpc::types::trace::parity::TraceType;
@@ -23,6 +26,7 @@ use revm::primitives::{Account, BlockEnv, Env, ExecutionResult, Output, ResultAn
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 #[cfg(feature = "trace-calls")]
 use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
+use thiserror::Error;
 use tracing::log::trace;
 use tracing::{debug, error};
 
@@ -63,6 +67,7 @@ where
         // unpack output call enum into raw bytes
         let value = match result {
             ExecutionResult::Success { output: Output::Call(value), .. } => Some((value.to_vec(), gas_used)),
+            ExecutionResult::Success { output: Output::Create(_bytes, _address), .. } => Some((vec![], gas_used)),
             ExecutionResult::Revert { output, gas_used } => {
                 trace!("Revert {} : {:?}", gas_used, output);
                 #[cfg(feature = "trace-calls")]
@@ -71,7 +76,10 @@ where
                 //error!("Revert reason '{}' to={:?}, gas_used={gas_used}", revert_bytes_to_string(&output), transact_to);
                 None
             }
-            _ => None,
+            ExecutionResult::Halt { reason, .. } => {
+                error!("Halt {reason:?}");
+                None
+            }
         };
 
         value.ok_or_eyre("CALL_RESULT_IS_EMPTY")
@@ -302,5 +310,51 @@ pub fn revert_bytes_to_string(bytes: &Bytes) -> String {
     match String::from_utf8(error_data.to_vec()) {
         Ok(s) => s.replace(char::from(0), "").trim().to_string(),
         Err(_) => format!("{:?}", bytes),
+    }
+}
+
+#[derive(Debug, Error)]
+pub enum EnvError {
+    #[error(transparent)]
+    AlloyRplError(#[from] alloy_rlp::Error),
+    #[error(transparent)]
+    SignatureError(#[from] SignatureError),
+}
+
+pub fn env_from_signed_tx(tx_env: &mut TxEnv, rpl_bytes: Bytes) -> std::result::Result<(), EnvError> {
+    match TxEnvelope::decode(&mut rpl_bytes.iter().as_slice())? {
+        TxEnvelope::Legacy(_) => {
+            todo!("Legacy transactions are not supported")
+        }
+        TxEnvelope::Eip2930(_) => {
+            todo!("EIP-2930 transactions are not supported")
+        }
+        TxEnvelope::Eip1559(tx) => {
+            match tx.recover_signer() {
+                Ok(signer) => {
+                    tx_env.caller = signer;
+                }
+                Err(e) => {
+                    return Err(EnvError::SignatureError(e));
+                }
+            }
+
+            tx_env.transact_to = tx.tx().to;
+            tx_env.data = tx.tx().input.clone();
+            tx_env.value = tx.tx().value;
+            tx_env.gas_price = U256::from(tx.tx().max_fee_per_gas);
+            tx_env.gas_priority_fee = Some(U256::from(tx.tx().max_priority_fee_per_gas));
+            tx_env.gas_limit = tx.tx().gas_limit;
+            tx_env.nonce = Some(tx.tx().nonce);
+            tx_env.chain_id = Some(tx.tx().chain_id);
+            tx_env.access_list = tx.tx().clone().access_list.0;
+            Ok(())
+        }
+        TxEnvelope::Eip4844(_) => {
+            todo!("EIP-4844 transactions are not supported")
+        }
+        _ => {
+            todo!("Unknown transaction type")
+        }
     }
 }

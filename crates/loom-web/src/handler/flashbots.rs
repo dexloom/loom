@@ -1,24 +1,12 @@
 use crate::dto::flashbots::{BundleRequest, BundleResponse, SendBundleResponse};
-use alloy_consensus::TxEnvelope;
-use alloy_primitives::private::alloy_rlp;
-use alloy_primitives::private::alloy_rlp::Decodable;
-use alloy_primitives::{Bytes, SignatureError, TxKind, U256};
+use alloy_primitives::TxKind;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
-use loom_utils::evm::{env_for_block, evm_call};
+use loom_utils::evm::{env_for_block, env_from_signed_tx, evm_call};
 use loom_web_state::AppState;
 use revm::primitives::TxEnv;
-use thiserror::Error;
 use tracing::{error, info};
-
-#[derive(Debug, Error)]
-pub enum EnvError {
-    #[error(transparent)]
-    AlloyRplError(#[from] alloy_rlp::Error),
-    #[error(transparent)]
-    SignatureError(#[from] SignatureError),
-}
 
 pub async fn flashbots(
     State(app_state): State<AppState>,
@@ -63,42 +51,4 @@ pub async fn flashbots(
     }
 
     Ok(Json(SendBundleResponse { jsonrpc: "2.0".to_string(), id: 1, result: BundleResponse { bundle_hash: None } }))
-}
-
-pub fn env_from_signed_tx(tx_env: &mut TxEnv, rpl_bytes: Bytes) -> Result<(), EnvError> {
-    match TxEnvelope::decode(&mut rpl_bytes.iter().as_slice())? {
-        TxEnvelope::Legacy(_) => {
-            todo!("Legacy transactions are not supported")
-        }
-        TxEnvelope::Eip2930(_) => {
-            todo!("EIP-2930 transactions are not supported")
-        }
-        TxEnvelope::Eip1559(tx) => {
-            match tx.recover_signer() {
-                Ok(signer) => {
-                    tx_env.caller = signer;
-                }
-                Err(e) => {
-                    return Err(EnvError::SignatureError(e));
-                }
-            }
-
-            tx_env.transact_to = tx.tx().to;
-            tx_env.data = tx.tx().input.clone();
-            tx_env.value = tx.tx().value;
-            tx_env.gas_price = U256::from(tx.tx().max_fee_per_gas);
-            tx_env.gas_priority_fee = Some(U256::from(tx.tx().max_priority_fee_per_gas));
-            tx_env.gas_limit = tx.tx().gas_limit;
-            tx_env.nonce = Some(tx.tx().nonce);
-            tx_env.chain_id = Some(tx.tx().chain_id);
-            tx_env.access_list = tx.tx().clone().access_list.0;
-            Ok(())
-        }
-        TxEnvelope::Eip4844(_) => {
-            todo!("EIP-4844 transactions are not supported")
-        }
-        _ => {
-            todo!("Unknown transaction type")
-        }
-    }
 }

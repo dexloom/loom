@@ -4,7 +4,7 @@ use defi_entities::tips::{tips_and_value_for_swap_type, Tips};
 use defi_entities::{Swap, SwapEncoder, SwapStep};
 use defi_types::MulticallerCalls;
 use eyre::{eyre, OptionExt, Result};
-use tracing::{debug, error};
+use tracing::{debug, error, trace};
 
 impl SwapEncoder for MulticallerSwapEncoder {
     fn encode(
@@ -33,10 +33,16 @@ impl SwapEncoder for MulticallerSwapEncoder {
             }
         };
 
+        let mut swap_steps = "".to_string();
+        for (level, (sp0, sp1)) in swap_vec.iter().enumerate() {
+            swap_steps.push_str(format!("{}{} \n{}\t-> {}\n", "\t".repeat(level), sp0, "\t".repeat(level), sp1).as_str());
+        }
+        debug!("Swaps:\n{}", swap_steps);
+
         let mut swap_opcodes = if swap_vec.is_empty() {
             match &swap {
                 Swap::ExchangeSwapLine(swap_line) => {
-                    debug!("Swap::ExchangeSwapLine encoding started");
+                    trace!("START: exchange swap line");
                     match self.swap_step_encoder.swap_line_encoder.encode_swap_line_in_amount(
                         swap_line,
                         self.swap_step_encoder.get_contract_address(),
@@ -52,16 +58,19 @@ impl SwapEncoder for MulticallerSwapEncoder {
                 _ => return Err(eyre!("NO_SWAP_STEPS")),
             }
         } else if swap_vec.len() == 1 {
+            trace!("START: encode_swap_steps two-hop");
             let sp0 = &swap_vec[0].0;
             let sp1 = &swap_vec[0].1;
             self.swap_step_encoder.encode_swap_steps(sp0, sp1)?
         } else {
+            trace!("START: encode_swap_steps multi-hop");
             let mut ret = MulticallerCalls::new();
             for (sp0, sp1) in swap_vec.iter() {
                 ret = self.swap_step_encoder.encode_do_calls(ret, self.swap_step_encoder.encode_swap_steps(sp0, sp1)?)?;
             }
             ret
         };
+        trace!("END: swap_opcodes");
 
         let tips_vec =
             if let (Some(tips_pct), Some(sender_address), Some(sender_eth_balance)) = (tips_pct, sender_address, sender_eth_balance) {

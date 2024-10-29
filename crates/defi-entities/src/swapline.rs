@@ -64,7 +64,7 @@ impl fmt::Display for SwapLine {
                 _ => format!("profit={}", self.profit().unwrap_or(I256::ZERO)),
             }
         } else {
-            "".to_string()
+            "no profit".to_string()
         };
 
         let tokens = self.tokens().iter().map(|token| token.get_symbol()).collect::<Vec<String>>().join(", ");
@@ -101,7 +101,7 @@ impl fmt::Display for SwapLine {
 
         write!(
             f,
-            "SwapPath [{}, tokens=[{}], pools=[{}], amount_in={}, amount_out={}, amounts={}, gas_used={:?}]",
+            "SwapLine [{}, tokens=[{}], pools=[{}], amount_in={}, amount_out={}, amounts={}, gas_used={:?}]",
             profit, tokens, pools, amount_in, amount_out, amounts, self.gas_used
         )
     }
@@ -506,7 +506,7 @@ mod tests {
         let formatted = format!("{}", swap_line);
         assert_eq!(
             formatted,
-            "SwapPath [profit=0.02, tokens=[WETH, USDT, USDT, WETH], \
+            "SwapLine [profit=0.02, tokens=[WETH, USDT, USDT, WETH], \
             pools=[UniswapV2@0x4e68ccd3e89f51c3074ca5072bbac773960dfa36, UniswapV2@0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852], \
             amount_in=0.01, amount_out=0.03, amounts=None, gas_used=Some(10000)]"
         )
