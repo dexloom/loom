@@ -244,11 +244,10 @@ where
                 let latest_block_parent_hash = latest_block_guard.parent_hash().unwrap_or_default();
 
                 if latest_block_hash != msg_block_hash {
-                    error!("State update for block that is not latest {} need {}", msg_block_hash, latest_block_hash);
-                    if let Err(e) = block_history_guard.add_state_diff(msg_block_hash, None, msg.state_update.clone()) {
-                        error!("block_history.add_state_diff {}, {}", e, msg_block_hash);
+                    error!(%msg_block_number, %msg_block_hash, %latest_block_number, %latest_block_hash, "State update for block that is not latest.");
+                    if let Err(err) = block_history_guard.add_state_diff(msg_block_hash, None, msg.state_update.clone()) {
+                        error!(%err, %msg_block_number, %msg_block_hash, "Error during add_state_diff.");
                     }
-
                 } else{
                     latest_block_guard.update(msg_block_number, msg_block_hash, None, None, None, Some(msg.state_update.clone()) );
 
@@ -258,26 +257,26 @@ where
                     } else {
                         match block_history_manager.apply_state_update_on_parent_db(block_history_guard.deref_mut(), &market_state_guard, msg_block_hash ).await {
                             Ok(db) => db,
-                            Err(e) => {
-                                error!("apply_state_update_on_parent_db error {}, {}", e, msg_block_hash);
+                            Err(err) => {
+                                error!(%err, %msg_block_number, %msg_block_hash, "Error during apply_state_update_on_parent_db.");
                                 continue
                             }
                         }
                     };
 
-                    if let Err(e) = block_history_guard.add_state_diff(msg_block_hash, Some(new_market_state_db.clone()), msg.state_update.clone()) {
-                        error!("block_history.add_state_diff {}, {}", e, msg_block_hash);
+                    if let Err(err) = block_history_guard.add_state_diff(msg_block_hash, Some(new_market_state_db.clone()), msg.state_update.clone()) {
+                        error!(%err, %msg_block_number, %msg_block_hash, "Error during block_history.add_state_diff.");
                         continue
                     }
 
-                    debug!("Block History len :{}", block_history_guard.len());
+                    debug!("Block History len: {}", block_history_guard.len());
 
                     let accounts_len = market_state_guard.state_db.accounts_len();
                     let accounts_db_len = market_state_guard.state_db.ro_accounts_len();
 
                     let storage_len = market_state_guard.state_db.storage_len();
                     let storage_db_len = market_state_guard.state_db.ro_storage_len();
-                    trace!("Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
+                    trace!("Market state len accounts {}/{} storage {}/{}", accounts_len, accounts_db_len, storage_len, storage_db_len);
 
                     market_state_guard.state_db = new_market_state_db.clone();
                     market_state_guard.block_hash = msg_block_hash;
@@ -312,7 +311,7 @@ where
                         let storage_len = market_state_guard.state_db.storage_len();
                         let storage_db_len = market_state_guard.state_db.ro_storage_len();
 
-                        trace!("Merging finished. Market state len accounts {}/{} storage {}/{}  ", accounts_len, accounts_db_len, storage_len, storage_db_len);
+                        trace!("Merging finished. Market state len accounts {}/{} storage {}/{}", accounts_len, accounts_db_len, storage_len, storage_db_len);
 
                     }
 

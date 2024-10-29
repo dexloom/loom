@@ -59,12 +59,12 @@ pub async fn block_state_change_worker(
             continue;
         };
 
-        let next_block = block_history_entry.number() + 1;
+        let next_block_number = block_history_entry.number() + 1;
         let next_block_timestamp = block_history_entry.timestamp() + 12;
         let next_base_fee = chain_parameters.calc_next_block_base_fee_from_header(&block_history_entry.header);
 
         let request = StateUpdateEvent::new(
-            next_block,
+            next_block_number,
             next_block_timestamp,
             next_base_fee,
             cur_state,
@@ -74,7 +74,7 @@ pub async fn block_state_change_worker(
             Vec::new(),
             Vec::new(),
             "block_searcher".to_string(),
-            9000,
+            90_00,
         );
         run_async!(state_updates_broadcaster.send(request));
     }

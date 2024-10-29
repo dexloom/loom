@@ -362,7 +362,7 @@ impl SwapStep {
             swap_path.amount_in = SwapAmountType::Set(cur_in_amount);
 
             match swap_path.calculate_with_in_amount(state, env.clone(), cur_in_amount) {
-                Ok((amount, gas)) => {
+                Ok((amount, gas, calculation_results)) => {
                     out_amount += amount;
                     swap_path.amount_out = SwapAmountType::Set(amount);
                     gas_used += gas;
@@ -393,7 +393,7 @@ impl SwapStep {
             swap_path.amount_out = SwapAmountType::Set(cur_out_amount);
 
             match swap_path.calculate_with_out_amount(state, env.clone(), cur_out_amount) {
-                Ok((amount, gas)) => {
+                Ok((amount, gas, calculation_results)) => {
                     in_amount += amount;
                     gas_used += gas;
                     swap_path.amount_in = SwapAmountType::Set(amount);
@@ -544,11 +544,13 @@ impl SwapStep {
                     Some(new_out_amount) => {
                         if swap_path_0_calc.amount_out.unwrap() != new_out_amount {
                             let new_amount_out = amount_out + step;
-                            let (in_amount, gas) =
-                                swap_path_0_calc.calculate_with_out_amount(state, env.clone(), new_amount_out).unwrap_or((U256::MAX, 0));
+                            let (in_amount, gas, calculation_results) = swap_path_0_calc
+                                .calculate_with_out_amount(state, env.clone(), new_amount_out)
+                                .unwrap_or((U256::MAX, 0, vec![]));
                             swap_path_0_calc.amount_in = SwapAmountType::Set(in_amount);
                             swap_path_0_calc.amount_out = SwapAmountType::Set(new_amount_out);
-                            swap_path_0_calc.gas_used = Some(gas)
+                            swap_path_0_calc.gas_used = Some(gas);
+                            swap_path_0_calc.calculation_results = calculation_results;
                         }
                     }
                     None => {
@@ -569,8 +571,9 @@ impl SwapStep {
                 match new_amount_in {
                     Some(new_amount_in) => {
                         if swap_path_1_calc.amount_in.unwrap() != new_amount_in {
-                            let (out_amount, gas) =
-                                swap_path_1_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or((U256::ZERO, 0));
+                            let (out_amount, gas, calculation_results) = swap_path_1_calc
+                                .calculate_with_in_amount(state, env.clone(), new_amount_in)
+                                .unwrap_or((U256::ZERO, 0, vec![]));
                             swap_path_1_calc.amount_out = SwapAmountType::Set(out_amount);
                             swap_path_1_calc.amount_in = SwapAmountType::Set(new_amount_in);
                             swap_path_1_calc.gas_used = Some(gas);
@@ -708,11 +711,12 @@ impl SwapStep {
                     && swap_path_0_calc.amount_in.unwrap() != step_0.swap_line_vec[i].amount_in.unwrap() - step
                 {
                     let new_amount_in = step_0.swap_line_vec[i].amount_in.unwrap() + step;
-                    let (amount_out, gas) =
-                        swap_path_0_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or((U256::ZERO, 0));
+                    let (amount_out, gas, calculation_results) =
+                        swap_path_0_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or((U256::ZERO, 0, vec![]));
                     swap_path_0_calc.amount_in = SwapAmountType::Set(new_amount_in);
                     swap_path_0_calc.amount_out = SwapAmountType::Set(amount_out);
                     swap_path_0_calc.gas_used = Some(gas);
+                    swap_path_0_calc.calculation_results = calculation_results;
                 }
             }
 
@@ -745,11 +749,12 @@ impl SwapStep {
                     && swap_path_1_calc.amount_in.unwrap() != step_1.swap_line_vec[i].amount_in.unwrap() - middle_amount_step
                 {
                     let new_amount_in = step_1.swap_line_vec[i].amount_in.unwrap() + middle_amount_step;
-                    let (out_amount, gas) =
+                    let (out_amount, gas, calculation_results) =
                         swap_path_1_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or_default();
                     swap_path_1_calc.amount_out = SwapAmountType::Set(out_amount);
                     swap_path_1_calc.amount_in = SwapAmountType::Set(new_amount_in);
                     swap_path_1_calc.gas_used = Some(gas);
+                    swap_path_1_calc.calculation_results = calculation_results;
                 }
             }
 

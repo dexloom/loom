@@ -11,7 +11,7 @@ use defi_types::SwapError;
 use loom_revm_db::LoomDBType;
 
 use crate::swappath::SwapPath;
-use crate::{PoolWrapper, SwapStep, Token};
+use crate::{CalculationResult, PoolWrapper, SwapStep, Token};
 
 #[derive(Clone, Copy, Debug, Default)]
 pub enum SwapAmountType {
@@ -45,8 +45,8 @@ pub struct SwapLine {
     pub amount_in: SwapAmountType,
     /// Output token amount of the swap
     pub amount_out: SwapAmountType,
-    /// The input amounts for each swap step
-    pub amounts: Option<Vec<U256>>,
+    /// The in and out amounts for each swap step
+    pub calculation_results: Vec<CalculationResult>,
     /// Output token of the swap
     pub swap_to: Option<Address>,
     /// Gas used for the swap
@@ -64,7 +64,7 @@ impl fmt::Display for SwapLine {
                 _ => format!("profit={}", self.profit().unwrap_or(I256::ZERO)),
             }
         } else {
-            "no profit".to_string()
+            "-".to_string()
         };
 
         let tokens = self.tokens().iter().map(|token| token.get_symbol()).collect::<Vec<String>>().join(", ");
@@ -93,16 +93,13 @@ impl fmt::Display for SwapLine {
             }
         };
 
-        let amounts = self
-            .amounts
-            .as_ref()
-            .map(|amounts| amounts.iter().map(|amount| amount.to_string()).collect::<Vec<String>>().join(", "))
-            .unwrap_or_else(|| "None".to_string());
+        let calculation_results =
+            self.calculation_results.iter().map(|calculation_result| format!("{}", calculation_result)).collect::<Vec<String>>().join(", ");
 
         write!(
             f,
-            "SwapLine [{}, tokens=[{}], pools=[{}], amount_in={}, amount_out={}, amounts={}, gas_used={:?}]",
-            profit, tokens, pools, amount_in, amount_out, amounts, self.gas_used
+            "SwapLine [{}, tokens=[{}], pools=[{}], amount_in={}, amount_out={}, calculation_results=[{}], gas_used={:?}]",
+            profit, tokens, pools, amount_in, amount_out, calculation_results, self.gas_used
         )
     }
 }
@@ -214,7 +211,7 @@ impl SwapLine {
             path: SwapPath::new(self.tokens()[0..pool_index + 1].to_vec(), self.pools()[0..pool_index].to_vec()),
             amount_in: self.amount_in,
             amount_out: SwapAmountType::NotSet,
-            amounts: None,
+            calculation_results: vec![],
             swap_to: None,
             gas_used: None,
         };
@@ -222,7 +219,7 @@ impl SwapLine {
             path: SwapPath::new(self.tokens()[pool_index..].to_vec(), self.pools()[pool_index..].to_vec()),
             amount_in: SwapAmountType::NotSet,
             amount_out: self.amount_out,
-            amounts: None,
+            calculation_results: vec![],
             swap_to: None,
             gas_used: None,
         };
@@ -294,26 +291,36 @@ impl SwapLine {
     }
 
     /// Calculate the out amount for the swap line for a given in amount
-    pub fn calculate_with_in_amount(&self, state: &LoomDBType, env: Env, in_amount: U256) -> Result<(U256, u64), SwapError> {
-        let mut out_amount = in_amount;
+    pub fn calculate_with_in_amount(
+        &self,
+        state: &LoomDBType,
+        env: Env,
+        in_amount: U256,
+    ) -> Result<(U256, u64, Vec<CalculationResult>), SwapError> {
+        let mut current_in_amount = in_amount;
+        let mut final_out_amount = U256::ZERO;
         let mut gas_used = 0;
+        let mut calculation_results = vec![];
+
         for (i, pool) in self.pools().iter().enumerate() {
             let token_from = &self.tokens()[i];
             let token_to = &self.tokens()[i + 1];
-            match pool.calculate_out_amount(state, env.clone(), &token_from.get_address(), &token_to.get_address(), out_amount) {
-                Ok((r, g)) => {
-                    if r.is_zero() {
+            match pool.calculate_out_amount(state, env.clone(), &token_from.get_address(), &token_to.get_address(), current_in_amount) {
+                Ok((out_amount_result, gas_result)) => {
+                    if out_amount_result.is_zero() {
                         return Err(SwapError {
                             msg: "ZERO_AMOUNT".to_string(),
                             pool: pool.get_address(),
                             token_from: token_from.get_address(),
                             token_to: token_to.get_address(),
                             is_in_amount: true,
-                            amount: out_amount,
+                            amount: current_in_amount,
                         });
                     }
-                    out_amount = r;
-                    gas_used += g
+                    calculation_results.push(CalculationResult::new(current_in_amount, out_amount_result));
+                    current_in_amount = out_amount_result;
+                    final_out_amount = out_amount_result;
+                    gas_used += gas_result
                 }
                 Err(e) => {
                     //error!("calculate_with_in_amount calculate_out_amount error {} amount {} : {}", self, in_amount, e);
@@ -323,18 +330,27 @@ impl SwapLine {
                         token_from: token_from.get_address(),
                         token_to: token_to.get_address(),
                         is_in_amount: true,
-                        amount: out_amount,
+                        amount: current_in_amount,
                     });
                 }
             }
         }
-        Ok((out_amount, gas_used))
+        Ok((final_out_amount, gas_used, calculation_results))
     }
 
     /// Calculate the in amount for the swap line for a given out amount
-    pub fn calculate_with_out_amount(&self, state: &LoomDBType, env: Env, out_amount: U256) -> Result<(U256, u64), SwapError> {
-        let mut in_amount = out_amount;
+    pub fn calculate_with_out_amount(
+        &self,
+        state: &LoomDBType,
+        env: Env,
+        out_amount: U256,
+    ) -> Result<(U256, u64, Vec<CalculationResult>), SwapError> {
+        let mut current_out_amount = out_amount;
+        let mut final_in_amount = U256::ZERO;
         let mut gas_used = 0;
+        let mut calculation_results = vec![];
+
+        // TODO: Check if possible without clone?
         let mut pool_reverse = self.pools().clone();
         pool_reverse.reverse();
         let mut tokens_reverse = self.tokens().clone();
@@ -343,20 +359,22 @@ impl SwapLine {
         for (i, pool) in pool_reverse.iter().enumerate() {
             let token_from = &tokens_reverse[i + 1];
             let token_to = &tokens_reverse[i];
-            match pool.calculate_in_amount(state, env.clone(), &token_from.get_address(), &token_to.get_address(), in_amount) {
-                Ok((r, g)) => {
-                    if r == U256::MAX || r == U256::ZERO {
+            match pool.calculate_in_amount(state, env.clone(), &token_from.get_address(), &token_to.get_address(), current_out_amount) {
+                Ok((in_amount_result, gas_result)) => {
+                    if in_amount_result == U256::MAX || in_amount_result == U256::ZERO {
                         return Err(SwapError {
                             msg: "ZERO_AMOUNT".to_string(),
                             pool: pool.get_address(),
                             token_from: token_from.get_address(),
                             token_to: token_to.get_address(),
                             is_in_amount: false,
-                            amount: in_amount,
+                            amount: current_out_amount,
                         });
                     }
-                    in_amount = r;
-                    gas_used += g;
+                    calculation_results.push(CalculationResult::new(current_out_amount, in_amount_result));
+                    current_out_amount = in_amount_result;
+                    final_in_amount = in_amount_result;
+                    gas_used += gas_result;
                 }
                 Err(e) => {
                     //error!("calculate_with_out_amount calculate_in_amount error {} amount {} : {}", self, in_amount, e);
@@ -367,18 +385,18 @@ impl SwapLine {
                         token_from: token_from.get_address(),
                         token_to: token_to.get_address(),
                         is_in_amount: false,
-                        amount: in_amount,
+                        amount: current_out_amount,
                     });
                 }
             }
         }
-        Ok((in_amount, gas_used))
+        Ok((final_in_amount, gas_used, calculation_results))
     }
 
     /// Optimize the swap line for a given in amount
     pub fn optimize_with_in_amount(&mut self, state: &LoomDBType, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
         let mut current_in_amount = in_amount;
-        let mut bestprofit: Option<I256> = None;
+        let mut best_profit: Option<I256> = None;
         let mut current_step = U256::from(10000);
         let mut inc_direction = true;
         let mut first_step_change = false;
@@ -396,29 +414,31 @@ impl SwapLine {
                 return Ok(self);
             }
 
-            let (current_out_amount, current_gas_used) = match self.calculate_with_in_amount(state, env.clone(), next_amount) {
-                Ok(ret) => ret,
-                Err(e) => {
-                    if counter == 1 {
-                        // break if first swap already fails
-                        return Err(e);
+            let (current_out_amount, current_gas_used, calculation_results) =
+                match self.calculate_with_in_amount(state, env.clone(), next_amount) {
+                    Ok(ret) => ret,
+                    Err(e) => {
+                        if counter == 1 {
+                            // break if first swap already fails
+                            return Err(e);
+                        }
+                        (U256::ZERO, 0, vec![])
                     }
-                    (U256::ZERO, 0)
-                }
-            };
+                };
 
             let current_profit = I256::from_raw(current_out_amount) - I256::from_raw(next_amount);
 
-            if bestprofit.is_none() {
-                bestprofit = Some(current_profit);
+            if best_profit.is_none() {
+                best_profit = Some(current_profit);
                 self.amount_in = SwapAmountType::Set(next_amount);
                 self.amount_out = SwapAmountType::Set(current_out_amount);
                 self.gas_used = Some(current_gas_used);
+                self.calculation_results = calculation_results;
                 current_in_amount = next_amount;
                 if current_out_amount.is_zero() || current_profit.is_negative() {
                     return Ok(self);
                 }
-            } else if bestprofit.unwrap() > current_profit || current_out_amount.is_zero()
+            } else if best_profit.unwrap() > current_profit || current_out_amount.is_zero()
             /*|| next_profit < current_profit*/
             {
                 if first_step_change && inc_direction && current_step < denominator {
@@ -432,7 +452,7 @@ impl SwapLine {
                     //TODO : Check why is self aligned
                     inc_direction = true;
                     current_step /= U256::from(10);
-                    bestprofit = Some(current_profit);
+                    best_profit = Some(current_profit);
                     first_step_change = true;
                     //debug!("dec direction changed  {} {} {}", next_amount, current_profit, bestprofit.unwrap());
 
@@ -447,10 +467,11 @@ impl SwapLine {
                     }
                 }
             } else {
-                bestprofit = Some(current_profit);
+                best_profit = Some(current_profit);
                 self.amount_in = SwapAmountType::Set(next_amount);
                 self.amount_out = SwapAmountType::Set(current_out_amount);
                 self.gas_used = Some(current_gas_used);
+                self.calculation_results = calculation_results;
                 current_in_amount = next_amount;
                 first_step_change = false;
             }
@@ -490,7 +511,7 @@ mod tests {
             path: swap_path,
             amount_in: SwapAmountType::Set(parse_units("0.01", "ether").unwrap().get_absolute()),
             amount_out: SwapAmountType::Set(parse_units("0.03", "ether").unwrap().get_absolute()),
-            amounts: None,
+            calculation_results: vec![],
             swap_to: Some(Address::default()),
             gas_used: Some(10000),
         };
@@ -508,7 +529,7 @@ mod tests {
             formatted,
             "SwapLine [profit=0.02, tokens=[WETH, USDT, USDT, WETH], \
             pools=[UniswapV2@0x4e68ccd3e89f51c3074ca5072bbac773960dfa36, UniswapV2@0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852], \
-            amount_in=0.01, amount_out=0.03, amounts=None, gas_used=Some(10000)]"
+            amount_in=0.01, amount_out=0.03, calculation_results=[], gas_used=Some(10000)]"
         )
     }
 

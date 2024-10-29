@@ -122,7 +122,7 @@ async fn main() -> Result<()> {
     let test_config = TestConfig::from_file(args.config.clone()).await?;
     let node_url = env::var("MAINNET_WS")?;
     let client = AnvilDebugProviderFactory::from_node_on_block(node_url, test_config.settings.block).await?;
-    let priv_key = client.privkey()?;
+    let priv_key = client.privkey()?.to_bytes().to_vec();
 
     let mut mock_server: Option<MockServer> = None;
     if test_config.modules.flashbots {
@@ -200,7 +200,7 @@ async fn main() -> Result<()> {
 
     info!("Starting initialize signers actor");
 
-    let mut initialize_signers_actor = InitializeSignersOneShotBlockingActor::new(Some(priv_key.to_bytes().to_vec()));
+    let mut initialize_signers_actor = InitializeSignersOneShotBlockingActor::new(Some(priv_key));
     match initialize_signers_actor.access(tx_signers.clone()).access(accounts_state.clone()).start_and_wait() {
         Err(e) => {
             error!("{}", e);
