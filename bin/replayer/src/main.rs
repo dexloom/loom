@@ -1,4 +1,5 @@
 use std::env;
+use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -6,6 +7,7 @@ use alloy::contract::CallBuilder;
 use alloy::primitives::{address, Address, U256};
 use alloy::rpc::types::Header;
 use alloy::{providers::ProviderBuilder, rpc::client::ClientBuilder};
+use clap::Parser;
 use eyre::Result;
 use tokio::select;
 use url::Url;
@@ -27,6 +29,13 @@ use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter, Layer};
 
+#[derive(Parser, Debug)]
+struct Commands {
+    /// Run replayer for the given block number count
+    #[arg(short, long)]
+    terminate_after_block_count: Option<u64>,
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
     let start_block_number = 20179184;
@@ -43,6 +52,7 @@ async fn main() -> Result<()> {
 
     tracing_subscriber::registry().with(fmt_layer).init();
 
+    let args = Commands::parse();
     let node_url = env::var("MAINNET_HTTP")?;
     let node_url = Url::parse(node_url.as_str())?;
 
@@ -98,12 +108,20 @@ async fn main() -> Result<()> {
     loop {
         select! {
             header = header_sub.recv() => {
-                match header{
+                match header {
                     Ok(message_header)=>{
                         let header = message_header.inner.header;
-                        info!("Block header received : {} {}", header.number, header.hash);
-                        cur_header = header.clone();
+                        info!("Block header received: block_number={}, block_hash={}", header.number, header.hash);
 
+                        if let Some(terminate_after_block_count) = args.terminate_after_block_count {
+                            println!("Replay current_block={}/{}", header.number, start_block_number + terminate_after_block_count);
+                            if header.number >= start_block_number + terminate_after_block_count {
+                                println!("Successful after for start_block_number={}, current_block={}, terminate_after_block_count={}", start_block_number, header.number, terminate_after_block_count);
+                                exit(0);
+                            }
+                        }
+
+                        cur_header = header.clone();
                         if header.number % 10 == 0 {
                             let swap_path = market.read().await.swap_path(vec![TokenAddress::WETH, TokenAddress::USDC], vec![UniswapV3PoolAddress::USDC_WETH_500])?;
                             let mut swap_line = SwapLine::from(swap_path);
@@ -123,10 +141,7 @@ async fn main() -> Result<()> {
                             }else{
                                 debug!("compose_channel.send ok");
                             }
-
                         }
-
-
                     }
                     Err(e)=>{
                         error!("Error receiving headers: {e}");
@@ -138,7 +153,6 @@ async fn main() -> Result<()> {
                 match logs{
                     Ok(logs_update)=>{
                         info!("Block logs received : {} log records : {}", logs_update.block_header.hash, logs_update.logs.len());
-
                     }
                     Err(e)=>{
                         error!("Error receiving logs: {e}");
@@ -150,7 +164,6 @@ async fn main() -> Result<()> {
                 match block {
                     Ok(block)=>{
                         info!("Block with tx received : {} txs : {}", block.header.hash, block.transactions.len());
-
                     }
                     Err(e)=>{
                         error!("Error receiving blocks: {e}");
@@ -173,6 +186,7 @@ async fn main() -> Result<()> {
                             let fetched_balance = U256::from_be_slice(fetched_balance.to_vec().as_slice());
                             if fetched_balance != balance {
                                 error!("Balance is wrong {:#x} need {:#x}", balance, fetched_balance);
+                                exit(1);
                             }
                         }
                         if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddress::WETH, UniswapV3PoolAddress::USDC_WETH_500 ) {

@@ -94,7 +94,7 @@ pre-release:
 replayer:
 	@echo "Running Replayer test case: $(FILE)\n"
 	@RL=${RL:-info}; \
-	RUST_LOG=$(RL) cargo run --package replayer --bin replayer --; \
+	RUST_LOG=$(RL) cargo run --package replayer --bin replayer -- --terminate-after-block-count 10; \
 	EXIT_CODE=$$?; \
 	if [ $$EXIT_CODE -ne 0 ]; then \
 		echo "\n\033[0;31mError: Replayer tester exited with code $$EXIT_CODE\033[0m\n"; \
@@ -131,8 +131,6 @@ swap-test-3: swap-test
 .PHONY: swap-test-4
 swap-test-4:FILE="./bin/loom_anvil/test_19109955.toml"
 swap-test-4: swap-test
-
-
 
 .PHONY: swap-test-5
 swap-test-5:FILE="./bin/loom_anvil/test_20927846.toml"
