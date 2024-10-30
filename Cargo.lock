@@ -5065,6 +5065,7 @@ dependencies = [
  "defi-entities",
  "defi-types",
  "eyre",
+ "hex",
  "loom-actors",
  "loom-actors-macros",
  "loom-db",

@@ -15,7 +15,7 @@ use std::borrow::BorrowMut;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
 use tokio::sync::broadcast::error::RecvError;
-use tracing::{debug, error, info, trace};
+use tracing::{debug, error, info, trace, warn};
 
 pub async fn set_chain_head<P, T>(
     block_history_manager: &BlockHistoryManager<P, T>,
@@ -244,7 +244,7 @@ where
                 let latest_block_parent_hash = latest_block_guard.parent_hash().unwrap_or_default();
 
                 if latest_block_hash != msg_block_hash {
-                    error!(%msg_block_number, %msg_block_hash, %latest_block_number, %latest_block_hash, "State update for block that is not latest.");
+                    warn!(%msg_block_number, %msg_block_hash, %latest_block_number, %latest_block_hash, "State update for block that is not latest.");
                     if let Err(err) = block_history_guard.add_state_diff(msg_block_hash, None, msg.state_update.clone()) {
                         error!(%err, %msg_block_number, %msg_block_hash, "Error during add_state_diff.");
                     }

@@ -92,6 +92,10 @@ impl Blockchain {
         }
     }
 
+    pub fn with_market_state(&self, market_state: MarketState) -> Blockchain {
+        Blockchain { market_state: SharedState::new(market_state), ..self.clone() }
+    }
+
     pub fn chain_id(&self) -> u64 {
         self.chain_id
     }

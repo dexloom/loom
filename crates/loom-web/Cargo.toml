@@ -19,6 +19,7 @@ loom-db.workspace = true
 loom-utils = { workspace = true, features = ["trace-calls"] }
 loom-web-state.workspace = true
 
+hex.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 thiserror.workspace = true
