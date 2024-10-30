@@ -149,7 +149,7 @@ async fn main() -> Result<()> {
                 gas_needed
             }
             Err(e) => {
-                error!("Gas estimation error : {e}");
+                error!("Gas estimation error for {sp_dto}, err={e}");
                 0
             }
         };

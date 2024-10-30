@@ -116,7 +116,7 @@ async fn main() -> Result<()> {
                         if let Some(terminate_after_block_count) = args.terminate_after_block_count {
                             println!("Replay current_block={}/{}", header.number, start_block_number + terminate_after_block_count);
                             if header.number >= start_block_number + terminate_after_block_count {
-                                println!("Successful after for start_block_number={}, current_block={}, terminate_after_block_count={}", start_block_number, header.number, terminate_after_block_count);
+                                println!("Successful for start_block_number={}, current_block={}, terminate_after_block_count={}", start_block_number, header.number, terminate_after_block_count);
                                 exit(0);
                             }
                         }
