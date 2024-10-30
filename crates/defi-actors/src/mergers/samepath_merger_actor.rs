@@ -28,6 +28,7 @@ use loom_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer
 use loom_actors_macros::{Accessor, Consumer, Producer};
 use loom_revm_db::LoomDBType;
 use loom_utils::evm::evm_transact;
+use loom_utils::evm_tx_env::tx_to_evm_tx;
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
@@ -140,9 +141,12 @@ where
         let mut evm = Evm::builder().with_spec_id(SHANGHAI).with_db(db).with_env(Box::new(env.clone())).build();
 
         for (idx, tx_idx) in tx_order.clone().iter().enumerate() {
+            // set tx context for evm
             let tx = &stuffing_states[*tx_idx].0;
+            let tx_env = tx_to_evm_tx(tx);
+            evm.context.evm.env.tx = tx_env;
 
-            match evm_transact(&mut evm, tx) {
+            match evm_transact(&mut evm) {
                 Ok(_c) => {
                     trace!("Transaction {} committed successfully {:?}", idx, tx.hash);
                 }

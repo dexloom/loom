@@ -8,7 +8,7 @@ use revm::primitives::Env;
 use defi_entities::PoolWrapper;
 use defi_types::GethStateUpdateVec;
 use loom_revm_db::LoomDBType;
-use loom_utils::evm::env_for_block;
+use loom_utils::evm_env::env_for_block;
 
 #[derive(Clone, Debug)]
 pub struct StateUpdateEvent {

@@ -34,9 +34,8 @@ use flashbots::Flashbots;
 use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
 use loom_revm_db::LoomDBType;
-use loom_utils::evm::env_from_signed_tx;
+use loom_utils::evm_tx_env::env_from_signed_tx;
 use loom_utils::NWETH;
-use revm::primitives::TxEnv;
 use tracing::{debug, error, info};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -629,8 +628,7 @@ async fn main() -> Result<()> {
                     // print all transactions
                     for bundle in bundle_request.params {
                         for tx in bundle.transactions {
-                            let mut tx_env = TxEnv::default();
-                            env_from_signed_tx(&mut tx_env, tx)?;
+                            let tx_env = env_from_signed_tx(tx)?;
                             println!("tx={:?}", tx_env);
                         }
                     }

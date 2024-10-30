@@ -131,7 +131,7 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
                             chain_id: Some(1),
                             from: Some(tx_signer.address()),
                             to: Some(TxKind::Call(to)),
-                            gas: Some((gas * 1200) / 1000),
+                            gas: Some((gas * 1500) / 1000),
                             value: call_value,
                             input: TransactionInput::new(call_data),
                             nonce: Some(estimate_request.nonce),

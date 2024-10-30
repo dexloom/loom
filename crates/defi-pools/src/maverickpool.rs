@@ -416,16 +416,15 @@ impl AbiSwapEncoder for MaverickAbiSwapEncoder {
 
 #[cfg(test)]
 mod tests {
+    use super::*;
     use alloy_rpc_types::BlockNumberOrTag;
     use debug_provider::AnvilDebugProviderFactory;
     use defi_abi::maverick::IMaverickQuoter::IMaverickQuoterInstance;
     use defi_entities::required_state::RequiredStateReader;
     use defi_entities::MarketState;
-    use loom_utils::evm::env_for_block;
+    use loom_utils::evm_env::env_for_block;
     use std::env;
     use tracing::debug;
-
-    use super::*;
 
     #[tokio::test]
     async fn test_pool() -> Result<()> {
