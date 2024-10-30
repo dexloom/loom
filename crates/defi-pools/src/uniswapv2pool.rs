@@ -183,7 +183,7 @@ impl UniswapV2Pool {
         Ok(ret)
     }
 
-    fn fetch_reserves(&self, state_db: &LoomDBType, env: Env) -> Result<(U256, U256)> {
+    pub fn fetch_reserves(&self, state_db: &LoomDBType, env: Env) -> Result<(U256, U256)> {
         let (reserve_0, reserve_1) = match self.reserves_cell {
             Some(cell) => {
                 if let Ok(storage_value) = state_db.storage_ref(self.get_address(), cell) {
