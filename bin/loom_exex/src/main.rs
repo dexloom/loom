@@ -1,9 +1,12 @@
 use crate::arguments::{AppArgs, Command, LoomArgs};
+use alloy::eips::BlockId;
 use alloy::providers::{ProviderBuilder, WsConnect};
 use alloy::rpc::client::ClientBuilder;
 use clap::{CommandFactory, FromArgMatches, Parser};
 use defi_actors::{mempool_worker, NodeBlockActorConfig};
 use defi_blockchain::Blockchain;
+use defi_entities::MarketState;
+use loom_revm_db::{AlloyDB, LoomDB};
 use loom_topology::TopologyConfig;
 use reth::builder::engine_tree_config::TreeConfig;
 use reth::builder::EngineNodeLauncher;
@@ -52,6 +55,10 @@ fn main() -> eyre::Result<()> {
 
             let mempool = handle.node.pool.clone();
             let ipc_provider = ProviderBuilder::new().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;
+            let alloy_db = AlloyDB::new(ipc_provider.clone(), BlockId::latest()).unwrap();
+
+            let state_db = LoomDB::new().with_ext_db(alloy_db);
+            let bc = bc.with_market_state(MarketState::new(state_db));
             let bc_clone = bc.clone();
             tokio::task::spawn(async move {
                 if let Err(e) = loom::start_loom(ipc_provider, bc_clone, topology_config, loom_args.loom_config.clone(), true).await {

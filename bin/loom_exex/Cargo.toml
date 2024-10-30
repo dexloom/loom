@@ -19,6 +19,7 @@ defi-pools.workspace = true
 defi-types.workspace = true
 loom-actors.workspace = true
 loom-db.workspace = true
+loom-revm-db.workspace = true
 loom-test.workspace = true
 loom-topology.workspace = true
 loom-utils.workspace = true

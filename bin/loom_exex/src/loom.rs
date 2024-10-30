@@ -85,7 +85,7 @@ where
         .with_swap_encoder(Some(multicaller_address))? // convert swaps to opcodes and passes to estimator
         .with_evm_estimator()? // estimate gas, add tips
         .with_signers()? // start signer actor that signs transactions before broadcasting
-        .with_flashbots_broadcaster(true, true)? // broadcast signed txes to flashbots
+        .with_flashbots_broadcaster(false, true)? // broadcast signed txes to flashbots
         .with_market_state_preloader()? // preload contracts to market state
         .with_nonce_and_balance_monitor()? // start monitoring balances of
         .with_pool_history_loader(pools_config.clone())? // load pools used in latest 10000 blocks

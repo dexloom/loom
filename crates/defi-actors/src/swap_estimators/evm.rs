@@ -10,7 +10,7 @@ use eyre::{eyre, Result};
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;
-use tracing::{debug, error, info};
+use tracing::{debug, error, info, trace};
 
 use defi_blockchain::Blockchain;
 use defi_entities::{Swap, SwapEncoder};
@@ -44,10 +44,7 @@ where
     let start_time = chrono::Local::now();
 
     let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
-
     let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
-
-    info!("swap: {:?}", estimate_request.swap.clone());
 
     let (to, call_value, call_data, _) = swap_encoder.encode(
         estimate_request.swap.clone(),
@@ -86,11 +83,14 @@ where
     let (gas_used, access_list) = match evm_access_list(&db, &evm_env, &tx_request) {
         Ok((gas_used, access_list)) => (gas_used, access_list),
         Err(e) => {
-            error!(
+            trace!(
                 "evm_access_list error for block_number={}, block_timestamp={}, swap={}, err={e}",
-                estimate_request.next_block_number, estimate_request.next_block_timestamp, estimate_request.swap
+                estimate_request.next_block_number,
+                estimate_request.next_block_timestamp,
+                estimate_request.swap
             );
-            return Err(eyre!("EVM_ACCESS_LIST_ERROR"));
+            // simulation has failed but this could be caused by a token / pool with unsupported fee issue
+            return Ok(());
         }
     };
     let swap = estimate_request.swap.clone();
@@ -105,7 +105,7 @@ where
     let (to, call_value, call_data, tips_vec) = match &swap {
         Swap::ExchangeSwapLine(_) => (to, None, call_data, vec![]),
         _ => {
-            info!(
+            debug!(
                 "Swap encode swap={}, tips_pct={:?}, next_block_number={}, gas_cost={}, signer={}",
                 estimate_request.swap,
                 estimate_request.tips_pct,

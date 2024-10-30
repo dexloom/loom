@@ -23,7 +23,7 @@ use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
 use std::collections::BTreeMap;
 use std::fmt::Display;
 use thiserror::Error;
-use tracing::{debug, error, trace};
+use tracing::{debug, error};
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
@@ -35,10 +35,10 @@ pub enum EvmError {
     TransactError,
     #[error("Evm transact commit error with err={0}")]
     TransactCommitError(String),
-    #[error("DB error with err={0}")]
-    Reverted(String),
+    #[error("Reverted with reason={0}")]
+    Reverted(String, u64),
     #[error("Halted with halt_reason={0:?}")]
-    Halted(HaltReason),
+    Halted(HaltReason, u64),
 }
 
 pub fn evm_call<DB>(state_db: DB, env: Env, transact_to: Address, call_data_vec: Vec<u8>) -> eyre::Result<(Vec<u8>, u64)>
@@ -72,17 +72,12 @@ where
         ExecutionResult::Success { output: Output::Call(value), .. } => Ok((value.to_vec(), gas_used)),
         ExecutionResult::Success { output: Output::Create(_bytes, _address), .. } => Ok((vec![], gas_used)),
         ExecutionResult::Revert { output, gas_used } => {
-            trace!("Revert {} : {:?}", gas_used, output);
-            //error!("Revert reason '{}' to={:?}, gas_used={gas_used}", revert_bytes_to_string(&output), transact_to);
             #[cfg(feature = "trace-calls")]
             debug!("Revert trace: {:#?}", evm.context.external.into_parity_builder().into_transaction_traces());
 
-            Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output))))
+            Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output), gas_used)))
         }
-        ExecutionResult::Halt { reason, .. } => {
-            error!("Halt {reason:?}");
-            Err(eyre!(EvmError::Halted(reason)))
-        }
+        ExecutionResult::Halt { reason, gas_used } => Err(eyre!(EvmError::Halted(reason, gas_used))),
     }
 }
 
@@ -97,16 +92,8 @@ where
     match execution_result {
         ExecutionResult::Success { output: Output::Call(value), .. } => Ok((value.to_vec(), gas_used)),
         ExecutionResult::Success { output: Output::Create(_bytes, _address), .. } => Ok((vec![], gas_used)),
-        ExecutionResult::Revert { output, gas_used } => {
-            trace!("Revert {} : {:?}", gas_used, output);
-            //error!("Revert reason '{}' to={:?}, gas_used={gas_used}", revert_bytes_to_string(&output), transact_to);
-
-            Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output))))
-        }
-        ExecutionResult::Halt { reason, .. } => {
-            error!("Halt {reason:?}");
-            Err(eyre!(EvmError::Halted(reason)))
-        }
+        ExecutionResult::Revert { output, gas_used } => Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output), gas_used))),
+        ExecutionResult::Halt { reason, gas_used } => Err(eyre!(EvmError::Halted(reason, gas_used))),
     }
 }
 
@@ -144,35 +131,27 @@ where
     #[cfg(not(feature = "trace-calls"))]
     let mut evm = Evm::builder().with_ref_db(state_db).with_spec_id(SHANGHAI).with_env(Box::new(env)).build();
 
-    match evm.transact() {
-        Ok(execution_result) => match execution_result.result {
-            ExecutionResult::Success { output, gas_used, reason, .. } => {
-                debug!(gas_used, ?reason, ?output, "AccessList");
-                let mut acl = AccessList::default();
+    let ref_tx = evm.transact().map_err(|_| EvmError::TransactError)?;
+    let execution_result = ref_tx.result;
+    match execution_result {
+        ExecutionResult::Success { output, gas_used, reason, .. } => {
+            debug!(gas_used, ?reason, ?output, "AccessList");
+            let mut acl = AccessList::default();
 
-                for (addr, acc) in execution_result.state {
-                    let storage_keys: Vec<B256> = acc.storage.keys().map(|x| (*x).into()).collect();
-                    acl.0.push(AccessListItem { address: addr, storage_keys });
-                }
+            for (addr, acc) in ref_tx.state {
+                let storage_keys: Vec<B256> = acc.storage.keys().map(|x| (*x).into()).collect();
+                acl.0.push(AccessListItem { address: addr, storage_keys });
+            }
 
-                Ok((gas_used, acl))
-            }
-            ExecutionResult::Revert { output, gas_used } => {
-                #[cfg(feature = "trace-calls")]
-                debug!("Trace: {:#?}", evm.context.external.into_parity_builder().into_transaction_traces());
-
-                error!("Revert reason '{}' gas used {gas_used}", revert_bytes_to_string(&output));
-                Err(eyre!("EXECUTION_REVERTED"))
-            }
-            ExecutionResult::Halt { reason, .. } => {
-                error!("Halt {reason:?}");
-                Err(eyre!("EXECUTION_HALT"))
-            }
-        },
-        Err(e) => {
-            error!("Execution error {}", e);
-            Err(eyre!("EXECUTION_ERROR"))
+            Ok((gas_used, acl))
         }
+        ExecutionResult::Revert { output, gas_used } => {
+            #[cfg(feature = "trace-calls")]
+            debug!("Trace: {:#?}", evm.context.external.into_parity_builder().into_transaction_traces());
+
+            Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output), gas_used)))
+        }
+        ExecutionResult::Halt { reason, gas_used } => Err(eyre!(EvmError::Halted(reason, gas_used))),
     }
 }
 
