@@ -20,7 +20,7 @@ use defi_entities::{PoolClass, Swap, SwapAmountType, SwapLine};
 use defi_events::{MessageTxCompose, TxComposeData};
 use defi_pools::state_readers::ERC20StateReader;
 use loom_multicaller::EncoderHelper;
-use loom_utils::evm::env_for_block;
+use loom_utils::evm_env::env_for_block;
 use loom_utils::NWETH;
 use tracing::{debug, error, info};
 use tracing_subscriber::layer::SubscriberExt;

@@ -1,6 +1,6 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_eips::BlockNumberOrTag;
+use alloy_eips::BlockId;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
@@ -20,7 +20,8 @@ use defi_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use loom_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_actors_macros::{Consumer, Producer};
 use loom_revm_db::AlloyDB;
-use loom_utils::evm::{env_for_block, evm_access_list};
+use loom_utils::evm::evm_access_list;
+use loom_utils::evm_env::env_for_block;
 
 async fn estimator_task<T, N>(
     client: Option<impl Provider<T, N> + 'static>,
@@ -46,6 +47,8 @@ where
 
     let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
 
+    info!("swap: {:?}", estimate_request.swap.clone());
+
     let (to, call_value, call_data, _) = swap_encoder.encode(
         estimate_request.swap.clone(),
         None,
@@ -65,7 +68,7 @@ where
         input: TransactionInput::new(call_data.clone()),
         nonce: Some(estimate_request.nonce),
         max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-        max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128), // Why not prio + base fee?
+        max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128 + estimate_request.priority_gas_fee as u128),
         ..TransactionRequest::default()
     };
 
@@ -75,7 +78,7 @@ where
     };
 
     let db = client
-        .and_then(|client| AlloyDB::new(client, BlockNumberOrTag::Latest.into()))
+        .and_then(|client| AlloyDB::new(client, BlockId::latest()))
         .map_or(db.clone(), |ext_db| Arc::new(db.as_ref().clone().with_ext_db(ext_db)));
 
     let evm_env = env_for_block(estimate_request.next_block_number, estimate_request.next_block_timestamp);
@@ -102,6 +105,14 @@ where
     let (to, call_value, call_data, tips_vec) = match &swap {
         Swap::ExchangeSwapLine(_) => (to, None, call_data, vec![]),
         _ => {
+            info!(
+                "Swap encode swap={}, tips_pct={:?}, next_block_number={}, gas_cost={}, signer={}",
+                estimate_request.swap,
+                estimate_request.tips_pct,
+                estimate_request.next_block_number,
+                gas_cost,
+                tx_signer.address()
+            );
             match swap_encoder.encode(
                 estimate_request.swap.clone(),
                 estimate_request.tips_pct,
@@ -124,7 +135,7 @@ where
         chain_id: Some(1),
         from: Some(tx_signer.address()),
         to: Some(TxKind::Call(to)),
-        gas: Some((gas_used * 1200) / 1000),
+        gas: Some((gas_used * 1500) / 1000),
         value: call_value,
         input: TransactionInput::new(call_data),
         nonce: Some(estimate_request.nonce),
