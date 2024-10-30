@@ -29,7 +29,7 @@ First of all, Loom will not generate any revenue and is challenging for newcomer
 
 ## How to get started?
 
-See the [Getting started](https://dexloom.github.io/loom/getting_started.html) guide.
+See the [Getting started](https://dexloom.github.io/loom/getting_started.html) guide. Have also a look at the [Multicaller](https://github.com/dexloom/multicaller) smart contract repository.
 
 
 ## Crates
