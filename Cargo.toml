@@ -82,68 +82,68 @@ reth-exex-grpc = { path = "crates/reth-exex-grpc" }
 uniswap_v3_math = { path = "crates/uniswap-v3-math" }
 
 # logging
-env_logger = "0.11"
-tracing = "0.1"
-tracing-subscriber = "0.3"
+env_logger = "0.11.5"
+tracing = "0.1.40"
+tracing-subscriber = "0.3.18"
 
 # error handling
-eyre = "0.6"
-thiserror = "1.0"
+eyre = "0.6.12"
+thiserror = "1.0.65"
 
 # async
-async-stream = "0.3"
-async-trait = "0.1"
-futures-core = "0.3"
-tokio = { version = "1", features = ["full"] }
-tokio-stream = "0.1"
-tokio-util = "0.7"
+async-stream = "0.3.6"
+async-trait = "0.1.83"
+futures-core = "0.3.31"
+tokio = { version = "1.41.0", features = ["full"] }
+tokio-stream = "0.1.16"
+tokio-util = "0.7.12"
 
 # misc
-aes = "0.8"
-bincode = "1.3"
-chrono = "0.4"
+aes = "0.8.4"
+bincode = "1.3.3"
+chrono = "0.4.38"
 clap = { version = "4.5", features = ["derive"] }
-colored = "2.0"
-futures = "0.3"
+colored = "2.1.0"
+futures = "0.3.31"
 futures-util = "0.3"
-hex = "0.4"
-indexmap = "2.5"
-k256 = "0.13"
-lazy_static = "1.4"
+hex = "0.4.3"
+indexmap = "2.6.0"
+k256 = "0.13.4"
+lazy_static = "1.5.0"
 num_cpus = "1.16"
-pin-project = "1"
-proc-macro2 = "1.0"
+pin-project = "1.1.7"
+proc-macro2 = "1.0.89"
 prost = "0.13"
-quote = "1.0"
-rand = "0.8"
-rayon = "1.8"
-reqwest = { version = "0.12", features = ["json", "trust-dns"] }
-serde = "1.0"
-serde_json = "1.0"
-sha2 = "0.10"
-strum = { version = "0.26" }
-strum_macros = { version = "0.26" }
-syn = { version = "2.0", features = ["fold", "full"] }
-toml = "0.8"
-tonic = "0.12"
+quote = "1.0.37"
+rand = "0.8.5"
+rayon = "1.10.0"
+reqwest = { version = "0.12.9", features = ["json", "trust-dns"] }
+serde = "1.0.214"
+serde_json = "1.0.132"
+sha2 = "0.10.8"
+strum = { version = "0.26.3" }
+strum_macros = { version = "0.26.4" }
+syn = { version = "2.0.85", features = ["fold", "full"] }
+toml = "0.8.19"
+tonic = "0.12.3"
 tower = "0.5.1"
-url = "2.4"
+url = "2.5.2"
 
 # db
-bb8 = "0.8"
-diesel = { version = "2.2", features = ["chrono", "numeric", "postgres"] }
-diesel-async = { git = "https://github.com/weiznich/diesel_async", rev = "6437e59", features = ["bb8", "postgres"] }
-diesel-derive-enum = { version = "2.1", features = ["postgres"] }
-influxdb = "0.7"
+bb8 = "0.8.6"
+diesel = { version = "2.2.4", features = ["chrono", "numeric", "postgres"] }
+diesel-async = { version = "0.5.0", features = ["bb8", "postgres"] }
+diesel-derive-enum = { version = "2.1.0", features = ["postgres"] }
+influxdb = "0.7.2"
 
 # web
-axum = { version = "0.7", features = ["macros", "ws"] }
-tower-http = { version = "0.6", features = ["fs", "trace"] }
-utoipa = { version = "5.1", features = ["axum_extras", "chrono", "uuid"] }
-utoipa-swagger-ui = { version = "8.0", features = ["axum"] }
+axum = { version = "0.7.7", features = ["macros", "ws"] }
+tower-http = { version = "0.6.1", features = ["fs", "trace"] }
+utoipa = { version = "5.1.3", features = ["axum_extras", "chrono", "uuid"] }
+utoipa-swagger-ui = { version = "8.0.3", features = ["axum"] }
 
 # build
-tonic-build = "0.12"
+tonic-build = "0.12.3"
 
 # testing
 criterion = { version = "0.5.1", features = ["async_tokio"] }
@@ -200,29 +200,29 @@ alloy-transport-ws = "0.5.4"
 alloy-trie = "0.7.2"
 
 # reth
-reth = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148", features = ["asm-keccak"] }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148", features = ["serde"] }
-reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-node-builder = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-node-core = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148", features = ["asm-keccak"] }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-node-types = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148", features = ["asm-keccak"] }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-rpc = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
-reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", rev = "0df3148" }
+reth = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a", features = ["asm-keccak"] }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a", features = ["serde"] }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-node-core = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a", features = ["asm-keccak"] }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-node-types = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a", features = ["asm-keccak"] }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-rpc = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", rev = "ff9a42a" }
 
 [profile.test]
 debug = 1
