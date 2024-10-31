@@ -9,11 +9,11 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
+loom-defi-entities.workspace = true
+
 aes.workspace = true
 clap.workspace = true
 eyre.workspace = true
 hex.workspace = true
 rand.workspace = true
 sha2.workspace = true
-
-defi-entities.workspace = true

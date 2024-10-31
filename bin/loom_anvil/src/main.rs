@@ -12,30 +12,37 @@ use alloy_provider::network::eip2718::Encodable2718;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, BlockTransactionsKind};
 use clap::Parser;
-use debug_provider::AnvilDebugProviderFactory;
-use defi_actors::{
-    fetch_and_add_pool_by_address, fetch_state_and_add_pool, AnvilBroadcastActor, ArbSwapPathMergerActor, BackrunConfig, BlockHistoryActor,
-    DiffPathMergerActor, EvmEstimatorActor, FlashbotsBroadcastActor, InitializeSignersOneShotBlockingActor,
-    MarketStatePreloadedOneShotActor, NodeBlockActor, NodeBlockActorConfig, NonceAndBalanceMonitorActor, PriceActor, SamePathMergerActor,
-    StateChangeArbActor, SwapRouterActor, TxSignersActor,
-};
-use defi_address_book::TokenAddress;
-use defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners};
-use defi_events::{
+use loom_node_debug_provider::AnvilDebugProviderFactory;
+
+use eyre::{OptionExt, Result};
+use loom_broadcast_accounts::{InitializeSignersOneShotBlockingActor, NonceAndBalanceMonitorActor, TxSignersActor};
+use loom_broadcast_broadcaster::{AnvilBroadcastActor, FlashbotsBroadcastActor};
+use loom_broadcast_flashbots::client::RelayConfig;
+use loom_broadcast_flashbots::Flashbots;
+use loom_core_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
+use loom_core_block_history::BlockHistoryActor;
+use loom_core_router::SwapRouterActor;
+use loom_defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners};
+use loom_defi_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageTxCompose, TxCompose,
 };
-use defi_pools::protocols::CurveProtocol;
-use defi_pools::CurvePool;
-use defi_types::{debug_trace_block, ChainParameters, Mempool};
-use eyre::{OptionExt, Result};
-use flashbots::client::RelayConfig;
-use flashbots::Flashbots;
-use loom_actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
-use loom_multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
-use loom_revm_db::LoomDBType;
-use loom_utils::evm_tx_env::env_from_signed_tx;
-use loom_utils::NWETH;
+use loom_defi_market::{fetch_and_add_pool_by_address, fetch_state_and_add_pool};
+use loom_defi_preloader::MarketStatePreloadedOneShotActor;
+use loom_defi_price::PriceActor;
+use loom_defi_types::{debug_trace_block, ChainParameters, Mempool};
+use loom_evm_db::LoomDBType;
+use loom_evm_utils::evm_tx_env::env_from_signed_tx;
+use loom_evm_utils::NWETH;
+use loom_executor_estimator::EvmEstimatorActor;
+use loom_executor_multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
+use loom_node_actor_config::NodeBlockActorConfig;
+use loom_node_json_rpc::NodeBlockActor;
+use loom_protocol_address_book::TokenAddress;
+use loom_protocol_pools::protocols::CurveProtocol;
+use loom_protocol_pools::CurvePool;
+use loom_strategy_backrun::{BackrunConfig, StateChangeArbActor};
+use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 use tracing::{debug, error, info};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;

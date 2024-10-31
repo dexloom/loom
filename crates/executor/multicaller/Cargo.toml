@@ -1,0 +1,39 @@
+[package]
+name = "loom-executor-multicaller"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+loom-defi-entities.workspace = true
+loom-defi-types.workspace = true
+loom-evm-utils.workspace = true
+loom-node-debug-provider.workspace = true
+loom-protocol-abi.workspace = true
+loom-protocol-address-book.workspace = true
+
+eyre.workspace = true
+k256.workspace = true
+lazy_static.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# alloy
+alloy-eips.workspace = true
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-provider.workspace = true
+alloy-rpc-types.workspace = true
+alloy-rpc-types-trace.workspace = true
+alloy-signer-local.workspace = true
+alloy-sol-macro.workspace = true
+alloy-sol-types.workspace = true
+alloy-transport.workspace = true
+
+
+[dev-dependencies]
+env_logger.workspace = true
+tokio.workspace = true

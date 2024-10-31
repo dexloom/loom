@@ -1,0 +1,20 @@
+[package]
+name = "loom-core-blockchain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+loom-core-actors.workspace = true
+loom-core-actors-macros.workspace = true
+loom-defi-entities.workspace = true
+loom-defi-events.workspace = true
+loom-defi-types.workspace = true
+loom-protocol-address-book.workspace = true
+
+alloy.workspace = true
+influxdb.workspace = true
+revm.workspace = true

@@ -7,25 +7,31 @@ license = "MIT OR Apache-2.0"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+loom-broadcast-broadcaster.workspace = true
+loom-broadcast-flashbots.workspace = true
+loom-core-actors.workspace = true
+loom-core-actors-macros.workspace = true
+loom-core-block-history.workspace = true
+loom-core-router.workspace = true
+loom-core-topology.workspace = true
+loom-defi-entities.workspace = true
+loom-defi-events.workspace = true
+loom-defi-health-monitor.workspace = true
+loom-defi-market.workspace = true
+loom-defi-price.workspace = true
+loom-executor-estimator.workspace = true
+loom-executor-multicaller.workspace = true
+loom-metrics.workspace = true
+loom-node-debug-provider.workspace = true
+loom-protocol-pools.workspace = true
+loom-strategy-backrun.workspace = true
+loom-strategy-merger.workspace = true
+
 env_logger.workspace = true
 eyre.workspace = true
 futures.workspace = true
 tokio.workspace = true
 tracing.workspace = true
-
-debug-provider.workspace = true
-flashbots.workspace = true
-
-defi-actors.workspace = true
-defi-entities.workspace = true
-defi-events.workspace = true
-defi-pools.workspace = true
-loom-actors.workspace = true
-loom-actors-macros.workspace = true
-loom-metrics.workspace = true
-loom-topology.workspace = true
-
-loom-multicaller.workspace = true
 
 alloy-primitives.workspace = true
 alloy-provider.workspace = true

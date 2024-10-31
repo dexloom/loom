@@ -19,29 +19,45 @@ members = [
   "bin/loom_exex",
   "bin/nodebench",
   "bin/replayer",
-  "crates/debug-provider",
-  "crates/defi-abi",
-  "crates/defi-actors",
-  "crates/defi-address-book",
-  "crates/defi-blockchain",
-  "crates/defi-blockchain-actors",
-  "crates/defi-entities",
-  "crates/defi-events",
-  "crates/defi-pools",
-  "crates/flashbots",
+  "crates/broadcast/accounts",
+  "crates/broadcast/broadcaster",
+  "crates/broadcast/flashbots",
+  "crates/core/block-history",
+  "crates/core/blockchain",
+  "crates/core/blockchain-actors",
+  "crates/core/mempool",
+  "crates/core/node-player",
+  "crates/core/router",
+  "crates/core/topology",
+  "crates/defi/entities",
+  "crates/defi/events",
+  "crates/defi/health-monitor",
+  "crates/defi/market",
+  "crates/defi/preloader",
+  "crates/defi/price",
+  "crates/defi/types",
+  "crates/evm/db",
+  "crates/evm/utils",
+  "crates/executor/estimator",
+  "crates/executor/multicaller",
   "crates/loom",
-  "crates/loom-db",
-  "crates/loom-metrics",
-  "crates/loom-revm-db",
-  "crates/loom-test",
-  "crates/loom-web",
-  "crates/loom-web-state",
-  "crates/multicaller",
-  "crates/reth-exex-grpc",
-  "crates/topology",
-  "crates/types",
-  "crates/uniswap-v3-math",
-  "crates/utils",
+  "crates/metrics",
+  "crates/node/db-access",
+  "crates/node/debug-provider",
+  "crates/node/exex",
+  "crates/node/grpc",
+  "crates/node/grpc-exex-proto",
+  "crates/node/json-rpc",
+  "crates/node/node-actor-config",
+  "crates/protocol/abi",
+  "crates/protocol/address-book",
+  "crates/protocol/pools",
+  "crates/protocol/uniswap-v3-math",
+  "crates/rpc/handler",
+  "crates/rpc/state",
+  "crates/storage/db",
+  "crates/strategy/backrun",
+  "crates/strategy/merger",
 ]
 resolver = "2"
 
@@ -55,31 +71,60 @@ rust-version = "1.82"
 version = "0.2.0"
 
 [workspace.dependencies]
-debug-provider = { path = "crates/debug-provider" }
-defi-abi = { path = "crates/defi-abi" }
-defi-actors = { path = "crates/defi-actors" }
-defi-address-book = { path = "crates/defi-address-book" }
-defi-blockchain = { path = "crates/defi-blockchain" }
-defi-blockchain-actors = { path = "crates/defi-blockchain-actors" }
-defi-entities = { path = "crates/defi-entities" }
-defi-events = { path = "crates/defi-events" }
-defi-pools = { path = "crates/defi-pools" }
-defi-types = { path = "crates/types" }
-flashbots = { path = "crates/flashbots" }
+# broadcast
+loom-broadcast-accounts = { path = "crates/broadcast/accounts" }
+loom-broadcast-broadcaster = { path = "crates/broadcast/broadcaster" }
+loom-broadcast-flashbots = { path = "crates/broadcast/flashbots" }
+# core
+loom-core-actors = { path = "crates/core/actors" }
+loom-core-actors-macros = { path = "crates/core/actors-macros" }
+loom-core-block-history = { path = "crates/core/block-history" }
+loom-core-blockchain = { path = "crates/core/blockchain" }
+loom-core-blockchain-actors = { path = "crates/core/blockchain-actors" }
+loom-core-mempool = { path = "crates/core/mempool" }
+loom-core-node-player = { path = "crates/core/node-player" }
+loom-core-router = { path = "crates/core/router" }
+loom-core-topology = { path = "crates/core/topology" }
+# defi
+loom-defi-entities = { path = "crates/defi/entities" }
+loom-defi-events = { path = "crates/defi/events" }
+loom-defi-health-monitor = { path = "crates/defi/health-monitor" }
+loom-defi-market = { path = "crates/defi/market" }
+loom-defi-preloader = { path = "crates/defi/preloader" }
+loom-defi-price = { path = "crates/defi/price" }
+loom-defi-types = { path = "crates/defi/types" }
+# evm
+loom-evm-db = { path = "crates/evm/db" }
+loom-evm-utils = { path = "crates/evm/utils" }
+# executor
+loom-executor-estimator = { path = "crates/executor/estimator" }
+loom-executor-multicaller = { path = "crates/executor/multicaller" }
+# loom
 loom = { path = "crates/loom" }
-loom-actors = { path = "crates/actors" }
-loom-actors-macros = { path = "crates/actors-macros" }
-loom-db = { path = "crates/loom-db" }
-loom-metrics = { path = "crates/loom-metrics" }
-loom-multicaller = { path = "crates/multicaller" }
-loom-revm-db = { path = "crates/loom-revm-db" }
-loom-test = { path = "crates/loom-test" }
-loom-topology = { path = "crates/topology" }
-loom-utils = { path = "crates/utils" } #, features = ["trace-calls"] }
-loom-web = { path = "crates/loom-web" }
-loom-web-state = { path = "crates/loom-web-state" }
-reth-exex-grpc = { path = "crates/reth-exex-grpc" }
-uniswap_v3_math = { path = "crates/uniswap-v3-math" }
+# metrics
+loom-metrics = { path = "crates/metrics" }
+# node
+loom-node-actor-config = { path = "crates/node/node-actor-config" }
+loom-node-db-access = { path = "crates/node/db-access" }
+loom-node-debug-provider = { path = "crates/node/debug-provider" }
+loom-node-exex = { path = "crates/node/exex" }
+loom-node-grpc = { path = "crates/node/grpc" }
+loom-node-grpc-exex-proto = { path = "crates/node/grpc-exex-proto" }
+loom-node-json-rpc = { path = "crates/node/json-rpc" }
+# protocol
+loom-protocol-abi = { path = "crates/protocol/abi" }
+loom-protocol-address-book = { path = "crates/protocol/address-book" }
+loom-protocol-pools = { path = "crates/protocol/pools" }
+loom-protocol-uniswap-v3-math = { path = "crates/protocol/uniswap-v3-math" }
+# rpc
+loom-rpc-handler = { path = "crates/rpc/handler" }
+loom-rpc-state = { path = "crates/rpc/state" }
+# storage
+loom-storage-db = { path = "crates/storage/db" }
+# strategy
+loom-strategy-backrun = { path = "crates/strategy/backrun" }
+loom-strategy-merger = { path = "crates/strategy/merger" }
+
 
 # logging
 env_logger = "0.11.5"

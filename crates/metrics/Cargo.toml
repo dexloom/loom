@@ -1,0 +1,21 @@
+[package]
+name = "loom-metrics"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+loom-core-actors.workspace = true
+loom-core-actors-macros.workspace = true
+loom-core-blockchain.workspace = true
+loom-defi-events.workspace = true
+
+async-trait.workspace = true
+chrono.workspace = true
+eyre.workspace = true
+influxdb.workspace = true
+tokio.workspace = true
+tracing.workspace = true

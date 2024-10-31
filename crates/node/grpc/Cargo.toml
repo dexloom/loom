@@ -1,0 +1,36 @@
+[package]
+name = "loom-node-grpc"
+edition.workspace = true
+exclude.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+loom-core-actors.workspace = true
+loom-core-actors-macros.workspace = true
+loom-core-blockchain.workspace = true
+loom-defi-events.workspace = true
+loom-defi-types.workspace = true
+loom-evm-utils.workspace = true
+loom-node-grpc-exex-proto.workspace = true
+
+chrono.workspace = true
+eyre.workspace = true
+futures.workspace = true
+revm.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# alloy
+alloy-eips.workspace = true
+alloy-primitives.workspace = true
+alloy-rpc-types.workspace = true
+
+# reth
+reth-exex.workspace = true
+reth-provider.workspace = true
+reth-rpc.workspace = true
+reth-rpc-types-compat.workspace = true

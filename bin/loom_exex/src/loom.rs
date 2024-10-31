@@ -3,17 +3,18 @@ use alloy::primitives::Address;
 use alloy::providers::Provider;
 use alloy::transports::Transport;
 use axum::Router;
-use debug_provider::DebugProviderExt;
-use defi_actors::{loom_exex, BackrunConfig, BackrunConfigSection, NodeBlockActorConfig};
-use defi_blockchain::Blockchain;
-use defi_blockchain_actors::BlockchainActors;
-use defi_entities::config::load_from_file;
-use defi_entities::PoolClass;
-use defi_pools::PoolsConfig;
 use eyre::OptionExt;
-use loom_db::init_db_pool;
-use loom_test::SwapHealthMonitorActor;
-use loom_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
+use loom_core_blockchain::Blockchain;
+use loom_core_blockchain_actors::BlockchainActors;
+use loom_core_topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
+use loom_defi_entities::config::load_from_file;
+use loom_defi_entities::PoolClass;
+use loom_node_actor_config::NodeBlockActorConfig;
+use loom_node_debug_provider::DebugProviderExt;
+use loom_node_exex::loom_exex;
+use loom_protocol_pools::PoolsConfig;
+use loom_storage_db::init_db_pool;
+use loom_strategy_backrun::{BackrunConfig, BackrunConfigSection};
 use reth_exex::ExExContext;
 use reth_node_api::FullNodeComponents;
 use std::env;
@@ -109,9 +110,7 @@ where
             .with_influxdb_writer(influxdb_config.url, influxdb_config.database, influxdb_config.tags)?
             .with_block_latency_recorder()?;
     }
-    if env::var("SWAP_HEALTH_MONITOR").unwrap_or_default() == "true" {
-        bc_actors.start(SwapHealthMonitorActor::new(provider.clone()).on_bc(&bc))?;
-    }
+
     bc_actors.wait().await;
 
     Ok(())

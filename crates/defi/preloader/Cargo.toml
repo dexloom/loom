@@ -1,0 +1,29 @@
+[package]
+name = "loom-defi-preloader"
+edition.workspace = true
+exclude.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+loom-core-actors.workspace = true
+loom-core-actors-macros.workspace = true
+loom-core-blockchain.workspace = true
+loom-defi-entities.workspace = true
+loom-defi-types.workspace = true
+loom-evm-utils.workspace = true
+loom-protocol-address-book.workspace = true
+
+eyre.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+alloy-eips.workspace = true
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-provider.workspace = true
+alloy-rpc-types-trace.workspace = true
+alloy-transport.workspace = true

@@ -1,0 +1,54 @@
+[package]
+name = "loom-core-topology"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+loom-broadcast-accounts.workspace = true
+loom-broadcast-broadcaster.workspace = true
+loom-broadcast-flashbots.workspace = true
+loom-core-actors.workspace = true
+loom-core-block-history.workspace = true
+loom-core-blockchain.workspace = true
+loom-core-mempool.workspace = true
+loom-core-router.workspace = true
+loom-defi-entities.workspace = true
+loom-defi-events.workspace = true
+loom-defi-health-monitor.workspace = true
+loom-defi-market.workspace = true
+loom-defi-preloader.workspace = true
+loom-defi-price.workspace = true
+loom-defi-types.workspace = true
+loom-executor-estimator.workspace = true
+loom-executor-multicaller.workspace = true
+loom-node-actor-config.workspace = true
+loom-node-grpc.workspace = true
+loom-node-grpc-exex-proto.workspace = true
+loom-node-json-rpc.workspace = true
+loom-protocol-pools.workspace = true
+loom-rpc-handler.workspace = true
+loom-rpc-state.workspace = true
+loom-strategy-backrun.workspace = true
+loom-strategy-merger.workspace = true
+
+eyre.workspace = true
+revm.workspace = true
+serde.workspace = true
+strum.workspace = true
+strum_macros.workspace = true
+tokio.workspace = true
+toml.workspace = true
+tracing.workspace = true
+
+# alloy
+alloy-primitives.workspace = true
+alloy-provider.workspace = true
+alloy-rpc-client.workspace = true
+alloy-rpc-types.workspace = true
+alloy-transport.workspace = true
+alloy-transport-ipc.workspace = true
+alloy-transport-ws.workspace = true

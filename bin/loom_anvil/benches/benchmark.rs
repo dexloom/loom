@@ -1,5 +1,7 @@
 use alloy_primitives::{Address, BlockNumber, U256};
 use chrono::Local;
+#[allow(unused_imports)]
+use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use eyre::Result;
 use rand::prelude::{Rng, SeedableRng, StdRng};
 use rayon::prelude::*;
@@ -9,16 +11,17 @@ use std::collections::HashMap;
 use std::env;
 use std::ops::Deref;
 use std::sync::Arc;
+#[allow(unused_imports)]
 use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tracing::error;
 
-use debug_provider::AnvilDebugProviderFactory;
-use defi_address_book::UniswapV3PoolAddress;
-use defi_entities::required_state::RequiredStateReader;
-use defi_entities::{MarketState, Pool, PoolWrapper};
-use defi_pools::UniswapV3Pool;
-use loom_revm_db::LoomDBType;
+use loom_defi_entities::required_state::RequiredStateReader;
+use loom_defi_entities::{MarketState, Pool, PoolWrapper};
+use loom_evm_db::LoomDBType;
+use loom_node_debug_provider::AnvilDebugProviderFactory;
+use loom_protocol_address_book::UniswapV3PoolAddress;
+use loom_protocol_pools::UniswapV3Pool;
 
 #[allow(dead_code)]
 async fn performance_test() {
@@ -277,7 +280,7 @@ async fn tokio_parallel_run(state_db: &LoomDBType, pool: UniswapV3Pool) {
 #[cfg(not(test))]
 fn benchmark(c: &mut Criterion) {
     let mut group = c.benchmark_group("pool speed");
-    group.measurement_time(Duration::from_secs(60));
+    group.measurement_time(std::time::Duration::from_secs(60));
 
     let rt = tokio::runtime::Builder::new_multi_thread().enable_all().build().unwrap();
 
@@ -316,6 +319,8 @@ async fn main() {
 
 #[cfg(test)]
 mod test {
+    #[allow(unused_imports)]
+    use crate::{fetch_data_and_pool, rayon_parallel_run};
 
     #[test]
     fn test_run() {

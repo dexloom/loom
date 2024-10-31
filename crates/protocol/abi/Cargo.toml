@@ -1,0 +1,14 @@
+[package]
+name = "loom-protocol-abi"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+alloy-contract.workspace = true
+alloy-primitives.workspace = true
+alloy-sol-macro.workspace = true
+alloy-sol-types.workspace = true

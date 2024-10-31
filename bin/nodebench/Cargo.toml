@@ -9,16 +9,16 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
+loom-core-actors.workspace = true
+loom-core-blockchain.workspace = true
+loom-core-blockchain-actors.workspace = true
+loom-defi-events.workspace = true
+loom-node-actor-config.workspace = true
+
+alloy.workspace = true
 chrono.workspace = true
 clap.workspace = true
 env_logger.workspace = true
 eyre.workspace = true
 futures.workspace = true
 tokio.workspace = true
-
-alloy.workspace = true
-
-defi-actors.workspace = true
-defi-blockchain.workspace = true
-defi-blockchain-actors.workspace = true
-defi-events.workspace = true

@@ -17,4 +17,4 @@ tonic.workspace = true
 reth-exex.workspace = true
 reth-tracing.workspace = true
 
-reth-exex-grpc.workspace = true
+loom-node-grpc-exex-proto.workspace = true
