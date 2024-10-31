@@ -7115,7 +7115,6 @@ version = "0.2.0"
 dependencies = [
  "alloy",
  "clap",
- "env_logger",
  "eyre",
  "futures",
  "loom-core-actors",

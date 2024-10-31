@@ -25,7 +25,6 @@ loom-types-events.workspace = true
 
 alloy.workspace = true
 clap.workspace = true
-env_logger.workspace = true
 eyre.workspace = true
 futures.workspace = true
 serde.workspace = true

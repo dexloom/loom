@@ -40,14 +40,10 @@ struct Commands {
 #[tokio::main]
 async fn main() -> Result<()> {
     let start_block_number = 20179184;
-    // env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(
-    //     "debug,alloy_rpc_client=off,loom_node_debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace",
-    // ))
-    // .format_timestamp_micros()
-    // .init();
 
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        "debug,alloy_rpc_client=off,loom_node_debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace".into()
+        "debug,alloy_rpc_client=off,loom_node_debug_provider=info,alloy_transport_http=off,hyper_util=off,loom_core_block_history=trace"
+            .into()
     });
     let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(false).with_line_number(true).with_filter(env_filter);
 
