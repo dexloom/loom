@@ -2387,268 +2387,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f578e8e2c440e7297e008bb5486a3a8a194775224bbc23729b0dbdfaeebf162e"
 
 [[package]]
-name = "debug-provider"
-version = "0.2.0"
-dependencies = [
- "alloy",
- "alloy-provider",
- "alloy-rpc-client",
- "async-trait",
- "defi-abi",
- "env_logger",
- "eyre",
- "futures",
- "k256",
- "rand",
- "reqwest 0.12.9",
- "serde",
- "serde_json",
- "tokio",
- "tower 0.5.1",
- "tracing",
- "url",
-]
-
-[[package]]
-name = "defi-abi"
-version = "0.2.0"
-dependencies = [
- "alloy-contract",
- "alloy-primitives",
- "alloy-sol-macro",
- "alloy-sol-types",
-]
-
-[[package]]
-name = "defi-actors"
-version = "0.2.0"
-dependencies = [
- "alloy",
- "alloy-consensus",
- "alloy-eips",
- "alloy-network",
- "alloy-node-bindings",
- "alloy-primitives",
- "alloy-provider",
- "alloy-pubsub",
- "alloy-rlp",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-rpc-types-trace",
- "alloy-sol-types",
- "alloy-transport",
- "chrono",
- "criterion",
- "debug-provider",
- "defi-abi",
- "defi-address-book",
- "defi-blockchain",
- "defi-entities",
- "defi-events",
- "defi-pools",
- "defi-types",
- "env_logger",
- "eyre",
- "flashbots",
- "futures",
- "lazy_static",
- "loom-actors",
- "loom-actors-macros",
- "loom-metrics",
- "loom-multicaller",
- "loom-revm-db",
- "loom-utils",
- "num_cpus",
- "rand",
- "rayon",
- "reth-chainspec",
- "reth-db",
- "reth-exex",
- "reth-exex-grpc",
- "reth-node-api",
- "reth-node-builder",
- "reth-node-ethereum",
- "reth-node-types",
- "reth-primitives",
- "reth-provider",
- "reth-rpc",
- "reth-rpc-types-compat",
- "reth-transaction-pool",
- "revm",
- "serde",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "defi-address-book"
-version = "0.2.0"
-dependencies = [
- "alloy-primitives",
-]
-
-[[package]]
-name = "defi-blockchain"
-version = "0.2.0"
-dependencies = [
- "alloy",
- "defi-address-book",
- "defi-entities",
- "defi-events",
- "defi-types",
- "influxdb",
- "loom-actors",
- "loom-actors-macros",
- "revm",
-]
-
-[[package]]
-name = "defi-blockchain-actors"
-version = "0.2.0"
-dependencies = [
- "alloy-network",
- "alloy-primitives",
- "alloy-provider",
- "alloy-transport",
- "axum",
- "debug-provider",
- "defi-actors",
- "defi-address-book",
- "defi-blockchain",
- "defi-entities",
- "defi-pools",
- "eyre",
- "flashbots",
- "loom-actors",
- "loom-db",
- "loom-metrics",
- "loom-multicaller",
- "loom-utils",
- "loom-web",
- "tokio-util",
-]
-
-[[package]]
-name = "defi-entities"
-version = "0.2.0"
-dependencies = [
- "aes",
- "alloy-consensus",
- "alloy-network",
- "alloy-node-bindings",
- "alloy-primitives",
- "alloy-provider",
- "alloy-rlp",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-rpc-types-trace",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-transport",
- "debug-provider",
- "defi-address-book",
- "defi-types",
- "eyre",
- "hex",
- "indexmap 2.6.0",
- "lazy_static",
- "loom-revm-db",
- "loom-utils",
- "rand",
- "reth-chainspec",
- "reth-db",
- "reth-node-builder",
- "reth-node-ethereum",
- "reth-provider",
- "reth-revm",
- "revm",
- "serde",
- "sha2 0.10.8",
- "strum",
- "strum_macros",
- "thiserror",
- "tokio",
- "toml",
- "tracing",
-]
-
-[[package]]
-name = "defi-events"
-version = "0.2.0"
-dependencies = [
- "alloy-consensus",
- "alloy-primitives",
- "alloy-rpc-types",
- "chrono",
- "defi-entities",
- "defi-types",
- "eyre",
- "loom-revm-db",
- "loom-utils",
- "revm",
-]
-
-[[package]]
-name = "defi-pools"
-version = "0.2.0"
-dependencies = [
- "alloy-primitives",
- "alloy-provider",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-rpc-types-trace",
- "alloy-sol-macro",
- "alloy-sol-types",
- "alloy-transport",
- "debug-provider",
- "defi-abi",
- "defi-address-book",
- "defi-entities",
- "defi-types",
- "env_logger",
- "eyre",
- "lazy_static",
- "loom-revm-db",
- "loom-utils",
- "rand",
- "reth-storage-api",
- "revm",
- "strum",
- "tokio",
- "tracing",
- "uniswap_v3_math",
- "url",
-]
-
-[[package]]
-name = "defi-types"
-version = "0.2.0"
-dependencies = [
- "alloy-consensus",
- "alloy-eips",
- "alloy-primitives",
- "alloy-provider",
- "alloy-rlp",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-rpc-types-eth",
- "alloy-rpc-types-trace",
- "alloy-transport",
- "chrono",
- "debug-provider",
- "env_logger",
- "eyre",
- "hex",
- "lazy_static",
- "revm",
- "serde",
- "serde_json",
- "tokio",
- "tracing",
- "url",
-]
-
-[[package]]
 name = "delay_map"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -3130,9 +2868,9 @@ name = "exex-grpc-node"
 version = "0.2.0"
 dependencies = [
  "eyre",
+ "loom-node-grpc-exex-proto",
  "reth",
  "reth-exex",
- "reth-exex-grpc",
  "reth-node-api",
  "reth-node-ethereum",
  "reth-tracing",
@@ -3146,8 +2884,8 @@ name = "exex_grpc_loom"
 version = "0.2.0"
 dependencies = [
  "eyre",
+ "loom-node-grpc-exex-proto",
  "reth-exex",
- "reth-exex-grpc",
  "reth-tracing",
  "tokio",
  "tonic",
@@ -3247,36 +2985,6 @@ name = "fixedbitset"
 version = "0.4.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0ce7134b9999ecaf8bcd65542e436736ef32ddca1b3e06094cb6ec5755203b80"
-
-[[package]]
-name = "flashbots"
-version = "0.2.0"
-dependencies = [
- "alloy-consensus",
- "alloy-json-rpc",
- "alloy-network",
- "alloy-primitives",
- "alloy-provider",
- "alloy-rlp",
- "alloy-rpc-types",
- "alloy-signer",
- "alloy-signer-local",
- "alloy-transport",
- "chrono",
- "env_logger",
- "eyre",
- "futures-core",
- "futures-util",
- "pin-project",
- "rand",
- "reqwest 0.12.9",
- "serde",
- "serde_json",
- "thiserror",
- "tokio",
- "tracing",
- "url",
-]
 
 [[package]]
 name = "flate2"
@@ -3457,21 +3165,22 @@ dependencies = [
  "alloy-transport",
  "clap",
  "colored",
- "debug-provider",
- "defi-abi",
- "defi-actors",
- "defi-address-book",
- "defi-entities",
- "defi-events",
- "defi-types",
  "env_logger",
  "eyre",
  "lazy_static",
- "loom-actors",
- "loom-actors-macros",
- "loom-multicaller",
- "loom-revm-db",
- "loom-utils",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-market",
+ "loom-defi-preloader",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-executor-multicaller",
+ "loom-node-debug-provider",
+ "loom-protocol-abi",
+ "loom-protocol-address-book",
  "revm",
  "serde",
  "serde_json",
@@ -4653,9 +4362,9 @@ version = "0.2.0"
 dependencies = [
  "aes",
  "clap",
- "defi-entities",
  "eyre",
  "hex",
+ "loom-defi-entities",
  "rand",
  "sha2 0.10.8",
 ]
@@ -4870,38 +4579,112 @@ checksum = "a7a70ba024b9dc04c27ea2f0c0548feb474ec5c54bba33a7f72f873a39d07b24"
 name = "loom"
 version = "0.2.0"
 dependencies = [
- "debug-provider",
- "defi-abi",
- "defi-actors",
- "defi-address-book",
- "defi-blockchain",
- "defi-entities",
- "defi-events",
- "defi-pools",
- "defi-types",
- "flashbots",
- "loom-actors",
- "loom-actors-macros",
- "loom-multicaller",
- "loom-revm-db",
- "loom-topology",
- "loom-utils",
+ "loom-broadcast-flashbots",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-core-topology",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-executor-multicaller",
+ "loom-node-debug-provider",
+ "loom-protocol-abi",
+ "loom-protocol-address-book",
+ "loom-protocol-pools",
 ]
 
 [[package]]
-name = "loom-actors"
+name = "loom-broadcast-accounts"
 version = "0.2.0"
 dependencies = [
- "async-trait",
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rlp",
+ "alloy-rpc-types",
+ "alloy-sol-types",
+ "alloy-transport",
  "eyre",
- "futures",
- "loom-actors-macros",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-protocol-abi",
  "tokio",
  "tracing",
 ]
 
 [[package]]
-name = "loom-actors-macros"
+name = "loom-broadcast-broadcaster"
+version = "0.2.0"
+dependencies = [
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-transport",
+ "eyre",
+ "loom-broadcast-flashbots",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-events",
+ "loom-node-debug-provider",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-broadcast-flashbots"
+version = "0.2.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-json-rpc",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rlp",
+ "alloy-rpc-types",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-transport",
+ "chrono",
+ "env_logger",
+ "eyre",
+ "futures-core",
+ "futures-util",
+ "pin-project",
+ "rand",
+ "reqwest 0.12.9",
+ "serde",
+ "serde_json",
+ "thiserror",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "loom-core-actors"
+version = "0.2.0"
+dependencies = [
+ "async-trait",
+ "eyre",
+ "futures",
+ "loom-core-actors-macros",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-core-actors-macros"
 version = "0.2.0"
 dependencies = [
  "proc-macro2",
@@ -4911,33 +4694,109 @@ dependencies = [
 ]
 
 [[package]]
-name = "loom-db"
+name = "loom-core-block-history"
 version = "0.2.0"
 dependencies = [
- "bb8",
- "diesel",
- "diesel-async",
- "thiserror",
-]
-
-[[package]]
-name = "loom-metrics"
-version = "0.2.0"
-dependencies = [
- "async-trait",
- "chrono",
- "defi-blockchain",
- "defi-events",
+ "alloy-eips",
+ "alloy-network",
+ "alloy-node-bindings",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-transport",
+ "env_logger",
  "eyre",
- "influxdb",
- "loom-actors",
- "loom-actors-macros",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-node-debug-provider",
+ "revm",
  "tokio",
  "tracing",
 ]
 
 [[package]]
-name = "loom-multicaller"
+name = "loom-core-blockchain"
+version = "0.2.0"
+dependencies = [
+ "alloy",
+ "influxdb",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-protocol-address-book",
+ "revm",
+]
+
+[[package]]
+name = "loom-core-blockchain-actors"
+version = "0.2.0"
+dependencies = [
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-transport",
+ "axum",
+ "eyre",
+ "loom-broadcast-accounts",
+ "loom-broadcast-broadcaster",
+ "loom-broadcast-flashbots",
+ "loom-core-actors",
+ "loom-core-block-history",
+ "loom-core-blockchain",
+ "loom-core-mempool",
+ "loom-core-router",
+ "loom-defi-entities",
+ "loom-defi-health-monitor",
+ "loom-defi-market",
+ "loom-defi-preloader",
+ "loom-defi-price",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-executor-estimator",
+ "loom-executor-multicaller",
+ "loom-metrics",
+ "loom-node-actor-config",
+ "loom-node-debug-provider",
+ "loom-node-grpc",
+ "loom-node-json-rpc",
+ "loom-protocol-address-book",
+ "loom-protocol-pools",
+ "loom-rpc-handler",
+ "loom-rpc-state",
+ "loom-storage-db",
+ "loom-strategy-backrun",
+ "loom-strategy-merger",
+ "tokio-util",
+]
+
+[[package]]
+name = "loom-core-mempool"
+version = "0.2.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-rpc-types",
+ "chrono",
+ "eyre",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-events",
+ "loom-defi-types",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-core-node-player"
 version = "0.2.0"
 dependencies = [
  "alloy-eips",
@@ -4945,27 +4804,257 @@ dependencies = [
  "alloy-primitives",
  "alloy-provider",
  "alloy-rpc-types",
- "alloy-rpc-types-trace",
- "alloy-signer-local",
- "alloy-sol-macro",
- "alloy-sol-types",
  "alloy-transport",
- "debug-provider",
- "defi-abi",
- "defi-address-book",
- "defi-entities",
- "defi-types",
- "env_logger",
  "eyre",
- "k256",
- "lazy_static",
- "loom-utils",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-evm-utils",
+ "loom-node-debug-provider",
  "tokio",
  "tracing",
 ]
 
 [[package]]
-name = "loom-revm-db"
+name = "loom-core-router"
+version = "0.2.0"
+dependencies = [
+ "eyre",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-core-topology"
+version = "0.2.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-transport",
+ "alloy-transport-ipc",
+ "alloy-transport-ws",
+ "eyre",
+ "loom-broadcast-accounts",
+ "loom-broadcast-broadcaster",
+ "loom-broadcast-flashbots",
+ "loom-core-actors",
+ "loom-core-block-history",
+ "loom-core-blockchain",
+ "loom-core-mempool",
+ "loom-core-router",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-health-monitor",
+ "loom-defi-market",
+ "loom-defi-preloader",
+ "loom-defi-price",
+ "loom-defi-types",
+ "loom-executor-estimator",
+ "loom-executor-multicaller",
+ "loom-node-actor-config",
+ "loom-node-grpc",
+ "loom-node-grpc-exex-proto",
+ "loom-node-json-rpc",
+ "loom-protocol-pools",
+ "loom-rpc-handler",
+ "loom-rpc-state",
+ "loom-strategy-backrun",
+ "loom-strategy-merger",
+ "revm",
+ "serde",
+ "strum",
+ "strum_macros",
+ "tokio",
+ "toml",
+ "tracing",
+]
+
+[[package]]
+name = "loom-defi-entities"
+version = "0.2.0"
+dependencies = [
+ "aes",
+ "alloy-consensus",
+ "alloy-network",
+ "alloy-node-bindings",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rlp",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-rpc-types-trace",
+ "alloy-signer",
+ "alloy-signer-local",
+ "alloy-transport",
+ "eyre",
+ "hex",
+ "indexmap 2.6.0",
+ "lazy_static",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-node-debug-provider",
+ "loom-protocol-address-book",
+ "rand",
+ "reth-chainspec",
+ "reth-db",
+ "reth-node-builder",
+ "reth-node-ethereum",
+ "reth-provider",
+ "reth-revm",
+ "revm",
+ "serde",
+ "sha2 0.10.8",
+ "strum",
+ "strum_macros",
+ "thiserror",
+ "tokio",
+ "toml",
+ "tracing",
+]
+
+[[package]]
+name = "loom-defi-events"
+version = "0.2.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-primitives",
+ "alloy-rpc-types",
+ "chrono",
+ "eyre",
+ "loom-defi-entities",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "revm",
+]
+
+[[package]]
+name = "loom-defi-health-monitor"
+version = "0.2.0"
+dependencies = [
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-transport",
+ "chrono",
+ "eyre",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-evm-utils",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-defi-market"
+version = "0.2.0"
+dependencies = [
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-sol-types",
+ "alloy-transport",
+ "eyre",
+ "futures",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-node-debug-provider",
+ "loom-protocol-abi",
+ "loom-protocol-pools",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-defi-preloader"
+version = "0.2.0"
+dependencies = [
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types-trace",
+ "alloy-transport",
+ "eyre",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-types",
+ "loom-evm-utils",
+ "loom-protocol-address-book",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-defi-price"
+version = "0.2.0"
+dependencies = [
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-transport",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-protocol-address-book",
+ "loom-protocol-pools",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-defi-types"
+version = "0.2.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rlp",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-rpc-types-eth",
+ "alloy-rpc-types-trace",
+ "alloy-transport",
+ "chrono",
+ "env_logger",
+ "eyre",
+ "hex",
+ "lazy_static",
+ "loom-node-debug-provider",
+ "revm",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "loom-evm-db"
 version = "0.2.0"
 dependencies = [
  "alloy",
@@ -4984,73 +5073,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "loom-test"
-version = "0.2.0"
-dependencies = [
- "alloy-network",
- "alloy-primitives",
- "alloy-provider",
- "alloy-rpc-types",
- "alloy-transport",
- "debug-provider",
- "defi-abi",
- "defi-address-book",
- "defi-blockchain",
- "defi-entities",
- "defi-events",
- "defi-pools",
- "eyre",
- "loom-actors",
- "loom-revm-db",
- "revm",
- "tokio",
- "tracing",
-]
-
-[[package]]
-name = "loom-topology"
-version = "0.2.0"
-dependencies = [
- "alloy-primitives",
- "alloy-provider",
- "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-transport",
- "alloy-transport-ipc",
- "alloy-transport-ws",
- "defi-actors",
- "defi-blockchain",
- "defi-entities",
- "defi-events",
- "defi-pools",
- "defi-types",
- "eyre",
- "flashbots",
- "loom-actors",
- "loom-multicaller",
- "reth-exex-grpc",
- "revm",
- "serde",
- "strum",
- "strum_macros",
- "tokio",
- "toml",
- "tracing",
-]
-
-[[package]]
-name = "loom-utils"
+name = "loom-evm-utils"
 version = "0.2.0"
 dependencies = [
  "alloy",
  "axum",
- "debug-provider",
- "defi-abi",
- "defi-address-book",
- "defi-types",
  "eyre",
  "lazy_static",
- "loom-revm-db",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-node-debug-provider",
+ "loom-protocol-abi",
+ "loom-protocol-address-book",
  "reth-db",
  "reth-primitives",
  "reth-rpc",
@@ -5062,22 +5096,314 @@ dependencies = [
 ]
 
 [[package]]
-name = "loom-web"
+name = "loom-executor-estimator"
+version = "0.2.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-transport",
+ "chrono",
+ "eyre",
+ "loom-broadcast-flashbots",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-node-debug-provider",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-executor-multicaller"
+version = "0.2.0"
+dependencies = [
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-rpc-types-trace",
+ "alloy-signer-local",
+ "alloy-sol-macro",
+ "alloy-sol-types",
+ "alloy-transport",
+ "env_logger",
+ "eyre",
+ "k256",
+ "lazy_static",
+ "loom-defi-entities",
+ "loom-defi-types",
+ "loom-evm-utils",
+ "loom-node-debug-provider",
+ "loom-protocol-abi",
+ "loom-protocol-address-book",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-metrics"
+version = "0.2.0"
+dependencies = [
+ "async-trait",
+ "chrono",
+ "eyre",
+ "influxdb",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-events",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-node-actor-config"
+version = "0.2.0"
+
+[[package]]
+name = "loom-node-db-access"
+version = "0.2.0"
+dependencies = [
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-rpc-types-trace",
+ "alloy-transport",
+ "chrono",
+ "futures",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-defi-events",
+ "loom-evm-utils",
+ "reth-chainspec",
+ "reth-node-ethereum",
+ "reth-node-types",
+ "reth-primitives",
+ "reth-provider",
+ "reth-rpc-types-compat",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-node-debug-provider"
+version = "0.2.0"
+dependencies = [
+ "alloy",
+ "alloy-provider",
+ "alloy-rpc-client",
+ "async-trait",
+ "env_logger",
+ "eyre",
+ "futures",
+ "k256",
+ "loom-protocol-abi",
+ "rand",
+ "reqwest 0.12.9",
+ "serde",
+ "serde_json",
+ "tokio",
+ "tower 0.5.1",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "loom-node-exex"
+version = "0.2.0"
+dependencies = [
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-rpc-types",
+ "alloy-rpc-types-eth",
+ "eyre",
+ "futures",
+ "loom-core-actors",
+ "loom-core-blockchain",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-evm-utils",
+ "loom-node-actor-config",
+ "reth-exex",
+ "reth-node-api",
+ "reth-provider",
+ "reth-rpc",
+ "reth-rpc-types-compat",
+ "reth-transaction-pool",
+ "revm",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-node-grpc"
+version = "0.2.0"
+dependencies = [
+ "alloy-eips",
+ "alloy-primitives",
+ "alloy-rpc-types",
+ "chrono",
+ "eyre",
+ "futures",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-evm-utils",
+ "loom-node-grpc-exex-proto",
+ "reth-exex",
+ "reth-provider",
+ "reth-rpc",
+ "reth-rpc-types-compat",
+ "revm",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-node-grpc-exex-proto"
+version = "0.2.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-primitives",
+ "alloy-rpc-types",
+ "alloy-rpc-types-trace",
+ "async-stream",
+ "bincode",
+ "eyre",
+ "futures-util",
+ "prost",
+ "reth",
+ "reth-execution-types",
+ "reth-exex",
+ "reth-exex-test-utils",
+ "reth-node-api",
+ "reth-node-ethereum",
+ "reth-primitives",
+ "reth-rpc-types-compat",
+ "reth-tracing",
+ "tokio",
+ "tokio-stream",
+ "tonic",
+ "tonic-build",
+]
+
+[[package]]
+name = "loom-node-json-rpc"
+version = "0.2.0"
+dependencies = [
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-pubsub",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-transport",
+ "chrono",
+ "env_logger",
+ "eyre",
+ "futures",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-node-actor-config",
+ "loom-node-db-access",
+ "loom-node-debug-provider",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-protocol-abi"
+version = "0.2.0"
+dependencies = [
+ "alloy-contract",
+ "alloy-primitives",
+ "alloy-sol-macro",
+ "alloy-sol-types",
+]
+
+[[package]]
+name = "loom-protocol-address-book"
+version = "0.2.0"
+dependencies = [
+ "alloy-primitives",
+]
+
+[[package]]
+name = "loom-protocol-pools"
+version = "0.2.0"
+dependencies = [
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-client",
+ "alloy-rpc-types",
+ "alloy-rpc-types-trace",
+ "alloy-sol-macro",
+ "alloy-sol-types",
+ "alloy-transport",
+ "env_logger",
+ "eyre",
+ "lazy_static",
+ "loom-defi-entities",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-node-debug-provider",
+ "loom-protocol-abi",
+ "loom-protocol-address-book",
+ "loom-protocol-uniswap-v3-math",
+ "rand",
+ "reth-storage-api",
+ "revm",
+ "strum",
+ "tokio",
+ "tracing",
+ "url",
+]
+
+[[package]]
+name = "loom-protocol-uniswap-v3-math"
+version = "0.2.0"
+dependencies = [
+ "alloy",
+ "eyre",
+ "thiserror",
+]
+
+[[package]]
+name = "loom-rpc-handler"
 version = "0.2.0"
 dependencies = [
  "alloy-primitives",
  "axum",
- "defi-actors",
- "defi-blockchain",
- "defi-entities",
- "defi-types",
  "eyre",
  "hex",
- "loom-actors",
- "loom-actors-macros",
- "loom-db",
- "loom-utils",
- "loom-web-state",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-rpc-state",
+ "loom-storage-db",
  "revm",
  "serde",
  "serde_json",
@@ -5093,12 +5419,84 @@ dependencies = [
 ]
 
 [[package]]
-name = "loom-web-state"
+name = "loom-rpc-state"
 version = "0.2.0"
 dependencies = [
- "defi-blockchain",
- "loom-db",
- "loom-utils",
+ "loom-core-blockchain",
+ "loom-evm-utils",
+ "loom-storage-db",
+]
+
+[[package]]
+name = "loom-storage-db"
+version = "0.2.0"
+dependencies = [
+ "bb8",
+ "diesel",
+ "diesel-async",
+ "thiserror",
+]
+
+[[package]]
+name = "loom-strategy-backrun"
+version = "0.2.0"
+dependencies = [
+ "alloy-consensus",
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-rpc-types-trace",
+ "alloy-transport",
+ "chrono",
+ "criterion",
+ "eyre",
+ "lazy_static",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-node-debug-provider",
+ "loom-protocol-pools",
+ "num_cpus",
+ "rayon",
+ "revm",
+ "serde",
+ "tokio",
+ "tracing",
+]
+
+[[package]]
+name = "loom-strategy-merger"
+version = "0.2.0"
+dependencies = [
+ "alloy-eips",
+ "alloy-network",
+ "alloy-primitives",
+ "alloy-provider",
+ "alloy-rpc-types",
+ "alloy-rpc-types-trace",
+ "alloy-transport",
+ "chrono",
+ "eyre",
+ "lazy_static",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-executor-multicaller",
+ "loom-node-debug-provider",
+ "revm",
+ "tokio",
+ "tracing",
 ]
 
 [[package]]
@@ -5117,21 +5515,32 @@ dependencies = [
  "chrono",
  "clap",
  "criterion",
- "debug-provider",
- "defi-actors",
- "defi-address-book",
- "defi-entities",
- "defi-events",
- "defi-pools",
- "defi-types",
  "eyre",
- "flashbots",
  "futures",
- "loom-actors",
- "loom-actors-macros",
- "loom-multicaller",
- "loom-revm-db",
- "loom-utils",
+ "loom-broadcast-accounts",
+ "loom-broadcast-broadcaster",
+ "loom-broadcast-flashbots",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-block-history",
+ "loom-core-router",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-market",
+ "loom-defi-preloader",
+ "loom-defi-price",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-executor-estimator",
+ "loom-executor-multicaller",
+ "loom-node-actor-config",
+ "loom-node-debug-provider",
+ "loom-node-json-rpc",
+ "loom-protocol-address-book",
+ "loom-protocol-pools",
+ "loom-strategy-backrun",
+ "loom-strategy-merger",
  "num_cpus",
  "rand",
  "rayon",
@@ -5151,20 +5560,28 @@ version = "0.3.0"
 dependencies = [
  "alloy-primitives",
  "alloy-provider",
- "debug-provider",
- "defi-actors",
- "defi-entities",
- "defi-events",
- "defi-pools",
  "env_logger",
  "eyre",
- "flashbots",
  "futures",
- "loom-actors",
- "loom-actors-macros",
+ "loom-broadcast-broadcaster",
+ "loom-broadcast-flashbots",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-block-history",
+ "loom-core-router",
+ "loom-core-topology",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-health-monitor",
+ "loom-defi-market",
+ "loom-defi-price",
+ "loom-executor-estimator",
+ "loom-executor-multicaller",
  "loom-metrics",
- "loom-multicaller",
- "loom-topology",
+ "loom-node-debug-provider",
+ "loom-protocol-pools",
+ "loom-strategy-backrun",
+ "loom-strategy-merger",
  "tokio",
  "tracing",
 ]
@@ -5176,25 +5593,36 @@ dependencies = [
  "alloy",
  "axum",
  "clap",
- "debug-provider",
- "defi-actors",
- "defi-blockchain",
- "defi-blockchain-actors",
- "defi-entities",
- "defi-events",
- "defi-pools",
- "defi-types",
  "eyre",
  "futures-util",
  "hex",
- "loom-actors",
- "loom-db",
- "loom-revm-db",
- "loom-test",
- "loom-topology",
- "loom-utils",
- "loom-web",
- "loom-web-state",
+ "loom-broadcast-accounts",
+ "loom-broadcast-broadcaster",
+ "loom-core-actors",
+ "loom-core-block-history",
+ "loom-core-blockchain",
+ "loom-core-blockchain-actors",
+ "loom-core-router",
+ "loom-core-topology",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-market",
+ "loom-defi-preloader",
+ "loom-defi-price",
+ "loom-defi-types",
+ "loom-evm-db",
+ "loom-evm-utils",
+ "loom-executor-estimator",
+ "loom-node-actor-config",
+ "loom-node-debug-provider",
+ "loom-node-exex",
+ "loom-node-json-rpc",
+ "loom-protocol-pools",
+ "loom-rpc-handler",
+ "loom-rpc-state",
+ "loom-storage-db",
+ "loom-strategy-backrun",
+ "loom-strategy-merger",
  "reth",
  "reth-chainspec",
  "reth-db",
@@ -5520,13 +5948,14 @@ dependencies = [
  "alloy",
  "chrono",
  "clap",
- "defi-actors",
- "defi-blockchain",
- "defi-blockchain-actors",
- "defi-events",
  "env_logger",
  "eyre",
  "futures",
+ "loom-core-actors",
+ "loom-core-blockchain",
+ "loom-core-blockchain-actors",
+ "loom-defi-events",
+ "loom-node-actor-config",
  "tokio",
 ]
 
@@ -6687,22 +7116,22 @@ version = "0.2.0"
 dependencies = [
  "alloy",
  "clap",
- "debug-provider",
- "defi-actors",
- "defi-address-book",
- "defi-blockchain",
- "defi-blockchain-actors",
- "defi-entities",
- "defi-events",
- "defi-pools",
- "defi-types",
  "env_logger",
  "eyre",
  "futures",
- "loom-actors",
- "loom-actors-macros",
- "loom-multicaller",
- "loom-utils",
+ "loom-core-actors",
+ "loom-core-actors-macros",
+ "loom-core-blockchain",
+ "loom-core-blockchain-actors",
+ "loom-core-node-player",
+ "loom-defi-entities",
+ "loom-defi-events",
+ "loom-defi-types",
+ "loom-evm-utils",
+ "loom-executor-multicaller",
+ "loom-node-debug-provider",
+ "loom-protocol-address-book",
+ "loom-protocol-pools",
  "serde",
  "tokio",
  "toml",
@@ -7911,35 +8340,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "tracing",
-]
-
-[[package]]
-name = "reth-exex-grpc"
-version = "0.2.0"
-dependencies = [
- "alloy-consensus",
- "alloy-eips",
- "alloy-primitives",
- "alloy-rpc-types",
- "alloy-rpc-types-trace",
- "async-stream",
- "bincode",
- "eyre",
- "futures-util",
- "prost",
- "reth",
- "reth-execution-types",
- "reth-exex",
- "reth-exex-test-utils",
- "reth-node-api",
- "reth-node-ethereum",
- "reth-primitives",
- "reth-rpc-types-compat",
- "reth-tracing",
- "tokio",
- "tokio-stream",
- "tonic",
- "tonic-build",
 ]
 
 [[package]]
@@ -11261,15 +11661,6 @@ name = "unicode-xid"
 version = "0.2.6"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ebc1c04c71510c7f702b52b7c350734c9ff1295c464a03335b00bb84fc54f853"
-
-[[package]]
-name = "uniswap_v3_math"
-version = "0.2.0"
-dependencies = [
- "alloy",
- "eyre",
- "thiserror",
-]
 
 [[package]]
 name = "universal-hash"

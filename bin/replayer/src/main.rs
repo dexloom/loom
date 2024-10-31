@@ -12,18 +12,19 @@ use eyre::Result;
 use tokio::select;
 use url::Url;
 
-use debug_provider::HttpCachedTransport;
-use defi_actors::NodeBlockPlayerActor;
-use defi_address_book::{TokenAddress, UniswapV3PoolAddress};
-use defi_blockchain::Blockchain;
-use defi_blockchain_actors::BlockchainActors;
-use defi_entities::required_state::RequiredState;
-use defi_entities::{PoolClass, Swap, SwapAmountType, SwapLine};
-use defi_events::{MessageTxCompose, TxComposeData};
-use defi_pools::state_readers::ERC20StateReader;
-use loom_multicaller::EncoderHelper;
-use loom_utils::evm_env::env_for_block;
-use loom_utils::NWETH;
+use loom_node_debug_provider::HttpCachedTransport;
+
+use loom_core_blockchain::Blockchain;
+use loom_core_blockchain_actors::BlockchainActors;
+use loom_core_node_player::NodeBlockPlayerActor;
+use loom_defi_entities::required_state::RequiredState;
+use loom_defi_entities::{PoolClass, Swap, SwapAmountType, SwapLine};
+use loom_defi_events::{MessageTxCompose, TxComposeData};
+use loom_evm_utils::evm_env::env_for_block;
+use loom_evm_utils::NWETH;
+use loom_executor_multicaller::EncoderHelper;
+use loom_protocol_address_book::{TokenAddress, UniswapV3PoolAddress};
+use loom_protocol_pools::state_readers::ERC20StateReader;
 use tracing::{debug, error, info};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -40,13 +41,13 @@ struct Commands {
 async fn main() -> Result<()> {
     let start_block_number = 20179184;
     // env_logger::Builder::from_env(env_logger::Env::default().default_filter_or(
-    //     "debug,alloy_rpc_client=off,debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace",
+    //     "debug,alloy_rpc_client=off,loom_node_debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace",
     // ))
     // .format_timestamp_micros()
     // .init();
 
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| {
-        "debug,alloy_rpc_client=off,debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace".into()
+        "debug,alloy_rpc_client=off,loom_node_debug_provider=info,alloy_transport_http=off,hyper_util=off,defi_actors::block_history=trace".into()
     });
     let fmt_layer = fmt::Layer::default().with_thread_ids(true).with_file(false).with_line_number(true).with_filter(env_filter);
 

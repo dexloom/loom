@@ -1,0 +1,14 @@
+[package]
+name = "loom-rpc-state"
+edition.workspace = true
+exclude.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+loom-core-blockchain.workspace = true
+loom-evm-utils.workspace = true
+loom-storage-db.workspace = true

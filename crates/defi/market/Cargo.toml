@@ -1,0 +1,32 @@
+[package]
+name = "loom-defi-market"
+edition.workspace = true
+exclude.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+loom-core-actors.workspace = true
+loom-core-actors-macros.workspace = true
+loom-core-blockchain.workspace = true
+loom-defi-entities.workspace = true
+loom-defi-events.workspace = true
+loom-node-debug-provider.workspace = true
+loom-protocol-abi.workspace = true
+loom-protocol-pools.workspace = true
+
+eyre.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# alloy
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-provider.workspace = true
+alloy-rpc-types.workspace = true
+alloy-sol-types.workspace = true
+alloy-transport.workspace = true

@@ -1,0 +1,17 @@
+[package]
+name = "loom-core-actors"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+loom-core-actors-macros.workspace = true
+
+async-trait.workspace = true
+eyre.workspace = true
+futures.workspace = true
+tokio.workspace = true
+tracing.workspace = true

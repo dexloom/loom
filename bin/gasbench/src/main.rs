@@ -19,15 +19,16 @@ use crate::cli::Cli;
 use crate::dto::SwapLineDTO;
 use crate::preloader::preload_pools;
 use crate::soltest::create_sol_test;
-use debug_provider::AnvilDebugProviderFactory;
-use defi_actors::preload_market_state;
-use defi_address_book::UniswapV2PoolAddress;
-use defi_entities::{Market, MarketState, PoolWrapper, Swap, SwapAmountType, SwapLine};
+use loom_node_debug_provider::AnvilDebugProviderFactory;
 
-use loom_actors::SharedState;
-use loom_multicaller::{MulticallerDeployer, MulticallerEncoder, MulticallerSwapEncoder};
-use loom_revm_db::LoomDBType;
-use loom_utils::{BalanceCheater, NWETH};
+use loom_defi_entities::{Market, MarketState, PoolWrapper, Swap, SwapAmountType, SwapLine};
+use loom_protocol_address_book::UniswapV2PoolAddress;
+
+use loom_core_actors::SharedState;
+use loom_defi_preloader::preload_market_state;
+use loom_evm_db::LoomDBType;
+use loom_evm_utils::{BalanceCheater, NWETH};
+use loom_executor_multicaller::{MulticallerDeployer, MulticallerEncoder, MulticallerSwapEncoder};
 
 mod cli;
 mod dto;

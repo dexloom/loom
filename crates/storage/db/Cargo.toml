@@ -1,0 +1,15 @@
+[package]
+name = "loom-storage-db"
+edition.workspace = true
+exclude.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+bb8.workspace = true
+diesel.workspace = true
+diesel-async.workspace = true
+thiserror.workspace = true

@@ -1,0 +1,43 @@
+[package]
+name = "loom-node-grpc-exex-proto"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+alloy-consensus.workspace = true
+alloy-eips.workspace = true
+alloy-primitives.workspace = true
+alloy-rpc-types.workspace = true
+alloy-rpc-types-trace.workspace = true
+
+
+reth.workspace = true
+reth-execution-types.workspace = true
+reth-exex.workspace = true
+reth-node-api.workspace = true
+reth-node-ethereum.workspace = true
+reth-primitives.workspace = true
+reth-rpc-types-compat.workspace = true
+reth-tracing.workspace = true
+
+futures-util.workspace = true
+
+async-stream.workspace = true
+eyre.workspace = true
+
+prost.workspace = true
+tokio.workspace = true
+tokio-stream.workspace = true
+tonic.workspace = true
+
+bincode.workspace = true
+
+[build-dependencies]
+tonic-build.workspace = true
+
+[dev-dependencies]
+reth-exex-test-utils.workspace = true

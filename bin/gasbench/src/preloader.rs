@@ -2,14 +2,14 @@ use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 
-use debug_provider::DebugProviderExt;
-use defi_actors::fetch_and_add_pool_by_address;
-use defi_address_book::{
+use loom_core_actors::SharedState;
+use loom_defi_entities::{Market, MarketState, PoolClass, Token};
+use loom_defi_market::fetch_and_add_pool_by_address;
+use loom_node_debug_provider::DebugProviderExt;
+use loom_protocol_address_book::{
     CurveMetapoolAddress, CurvePoolAddress, PancakeV2PoolAddress, PancakeV3PoolAddress, TokenAddress, UniswapV2PoolAddress,
     UniswapV3PoolAddress,
 };
-use defi_entities::{Market, MarketState, PoolClass, Token};
-use loom_actors::SharedState;
 
 pub async fn preload_pools<P, T, N>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState>) -> eyre::Result<()>
 where
