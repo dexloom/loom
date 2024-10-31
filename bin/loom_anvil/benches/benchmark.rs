@@ -16,12 +16,12 @@ use tokio::sync::RwLock;
 use tokio::task::JoinHandle;
 use tracing::error;
 
-use loom_defi_entities::required_state::RequiredStateReader;
-use loom_defi_entities::{MarketState, Pool, PoolWrapper};
+use loom_defi_address_book::UniswapV3PoolAddress;
+use loom_defi_pools::UniswapV3Pool;
 use loom_evm_db::LoomDBType;
 use loom_node_debug_provider::AnvilDebugProviderFactory;
-use loom_protocol_address_book::UniswapV3PoolAddress;
-use loom_protocol_pools::UniswapV3Pool;
+use loom_types_entities::required_state::RequiredStateReader;
+use loom_types_entities::{MarketState, Pool, PoolWrapper};
 
 #[allow(dead_code)]
 async fn performance_test() {

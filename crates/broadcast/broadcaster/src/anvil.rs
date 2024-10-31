@@ -13,8 +13,8 @@ use tracing::{error, info};
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_events::{MessageTxCompose, TxCompose, TxComposeData};
 use loom_node_debug_provider::AnvilProviderExt;
+use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData};
 
 async fn broadcast_task<P, T, N>(client: P, request: TxComposeData) -> Result<()>
 where

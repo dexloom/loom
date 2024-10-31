@@ -1,9 +1,9 @@
 use alloy_primitives::utils::parse_units;
 use alloy_primitives::U256;
 use lazy_static::lazy_static;
-use loom_defi_entities::SwapLine;
-use loom_defi_types::SwapError;
 use loom_evm_db::LoomDBType;
+use loom_types_blockchain::SwapError;
+use loom_types_entities::SwapLine;
 use revm::primitives::Env;
 
 lazy_static! {

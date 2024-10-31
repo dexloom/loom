@@ -5,7 +5,7 @@ use eyre::Result;
 use rand::{thread_rng, Rng};
 use sha2::{Digest, Sha512};
 
-use loom_defi_entities::KeyStore;
+use loom_types_entities::KeyStore;
 
 const BLOCK_SIZE: usize = 16;
 
@@ -53,7 +53,7 @@ fn main() -> Result<()> {
             println!("{:?}", pwd);
         }
         Commands::Encrypt { key } => {
-            let pwd = loom_defi_entities::private::KEY_ENCRYPTION_PWD.to_vec();
+            let pwd = loom_types_entities::private::KEY_ENCRYPTION_PWD.to_vec();
 
             let private_key = hex::decode(key.strip_prefix("0x").unwrap_or(key.clone().as_str()))?;
             let encrypted_key = encrypt_key(private_key.clone(), pwd.clone());

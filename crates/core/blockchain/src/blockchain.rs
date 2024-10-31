@@ -2,13 +2,13 @@ use alloy::primitives::BlockHash;
 use alloy::primitives::ChainId;
 use influxdb::WriteQuery;
 use loom_core_actors::{Broadcaster, SharedState};
-use loom_defi_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
-use loom_defi_events::{
+use loom_defi_address_book::TokenAddress;
+use loom_types_blockchain::{ChainParameters, Mempool};
+use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
+use loom_types_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent, Task,
 };
-use loom_defi_types::{ChainParameters, Mempool};
-use loom_protocol_address_book::TokenAddress;
 
 #[derive(Clone)]
 pub struct Blockchain {

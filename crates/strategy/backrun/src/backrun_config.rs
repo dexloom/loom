@@ -1,5 +1,5 @@
 use alloy_primitives::Address;
-use loom_defi_entities::config::StrategyConfig;
+use loom_types_entities::config::StrategyConfig;
 use serde::Deserialize;
 
 #[derive(Clone, Deserialize, Debug)]

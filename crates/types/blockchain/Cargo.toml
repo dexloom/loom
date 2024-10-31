@@ -1,0 +1,39 @@
+[package]
+name = "loom-types-blockchain"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+loom-node-debug-provider.workspace = true
+
+chrono.workspace = true
+eyre.workspace = true
+hex.workspace = true
+lazy_static.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+revm.workspace = true
+
+# alloy
+alloy-consensus.workspace = true
+alloy-eips.workspace = true
+alloy-primitives.workspace = true
+alloy-provider.workspace = true
+alloy-rlp.workspace = true
+alloy-rpc-types.workspace = true
+alloy-rpc-types-eth.workspace = true
+alloy-rpc-types-trace.workspace = true
+alloy-transport.workspace = true
+
+[dev-dependencies]
+env_logger.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+url.workspace = true
+
+alloy-rpc-client.workspace = true

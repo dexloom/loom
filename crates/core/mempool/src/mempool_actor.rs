@@ -8,8 +8,8 @@ use tracing::{debug, error, info, trace};
 use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_events::{MempoolEvents, MessageBlock, MessageBlockHeader, MessageMempoolDataUpdate};
-use loom_defi_types::{ChainParameters, Mempool, MempoolTx};
+use loom_types_blockchain::{ChainParameters, Mempool, MempoolTx};
+use loom_types_events::{MempoolEvents, MessageBlock, MessageBlockHeader, MessageMempoolDataUpdate};
 
 pub async fn new_mempool_worker(
     chain_parameters: ChainParameters,

@@ -1,5 +1,5 @@
 use alloy::primitives::{Address, U256};
-use loom_protocol_address_book::TokenAddress;
+use loom_defi_address_book::TokenAddress;
 use std::ops::{Add, Mul};
 
 pub struct NWETH {}

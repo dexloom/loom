@@ -52,17 +52,17 @@ pub enum PoolClass {
     RocketPool,
     Custom(u64),
 }
-impl From<loom_defi_entities::PoolClass> for PoolClass {
-    fn from(pool_class: loom_defi_entities::PoolClass) -> Self {
+impl From<loom_types_entities::PoolClass> for PoolClass {
+    fn from(pool_class: loom_types_entities::PoolClass) -> Self {
         match pool_class {
-            loom_defi_entities::PoolClass::Unknown => PoolClass::Unknown,
-            loom_defi_entities::PoolClass::UniswapV2 => PoolClass::UniswapV2,
-            loom_defi_entities::PoolClass::UniswapV3 => PoolClass::UniswapV3,
-            loom_defi_entities::PoolClass::Curve => PoolClass::Curve,
-            loom_defi_entities::PoolClass::LidoStEth => PoolClass::LidoStEth,
-            loom_defi_entities::PoolClass::LidoWstEth => PoolClass::LidoWstEth,
-            loom_defi_entities::PoolClass::RocketPool => PoolClass::RocketPool,
-            loom_defi_entities::PoolClass::Custom(id) => PoolClass::Custom(id),
+            loom_types_entities::PoolClass::Unknown => PoolClass::Unknown,
+            loom_types_entities::PoolClass::UniswapV2 => PoolClass::UniswapV2,
+            loom_types_entities::PoolClass::UniswapV3 => PoolClass::UniswapV3,
+            loom_types_entities::PoolClass::Curve => PoolClass::Curve,
+            loom_types_entities::PoolClass::LidoStEth => PoolClass::LidoStEth,
+            loom_types_entities::PoolClass::LidoWstEth => PoolClass::LidoWstEth,
+            loom_types_entities::PoolClass::RocketPool => PoolClass::RocketPool,
+            loom_types_entities::PoolClass::Custom(id) => PoolClass::Custom(id),
         }
     }
 }
@@ -92,58 +92,58 @@ pub enum PoolProtocol {
     OgPepe,
     Custom(u64),
 }
-impl From<loom_defi_entities::PoolProtocol> for PoolProtocol {
-    fn from(protocol: loom_defi_entities::PoolProtocol) -> Self {
+impl From<loom_types_entities::PoolProtocol> for PoolProtocol {
+    fn from(protocol: loom_types_entities::PoolProtocol) -> Self {
         match protocol {
-            loom_defi_entities::PoolProtocol::Unknown => PoolProtocol::Unknown,
-            loom_defi_entities::PoolProtocol::UniswapV2 => PoolProtocol::UniswapV2,
-            loom_defi_entities::PoolProtocol::UniswapV2Like => PoolProtocol::UniswapV2Like,
-            loom_defi_entities::PoolProtocol::NomiswapStable => PoolProtocol::NomiswapStable,
-            loom_defi_entities::PoolProtocol::Sushiswap => PoolProtocol::Sushiswap,
-            loom_defi_entities::PoolProtocol::SushiswapV3 => PoolProtocol::SushiswapV3,
-            loom_defi_entities::PoolProtocol::DooarSwap => PoolProtocol::DooarSwap,
-            loom_defi_entities::PoolProtocol::Safeswap => PoolProtocol::Safeswap,
-            loom_defi_entities::PoolProtocol::Miniswap => PoolProtocol::Miniswap,
-            loom_defi_entities::PoolProtocol::Shibaswap => PoolProtocol::Shibaswap,
-            loom_defi_entities::PoolProtocol::UniswapV3 => PoolProtocol::UniswapV3,
-            loom_defi_entities::PoolProtocol::UniswapV3Like => PoolProtocol::UniswapV3Like,
-            loom_defi_entities::PoolProtocol::PancakeV3 => PoolProtocol::PancakeV3,
-            loom_defi_entities::PoolProtocol::Integral => PoolProtocol::Integral,
-            loom_defi_entities::PoolProtocol::Maverick => PoolProtocol::Maverick,
-            loom_defi_entities::PoolProtocol::Curve => PoolProtocol::Curve,
-            loom_defi_entities::PoolProtocol::LidoStEth => PoolProtocol::LidoStEth,
-            loom_defi_entities::PoolProtocol::LidoWstEth => PoolProtocol::LidoWstEth,
-            loom_defi_entities::PoolProtocol::RocketEth => PoolProtocol::RocketEth,
-            loom_defi_entities::PoolProtocol::OgPepe => PoolProtocol::OgPepe,
-            loom_defi_entities::PoolProtocol::Custom(id) => PoolProtocol::Custom(id),
+            loom_types_entities::PoolProtocol::Unknown => PoolProtocol::Unknown,
+            loom_types_entities::PoolProtocol::UniswapV2 => PoolProtocol::UniswapV2,
+            loom_types_entities::PoolProtocol::UniswapV2Like => PoolProtocol::UniswapV2Like,
+            loom_types_entities::PoolProtocol::NomiswapStable => PoolProtocol::NomiswapStable,
+            loom_types_entities::PoolProtocol::Sushiswap => PoolProtocol::Sushiswap,
+            loom_types_entities::PoolProtocol::SushiswapV3 => PoolProtocol::SushiswapV3,
+            loom_types_entities::PoolProtocol::DooarSwap => PoolProtocol::DooarSwap,
+            loom_types_entities::PoolProtocol::Safeswap => PoolProtocol::Safeswap,
+            loom_types_entities::PoolProtocol::Miniswap => PoolProtocol::Miniswap,
+            loom_types_entities::PoolProtocol::Shibaswap => PoolProtocol::Shibaswap,
+            loom_types_entities::PoolProtocol::UniswapV3 => PoolProtocol::UniswapV3,
+            loom_types_entities::PoolProtocol::UniswapV3Like => PoolProtocol::UniswapV3Like,
+            loom_types_entities::PoolProtocol::PancakeV3 => PoolProtocol::PancakeV3,
+            loom_types_entities::PoolProtocol::Integral => PoolProtocol::Integral,
+            loom_types_entities::PoolProtocol::Maverick => PoolProtocol::Maverick,
+            loom_types_entities::PoolProtocol::Curve => PoolProtocol::Curve,
+            loom_types_entities::PoolProtocol::LidoStEth => PoolProtocol::LidoStEth,
+            loom_types_entities::PoolProtocol::LidoWstEth => PoolProtocol::LidoWstEth,
+            loom_types_entities::PoolProtocol::RocketEth => PoolProtocol::RocketEth,
+            loom_types_entities::PoolProtocol::OgPepe => PoolProtocol::OgPepe,
+            loom_types_entities::PoolProtocol::Custom(id) => PoolProtocol::Custom(id),
         }
     }
 }
 
-impl From<&PoolProtocol> for loom_defi_entities::PoolProtocol {
+impl From<&PoolProtocol> for loom_types_entities::PoolProtocol {
     fn from(protocol: &PoolProtocol) -> Self {
         match protocol {
-            PoolProtocol::Unknown => loom_defi_entities::PoolProtocol::Unknown,
-            PoolProtocol::UniswapV2 => loom_defi_entities::PoolProtocol::UniswapV2,
-            PoolProtocol::UniswapV2Like => loom_defi_entities::PoolProtocol::UniswapV2Like,
-            PoolProtocol::NomiswapStable => loom_defi_entities::PoolProtocol::NomiswapStable,
-            PoolProtocol::Sushiswap => loom_defi_entities::PoolProtocol::Sushiswap,
-            PoolProtocol::SushiswapV3 => loom_defi_entities::PoolProtocol::SushiswapV3,
-            PoolProtocol::DooarSwap => loom_defi_entities::PoolProtocol::DooarSwap,
-            PoolProtocol::Safeswap => loom_defi_entities::PoolProtocol::Safeswap,
-            PoolProtocol::Miniswap => loom_defi_entities::PoolProtocol::Miniswap,
-            PoolProtocol::Shibaswap => loom_defi_entities::PoolProtocol::Shibaswap,
-            PoolProtocol::UniswapV3 => loom_defi_entities::PoolProtocol::UniswapV3,
-            PoolProtocol::UniswapV3Like => loom_defi_entities::PoolProtocol::UniswapV3Like,
-            PoolProtocol::PancakeV3 => loom_defi_entities::PoolProtocol::PancakeV3,
-            PoolProtocol::Integral => loom_defi_entities::PoolProtocol::Integral,
-            PoolProtocol::Maverick => loom_defi_entities::PoolProtocol::Maverick,
-            PoolProtocol::Curve => loom_defi_entities::PoolProtocol::Curve,
-            PoolProtocol::LidoStEth => loom_defi_entities::PoolProtocol::LidoStEth,
-            PoolProtocol::LidoWstEth => loom_defi_entities::PoolProtocol::LidoWstEth,
-            PoolProtocol::RocketEth => loom_defi_entities::PoolProtocol::RocketEth,
-            PoolProtocol::OgPepe => loom_defi_entities::PoolProtocol::OgPepe,
-            PoolProtocol::Custom(id) => loom_defi_entities::PoolProtocol::Custom(*id),
+            PoolProtocol::Unknown => loom_types_entities::PoolProtocol::Unknown,
+            PoolProtocol::UniswapV2 => loom_types_entities::PoolProtocol::UniswapV2,
+            PoolProtocol::UniswapV2Like => loom_types_entities::PoolProtocol::UniswapV2Like,
+            PoolProtocol::NomiswapStable => loom_types_entities::PoolProtocol::NomiswapStable,
+            PoolProtocol::Sushiswap => loom_types_entities::PoolProtocol::Sushiswap,
+            PoolProtocol::SushiswapV3 => loom_types_entities::PoolProtocol::SushiswapV3,
+            PoolProtocol::DooarSwap => loom_types_entities::PoolProtocol::DooarSwap,
+            PoolProtocol::Safeswap => loom_types_entities::PoolProtocol::Safeswap,
+            PoolProtocol::Miniswap => loom_types_entities::PoolProtocol::Miniswap,
+            PoolProtocol::Shibaswap => loom_types_entities::PoolProtocol::Shibaswap,
+            PoolProtocol::UniswapV3 => loom_types_entities::PoolProtocol::UniswapV3,
+            PoolProtocol::UniswapV3Like => loom_types_entities::PoolProtocol::UniswapV3Like,
+            PoolProtocol::PancakeV3 => loom_types_entities::PoolProtocol::PancakeV3,
+            PoolProtocol::Integral => loom_types_entities::PoolProtocol::Integral,
+            PoolProtocol::Maverick => loom_types_entities::PoolProtocol::Maverick,
+            PoolProtocol::Curve => loom_types_entities::PoolProtocol::Curve,
+            PoolProtocol::LidoStEth => loom_types_entities::PoolProtocol::LidoStEth,
+            PoolProtocol::LidoWstEth => loom_types_entities::PoolProtocol::LidoWstEth,
+            PoolProtocol::RocketEth => loom_types_entities::PoolProtocol::RocketEth,
+            PoolProtocol::OgPepe => loom_types_entities::PoolProtocol::OgPepe,
+            PoolProtocol::Custom(id) => loom_types_entities::PoolProtocol::Custom(*id),
         }
     }
 }

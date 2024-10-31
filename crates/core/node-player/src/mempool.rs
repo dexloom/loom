@@ -2,9 +2,9 @@ use alloy_eips::BlockNumHash;
 use alloy_rpc_types::Header;
 use eyre::Result;
 use loom_core_actors::SharedState;
-use loom_defi_entities::MarketState;
-use loom_defi_types::Mempool;
 use loom_evm_utils::evm::{convert_evm_result_to_rpc, evm_call_tx_in_block};
+use loom_types_blockchain::Mempool;
+use loom_types_entities::MarketState;
 use tracing::{debug, info};
 
 pub(crate) async fn replayer_mempool_task(

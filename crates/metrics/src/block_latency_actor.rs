@@ -5,7 +5,7 @@ use loom_core_actors::Producer;
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_events::MessageBlockHeader;
+use loom_types_events::MessageBlockHeader;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{error, info};
 

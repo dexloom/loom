@@ -6,13 +6,13 @@ use alloy_rpc_types::Block;
 use futures::TryStreamExt;
 use loom_core_actors::Broadcaster;
 use loom_core_blockchain::Blockchain;
-use loom_defi_events::{
+use loom_evm_utils::reth_types::append_all_matching_block_logs_sealed;
+use loom_node_actor_config::NodeBlockActorConfig;
+use loom_types_blockchain::{GethStateUpdate, MempoolTx};
+use loom_types_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
     MessageMempoolDataUpdate, NodeMempoolDataUpdate,
 };
-use loom_defi_types::{GethStateUpdate, MempoolTx};
-use loom_evm_utils::reth_types::append_all_matching_block_logs_sealed;
-use loom_node_actor_config::NodeBlockActorConfig;
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
 use reth_provider::Chain;

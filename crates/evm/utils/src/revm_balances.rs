@@ -2,9 +2,9 @@ use crate::remv_db_direct_access::calc_hashmap_cell;
 use crate::{nweth, NWETH};
 use alloy::{network::Network, primitives::Address, providers::Provider, sol_types::private::U256, transports::Transport};
 use eyre::{eyre, Result};
+use loom_defi_abi::IERC20::IERC20Instance;
 use loom_evm_db::LoomDBType;
 use loom_node_debug_provider::{AnvilProviderExt, DebugProviderExt};
-use loom_protocol_abi::IERC20::IERC20Instance;
 use tracing::error;
 
 pub struct BalanceCheater {}

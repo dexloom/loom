@@ -11,8 +11,8 @@ version.workspace = true
 [dependencies]
 loom-core-actors.workspace = true
 loom-core-actors-macros.workspace = true
-loom-defi-events.workspace = true
 loom-evm-utils.workspace = true
+loom-types-events.workspace = true
 
 chrono.workspace = true
 futures.workspace = true

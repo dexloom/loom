@@ -29,17 +29,18 @@ members = [
   "crates/core/node-player",
   "crates/core/router",
   "crates/core/topology",
-  "crates/defi/entities",
-  "crates/defi/events",
+  "crates/defi/abi",
+  "crates/defi/address-book",
   "crates/defi/health-monitor",
   "crates/defi/market",
+  "crates/defi/pools",
   "crates/defi/preloader",
   "crates/defi/price",
-  "crates/defi/types",
+  "crates/defi/uniswap-v3-math",
   "crates/evm/db",
   "crates/evm/utils",
-  "crates/executor/estimator",
-  "crates/executor/multicaller",
+  "crates/execution/estimator",
+  "crates/execution/multicaller",
   "crates/loom",
   "crates/metrics",
   "crates/node/db-access",
@@ -49,15 +50,14 @@ members = [
   "crates/node/grpc-exex-proto",
   "crates/node/json-rpc",
   "crates/node/node-actor-config",
-  "crates/protocol/abi",
-  "crates/protocol/address-book",
-  "crates/protocol/pools",
-  "crates/protocol/uniswap-v3-math",
   "crates/rpc/handler",
   "crates/rpc/state",
   "crates/storage/db",
   "crates/strategy/backrun",
   "crates/strategy/merger",
+  "crates/types/blockchain",
+  "crates/types/entities",
+  "crates/types/events",
 ]
 resolver = "2"
 
@@ -86,19 +86,20 @@ loom-core-node-player = { path = "crates/core/node-player" }
 loom-core-router = { path = "crates/core/router" }
 loom-core-topology = { path = "crates/core/topology" }
 # defi
-loom-defi-entities = { path = "crates/defi/entities" }
-loom-defi-events = { path = "crates/defi/events" }
+loom-defi-abi = { path = "crates/defi/abi" }
+loom-defi-address-book = { path = "crates/defi/address-book" }
 loom-defi-health-monitor = { path = "crates/defi/health-monitor" }
 loom-defi-market = { path = "crates/defi/market" }
+loom-defi-pools = { path = "crates/defi/pools" }
 loom-defi-preloader = { path = "crates/defi/preloader" }
 loom-defi-price = { path = "crates/defi/price" }
-loom-defi-types = { path = "crates/defi/types" }
+loom-defi-uniswap-v3-math = { path = "crates/defi/uniswap-v3-math" }
 # evm
 loom-evm-db = { path = "crates/evm/db" }
 loom-evm-utils = { path = "crates/evm/utils" }
-# executor
-loom-executor-estimator = { path = "crates/executor/estimator" }
-loom-executor-multicaller = { path = "crates/executor/multicaller" }
+# execution
+loom-execution-estimator = { path = "crates/execution/estimator" }
+loom-execution-multicaller = { path = "crates/execution/multicaller" }
 # loom
 loom = { path = "crates/loom" }
 # metrics
@@ -111,11 +112,6 @@ loom-node-exex = { path = "crates/node/exex" }
 loom-node-grpc = { path = "crates/node/grpc" }
 loom-node-grpc-exex-proto = { path = "crates/node/grpc-exex-proto" }
 loom-node-json-rpc = { path = "crates/node/json-rpc" }
-# protocol
-loom-protocol-abi = { path = "crates/protocol/abi" }
-loom-protocol-address-book = { path = "crates/protocol/address-book" }
-loom-protocol-pools = { path = "crates/protocol/pools" }
-loom-protocol-uniswap-v3-math = { path = "crates/protocol/uniswap-v3-math" }
 # rpc
 loom-rpc-handler = { path = "crates/rpc/handler" }
 loom-rpc-state = { path = "crates/rpc/state" }
@@ -124,7 +120,10 @@ loom-storage-db = { path = "crates/storage/db" }
 # strategy
 loom-strategy-backrun = { path = "crates/strategy/backrun" }
 loom-strategy-merger = { path = "crates/strategy/merger" }
-
+# types
+loom-types-blockchain = { path = "crates/types/blockchain" }
+loom-types-entities = { path = "crates/types/entities" }
+loom-types-events = { path = "crates/types/events" }
 
 # logging
 env_logger = "0.11.5"

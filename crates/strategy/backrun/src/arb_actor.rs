@@ -8,10 +8,10 @@ use tracing::info;
 
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_defi_entities::{BlockHistory, LatestBlock, Market, MarketState};
-use loom_defi_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageTxCompose};
-use loom_defi_types::Mempool;
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_blockchain::Mempool;
+use loom_types_entities::{BlockHistory, LatestBlock, Market, MarketState};
+use loom_types_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageTxCompose};
 
 use super::{PendingTxStateChangeProcessorActor, StateChangeArbSearcherActor};
 use crate::block_state_change_processor::BlockStateChangeProcessorActor;

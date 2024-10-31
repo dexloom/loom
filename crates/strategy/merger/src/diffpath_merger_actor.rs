@@ -11,9 +11,9 @@ use tracing::{debug, error, info};
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::{MarketState, Swap};
-use loom_defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use loom_evm_utils::NWETH;
+use loom_types_entities::{MarketState, Swap};
+use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();

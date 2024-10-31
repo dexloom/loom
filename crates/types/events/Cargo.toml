@@ -1,0 +1,22 @@
+[package]
+name = "loom-types-events"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+loom-evm-db.workspace = true
+loom-evm-utils.workspace = true
+loom-types-blockchain.workspace = true
+loom-types-entities.workspace = true
+
+alloy-consensus.workspace = true
+alloy-primitives.workspace = true
+alloy-rpc-types.workspace = true
+revm.workspace = true
+
+chrono.workspace = true
+eyre.workspace = true

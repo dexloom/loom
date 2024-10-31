@@ -12,10 +12,10 @@ use eyre::{eyre, Result};
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::Accessor;
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
-use loom_defi_types::GethStateUpdate;
+use loom_defi_address_book::TokenAddress;
 use loom_evm_utils::{BalanceCheater, NWETH};
-use loom_protocol_address_book::TokenAddress;
+use loom_types_blockchain::GethStateUpdate;
+use loom_types_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
 use tracing::{debug, error, trace};
 
 async fn fetch_account_state<P, T, N>(client: P, address: Address) -> Result<AccountState>

@@ -1,6 +1,6 @@
 use alloy::primitives::{Address, B256, U256};
 use alloy::rpc::types::trace::geth::AccountState;
-use loom_defi_types::GethStateUpdate;
+use loom_types_blockchain::GethStateUpdate;
 
 pub fn account_state_with_nonce_and_balance(nonce: u64, balance: U256) -> AccountState {
     AccountState { balance: Some(balance), code: None, nonce: Some(nonce), storage: Default::default() }

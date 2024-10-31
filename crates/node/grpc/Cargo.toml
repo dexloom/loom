@@ -12,10 +12,10 @@ version.workspace = true
 loom-core-actors.workspace = true
 loom-core-actors-macros.workspace = true
 loom-core-blockchain.workspace = true
-loom-defi-events.workspace = true
-loom-defi-types.workspace = true
 loom-evm-utils.workspace = true
 loom-node-grpc-exex-proto.workspace = true
+loom-types-blockchain.workspace = true
+loom-types-events.workspace = true
 
 chrono.workspace = true
 eyre.workspace = true

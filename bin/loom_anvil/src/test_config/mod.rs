@@ -5,7 +5,7 @@ use eyre::Result;
 use serde::Deserialize;
 use tokio::fs;
 
-use loom_defi_entities::PoolClass;
+use loom_types_entities::PoolClass;
 
 #[derive(Deserialize, Debug)]
 pub struct TestConfig {

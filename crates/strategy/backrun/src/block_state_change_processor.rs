@@ -3,9 +3,9 @@ use eyre::eyre;
 use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::{BlockHistory, Market};
-use loom_defi_events::{MarketEvents, StateUpdateEvent};
-use loom_defi_types::ChainParameters;
+use loom_types_blockchain::ChainParameters;
+use loom_types_entities::{BlockHistory, Market};
+use loom_types_events::{MarketEvents, StateUpdateEvent};
 use tokio::sync::broadcast::error::RecvError;
 use tracing::error;
 

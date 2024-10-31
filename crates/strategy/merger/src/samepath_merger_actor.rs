@@ -22,13 +22,13 @@ use tracing::{debug, error, info, trace};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::{DataFetcher, FetchState, LatestBlock, MarketState, Swap};
-use loom_defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
-use loom_defi_types::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, TRACING_CALL_OPTS};
 use loom_evm_db::LoomDBType;
 use loom_evm_utils::evm::evm_transact;
 use loom_evm_utils::evm_tx_env::tx_to_evm_tx;
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, TRACING_CALL_OPTS};
+use loom_types_entities::{DataFetcher, FetchState, LatestBlock, MarketState, Swap};
+use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();

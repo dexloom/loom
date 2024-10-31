@@ -31,7 +31,7 @@ jobs:
         with:
           version: nightly
 
-      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi/entities/src/private.rs'
+      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/types/entities/src/private.rs'
       - run: make test
 
   swap-test-all:
@@ -55,7 +55,7 @@ jobs:
         with:
           version: nightly
 
-      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi/entities/src/private.rs'
+      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/types/entities/src/private.rs'
       - run: make swap-test-all
 
   replayer:
@@ -79,7 +79,7 @@ jobs:
         with:
           version: nightly
 
-      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi/entities/src/private.rs'
+      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/types/entities/src/private.rs'
       - run: make replayer
 
   fmt:
@@ -94,7 +94,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@stable
 
-      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi/entities/src/private.rs'
+      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/types/entities/src/private.rs'
       - run: make fmt-check
 
   taplo:
@@ -134,7 +134,7 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
 
-      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/defi/entities/src/private.rs'
+      - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/types/entities/src/private.rs'
       # workaround for latest stable rust
       - run: cargo +1.82 clippy --all-targets --all-features -- -D warnings
 

@@ -5,12 +5,12 @@ use tracing::{error, info};
 use loom_core_actors::{Accessor, Actor, Consumer, Producer};
 use loom_core_router::SwapRouterActor;
 use loom_core_topology::{Topology, TopologyConfig};
-use loom_defi_entities::config::load_from_file;
-use loom_defi_events::MarketEvents;
 use loom_defi_health_monitor::{StateHealthMonitorActor, StuffingTxMonitorActor};
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_strategy_backrun::{BackrunConfig, BackrunConfigSection, StateChangeArbActor};
 use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
+use loom_types_entities::config::load_from_file;
+use loom_types_events::MarketEvents;
 
 #[tokio::main]
 async fn main() -> Result<()> {

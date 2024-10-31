@@ -5,8 +5,8 @@ use tracing::{debug, error};
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_events::{MessageBlockLogs, Task};
-use loom_protocol_pools::PoolsConfig;
+use loom_defi_pools::PoolsConfig;
+use loom_types_events::{MessageBlockLogs, Task};
 
 use crate::logs_parser::process_log_entries;
 

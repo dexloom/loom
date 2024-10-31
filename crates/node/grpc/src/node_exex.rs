@@ -4,7 +4,7 @@ use crate::node_exex_worker::node_exex_grpc_worker;
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer};
 use loom_core_actors_macros::Producer;
 use loom_core_blockchain::Blockchain;
-use loom_defi_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageMempoolDataUpdate};
+use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageMempoolDataUpdate};
 
 #[derive(Producer)]
 pub struct NodeExExGrpcActor {

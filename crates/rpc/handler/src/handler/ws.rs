@@ -5,8 +5,8 @@ use axum::{
 };
 
 use crate::dto::block::{BlockHeader, WebSocketMessage};
-use loom_defi_types::ChainParameters;
 use loom_rpc_state::AppState;
+use loom_types_blockchain::ChainParameters;
 use std::net::SocketAddr;
 use tracing::{error, warn};
 

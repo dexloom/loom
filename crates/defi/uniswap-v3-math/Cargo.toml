@@ -1,0 +1,13 @@
+[package]
+name = "loom-defi-uniswap-v3-math"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[dependencies]
+alloy.workspace = true
+eyre.workspace = true
+thiserror.workspace = true

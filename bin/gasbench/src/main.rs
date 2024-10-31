@@ -2,8 +2,7 @@ use std::collections::{BTreeMap, HashMap};
 use std::env;
 use std::sync::Arc;
 
-use alloy::primitives::{Address, BlockNumber, U256};
-use alloy_primitives::Bytes;
+use alloy_primitives::{Address, BlockNumber, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, TransactionInput, TransactionRequest};
 use clap::Parser;
@@ -21,14 +20,14 @@ use crate::preloader::preload_pools;
 use crate::soltest::create_sol_test;
 use loom_node_debug_provider::AnvilDebugProviderFactory;
 
-use loom_defi_entities::{Market, MarketState, PoolWrapper, Swap, SwapAmountType, SwapLine};
-use loom_protocol_address_book::UniswapV2PoolAddress;
+use loom_defi_address_book::UniswapV2PoolAddress;
+use loom_types_entities::{Market, MarketState, PoolWrapper, Swap, SwapAmountType, SwapLine};
 
 use loom_core_actors::SharedState;
 use loom_defi_preloader::preload_market_state;
 use loom_evm_db::LoomDBType;
 use loom_evm_utils::{BalanceCheater, NWETH};
-use loom_executor_multicaller::{MulticallerDeployer, MulticallerEncoder, MulticallerSwapEncoder};
+use loom_execution_multicaller::{MulticallerDeployer, MulticallerEncoder, MulticallerSwapEncoder};
 
 mod cli;
 mod dto;

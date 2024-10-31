@@ -5,9 +5,9 @@ use alloy_primitives::Address;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
-use loom_defi_entities::PoolWrapper;
 use loom_evm_utils::error_handler::internal_error;
 use loom_rpc_state::AppState;
+use loom_types_entities::PoolWrapper;
 use revm::primitives::Env;
 use std::str::FromStr;
 

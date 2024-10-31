@@ -3,8 +3,8 @@ use std::collections::BTreeMap;
 use alloy_primitives::Address;
 use eyre::Result;
 use loom_core_actors::SharedState;
-use loom_defi_entities::{Market, PoolWrapper};
-use loom_defi_types::GethStateUpdateVec;
+use loom_types_blockchain::GethStateUpdateVec;
+use loom_types_entities::{Market, PoolWrapper};
 
 pub async fn get_affected_pools(
     market: SharedState<Market>,

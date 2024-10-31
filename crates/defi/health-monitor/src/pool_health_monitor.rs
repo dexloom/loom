@@ -8,8 +8,8 @@ use tracing::{debug, error, info};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::Market;
-use loom_defi_events::{HealthEvent, MessageHealthEvent};
+use loom_types_entities::Market;
+use loom_types_events::{HealthEvent, MessageHealthEvent};
 
 pub async fn pool_health_monitor_worker(
     market: SharedState<Market>,

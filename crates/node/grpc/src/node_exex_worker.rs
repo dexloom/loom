@@ -15,13 +15,13 @@ use tokio::select;
 use tracing::{error, info};
 
 use loom_core_actors::{Broadcaster, WorkerResult};
-use loom_defi_events::{
+use loom_evm_utils::reth_types::append_all_matching_block_logs_sealed;
+use loom_node_grpc_exex_proto::ExExClient;
+use loom_types_blockchain::{GethStateUpdate, MempoolTx};
+use loom_types_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
     MessageMempoolDataUpdate, NodeMempoolDataUpdate,
 };
-use loom_defi_types::{GethStateUpdate, MempoolTx};
-use loom_evm_utils::reth_types::append_all_matching_block_logs_sealed;
-use loom_node_grpc_exex_proto::ExExClient;
 
 #[allow(dead_code)]
 async fn process_chain_task(

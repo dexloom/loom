@@ -10,10 +10,10 @@ use alloy_transport::Transport;
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::Accessor;
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::{Market, Pool};
-use loom_protocol_address_book::TokenAddress;
-use loom_protocol_pools::protocols::CurveProtocol;
-use loom_protocol_pools::CurvePool;
+use loom_defi_address_book::TokenAddress;
+use loom_defi_pools::protocols::CurveProtocol;
+use loom_defi_pools::CurvePool;
+use loom_types_entities::{Market, Pool};
 use tracing::{debug, error, info};
 
 //use market::{CurveProtocol, Market, PoolSetup};
