@@ -20,11 +20,11 @@ use tracing::{debug, error, warn};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::required_state::accounts_vec_len;
-use loom_defi_entities::{LatestBlock, Market, MarketState};
-use loom_defi_events::{MarketEvents, MempoolEvents, StateUpdateEvent};
-use loom_defi_types::{debug_trace_call_diff, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_blockchain::{debug_trace_call_diff, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
+use loom_types_entities::required_state::accounts_vec_len;
+use loom_types_entities::{LatestBlock, Market, MarketState};
+use loom_types_events::{MarketEvents, MempoolEvents, StateUpdateEvent};
 
 use super::affected_pools::get_affected_pools;
 use super::affected_pools_code::{get_affected_pools_from_code, is_pool_code};

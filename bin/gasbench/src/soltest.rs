@@ -1,5 +1,4 @@
-use alloy::hex;
-use alloy_primitives::Bytes;
+use alloy_primitives::{hex, Bytes};
 
 fn format_test_file(test_names: String, call_data: String, test_size: usize) -> String {
     format!(

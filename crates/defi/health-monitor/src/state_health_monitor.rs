@@ -15,8 +15,8 @@ use tracing::{error, info, warn};
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::MarketState;
-use loom_defi_events::{MarketEvents, MessageTxCompose, TxCompose};
+use loom_types_entities::MarketState;
+use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose};
 
 async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static>(
     client: P,

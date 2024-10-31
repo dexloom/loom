@@ -19,10 +19,10 @@ use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvi
 use tracing::{debug, error, info, trace};
 
 use loom_core_actors::{ActorResult, Broadcaster, WorkerResult};
-use loom_defi_events::{
+use loom_evm_utils::reth_types::append_all_matching_block_logs;
+use loom_types_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
 };
-use loom_evm_utils::reth_types::append_all_matching_block_logs;
 
 pub async fn reth_node_worker<P, T>(
     client: P,

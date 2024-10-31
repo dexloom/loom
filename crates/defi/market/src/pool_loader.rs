@@ -15,12 +15,12 @@ use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, SharedState, 
 use loom_core_actors::{Accessor, Consumer};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::required_state::RequiredStateReader;
-use loom_defi_entities::{get_protocol_by_factory, Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
-use loom_defi_events::Task;
+use loom_defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory, CurveProtocol};
+use loom_defi_pools::{CurvePool, MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use loom_node_debug_provider::DebugProviderExt;
-use loom_protocol_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory, CurveProtocol};
-use loom_protocol_pools::{CurvePool, MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
+use loom_types_entities::required_state::RequiredStateReader;
+use loom_types_entities::{get_protocol_by_factory, Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
+use loom_types_events::Task;
 
 pub async fn pool_loader_worker<P, T, N>(
     client: P,

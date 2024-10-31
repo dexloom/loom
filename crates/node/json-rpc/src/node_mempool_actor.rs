@@ -10,8 +10,8 @@ use tracing::error;
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_core_actors_macros::*;
 use loom_core_blockchain::Blockchain;
-use loom_defi_events::{MessageMempoolDataUpdate, NodeMempoolDataUpdate};
-use loom_defi_types::MempoolTx;
+use loom_types_blockchain::MempoolTx;
+use loom_types_events::{MessageMempoolDataUpdate, NodeMempoolDataUpdate};
 
 /// Worker listens for new transactions in the node mempool and broadcasts [`MessageMempoolDataUpdate`].
 pub async fn new_node_mempool_worker<P, T>(client: P, name: String, mempool_tx: Broadcaster<MessageMempoolDataUpdate>) -> WorkerResult

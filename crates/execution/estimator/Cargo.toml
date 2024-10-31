@@ -1,0 +1,34 @@
+[package]
+name = "loom-execution-estimator"
+edition.workspace = true
+exclude.workspace = true
+homepage.workspace = true
+license.workspace = true
+repository.workspace = true
+rust-version.workspace = true
+version.workspace = true
+
+[dependencies]
+loom-broadcast-flashbots.workspace = true
+loom-core-actors.workspace = true
+loom-core-actors-macros.workspace = true
+loom-core-blockchain.workspace = true
+loom-evm-db.workspace = true
+loom-evm-utils.workspace = true
+loom-node-debug-provider.workspace = true
+loom-types-entities.workspace = true
+loom-types-events.workspace = true
+
+chrono.workspace = true
+eyre.workspace = true
+tokio.workspace = true
+tracing.workspace = true
+
+# alloy
+alloy-consensus.workspace = true
+alloy-eips.workspace = true
+alloy-network.workspace = true
+alloy-primitives.workspace = true
+alloy-provider.workspace = true
+alloy-rpc-types.workspace = true
+alloy-transport.workspace = true

@@ -11,7 +11,7 @@ use alloy::{
 };
 use eyre::eyre;
 use lazy_static::lazy_static;
-use loom_defi_types::GethStateUpdate;
+use loom_types_blockchain::GethStateUpdate;
 #[cfg(feature = "trace-calls")]
 use revm::inspector_handle_register;
 #[cfg(feature = "trace-calls")]

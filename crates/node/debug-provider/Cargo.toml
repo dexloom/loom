@@ -26,7 +26,7 @@ alloy.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true
-loom-protocol-abi.workspace = true
+loom-defi-abi.workspace = true
 url.workspace = true
 
 alloy-provider.workspace = true

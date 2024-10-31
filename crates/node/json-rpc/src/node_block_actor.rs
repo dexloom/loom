@@ -12,10 +12,10 @@ use crate::node_block_with_tx_worker::new_block_with_tx_worker;
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_core_actors_macros::Producer;
 use loom_core_blockchain::Blockchain;
-use loom_defi_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 use loom_node_actor_config::NodeBlockActorConfig;
 use loom_node_db_access::reth_node_worker_starter;
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 
 pub fn new_node_block_workers_starter<P, T>(
     client: P,
@@ -147,7 +147,7 @@ mod test {
     use crate::NodeBlockActor;
     use eyre::Result;
     use loom_core_actors::{Actor, Broadcaster, Producer};
-    use loom_defi_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
+    use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 
     #[tokio::test]
     #[ignore]

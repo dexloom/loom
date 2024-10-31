@@ -8,7 +8,7 @@ use tracing::{error, info};
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData, TxState};
+use loom_types_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData, TxState};
 
 async fn sign_task(sign_request: TxComposeData, compose_channel_tx: Broadcaster<MessageTxCompose>) -> Result<()> {
     let signer = match sign_request.signer.clone() {

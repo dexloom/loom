@@ -5,12 +5,12 @@ use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind, Filter};
 use loom_core_actors::{Broadcaster, SharedState, WorkerResult};
-use loom_defi_entities::MarketState;
-use loom_defi_events::{
+use loom_node_debug_provider::{DebugProviderExt, HttpCachedTransport};
+use loom_types_blockchain::{debug_trace_block, Mempool};
+use loom_types_entities::MarketState;
+use loom_types_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
 };
-use loom_defi_types::{debug_trace_block, Mempool};
-use loom_node_debug_provider::{DebugProviderExt, HttpCachedTransport};
 use std::ops::RangeInclusive;
 use std::time::Duration;
 use tracing::{debug, error};

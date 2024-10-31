@@ -6,9 +6,9 @@ use alloy_transport::Transport;
 use tracing::{debug, error};
 
 use loom_core_actors::{subscribe, Broadcaster, WorkerResult};
-use loom_defi_events::{BlockStateUpdate, Message, MessageBlockStateUpdate};
-use loom_defi_types::debug_trace_block;
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_blockchain::debug_trace_block;
+use loom_types_events::{BlockStateUpdate, Message, MessageBlockStateUpdate};
 
 pub async fn new_node_block_state_worker<P, T, N>(
     client: P,

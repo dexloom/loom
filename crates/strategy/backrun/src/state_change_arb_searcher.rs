@@ -17,12 +17,12 @@ use crate::SwapCalculator;
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::config::StrategyConfig;
-use loom_defi_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
-use loom_defi_events::{
+use loom_types_blockchain::SwapError;
+use loom_types_entities::config::StrategyConfig;
+use loom_types_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
+use loom_types_events::{
     BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData,
 };
-use loom_defi_types::SwapError;
 
 async fn state_change_arb_searcher_task(
     thread_pool: Arc<ThreadPool>,

@@ -9,10 +9,10 @@ use tracing::{debug, error, info};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::{LatestBlock, Swap, SwapStep};
-use loom_defi_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 use loom_evm_db::LoomDBType;
-use loom_executor_multicaller::SwapStepEncoder;
+use loom_execution_multicaller::SwapStepEncoder;
+use loom_types_entities::{LatestBlock, Swap, SwapStep};
+use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 
 async fn arb_swap_steps_optimizer_task(
     compose_channel_tx: Broadcaster<MessageTxCompose>,
@@ -213,8 +213,8 @@ mod test {
     use alloy_primitives::{Address, U256};
     use std::sync::Arc;
 
-    use loom_defi_entities::{Swap, SwapAmountType, SwapLine, SwapPath, Token};
-    use loom_defi_events::TxComposeData;
+    use loom_types_entities::{Swap, SwapAmountType, SwapLine, SwapPath, Token};
+    use loom_types_events::TxComposeData;
 
     #[test]
     pub fn test_sort() {

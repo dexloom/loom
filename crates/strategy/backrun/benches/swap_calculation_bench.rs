@@ -5,11 +5,11 @@ use std::env;
 use criterion::{black_box, criterion_group, criterion_main, Criterion};
 use defi_actors::SwapCalculator;
 use defi_pools::{UniswapV2Pool, UniswapV3Pool};
-use loom_defi_entities::required_state::RequiredStateReader;
-use loom_defi_entities::{Market, PoolClass, PoolWrapper, SwapLine, SwapPath, Token};
+use loom_defi_address_book::TokenAddress;
 use loom_evm_db::LoomDBType;
 use loom_node_debug_provider::AnvilDebugProviderFactory;
-use loom_protocol_address_book::TokenAddress;
+use loom_types_entities::required_state::RequiredStateReader;
+use loom_types_entities::{Market, PoolClass, PoolWrapper, SwapLine, SwapPath, Token};
 use reth_primitives::revm_primitives::Env;
 
 pub fn bench_swap_calculator(c: &mut Criterion) {

@@ -12,9 +12,9 @@ version.workspace = true
 loom-core-actors.workspace = true
 loom-core-actors-macros.workspace = true
 loom-core-blockchain.workspace = true
-loom-defi-entities.workspace = true
-loom-protocol-address-book.workspace = true
-loom-protocol-pools.workspace = true
+loom-defi-address-book.workspace = true
+loom-defi-pools.workspace = true
+loom-types-entities.workspace = true
 
 tokio.workspace = true
 tracing.workspace = true

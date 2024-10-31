@@ -10,10 +10,10 @@ use crate::pool_loader::fetch_state_and_add_pool;
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
-use loom_defi_entities::{Market, MarketState, PoolWrapper};
+use loom_defi_pools::protocols::CurveProtocol;
+use loom_defi_pools::CurvePool;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_protocol_pools::protocols::CurveProtocol;
-use loom_protocol_pools::CurvePool;
+use loom_types_entities::{Market, MarketState, PoolWrapper};
 
 async fn curve_pool_loader_worker<P, T, N>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState>) -> WorkerResult
 where

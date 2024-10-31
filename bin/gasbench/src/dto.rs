@@ -5,7 +5,7 @@ use std::hash::{Hash, Hasher};
 use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
 
-use loom_defi_entities::{PoolProtocol, SwapPath};
+use loom_types_entities::{PoolProtocol, SwapPath};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SwapLineDTO {

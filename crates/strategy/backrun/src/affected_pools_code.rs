@@ -10,12 +10,12 @@ use revm::primitives::Env;
 use tracing::{debug, error};
 
 use loom_core_actors::SharedState;
-use loom_defi_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolProtocol, PoolWrapper};
-use loom_defi_types::GethStateUpdateVec;
+use loom_defi_pools::protocols::{UniswapV2Protocol, UniswapV3Protocol};
+use loom_defi_pools::state_readers::{UniswapV2StateReader, UniswapV3StateReader};
+use loom_defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use loom_evm_db::LoomDB;
-use loom_protocol_pools::protocols::{UniswapV2Protocol, UniswapV3Protocol};
-use loom_protocol_pools::state_readers::{UniswapV2StateReader, UniswapV3StateReader};
-use loom_protocol_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
+use loom_types_blockchain::GethStateUpdateVec;
+use loom_types_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolProtocol, PoolWrapper};
 
 pub async fn get_affected_pools_from_code<P, T, N>(
     client: P,

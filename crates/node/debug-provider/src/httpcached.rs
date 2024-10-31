@@ -448,7 +448,7 @@ mod test {
 
         let mut blocks_watcher = provider.watch_blocks().await?.into_stream();
 
-        let weth = loom_protocol_abi::IWETH::new(address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"), provider.clone());
+        let weth = loom_defi_abi::IWETH::new(address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"), provider.clone());
 
         tokio::task::spawn(async move {
             loop {

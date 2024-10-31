@@ -10,7 +10,7 @@ use chrono::Utc;
 use eyre::Result;
 use futures::StreamExt;
 use loom_core_actors::{run_async, Broadcaster, WorkerResult};
-use loom_defi_events::{BlockHeader, MessageBlockHeader};
+use loom_types_events::{BlockHeader, MessageBlockHeader};
 use tracing::{error, info};
 
 #[allow(dead_code)]

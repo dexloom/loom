@@ -6,12 +6,12 @@ use std::collections::HashMap;
 use tracing::error;
 
 use loom_core_actors::{run_async, Broadcaster};
-use loom_defi_entities::PoolClass;
-use loom_defi_events::Task;
-use loom_protocol_abi::maverick::IMaverickPool::IMaverickPoolEvents;
-use loom_protocol_abi::uniswap2::IUniswapV2Pair::IUniswapV2PairEvents;
-use loom_protocol_abi::uniswap3::IUniswapV3Pool::IUniswapV3PoolEvents;
-use loom_protocol_pools::PoolsConfig;
+use loom_defi_abi::maverick::IMaverickPool::IMaverickPoolEvents;
+use loom_defi_abi::uniswap2::IUniswapV2Pair::IUniswapV2PairEvents;
+use loom_defi_abi::uniswap3::IUniswapV3Pool::IUniswapV3PoolEvents;
+use loom_defi_pools::PoolsConfig;
+use loom_types_entities::PoolClass;
+use loom_types_events::Task;
 
 fn determine_pool_class(log_entry: Log) -> Option<PoolClass> {
     {

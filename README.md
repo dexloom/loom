@@ -37,16 +37,16 @@ See the [Getting started](https://dexloom.github.io/loom/getting_started.html) g
 - [actors](crates/core/actors) - actors implementation
 - [actors-macros](crates/core/actors-macros) - macros for actors
 - [debug-provider](crates/node/debug-provider) - debug api provider for node + anvil, HttpCachedTransport
-- [defi-abi](crates/protocol/abi) - sol! wrapper for contracts interface
+- [defi-abi](crates/defi/abi) - sol! wrapper for contracts interface
 - [defi-blockchain](crates/core/blockchain) - loom configuration module
-- [defi-entities](crates/defi/entities) - defi entities crate
-- [defi-events](crates/defi/events) - defi events crate
-- [defi-pools](crates/protocol/pools) - defi exchange pools implementation
+- [defi-entities](crates/types/entities) - defi entities crate
+- [defi-events](crates/types/events) - defi events crate
+- [defi-pools](crates/defi/pools) - defi exchange pools implementation
 - [flashbots](crates/broadcast/flashbots) - flashbots client
 - [loom-revm-db](crates/evm/db) - optimized InMemoryDB
-- [multicaller](crates/executor/multicaller) - multicaller interaction crate
+- [multicaller](crates/execution/multicaller) - multicaller interaction crate
 - [topology](crates/core/topology) - topology crate
-- [types](crates/defi/types) - defi types crate
+- [types](crates/types/blockchain) - blockchain types crate
 - [utils](crates/evm/utils) - various helpers
 
 ## Bins

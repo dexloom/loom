@@ -8,7 +8,7 @@ use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error};
 
 use loom_core_actors::{subscribe, Broadcaster, WorkerResult};
-use loom_defi_events::{BlockLogs, Message, MessageBlockLogs};
+use loom_types_events::{BlockLogs, Message, MessageBlockLogs};
 
 pub async fn new_node_block_logs_worker<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + 'static>(
     client: P,

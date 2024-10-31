@@ -5,7 +5,7 @@ mod test {
     use alloy_provider::Provider;
     use alloy_transport::Transport;
     use loom_core_blockchain::Blockchain;
-    use loom_defi_events::{BlockLogs, BlockStateUpdate, MessageBlockHeader};
+    use loom_types_events::{BlockLogs, BlockStateUpdate, MessageBlockHeader};
     use revm::db::DatabaseRef;
     use tracing::error;
 
@@ -18,12 +18,12 @@ mod test {
     use alloy_rpc_types::{Block, Filter, Header, Log};
     use eyre::eyre;
     use loom_core_actors::Actor;
-    use loom_defi_events::{BlockHeader, Message};
-    use loom_defi_types::{GethStateUpdate, GethStateUpdateVec};
     use loom_evm_db::LoomDBType;
     use loom_evm_utils::geth_state_update::{
         account_state_add_storage, account_state_with_nonce_and_balance, geth_state_update_add_account,
     };
+    use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec};
+    use loom_types_events::{BlockHeader, Message};
     use std::time::Duration;
     use tracing::info;
 
@@ -188,7 +188,7 @@ mod test {
     #[tokio::test]
     async fn test_actor_block_history_actor_chain_head() -> eyre::Result<()> {
         let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or(
-            "debug,loom_defi_entities::block_history=trace,tokio_tungstenite=off,tungstenite=off,hyper_util=off,alloy_transport_http=off",
+            "debug,loom_types_entities::block_history=trace,tokio_tungstenite=off,tungstenite=off,hyper_util=off,alloy_transport_http=off",
         ));
 
         let anvil = Anvil::new().try_spawn()?;
