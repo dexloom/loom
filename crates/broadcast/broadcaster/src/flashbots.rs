@@ -1,5 +1,4 @@
 use std::sync::Arc;
-use std::time::Duration;
 
 use alloy_network::Ethereum;
 use alloy_primitives::{Bytes, U256};
@@ -33,9 +32,6 @@ where
             client.broadcast_txes(backrun_rlp_bundle.clone(), block_number).await?;
             client.broadcast_txes(stuffing_rlp_bundle.clone(), block_number).await?;
 
-            tokio::time::sleep(Duration::from_millis(300)).await;
-            client.broadcast_txes(stuffing_rlp_bundle, block_number + 1).await?;
-            client.broadcast_txes(backrun_rlp_bundle, block_number + 1).await?;
             Ok(())
         }
     } else {

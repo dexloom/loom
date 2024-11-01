@@ -16,7 +16,7 @@ use loom_types_blockchain::GethStateUpdate;
 use revm::inspector_handle_register;
 #[cfg(feature = "trace-calls")]
 use revm::primitives::HashSet;
-use revm::primitives::{Account, Env, ExecutionResult, HaltReason, Output, ResultAndState, TransactTo, SHANGHAI};
+use revm::primitives::{Account, Env, ExecutionResult, HaltReason, Output, ResultAndState, TransactTo, CANCUN};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 #[cfg(feature = "trace-calls")]
 use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
@@ -35,9 +35,9 @@ pub enum EvmError {
     TransactError,
     #[error("Evm transact commit error with err={0}")]
     TransactCommitError(String),
-    #[error("Reverted with reason={0}")]
+    #[error("Reverted with reason={0}, gas_used={1}")]
     Reverted(String, u64),
-    #[error("Halted with halt_reason={0:?}")]
+    #[error("Halted with halt_reason={0:?}, gas_used={1}")]
     Halted(HaltReason, u64),
 }
 
@@ -52,7 +52,7 @@ where
     #[cfg(feature = "trace-calls")]
     let mut evm = Evm::builder()
         .with_ref_db(state_db)
-        .with_spec_id(SHANGHAI)
+        .with_spec_id(CANCUN)
         .with_env(Box::new(env))
         .with_external_context(TracingInspector::new(TracingInspectorConfig::from_parity_config(&HashSet::from_iter(vec![
             TraceType::Trace,
@@ -61,7 +61,7 @@ where
         .build();
 
     #[cfg(not(feature = "trace-calls"))]
-    let mut evm = Evm::builder().with_spec_id(SHANGHAI).with_ref_db(state_db).with_env(Box::new(env)).build();
+    let mut evm = Evm::builder().with_spec_id(CANCUN).with_ref_db(state_db).with_env(Box::new(env)).build();
 
     let ref_tx = evm.transact().map_err(|_| EvmError::TransactError)?;
     let execution_result = ref_tx.result;
@@ -120,7 +120,7 @@ where
     #[cfg(feature = "trace-calls")]
     let mut evm = Evm::builder()
         .with_ref_db(state_db)
-        .with_spec_id(SHANGHAI)
+        .with_spec_id(CANCUN)
         .with_env(Box::new(env))
         .with_external_context(TracingInspector::new(TracingInspectorConfig::from_parity_config(&HashSet::from_iter(vec![
             TraceType::Trace,
@@ -129,7 +129,7 @@ where
         .build();
 
     #[cfg(not(feature = "trace-calls"))]
-    let mut evm = Evm::builder().with_ref_db(state_db).with_spec_id(SHANGHAI).with_env(Box::new(env)).build();
+    let mut evm = Evm::builder().with_ref_db(state_db).with_spec_id(CANCUN).with_env(Box::new(env)).build();
 
     let ref_tx = evm.transact().map_err(|_| EvmError::TransactError)?;
     let execution_result = ref_tx.result;
@@ -162,7 +162,7 @@ where
 {
     let env = evm_env_from_tx(tx, header);
 
-    let mut evm = Evm::builder().with_spec_id(SHANGHAI).with_ref_db(state_db).with_env(Box::new(env)).build();
+    let mut evm = Evm::builder().with_spec_id(CANCUN).with_ref_db(state_db).with_env(Box::new(env)).build();
 
     evm.transact().map_err(|e| {
         error!("evm.transact : {e}");

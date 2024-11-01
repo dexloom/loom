@@ -13,7 +13,7 @@ use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use revm::primitives::{BlockEnv, Env, SHANGHAI};
+use revm::primitives::{BlockEnv, Env, CANCUN};
 use revm::Evm;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::RwLock;
@@ -84,6 +84,7 @@ where
         block: BlockEnv {
             number: U256::from(request.next_block_number),
             timestamp: U256::from(request.next_block_timestamp),
+            basefee: U256::from(request.next_block_base_fee),
             ..BlockEnv::default()
         },
         ..Env::default()
@@ -138,7 +139,7 @@ where
         let mut db = db_org.clone();
         db.apply_geth_update_vec(states);
 
-        let mut evm = Evm::builder().with_spec_id(SHANGHAI).with_db(db).with_env(Box::new(env.clone())).build();
+        let mut evm = Evm::builder().with_spec_id(CANCUN).with_db(db).with_env(Box::new(env.clone())).build();
 
         for (idx, tx_idx) in tx_order.clone().iter().enumerate() {
             // set tx context for evm
