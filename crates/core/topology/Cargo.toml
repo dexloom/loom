@@ -24,10 +24,10 @@ loom-defi-price.workspace = true
 loom-execution-estimator.workspace = true
 loom-execution-multicaller.workspace = true
 loom-node-actor-config.workspace = true
+loom-node-db-access = { workspace = true, optional = true }
 loom-node-grpc.workspace = true
 loom-node-grpc-exex-proto.workspace = true
 loom-node-json-rpc.workspace = true
-loom-node-db-access = { workspace = true, optional = true }
 loom-rpc-handler.workspace = true
 loom-rpc-state.workspace = true
 loom-strategy-backrun.workspace = true

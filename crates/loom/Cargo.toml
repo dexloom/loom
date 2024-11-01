@@ -95,151 +95,127 @@ defi-preloader = ["defi", "dep:loom-defi-preloader"]
 defi-price = ["defi", "dep:loom-defi-price"]
 defi-uniswap-v3-math = ["defi", "dep:loom-defi-uniswap-v3-math"]
 
-evm-db = ["evm", "dep:loom-evm-db"]
-evm-utils = ["evm", "dep:loom-evm-utils"]
+evm-db = ["dep:loom-evm-db", "evm"]
+evm-utils = ["dep:loom-evm-utils", "evm"]
 
-execution-estimator = ["execution", "dep:loom-execution-estimator"]
-execution-multicaller = ["execution", "dep:loom-execution-multicaller"]
+execution-estimator = ["dep:loom-execution-estimator", "execution"]
+execution-multicaller = ["dep:loom-execution-multicaller", "execution"]
 
-node-actor-config = ["node", "dep:loom-node-actor-config"]
-node-db-access = ["node", "dep:loom-node-db-access"]
-node-debug-provider = ["node", "dep:loom-node-debug-provider"]
-node-exex = ["node", "dep:loom-node-exex"]
-node-grpc = ["node", "dep:loom-node-grpc"]
-node-grpc-exex-proto = ["node", "dep:loom-node-grpc-exex-proto"]
-node-json-rpc = ["node", "dep:loom-node-json-rpc"]
-node-player = ["node", "dep:loom-node-player"]
+node-actor-config = ["dep:loom-node-actor-config", "node"]
+node-db-access = ["dep:loom-node-db-access", "node"]
+node-debug-provider = ["dep:loom-node-debug-provider", "node"]
+node-exex = ["dep:loom-node-exex", "node"]
+node-grpc = ["dep:loom-node-grpc", "node"]
+node-grpc-exex-proto = ["dep:loom-node-grpc-exex-proto", "node"]
+node-json-rpc = ["dep:loom-node-json-rpc", "node"]
+node-player = ["dep:loom-node-player", "node"]
 
-rpc-handler = ["rpc", "dep:loom-rpc-handler"]
-rpc-state = ["rpc", "dep:loom-rpc-state"]
+rpc-handler = ["dep:loom-rpc-handler", "rpc"]
+rpc-state = ["dep:loom-rpc-state", "rpc"]
 
-storage-db = ["storage", "dep:loom-storage-db"]
+storage-db = ["dep:loom-storage-db", "storage"]
 
-strategy-backrun = ["strategy", "dep:loom-strategy-backrun"]
-strategy-merger = ["strategy", "dep:loom-strategy-merger"]
+strategy-backrun = ["dep:loom-strategy-backrun", "strategy"]
+strategy-merger = ["dep:loom-strategy-merger", "strategy"]
 
-types-blockchain = ["types", "dep:loom-types-blockchain"]
-types-entities = ["types", "dep:loom-types-entities"]
-types-events = ["types", "dep:loom-types-events"]
+types-blockchain = ["dep:loom-types-blockchain", "types"]
+types-entities = ["dep:loom-types-entities", "types"]
+types-events = ["dep:loom-types-events", "types"]
 
 full = [
-    "broadcast-full",
-    "core-full",
-    "defi-full",
-    "evm-full",
-    "execution-full",
-    "metrics-full",
-    "node-full",
-    "rpc-full",
-    "storage-full",
-    "types-full",
+  "broadcast-full",
+  "core-full",
+  "defi-full",
+  "evm-full",
+  "execution-full",
+  "metrics-full",
+  "node-full",
+  "rpc-full",
+  "storage-full",
+  "types-full",
 ]
 
 full-json-rpc = [
-    "broadcast-full",
-    "core-full",
-    "defi-full",
-    "evm-full",
-    "execution-full",
-    "metrics-full",
-    "node-full",
-    "node-actor-config",
-    "node-json-rpc",
-    "storage-full",
-    "types-full",
+  "broadcast-full",
+  "core-full",
+  "defi-full",
+  "evm-full",
+  "execution-full",
+  "metrics-full",
+  "node-actor-config",
+  "node-full",
+  "node-json-rpc",
+  "storage-full",
+  "types-full",
 ]
 
 full-exex = [
-    "broadcast-full",
-    "core-full",
-    "defi-full",
-    "evm-full",
-    "execution-full",
-    "metrics-full",
-    "node-actor-config",
-    "node-exex",
-    "rpc-full",
-    "storage-full",
-    "types-full",
+  "broadcast-full",
+  "core-full",
+  "defi-full",
+  "evm-full",
+  "execution-full",
+  "metrics-full",
+  "node-actor-config",
+  "node-exex",
+  "rpc-full",
+  "storage-full",
+  "types-full",
 ]
 
 full-db-access = [
-    "broadcast-full",
-    "core-full",
-    "defi-full",
-    "evm-full",
-    "execution-full",
-    "metrics-full",
-    "node-actor-config",
-    "node-db-access",
-    "rpc-full",
-    "storage-full",
-    "types-full",
-    # enable db access feature for deps
-    "loom-core-blockchain-actors?/db-access",
-    "loom-core-topology?/db-access",
+  "broadcast-full",
+  "core-full",
+  "defi-full",
+  "evm-full",
+  "execution-full",
+  "metrics-full",
+  "node-actor-config",
+  "node-db-access",
+  "rpc-full",
+  "storage-full",
+  "types-full",
+  # enable db access feature for deps
+  "loom-core-blockchain-actors?/db-access",
+  "loom-core-topology?/db-access",
 ]
 
-broadcast-full = [
-    "broadcast-accounts",
-    "broadcast-broadcaster",
-    "broadcast-flashbots",
-]
+broadcast-full = ["broadcast-accounts", "broadcast-broadcaster", "broadcast-flashbots"]
 core-full = [
-    "core-actors",
-    "core-actors-macros",
-    "core-block-history",
-    "core-blockchain",
-    "core-blockchain-actors",
-    "core-mempool",
-    "core-router",
-    "core-topology",
+  "core-actors",
+  "core-actors-macros",
+  "core-block-history",
+  "core-blockchain",
+  "core-blockchain-actors",
+  "core-mempool",
+  "core-router",
+  "core-topology",
 ]
 
 defi-full = [
-    "defi-abi",
-    "defi-address-book",
-    "defi-health-monitor",
-    "defi-market",
-    "defi-pools",
-    "defi-preloader",
-    "defi-price",
-    "defi-uniswap-v3-math",
+  "defi-abi",
+  "defi-address-book",
+  "defi-health-monitor",
+  "defi-market",
+  "defi-pools",
+  "defi-preloader",
+  "defi-price",
+  "defi-uniswap-v3-math",
 ]
-evm-full = [
-    "evm-db",
-    "evm-utils",
-]
-execution-full = [
-    "execution-estimator",
-    "execution-multicaller",
-]
-metrics-full = [
-    "metrics",
-]
+evm-full = ["evm-db", "evm-utils"]
+execution-full = ["execution-estimator", "execution-multicaller"]
+metrics-full = ["metrics"]
 node-full = [
-    "node-actor-config",
-    "node-db-access",
-    "node-debug-provider",
-    "node-exex",
-    "node-grpc",
-    "node-grpc-exex-proto",
-    "node-json-rpc",
-    "node-player",
+  "node-actor-config",
+  "node-db-access",
+  "node-debug-provider",
+  "node-exex",
+  "node-grpc",
+  "node-grpc-exex-proto",
+  "node-json-rpc",
+  "node-player",
 ]
-rpc-full = [
-    "rpc-handler",
-    "rpc-state",
-]
-storage-full = [
-    "storage-db",
-]
-strategy-full = [
-    "strategy-backrun",
-    "strategy-merger",
-]
-types-full = [
-    "types-blockchain",
-    "types-entities",
-    "types-events",
-]
+rpc-full = ["rpc-handler", "rpc-state"]
+storage-full = ["storage-db"]
+strategy-full = ["strategy-backrun", "strategy-merger"]
+types-full = ["types-blockchain", "types-entities", "types-events"]
