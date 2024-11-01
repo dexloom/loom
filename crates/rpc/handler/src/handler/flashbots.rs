@@ -1,13 +1,13 @@
 use crate::dto::flashbots::{BundleRequest, BundleResponse, SendBundleResponse};
-use alloy_primitives::{hex, keccak256};
+use alloy_primitives::{hex, keccak256, U256};
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
 use loom_evm_utils::evm::evm_transact;
-use loom_evm_utils::evm_env::env_for_block;
 use loom_evm_utils::evm_tx_env::env_from_signed_tx;
 use loom_rpc_state::AppState;
-use revm::primitives::SHANGHAI;
+use loom_types_blockchain::ChainParameters;
+use revm::primitives::{BlockEnv, Env, CANCUN};
 use revm::Evm;
 use tracing::{error, info};
 
@@ -29,10 +29,23 @@ pub async fn flashbots(
                 format!("Target block is target_block={} <= last_block={}", target_block, last_block_header.number),
             ));
         }
-        let block_timestamp = last_block_header.timestamp + 12 * (target_block - last_block_header.number);
-        let evm_env = env_for_block(target_block, block_timestamp);
+        let next_block_timestamp = last_block_header.timestamp + 12 * (target_block - last_block_header.number);
+        let next_block_base_fee = ChainParameters::ethereum().calc_next_block_base_fee(
+            last_block_header.gas_used,
+            last_block_header.gas_limit,
+            last_block_header.base_fee_per_gas.unwrap_or_default(),
+        );
+        let evm_env = Env {
+            block: BlockEnv {
+                number: U256::from(target_block),
+                timestamp: U256::from(next_block_timestamp),
+                basefee: U256::from(next_block_base_fee),
+                ..BlockEnv::default()
+            },
+            ..Env::default()
+        };
         let db = app_state.bc.market_state().read().await.state_db.clone();
-        let mut evm = Evm::builder().with_spec_id(SHANGHAI).with_db(db).with_env(Box::new(evm_env)).build();
+        let mut evm = Evm::builder().with_spec_id(CANCUN).with_db(db).with_env(Box::new(evm_env)).build();
         for (tx_idx, tx) in bundle_param.transactions.iter().enumerate() {
             let tx_hash = keccak256(tx);
 
@@ -43,7 +56,7 @@ pub async fn flashbots(
             evm.context.evm.env.tx = tx_env;
 
             let (result, gas_used) = evm_transact(&mut evm).map_err(|e| {
-                error!("Flashbot tx error latest_block={}, tx_hash={}, err={:?}", last_block_header.number, tx_hash, e);
+                error!("Flashbot tx error latest_block={}, tx_hash={}, err={}/{:?}", last_block_header.number, tx_hash, e, e);
                 (StatusCode::BAD_REQUEST, format!("Error: {}", e))
             })?;
             info!("result={}, gas_used={}", hex::encode_prefixed(result), gas_used);
