@@ -11,7 +11,10 @@ version.workspace = true
 [dependencies]
 loom-core-actors.workspace = true
 loom-core-actors-macros.workspace = true
+loom-core-blockchain.workspace = true
 loom-evm-utils.workspace = true
+loom-node-actor-config.workspace = true
+loom-node-debug-provider.workspace = true
 loom-types-events.workspace = true
 
 chrono.workspace = true
@@ -30,8 +33,14 @@ alloy-transport.workspace = true
 
 # reth
 reth-chainspec.workspace = true
+reth-db.workspace = true
 reth-node-ethereum.workspace = true
 reth-node-types.workspace = true
 reth-primitives.workspace = true
 reth-provider.workspace = true
 reth-rpc-types-compat.workspace = true
+
+[dev-dependencies]
+alloy-rpc-client.workspace = true
+env_logger.workspace = true
+eyre.workspace = true

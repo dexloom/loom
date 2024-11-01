@@ -13,7 +13,6 @@ loom-core-actors.workspace = true
 loom-core-actors-macros.workspace = true
 loom-core-blockchain.workspace = true
 loom-node-actor-config.workspace = true
-loom-node-db-access.workspace = true
 loom-node-debug-provider.workspace = true
 loom-types-blockchain.workspace = true
 loom-types-events.workspace = true
@@ -31,8 +30,3 @@ alloy-provider.workspace = true
 alloy-pubsub.workspace = true
 alloy-rpc-types.workspace = true
 alloy-transport.workspace = true
-
-
-[dev-dependencies]
-alloy-rpc-client.workspace = true
-env_logger.workspace = true

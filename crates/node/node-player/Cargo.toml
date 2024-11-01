@@ -1,5 +1,5 @@
 [package]
-name = "loom-core-node-player"
+name = "loom-node-player"
 edition.workspace = true
 exclude.workspace = true
 homepage.workspace = true

@@ -24,6 +24,7 @@ loom-defi-price.workspace = true
 loom-execution-estimator.workspace = true
 loom-execution-multicaller.workspace = true
 loom-node-actor-config.workspace = true
+loom-node-db-access = { workspace = true, optional = true }
 loom-node-grpc.workspace = true
 loom-node-grpc-exex-proto.workspace = true
 loom-node-json-rpc.workspace = true
@@ -52,3 +53,6 @@ alloy-rpc-types.workspace = true
 alloy-transport.workspace = true
 alloy-transport-ipc.workspace = true
 alloy-transport-ws.workspace = true
+
+[features]
+db-access = ["dep:loom-node-db-access"]

@@ -26,6 +26,8 @@ use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
 use loom_execution_multicaller::MulticallerSwapEncoder;
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_node_actor_config::NodeBlockActorConfig;
+#[cfg(feature = "db-access")]
+use loom_node_db_access::RethDbAccessBlockActor;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_node_grpc::NodeExExGrpcActor;
 use loom_node_json_rpc::{NodeBlockActor, NodeMempoolActor, WaitForNodeSyncOneShotBlockingActor};
@@ -244,8 +246,9 @@ where
     }
 
     /// Starts receiving blocks events through direct Reth DB access
+    #[cfg(feature = "db-access")]
     pub fn reth_node_with_blocks(&mut self, db_path: String, config: NodeBlockActorConfig) -> Result<&mut Self> {
-        self.actor_manager.start(NodeBlockActor::new(self.provider.clone(), config).on_bc(&self.bc).with_reth_db(Some(db_path)))?;
+        self.actor_manager.start(RethDbAccessBlockActor::new(self.provider.clone(), config, db_path).on_bc(&self.bc))?;
         Ok(self)
     }
 

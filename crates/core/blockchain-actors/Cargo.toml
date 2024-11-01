@@ -29,6 +29,7 @@ loom-execution-estimator.workspace = true
 loom-execution-multicaller.workspace = true
 loom-metrics.workspace = true
 loom-node-actor-config.workspace = true
+loom-node-db-access = { workspace = true, optional = true }
 loom-node-debug-provider.workspace = true
 loom-node-grpc.workspace = true
 loom-node-json-rpc.workspace = true
@@ -48,3 +49,6 @@ alloy-network.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true
+
+[features]
+db-access = ["dep:loom-node-db-access"]

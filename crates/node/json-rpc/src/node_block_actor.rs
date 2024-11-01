@@ -13,7 +13,6 @@ use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_core_actors_macros::Producer;
 use loom_core_blockchain::Blockchain;
 use loom_node_actor_config::NodeBlockActorConfig;
-use loom_node_db_access::reth_node_worker_starter;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 
@@ -54,7 +53,6 @@ where
 pub struct NodeBlockActor<P, T> {
     client: P,
     config: NodeBlockActorConfig,
-    reth_db_path: Option<String>,
     #[producer]
     block_header_channel: Option<Broadcaster<MessageBlockHeader>>,
     #[producer]
@@ -79,17 +77,12 @@ where
         NodeBlockActor {
             client,
             config,
-            reth_db_path: None,
             block_header_channel: None,
             block_with_tx_channel: None,
             block_logs_channel: None,
             block_state_update_channel: None,
             _t: PhantomData,
         }
-    }
-
-    pub fn with_reth_db(self, reth_db_path: Option<String>) -> Self {
-        Self { reth_db_path, ..self }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -109,110 +102,15 @@ where
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        match &self.reth_db_path {
-            // TODO: Refactor to own crate
-            //RETH DB
-            Some(db_path) => reth_node_worker_starter(
-                self.client.clone(),
-                db_path.clone(),
-                self.block_header_channel.clone(),
-                self.block_with_tx_channel.clone(),
-                self.block_logs_channel.clone(),
-                self.block_state_update_channel.clone(),
-            ),
-            //RPC
-            None => new_node_block_workers_starter(
-                self.client.clone(),
-                self.block_header_channel.clone(),
-                self.block_with_tx_channel.clone(),
-                self.block_logs_channel.clone(),
-                self.block_state_update_channel.clone(),
-            ),
-        }
+        new_node_block_workers_starter(
+            self.client.clone(),
+            self.block_header_channel.clone(),
+            self.block_with_tx_channel.clone(),
+            self.block_logs_channel.clone(),
+            self.block_state_update_channel.clone(),
+        )
     }
     fn name(&self) -> &'static str {
         self.name()
-    }
-}
-
-#[cfg(test)]
-mod test {
-    use alloy_provider::ProviderBuilder;
-    use alloy_rpc_client::{ClientBuilder, WsConnect};
-    use alloy_rpc_types::Header;
-    use tokio::select;
-    use tracing::{debug, error, info};
-
-    use crate::node_block_actor::NodeBlockActorConfig;
-    use crate::NodeBlockActor;
-    use eyre::Result;
-    use loom_core_actors::{Actor, Broadcaster, Producer};
-    use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
-
-    #[tokio::test]
-    #[ignore]
-    async fn revm_worker_test() -> Result<()> {
-        let _ = env_logger::builder().format_timestamp_millis().try_init();
-
-        info!("Creating channels");
-        let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
-        let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
-        let new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate> = Broadcaster::new(10);
-        let new_block_logs_channel: Broadcaster<MessageBlockLogs> = Broadcaster::new(10);
-
-        let node_url = std::env::var("DEVNET_WS")?;
-
-        let ws_connect = WsConnect::new(node_url);
-        let client = ClientBuilder::default().ws(ws_connect).await.unwrap();
-        let client = ProviderBuilder::new().on_client(client).boxed();
-
-        let db_path = std::env::var("TEST_NODE_DB")?;
-
-        let mut node_block_actor = NodeBlockActor::new(client.clone(), NodeBlockActorConfig::all_enabled()).with_reth_db(Some(db_path));
-        match node_block_actor
-            .produce(new_block_headers_channel.clone())
-            .produce(new_block_with_tx_channel.clone())
-            .produce(new_block_logs_channel.clone())
-            .produce(new_block_state_update_channel.clone())
-            .start()
-        {
-            Err(e) => {
-                error!("{}", e)
-            }
-            _ => {
-                info!("Node actor started successfully")
-            }
-        }
-
-        let mut new_block_rx = new_block_headers_channel.subscribe().await;
-        let mut new_block_with_tx_rx = new_block_with_tx_channel.subscribe().await;
-        let mut new_block_logs_rx = new_block_logs_channel.subscribe().await;
-        let mut new_block_state_update_rx = new_block_state_update_channel.subscribe().await;
-
-        for i in 1..10 {
-            select! {
-                msg_fut = new_block_rx.recv() => {
-                    let msg : Header = msg_fut?.inner.header;
-                    debug!("Block header received : {:?}", msg);
-                }
-                msg_fut = new_block_with_tx_rx.recv() => {
-                    let msg : MessageBlock = msg_fut?;
-                    debug!("Block withtx received : {:?}", msg);
-                }
-                msg_fut = new_block_logs_rx.recv() => {
-                    let msg : MessageBlockLogs = msg_fut?;
-                    debug!("Block logs received : {:?}", msg);
-                }
-                msg_fut = new_block_state_update_rx.recv() => {
-                    let msg : MessageBlockStateUpdate = msg_fut?;
-                    debug!("Block state update received : {:?}", msg);
-                }
-
-            }
-
-            //tokio::time::sleep(Duration::new(3, 0)).await;
-            println!("{i}")
-        }
-        Ok(())
     }
 }

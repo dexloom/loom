@@ -2,15 +2,15 @@ use alloy_provider::Provider;
 use eyre::Result;
 use tracing::{error, info};
 
-use loom_core_actors::{Accessor, Actor, Consumer, Producer};
-use loom_core_router::SwapRouterActor;
-use loom_core_topology::{Topology, TopologyConfig};
-use loom_defi_health_monitor::{StateHealthMonitorActor, StuffingTxMonitorActor};
-use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
-use loom_strategy_backrun::{BackrunConfig, BackrunConfigSection, StateChangeArbActor};
-use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
-use loom_types_entities::config::load_from_file;
-use loom_types_events::MarketEvents;
+use loom::core::actors::{Accessor, Actor, Consumer, Producer};
+use loom::core::router::SwapRouterActor;
+use loom::core::topology::{Topology, TopologyConfig};
+use loom::defi::health_monitor::{StateHealthMonitorActor, StuffingTxMonitorActor};
+use loom::metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
+use loom::strategy::backrun::{BackrunConfig, BackrunConfigSection, StateChangeArbActor};
+use loom::strategy::merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
+use loom::types::entities::config::load_from_file;
+use loom::types::events::MarketEvents;
 
 #[tokio::main]
 async fn main() -> Result<()> {

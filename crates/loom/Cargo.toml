@@ -8,18 +8,214 @@ homepage.workspace = true
 repository.workspace = true
 
 [dependencies]
-loom-broadcast-flashbots.workspace = true
-loom-core-actors.workspace = true
-loom-core-actors-macros.workspace = true
-loom-core-blockchain.workspace = true
-loom-core-topology.workspace = true
-loom-defi-abi.workspace = true
-loom-defi-address-book.workspace = true
-loom-defi-pools.workspace = true
-loom-evm-db.workspace = true
-loom-evm-utils.workspace = true
-loom-execution-multicaller.workspace = true
-loom-node-debug-provider.workspace = true
-loom-types-blockchain.workspace = true
-loom-types-entities.workspace = true
-loom-types-events.workspace = true
+# broadcast
+loom-broadcast-accounts = { workspace = true, optional = true }
+loom-broadcast-broadcaster = { workspace = true, optional = true }
+loom-broadcast-flashbots = { workspace = true, optional = true }
+# core
+loom-core-actors = { workspace = true, optional = true }
+loom-core-actors-macros = { workspace = true, optional = true }
+loom-core-block-history = { workspace = true, optional = true }
+loom-core-blockchain = { workspace = true, optional = true }
+loom-core-blockchain-actors = { workspace = true, optional = true }
+loom-core-mempool = { workspace = true, optional = true }
+loom-core-router = { workspace = true, optional = true }
+loom-core-topology = { workspace = true, optional = true }
+# defi
+loom-defi-abi = { workspace = true, optional = true }
+loom-defi-address-book = { workspace = true, optional = true }
+loom-defi-health-monitor = { workspace = true, optional = true }
+loom-defi-market = { workspace = true, optional = true }
+loom-defi-pools = { workspace = true, optional = true }
+loom-defi-preloader = { workspace = true, optional = true }
+loom-defi-price = { workspace = true, optional = true }
+loom-defi-uniswap-v3-math = { workspace = true, optional = true }
+# evm
+loom-evm-db = { workspace = true, optional = true }
+loom-evm-utils = { workspace = true, optional = true }
+# execution
+loom-execution-estimator = { workspace = true, optional = true }
+loom-execution-multicaller = { workspace = true, optional = true }
+# metrics
+loom-metrics = { workspace = true, optional = true }
+# node
+loom-node-actor-config = { workspace = true, optional = true }
+loom-node-db-access = { workspace = true, optional = true }
+loom-node-debug-provider = { workspace = true, optional = true }
+loom-node-exex = { workspace = true, optional = true }
+loom-node-grpc = { workspace = true, optional = true }
+loom-node-grpc-exex-proto = { workspace = true, optional = true }
+loom-node-json-rpc = { workspace = true, optional = true }
+loom-node-player = { workspace = true, optional = true }
+# rpc
+loom-rpc-handler = { workspace = true, optional = true }
+loom-rpc-state = { workspace = true, optional = true }
+# storage
+loom-storage-db = { workspace = true, optional = true }
+# strategy
+loom-strategy-backrun = { workspace = true, optional = true }
+loom-strategy-merger = { workspace = true, optional = true }
+# types
+loom-types-blockchain = { workspace = true, optional = true }
+loom-types-entities = { workspace = true, optional = true }
+loom-types-events = { workspace = true, optional = true }
+
+[features]
+broadcast = []
+core = []
+defi = []
+evm = []
+execution = []
+metrics = ["dep:loom-metrics"]
+node = []
+rpc = []
+storage = []
+strategy = []
+types = []
+
+broadcast-accounts = ["broadcast", "dep:loom-broadcast-accounts"]
+broadcast-broadcaster = ["broadcast", "dep:loom-broadcast-broadcaster"]
+broadcast-flashbots = ["broadcast", "dep:loom-broadcast-flashbots"]
+
+core-actors = ["core", "dep:loom-core-actors"]
+core-actors-macros = ["core", "dep:loom-core-actors-macros"]
+core-block-history = ["core", "dep:loom-core-block-history"]
+core-blockchain = ["core", "dep:loom-core-blockchain"]
+core-blockchain-actors = ["core", "dep:loom-core-blockchain-actors"]
+core-mempool = ["core", "dep:loom-core-mempool"]
+core-router = ["core", "dep:loom-core-router"]
+core-topology = ["core", "dep:loom-core-topology"]
+
+defi-abi = ["defi", "dep:loom-defi-abi"]
+defi-address-book = ["defi", "dep:loom-defi-address-book"]
+defi-health-monitor = ["defi", "dep:loom-defi-health-monitor"]
+defi-market = ["defi", "dep:loom-defi-market"]
+defi-pools = ["defi", "dep:loom-defi-pools"]
+defi-preloader = ["defi", "dep:loom-defi-preloader"]
+defi-price = ["defi", "dep:loom-defi-price"]
+defi-uniswap-v3-math = ["defi", "dep:loom-defi-uniswap-v3-math"]
+
+evm-db = ["dep:loom-evm-db", "evm"]
+evm-utils = ["dep:loom-evm-utils", "evm"]
+
+execution-estimator = ["dep:loom-execution-estimator", "execution"]
+execution-multicaller = ["dep:loom-execution-multicaller", "execution"]
+
+node-actor-config = ["dep:loom-node-actor-config", "node"]
+node-db-access = ["dep:loom-node-db-access", "node"]
+node-debug-provider = ["dep:loom-node-debug-provider", "node"]
+node-exex = ["dep:loom-node-exex", "node"]
+node-grpc = ["dep:loom-node-grpc", "node"]
+node-grpc-exex-proto = ["dep:loom-node-grpc-exex-proto", "node"]
+node-json-rpc = ["dep:loom-node-json-rpc", "node"]
+node-player = ["dep:loom-node-player", "node"]
+
+rpc-handler = ["dep:loom-rpc-handler", "rpc"]
+rpc-state = ["dep:loom-rpc-state", "rpc"]
+
+storage-db = ["dep:loom-storage-db", "storage"]
+
+strategy-backrun = ["dep:loom-strategy-backrun", "strategy"]
+strategy-merger = ["dep:loom-strategy-merger", "strategy"]
+
+types-blockchain = ["dep:loom-types-blockchain", "types"]
+types-entities = ["dep:loom-types-entities", "types"]
+types-events = ["dep:loom-types-events", "types"]
+
+full = [
+  "broadcast-full",
+  "core-full",
+  "defi-full",
+  "evm-full",
+  "execution-full",
+  "metrics-full",
+  "node-full",
+  "rpc-full",
+  "storage-full",
+  "types-full",
+]
+
+full-json-rpc = [
+  "broadcast-full",
+  "core-full",
+  "defi-full",
+  "evm-full",
+  "execution-full",
+  "metrics-full",
+  "node-actor-config",
+  "node-full",
+  "node-json-rpc",
+  "storage-full",
+  "types-full",
+]
+
+full-exex = [
+  "broadcast-full",
+  "core-full",
+  "defi-full",
+  "evm-full",
+  "execution-full",
+  "metrics-full",
+  "node-actor-config",
+  "node-exex",
+  "rpc-full",
+  "storage-full",
+  "types-full",
+]
+
+full-db-access = [
+  "broadcast-full",
+  "core-full",
+  "defi-full",
+  "evm-full",
+  "execution-full",
+  "metrics-full",
+  "node-actor-config",
+  "node-db-access",
+  "rpc-full",
+  "storage-full",
+  "types-full",
+  # enable db access feature for deps
+  "loom-core-blockchain-actors?/db-access",
+  "loom-core-topology?/db-access",
+]
+
+broadcast-full = ["broadcast-accounts", "broadcast-broadcaster", "broadcast-flashbots"]
+core-full = [
+  "core-actors",
+  "core-actors-macros",
+  "core-block-history",
+  "core-blockchain",
+  "core-blockchain-actors",
+  "core-mempool",
+  "core-router",
+  "core-topology",
+]
+
+defi-full = [
+  "defi-abi",
+  "defi-address-book",
+  "defi-health-monitor",
+  "defi-market",
+  "defi-pools",
+  "defi-preloader",
+  "defi-price",
+  "defi-uniswap-v3-math",
+]
+evm-full = ["evm-db", "evm-utils"]
+execution-full = ["execution-estimator", "execution-multicaller"]
+metrics-full = ["metrics"]
+node-full = [
+  "node-actor-config",
+  "node-db-access",
+  "node-debug-provider",
+  "node-exex",
+  "node-grpc",
+  "node-grpc-exex-proto",
+  "node-json-rpc",
+  "node-player",
+]
+rpc-full = ["rpc-handler", "rpc-state"]
+storage-full = ["storage-db"]
+strategy-full = ["strategy-backrun", "strategy-merger"]
+types-full = ["types-blockchain", "types-entities", "types-events"]
