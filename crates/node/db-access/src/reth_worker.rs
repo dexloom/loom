@@ -1,10 +1,11 @@
 use std::collections::{BTreeMap, HashMap};
+use std::marker::PhantomData;
 use std::path::Path;
 
 use alloy_eips::BlockNumHash;
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, BlockHash, B256};
-use alloy_provider::Provider;
+use alloy_provider::{Provider, WsConnect};
 use alloy_rpc_types::{Block, BlockTransactions, Log, Transaction};
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
@@ -18,8 +19,12 @@ use reth_provider::providers::StaticFileProvider;
 use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider, StateProvider, StorageReader, TransactionVariant};
 use tracing::{debug, error, info, trace};
 
-use loom_core_actors::{ActorResult, Broadcaster, WorkerResult};
+use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
+use loom_core_actors_macros::Producer;
+use loom_core_blockchain::Blockchain;
 use loom_evm_utils::reth_types::append_all_matching_block_logs;
+use loom_node_actor_config::NodeBlockActorConfig;
+use loom_node_debug_provider::DebugProviderExt;
 use loom_types_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
 };
@@ -261,4 +266,155 @@ where
         new_block_state_update_channel,
     ));
     Ok(vec![handler])
+}
+
+#[derive(Producer)]
+pub struct RethDbAccessBlockActor<P, T> {
+    client: P,
+    config: NodeBlockActorConfig,
+    reth_db_path: String,
+    #[producer]
+    block_header_channel: Option<Broadcaster<MessageBlockHeader>>,
+    #[producer]
+    block_with_tx_channel: Option<Broadcaster<MessageBlock>>,
+    #[producer]
+    block_logs_channel: Option<Broadcaster<MessageBlockLogs>>,
+    #[producer]
+    block_state_update_channel: Option<Broadcaster<MessageBlockStateUpdate>>,
+    _t: PhantomData<T>,
+}
+
+impl<P, T> RethDbAccessBlockActor<P, T>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+{
+    fn name(&self) -> &'static str {
+        "NodeBlockActor"
+    }
+
+    pub fn new(client: P, config: NodeBlockActorConfig, reth_db_path: String) -> RethDbAccessBlockActor<P, T> {
+        RethDbAccessBlockActor {
+            client,
+            config,
+            reth_db_path,
+            block_header_channel: None,
+            block_with_tx_channel: None,
+            block_logs_channel: None,
+            block_state_update_channel: None,
+            _t: PhantomData,
+        }
+    }
+
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self {
+            block_header_channel: if self.config.block_header { Some(bc.new_block_headers_channel()) } else { None },
+            block_with_tx_channel: if self.config.block_with_tx { Some(bc.new_block_with_tx_channel()) } else { None },
+            block_logs_channel: if self.config.block_logs { Some(bc.new_block_logs_channel()) } else { None },
+            block_state_update_channel: if self.config.block_state_update { Some(bc.new_block_state_update_channel()) } else { None },
+            ..self
+        }
+    }
+}
+
+impl<P, T> Actor for RethDbAccessBlockActor<P, T>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+{
+    fn start(&self) -> ActorResult {
+        reth_node_worker_starter(
+            self.client.clone(),
+            self.reth_db_path.clone(),
+            self.block_header_channel.clone(),
+            self.block_with_tx_channel.clone(),
+            self.block_logs_channel.clone(),
+            self.block_state_update_channel.clone(),
+        )
+    }
+    fn name(&self) -> &'static str {
+        self.name()
+    }
+}
+
+#[cfg(test)]
+mod test {
+    use alloy_provider::ProviderBuilder;
+    use alloy_rpc_client::{ClientBuilder, WsConnect};
+    use alloy_rpc_types::Header;
+    use tokio::select;
+    use tracing::{debug, error, info};
+
+    use crate::reth_worker::RethDbAccessBlockActor;
+    use eyre::Result;
+    use loom_core_actors::{Actor, Broadcaster, Producer};
+    use loom_node_actor_config::NodeBlockActorConfig;
+    use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
+
+    #[tokio::test]
+    #[ignore]
+    async fn revm_worker_test() -> Result<()> {
+        let _ = env_logger::builder().format_timestamp_millis().try_init();
+
+        info!("Creating channels");
+        let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
+        let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
+        let new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate> = Broadcaster::new(10);
+        let new_block_logs_channel: Broadcaster<MessageBlockLogs> = Broadcaster::new(10);
+
+        let node_url = std::env::var("DEVNET_WS")?;
+
+        let ws_connect = WsConnect::new(node_url);
+        let client = ClientBuilder::default().ws(ws_connect).await.unwrap();
+        let client = ProviderBuilder::new().on_client(client).boxed();
+
+        let db_path = std::env::var("TEST_NODE_DB")?;
+
+        let mut node_block_actor = RethDbAccessBlockActor::new(client.clone(), NodeBlockActorConfig::all_enabled(), db_path);
+        match node_block_actor
+            .produce(new_block_headers_channel.clone())
+            .produce(new_block_with_tx_channel.clone())
+            .produce(new_block_logs_channel.clone())
+            .produce(new_block_state_update_channel.clone())
+            .start()
+        {
+            Err(e) => {
+                error!("{}", e)
+            }
+            _ => {
+                info!("Node actor started successfully")
+            }
+        }
+
+        let mut new_block_rx = new_block_headers_channel.subscribe().await;
+        let mut new_block_with_tx_rx = new_block_with_tx_channel.subscribe().await;
+        let mut new_block_logs_rx = new_block_logs_channel.subscribe().await;
+        let mut new_block_state_update_rx = new_block_state_update_channel.subscribe().await;
+
+        for i in 1..10 {
+            select! {
+                msg_fut = new_block_rx.recv() => {
+                    let msg : Header = msg_fut?.inner.header;
+                    debug!("Block header received : {:?}", msg);
+                }
+                msg_fut = new_block_with_tx_rx.recv() => {
+                    let msg : MessageBlock = msg_fut?;
+                    debug!("Block withtx received : {:?}", msg);
+                }
+                msg_fut = new_block_logs_rx.recv() => {
+                    let msg : MessageBlockLogs = msg_fut?;
+                    debug!("Block logs received : {:?}", msg);
+                }
+                msg_fut = new_block_state_update_rx.recv() => {
+                    let msg : MessageBlockStateUpdate = msg_fut?;
+                    debug!("Block state update received : {:?}", msg);
+                }
+
+            }
+
+            //tokio::time::sleep(Duration::new(3, 0)).await;
+            println!("{i}")
+        }
+        Ok(())
+    }
 }
