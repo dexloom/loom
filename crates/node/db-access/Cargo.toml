@@ -38,6 +38,7 @@ reth-node-types.workspace = true
 reth-primitives.workspace = true
 reth-provider.workspace = true
 reth-rpc-types-compat.workspace = true
+reth-db.workspace = true
 
 [dev-dependencies]
 alloy-rpc-client.workspace = true

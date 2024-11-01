@@ -26,7 +26,7 @@ members = [
   "crates/core/blockchain",
   "crates/core/blockchain-actors",
   "crates/core/mempool",
-  "crates/core/node-player",
+  "crates/node/node-player",
   "crates/core/router",
   "crates/core/topology",
   "crates/defi/abi",
@@ -82,7 +82,6 @@ loom-core-block-history = { path = "crates/core/block-history" }
 loom-core-blockchain = { path = "crates/core/blockchain" }
 loom-core-blockchain-actors = { path = "crates/core/blockchain-actors" }
 loom-core-mempool = { path = "crates/core/mempool" }
-loom-core-node-player = { path = "crates/core/node-player" }
 loom-core-router = { path = "crates/core/router" }
 loom-core-topology = { path = "crates/core/topology" }
 # defi
@@ -112,6 +111,7 @@ loom-node-exex = { path = "crates/node/exex" }
 loom-node-grpc = { path = "crates/node/grpc" }
 loom-node-grpc-exex-proto = { path = "crates/node/grpc-exex-proto" }
 loom-node-json-rpc = { path = "crates/node/json-rpc" }
+loom-node-player = { path = "crates/node/node-player" }
 # rpc
 loom-rpc-handler = { path = "crates/rpc/handler" }
 loom-rpc-state = { path = "crates/rpc/state" }

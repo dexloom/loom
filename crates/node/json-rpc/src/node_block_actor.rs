@@ -13,7 +13,6 @@ use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_core_actors_macros::Producer;
 use loom_core_blockchain::Blockchain;
 use loom_node_actor_config::NodeBlockActorConfig;
-use loom_node_db_access::reth_node_worker_starter;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 
@@ -54,7 +53,6 @@ where
 pub struct NodeBlockActor<P, T> {
     client: P,
     config: NodeBlockActorConfig,
-    reth_db_path: Option<String>,
     #[producer]
     block_header_channel: Option<Broadcaster<MessageBlockHeader>>,
     #[producer]
@@ -79,7 +77,6 @@ where
         NodeBlockActor {
             client,
             config,
-            reth_db_path: None,
             block_header_channel: None,
             block_with_tx_channel: None,
             block_logs_channel: None,

@@ -3,12 +3,12 @@ use alloy::eips::BlockId;
 use alloy::providers::{ProviderBuilder, WsConnect};
 use alloy::rpc::client::ClientBuilder;
 use clap::{CommandFactory, FromArgMatches, Parser};
-use loom_core_blockchain::Blockchain;
-use loom_core_topology::TopologyConfig;
-use loom_evm_db::{AlloyDB, LoomDB};
-use loom_node_actor_config::NodeBlockActorConfig;
-use loom_node_exex::mempool_worker;
-use loom_types_entities::MarketState;
+use loom::core::blockchain::Blockchain;
+use loom::core::topology::TopologyConfig;
+use loom::evm::db::{AlloyDB, LoomDB};
+use loom::node::actor_config::NodeBlockActorConfig;
+use loom::node::exex::mempool_worker;
+use loom::types::entities::MarketState;
 use reth::builder::engine_tree_config::TreeConfig;
 use reth::builder::EngineNodeLauncher;
 use reth::chainspec::{Chain, EthereumChainSpecParser};
@@ -24,7 +24,7 @@ use tracing_subscriber::util::SubscriberInitExt;
 use tracing_subscriber::{fmt, EnvFilter, Layer};
 
 mod arguments;
-mod loom;
+mod loom_runtime;
 
 fn main() -> eyre::Result<()> {
     let env_filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into());
@@ -47,7 +47,7 @@ fn main() -> eyre::Result<()> {
                 .with_types_and_provider::<EthereumNode, BlockchainProvider2<_>>()
                 .with_components(EthereumNode::components())
                 .with_add_ons(EthereumAddOns::default())
-                .install_exex("loom-exex", |node_ctx| loom::init(node_ctx, bc_clone, NodeBlockActorConfig::all_enabled()))
+                .install_exex("loom-exex", |node_ctx| loom_runtime::init(node_ctx, bc_clone, NodeBlockActorConfig::all_enabled()))
                 .launch_with_fn(|builder| {
                     let launcher = EngineNodeLauncher::new(builder.task_executor().clone(), builder.config().datadir(), engine_tree_config);
                     builder.launch_with(launcher)
@@ -62,7 +62,8 @@ fn main() -> eyre::Result<()> {
             let bc = bc.with_market_state(MarketState::new(state_db));
             let bc_clone = bc.clone();
             tokio::task::spawn(async move {
-                if let Err(e) = loom::start_loom(ipc_provider, bc_clone, topology_config, loom_args.loom_config.clone(), true).await {
+                if let Err(e) = loom_runtime::start_loom(ipc_provider, bc_clone, topology_config, loom_args.loom_config.clone(), true).await
+                {
                     error!("Error starting loom: {:?}", e);
                 }
             });
@@ -84,7 +85,7 @@ fn main() -> eyre::Result<()> {
                 let bc = Blockchain::new(Chain::mainnet().id());
                 let bc_clone = bc.clone();
 
-                if let Err(e) = loom::start_loom(provider, bc_clone, topology_config, loom_args.loom_config.clone(), false).await {
+                if let Err(e) = loom_runtime::start_loom(provider, bc_clone, topology_config, loom_args.loom_config.clone(), false).await {
                     error!("Error starting loom: {:#?}", e);
                     panic!("{}", e)
                 }

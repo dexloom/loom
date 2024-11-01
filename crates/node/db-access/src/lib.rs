@@ -1,3 +1,3 @@
-pub use reth_worker::reth_node_worker_starter;
+pub use reth_worker::RethDbAccessBlockActor;
 
 mod reth_worker;

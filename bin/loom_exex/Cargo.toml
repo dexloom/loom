@@ -9,34 +9,7 @@ repository.workspace = true
 exclude.workspace = true
 
 [dependencies]
-loom-broadcast-accounts.workspace = true
-loom-broadcast-broadcaster.workspace = true
-loom-core-actors.workspace = true
-loom-core-block-history.workspace = true
-loom-core-blockchain.workspace = true
-loom-core-blockchain-actors.workspace = true
-loom-core-router.workspace = true
-loom-core-topology.workspace = true
-loom-defi-market.workspace = true
-loom-defi-pools.workspace = true
-loom-defi-preloader.workspace = true
-loom-defi-price.workspace = true
-loom-evm-db.workspace = true
-loom-evm-utils.workspace = true
-loom-execution-estimator.workspace = true
-loom-node-actor-config.workspace = true
-loom-node-debug-provider.workspace = true
-loom-node-exex.workspace = true
-loom-node-json-rpc.workspace = true
-loom-rpc-handler.workspace = true
-loom-rpc-state.workspace = true
-loom-storage-db.workspace = true
-loom-strategy-backrun.workspace = true
-loom-strategy-merger.workspace = true
-loom-types-blockchain.workspace = true
-loom-types-entities.workspace = true
-loom-types-events.workspace = true
-
+loom = { workspace = true, features = ["full", "strategy-full"] }
 
 axum.workspace = true
 clap.workspace = true
