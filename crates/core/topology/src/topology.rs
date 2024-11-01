@@ -262,7 +262,7 @@ impl Topology {
                     let mut node_block_actor = RethDbAccessBlockActor::new(
                         client.clone(),
                         NodeBlockActorConfig::all_enabled(),
-                        client_config.db_path.unwrap_or_default(),
+                        client_config.db_path.clone().unwrap_or_default(),
                     );
                     match node_block_actor
                         .produce(blockchain.new_block_headers_channel())
