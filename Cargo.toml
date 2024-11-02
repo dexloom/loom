@@ -17,7 +17,7 @@ members = [
   "bin/loom_anvil",
   "bin/loom_backrun",
   "bin/loom_exex",
-  "bin/nodebench",
+  "bin/nodebench", "bin/pool_abstraction",
   "bin/replayer",
   "crates/broadcast/accounts",
   "crates/broadcast/broadcaster",
