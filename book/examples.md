@@ -13,12 +13,15 @@ use alloy::{
 };
 use alloy_provider::RootProvider;
 use alloy_rpc_types::BlockId;
-use std::result::Result;
-use debug_provider::{AnvilDebugProvider, AnvilDebugProviderFactory};
-use defi_abi::uniswap2::IUniswapV2Pair;
 use dotenv::dotenv;
+use loom_defi_abi::uniswap2::IUniswapV2Pair;
+use loom_node_debug_provider::{AnvilDebugProvider, AnvilDebugProviderFactory};
+use std::result::Result;
 
-async fn fetch_pools(node_url: String, block_number: u64) -> Result<(), Box<dyn std::error::Error>>  {
+async fn fetch_pools(
+    node_url: String,
+    block_number: u64,
+) -> Result<(), Box<dyn std::error::Error>> {
     const POOL_ADDRESSES: [Address; 4] = [
         address!("322BBA387c825180ebfB62bD8E6969EBe5b5e52d"), // ITO/WETH pool
         address!("b4e16d0168e52d35cacd2c6185b44281ec28c9dc"), // USDC/WETH pool
@@ -54,8 +57,8 @@ async fn fetch_pools(node_url: String, block_number: u64) -> Result<(), Box<dyn 
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    let block_number = 21077209u64; // add the latest block number 
-    let node_url: String = env::var("WSS_RPC_URL").unwrap(); // set a RPC url which supports the calls. Ex. tenderly
+    let block_number = 21077209u64; // set the latest block number
+    let node_url: String = env::var("WSS_RPC_URL").unwrap(); //add a provider which is supported like tenderly
     let _ = fetch_pools(node_url, block_number).await;
 }
 ```
