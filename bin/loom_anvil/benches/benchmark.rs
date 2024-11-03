@@ -128,7 +128,7 @@ async fn rayon_run(state_db: &LoomDBType, pool: PoolWrapper, threadpool: Arc<Thr
 
     let mut counter: usize = 0;
 
-    if result_rx.recv().await.is_some() {
+    while result_rx.recv().await.is_some() {
         counter += 1;
     }
 

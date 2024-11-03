@@ -183,7 +183,7 @@ impl UniswapV2Pool {
         Ok(ret)
     }
 
-    pub fn fetch_reserves(&self, state_db: &LoomDBType, env: Env) -> Result<(U256, U256)> {
+    pub fn fetch_reserves(&self, state_db: &dyn DatabaseRef<Error = ErrReport>, env: Env) -> Result<(U256, U256)> {
         let (reserve_0, reserve_1) = match self.reserves_cell {
             Some(cell) => {
                 if let Ok(storage_value) = state_db.storage_ref(self.get_address(), cell) {
@@ -225,7 +225,7 @@ impl Pool for UniswapV2Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -255,7 +255,7 @@ impl Pool for UniswapV2Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,

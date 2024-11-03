@@ -18,6 +18,7 @@ use loom_evm_db::LoomDBType;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
+use revm::DatabaseRef;
 use tracing::debug;
 #[cfg(feature = "debug-calculation")]
 use tracing::error;
@@ -241,7 +242,7 @@ impl Pool for UniswapV3Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         _env: Env,
         token_address_from: &Address,
         _token_address_to: &Address,
@@ -278,7 +279,7 @@ impl Pool for UniswapV3Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         _env: Env,
         token_address_from: &Address,
         _token_address_to: &Address,

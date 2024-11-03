@@ -2,6 +2,7 @@ use alloy_primitives::{Address, U256};
 use alloy_sol_types::{SolCall, SolInterface};
 use eyre::Result;
 use revm::primitives::Env;
+use revm::DatabaseRef;
 
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_evm_db::LoomDBType;
@@ -38,7 +39,7 @@ impl UniswapV2StateReader {
 
 
     */
-    pub fn get_reserves(db: &LoomDBType, env: Env, pool: Address) -> Result<(U256, U256)> {
+    pub fn get_reserves<DB: DatabaseRef>(db: DB, env: Env, pool: Address) -> Result<(U256, U256)> {
         let call_data_result =
             evm_call(db, env, pool, IUniswapV2Pair::IUniswapV2PairCalls::getReserves(IUniswapV2Pair::getReservesCall {}).abi_encode())?.0;
         let call_return = IUniswapV2Pair::getReservesCall::abi_decode_returns(&call_data_result, false)?;
