@@ -487,6 +487,7 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
 #[cfg(test)]
 mod tests {
     use env_logger::Env as EnvLog;
+    use loom_evm_db::LoomDBType;
     use std::env;
     use tracing::debug;
 

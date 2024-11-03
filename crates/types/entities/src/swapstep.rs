@@ -2,8 +2,9 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use alloy_primitives::{Address, I256, U256};
-use eyre::{eyre, Result};
+use eyre::{eyre, ErrReport, Result};
 use revm::primitives::Env;
+use revm::DatabaseRef;
 use tracing::error;
 
 use loom_evm_db::LoomDBType;
@@ -345,7 +346,12 @@ impl SwapStep {
         Ok(out_amount)
     }
 
-    pub fn calculate_with_in_amount(&mut self, state: &LoomDBType, env: Env, in_ammount: Option<U256>) -> Result<(U256, u64)> {
+    pub fn calculate_with_in_amount(
+        &mut self,
+        state: &dyn DatabaseRef<Error = ErrReport>,
+        env: Env,
+        in_ammount: Option<U256>,
+    ) -> Result<(U256, u64)> {
         let mut out_amount = U256::ZERO;
         let mut gas_used = 0;
 
@@ -457,7 +463,7 @@ impl SwapStep {
     }
 
     pub fn optimize_swap_steps(
-        state: &LoomDBType,
+        state: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
@@ -471,7 +477,7 @@ impl SwapStep {
     }
 
     pub fn optimize_with_middle_amount(
-        state: &LoomDBType,
+        state: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
@@ -641,7 +647,7 @@ impl SwapStep {
     }
 
     pub fn optimize_with_in_amount(
-        state: &LoomDBType,
+        state: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,

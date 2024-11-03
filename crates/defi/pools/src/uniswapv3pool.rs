@@ -14,7 +14,6 @@ use loom_defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use loom_defi_abi::uniswap_periphery::ITickLens;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::{FactoryAddress, PeripheryAddress};
-use loom_evm_db::LoomDBType;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
@@ -154,11 +153,11 @@ impl UniswapV3Pool {
         }
     }
 
-    pub fn fetch_pool_data_evm(db: &LoomDBType, env: Env, address: Address) -> Result<Self> {
+    pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
         let token0 = UniswapV3StateReader::token0(db, env.clone(), address)?;
         let token1 = UniswapV3StateReader::token1(db, env.clone(), address)?;
         let fee: u32 = UniswapV3StateReader::fee(db, env.clone(), address)?.to();
-        let liquidity = UniswapV3StateReader::liquidity(db, env.clone(), address)?;
+        let liquidity = UniswapV3StateReader::liquidity(&db, env.clone(), address)?;
         let factory = UniswapV3StateReader::factory(db, env.clone(), address).unwrap_or_default();
         let protocol = UniswapV3Pool::get_protocol_by_factory(factory);
 

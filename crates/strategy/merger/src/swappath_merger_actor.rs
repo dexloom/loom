@@ -1,22 +1,20 @@
-use std::sync::Arc;
-
 use alloy_primitives::{Address, U256};
-use eyre::{eyre, Result};
+use eyre::{eyre, ErrReport, Result};
 use revm::primitives::Env;
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info};
 
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_evm_db::LoomDBType;
 use loom_execution_multicaller::SwapStepEncoder;
 use loom_types_entities::{LatestBlock, Swap, SwapStep};
 use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 
 async fn arb_swap_steps_optimizer_task(
     compose_channel_tx: Broadcaster<MessageTxCompose>,
-    state_db: Arc<LoomDBType>,
+    state_db: &(dyn DatabaseRef<Error = ErrReport> + Send + Sync + 'static),
     evm_env: Env,
     request: TxComposeData,
 ) -> Result<()> {
@@ -128,16 +126,18 @@ async fn arb_swap_path_merger_worker(
                                     evm_env.block.number = U256::from(block_header.number + 1);
                                     evm_env.block.timestamp = U256::from(block_header.timestamp + 12);
 
+
                                     if let Some(db) = compose_data.poststate.clone() {
-                                        tokio::task::spawn(
-                                            arb_swap_steps_optimizer_task(
-                                                //encoder.clone(),
-                                                compose_channel_tx.clone(),
-                                                db,
+                                        let db_clone = db.clone();
+                                        let compose_channel_clone = compose_channel_tx.clone();
+                                        tokio::task::spawn( async move {
+                                                arb_swap_steps_optimizer_task(
+                                                compose_channel_clone,
+                                                &db_clone,
                                                 evm_env,
                                                 request
-                                            )
-                                        );
+                                            ).await
+                                        });
                                     }
                                     break; // only first
                                 }

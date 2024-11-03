@@ -4,21 +4,21 @@ use eyre::ErrReport;
 use loom_defi_uniswap_v3_math::tick_provider::TickProvider;
 use revm::DatabaseRef;
 
-pub struct TickProviderLoomDB<'a, DB> {
+pub struct TickProviderEVMDB<'a, DB> {
     pub db: &'a DB,
     pub pool_address: Address,
 }
 
-impl<'a, DB> TickProviderLoomDB<'a, DB>
+impl<'a, DB> TickProviderEVMDB<'a, DB>
 where
     DB: DatabaseRef<Error = ErrReport>,
 {
     pub fn new(db: &'a DB, pool_address: Address) -> Self {
-        TickProviderLoomDB { db, pool_address }
+        TickProviderEVMDB { db, pool_address }
     }
 }
 
-impl<'a, DB> TickProvider for TickProviderLoomDB<'a, DB>
+impl<'a, DB> TickProvider for TickProviderEVMDB<'a, DB>
 where
     DB: DatabaseRef<Error = ErrReport>,
 {

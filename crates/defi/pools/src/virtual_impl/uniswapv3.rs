@@ -4,7 +4,7 @@ use loom_defi_uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RA
 use revm::DatabaseRef;
 
 use crate::db_reader::UniswapV3DBReader;
-use crate::virtual_impl::tick_provider::TickProviderLoomDB;
+use crate::virtual_impl::tick_provider::TickProviderEVMDB;
 use crate::UniswapV3Pool;
 use loom_types_entities::Pool;
 
@@ -112,7 +112,7 @@ impl UniswapV3PoolVirtual {
             liquidity,                                             //Current available liquidity in the tick range
         };
 
-        let tick_provider = TickProviderLoomDB::new(&db, pool_address);
+        let tick_provider = TickProviderEVMDB::new(&db, pool_address);
 
         while current_state.amount_specified_remaining != I256::ZERO && current_state.sqrt_price_x_96 != sqrt_price_limit_x_96 {
             // Initialize a new step struct to hold the dynamic state of the pool at each step
@@ -246,7 +246,7 @@ impl UniswapV3PoolVirtual {
                 ..Default::default()
             };
 
-            let tick_provider = TickProviderLoomDB::new(&db, pool_address);
+            let tick_provider = TickProviderEVMDB::new(&db, pool_address);
 
             // Get the next tick from the current tick
             (step.tick_next, step.initialized) = loom_defi_uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(

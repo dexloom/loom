@@ -419,6 +419,7 @@ mod tests {
     use super::*;
     use alloy_rpc_types::BlockNumberOrTag;
     use loom_defi_abi::maverick::IMaverickQuoter::IMaverickQuoterInstance;
+    use loom_evm_db::LoomDBType;
     use loom_evm_utils::evm_env::env_for_block;
     use loom_node_debug_provider::AnvilDebugProviderFactory;
     use loom_types_entities::required_state::RequiredStateReader;

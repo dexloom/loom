@@ -53,7 +53,7 @@ impl UniswapV3StateReader {
         let call_return = IUniswapV3Pool::slot0Call::abi_decode_returns(&call_data_result, false)?;
         Ok(call_return)
     }
-    pub fn liquidity(db: &LoomDBType, env: Env, pool: Address) -> eyre::Result<u128> {
+    pub fn liquidity<DB: DatabaseRef>(db: &DB, env: Env, pool: Address) -> eyre::Result<u128> {
         let call_data_result =
             evm_call(db, env, pool, IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode())?.0;
         let call_return = IUniswapV3Pool::liquidityCall::abi_decode_returns(&call_data_result, false)?;

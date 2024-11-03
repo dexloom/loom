@@ -3,8 +3,9 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use alloy_primitives::{Address, I256, U256};
-use eyre::{eyre, Result};
+use eyre::{eyre, ErrReport, Result};
 use revm::primitives::Env;
+use revm::DatabaseRef;
 use tracing::debug;
 
 use loom_evm_db::LoomDBType;
@@ -293,7 +294,7 @@ impl SwapLine {
     /// Calculate the out amount for the swap line for a given in amount
     pub fn calculate_with_in_amount(
         &self,
-        state: &LoomDBType,
+        state: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         in_amount: U256,
     ) -> Result<(U256, u64, Vec<CalculationResult>), SwapError> {
@@ -341,7 +342,7 @@ impl SwapLine {
     /// Calculate the in amount for the swap line for a given out amount
     pub fn calculate_with_out_amount(
         &self,
-        state: &LoomDBType,
+        state: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         out_amount: U256,
     ) -> Result<(U256, u64, Vec<CalculationResult>), SwapError> {
