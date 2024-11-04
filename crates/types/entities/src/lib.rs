@@ -44,6 +44,8 @@ mod calculation_result;
 pub mod config;
 mod datafetcher;
 mod mock_pool;
+
+mod mock_pool_generic;
 mod swap;
 mod swap_encoder;
 pub mod tips;

@@ -3,7 +3,8 @@ use alloy::providers::{
     network::{BlockResponse, HeaderResponse},
     Network, Provider,
 };
-use alloy::transports::{Transport, TransportError};
+use alloy::transports::Transport;
+use eyre::ErrReport;
 use revm::{
     primitives::{AccountInfo, Address, Bytecode, B256, U256},
     Database, DatabaseRef,
@@ -107,7 +108,7 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> AlloyDB<T, N, P> {
 }
 
 impl<T: Transport + Clone, N: Network, P: Provider<T, N>> DatabaseRef for AlloyDB<T, N, P> {
-    type Error = TransportError;
+    type Error = ErrReport;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         let f = async {
@@ -127,16 +128,6 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> DatabaseRef for AlloyD
         Ok(Some(AccountInfo::new(balance, nonce, code_hash, code)))
     }
 
-    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
-        let block = self.block_on(
-            self.provider
-                // SAFETY: We know number <= u64::MAX, so we can safely convert it to u64
-                .get_block_by_number(number.into(), false),
-        )?;
-        // SAFETY: If the number is given, the block is supposed to be finalized, so unwrapping is safe.
-        Ok(B256::new(*block.unwrap().header().hash()))
-    }
-
     fn code_by_hash_ref(&self, _code_hash: B256) -> Result<Bytecode, Self::Error> {
         panic!("This should not be called, as the code is already loaded");
         // This is not needed, as the code is already loaded with basic_ref
@@ -147,10 +138,20 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> DatabaseRef for AlloyD
         let slot_val = self.block_on(f.into_future())?;
         Ok(slot_val)
     }
+
+    fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
+        let block = self.block_on(
+            self.provider
+                // SAFETY: We know number <= u64::MAX, so we can safely convert it to u64
+                .get_block_by_number(number.into(), false),
+        )?;
+        // SAFETY: If the number is given, the block is supposed to be finalized, so unwrapping is safe.
+        Ok(B256::new(*block.unwrap().header().hash()))
+    }
 }
 
 impl<T: Transport + Clone, N: Network, P: Provider<T, N>> Database for AlloyDB<T, N, P> {
-    type Error = TransportError;
+    type Error = ErrReport;
 
     #[inline]
     fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {

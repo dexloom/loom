@@ -1,5 +1,4 @@
 use alloy::primitives::{Address, BlockNumber, B256, U256};
-use alloy::transports::TransportError;
 use eyre::{eyre, ErrReport};
 use revm::primitives::{AccountInfo, Bytecode};
 use revm::DatabaseRef;
@@ -16,11 +15,7 @@ impl LoomDBHelper {
     }
 
     #[inline]
-    fn fetch_storage<ExtDB: DatabaseRef<Error = TransportError>>(
-        ext_db: &Option<ExtDB>,
-        address: Address,
-        index: U256,
-    ) -> eyre::Result<U256> {
+    fn fetch_storage<ExtDB: DatabaseRef<Error = ErrReport>>(ext_db: &Option<ExtDB>, address: Address, index: U256) -> eyre::Result<U256> {
         if let Some(ext_db) = ext_db {
             ext_db.storage_ref(address, index).map_err(|_| eyre!("ERROR_READING_ALLOY_DB"))
         } else {
@@ -29,7 +24,7 @@ impl LoomDBHelper {
     }
 
     #[inline]
-    pub fn get_or_fetch_storage<DB: DatabaseRef<Error = ErrReport>, ExtDB: DatabaseRef<Error = TransportError>>(
+    pub fn get_or_fetch_storage<DB: DatabaseRef<Error = ErrReport>, ExtDB: DatabaseRef<Error = ErrReport>>(
         read_only_db: &Option<DB>,
         ext_db: &Option<ExtDB>,
         address: Address,
@@ -44,10 +39,7 @@ impl LoomDBHelper {
     }
 
     #[inline]
-    fn fetch_basic<ExtDB: DatabaseRef<Error = TransportError>>(
-        ext_db: &Option<ExtDB>,
-        address: Address,
-    ) -> eyre::Result<Option<AccountInfo>> {
+    fn fetch_basic<ExtDB: DatabaseRef<Error = ErrReport>>(ext_db: &Option<ExtDB>, address: Address) -> eyre::Result<Option<AccountInfo>> {
         if let Some(ext_db) = ext_db {
             ext_db.basic_ref(address).map_err(|_| eyre!("ERROR_READING_EXT_DB"))
         } else {
@@ -64,7 +56,7 @@ impl LoomDBHelper {
     }
 
     #[inline]
-    pub fn get_or_fetch_basic<DB: DatabaseRef<Error = ErrReport>, ExtDB: DatabaseRef<Error = TransportError>>(
+    pub fn get_or_fetch_basic<DB: DatabaseRef<Error = ErrReport>, ExtDB: DatabaseRef<Error = ErrReport>>(
         read_only_db: &Option<DB>,
         ext_db: &Option<ExtDB>,
         address: Address,
@@ -79,7 +71,7 @@ impl LoomDBHelper {
     }
 
     #[inline]
-    fn fetch_block_hash_ref<ExtDB: DatabaseRef<Error = TransportError>>(ext_db: &Option<ExtDB>, number: BlockNumber) -> eyre::Result<B256> {
+    fn fetch_block_hash_ref<ExtDB: DatabaseRef<Error = ErrReport>>(ext_db: &Option<ExtDB>, number: BlockNumber) -> eyre::Result<B256> {
         if let Some(ext_db) = ext_db {
             ext_db.block_hash_ref(number).map_err(|_| eyre!("ERROR_READING_EXT_DB"))
         } else {
@@ -88,7 +80,7 @@ impl LoomDBHelper {
     }
 
     #[inline]
-    pub fn get_or_fetch_block_hash<DB: DatabaseRef<Error = ErrReport>, ExtDB: DatabaseRef<Error = TransportError>>(
+    pub fn get_or_fetch_block_hash<DB: DatabaseRef<Error = ErrReport>, ExtDB: DatabaseRef<Error = ErrReport>>(
         read_only_db: &Option<DB>,
         ext_db: &Option<ExtDB>,
         number: BlockNumber,

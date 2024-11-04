@@ -9,7 +9,7 @@ use alloy::primitives::{Address, BlockNumber, Log, B256, U256};
 use alloy::providers::{Network, Provider, ProviderBuilder};
 use alloy::rpc::client::ClientBuilder;
 use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
-use alloy::transports::{Transport, TransportError};
+use alloy::transports::Transport;
 use eyre::{ErrReport, OptionExt, Result};
 use revm::db::AccountState as DBAccountState;
 use revm::primitives::{Account, AccountInfo, Bytecode};
@@ -49,7 +49,7 @@ where
     pub block_hashes: HashMap<BlockNumber, B256>,
     pub read_only_db: Option<Arc<LoomDB>>,
     #[cfg_attr(feature = "serde", serde(skip))]
-    pub ext_db: Option<Arc<dyn DatabaseRef<Error = TransportError> + Send + Sync>>,
+    pub ext_db: Option<Arc<dyn DatabaseRef<Error = ErrReport> + Send + Sync>>,
 }
 
 impl Debug for LoomDB {
@@ -123,10 +123,10 @@ impl LoomDB {
 
     pub fn with_ext_db<ExtDB>(self, ext_db: ExtDB) -> Self
     where
-        ExtDB: DatabaseRef<Error = TransportError> + Send + Sync + 'static,
+        ExtDB: DatabaseRef<Error = ErrReport> + Send + Sync + 'static,
         Self: Sized,
     {
-        let ext_db = Arc::new(ext_db) as Arc<dyn DatabaseRef<Error = TransportError> + Send + Sync>;
+        let ext_db = Arc::new(ext_db) as Arc<dyn DatabaseRef<Error = ErrReport> + Send + Sync>;
         Self { ext_db: Some(ext_db), ..self }
     }
 
@@ -136,7 +136,7 @@ impl LoomDB {
 
     pub fn new_with_ext_db<ExtDB>(db: LoomDB, ext_db: ExtDB) -> Self
     where
-        ExtDB: DatabaseRef<Error = TransportError> + Send + Sync + 'static,
+        ExtDB: DatabaseRef<Error = ErrReport> + Send + Sync + 'static,
         Self: Sized,
     {
         Self::new().with_ro_db(Some(db)).with_ext_db(ext_db)

@@ -471,6 +471,7 @@ mod test {
     use loom_defi_abi::uniswap_periphery::IQuoterV2;
     use loom_defi_abi::uniswap_periphery::IQuoterV2::{QuoteExactInputSingleParams, QuoteExactOutputSingleParams};
     use loom_defi_address_book::{PeripheryAddress, UniswapV3PoolAddress};
+    use loom_evm_db::LoomDBType;
     use loom_evm_db::{AlloyDB, LoomDB};
     use loom_node_debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use loom_types_entities::required_state::RequiredStateReader;
