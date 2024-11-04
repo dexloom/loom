@@ -2,8 +2,8 @@
 
 <div align="center">
 
-[![CI status](https://github.com/dexloom/loom/workflows/Loom/badge.svg)][gh-loom]
-[![Book status](https://github.com/dexloom/loom/workflows/Book/badge.svg)][gh-book]
+[![CI status](https://github.com/dexloom/loom/actions/workflows/ci.yml/badge.svg?branch=main)][gh-loom]
+[![Book status](https://github.com/dexloom/loom/actions/workflows/book.yml/badge.svg?branch=main)][gh-book]
 [![Telegram Chat][tg-badge]][tg-url]
 
 | [User Book](https://dexloom.github.io/loom/)
