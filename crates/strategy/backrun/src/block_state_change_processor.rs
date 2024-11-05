@@ -6,15 +6,16 @@ use loom_core_blockchain::Blockchain;
 use loom_types_blockchain::ChainParameters;
 use loom_types_entities::{BlockHistory, Market};
 use loom_types_events::{MarketEvents, StateUpdateEvent};
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::error;
 
-pub async fn block_state_change_worker(
+pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + 'static>(
     chain_parameters: ChainParameters,
     market: SharedState<Market>,
     block_history: SharedState<BlockHistory>,
     market_events_rx: Broadcaster<MarketEvents>,
-    state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
 

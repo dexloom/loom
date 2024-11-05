@@ -14,6 +14,7 @@ use loom_core_blockchain::Blockchain;
 use loom_defi_abi::IERC20::IERC20Events;
 use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory};
 use loom_types_events::MarketEvents;
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::time::sleep;
 use tracing::debug;
@@ -182,7 +183,10 @@ where
         Self { with_fetcher: false, ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> NonceAndBalanceMonitorActor<P, T, N> {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(
+        self,
+        bc: &Blockchain<DB>,
+    ) -> NonceAndBalanceMonitorActor<P, T, N> {
         NonceAndBalanceMonitorActor {
             accounts_nonce_and_balance: Some(bc.nonce_and_balance()),
             block_history: Some(bc.block_history().clone()),

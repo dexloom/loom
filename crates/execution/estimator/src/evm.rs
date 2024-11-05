@@ -22,6 +22,7 @@ use loom_evm_db::AlloyDB;
 use loom_evm_utils::evm::evm_access_list;
 use loom_evm_utils::evm_env::env_for_block;
 use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
+use revm::DatabaseRef;
 
 async fn estimator_task<T, N>(
     client: Option<impl Provider<T, N> + 'static>,
@@ -264,7 +265,7 @@ where
         Self { encoder, client, compose_channel_tx: None, compose_channel_rx: None, _t: PhantomData::<T>, _n: PhantomData::<N> }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self { compose_channel_tx: Some(bc.compose_channel()), compose_channel_rx: Some(bc.compose_channel()), ..self }
     }
 }

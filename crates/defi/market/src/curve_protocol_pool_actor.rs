@@ -14,12 +14,18 @@ use loom_defi_pools::protocols::CurveProtocol;
 use loom_defi_pools::CurvePool;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::{Market, MarketState, PoolWrapper};
+use revm::DatabaseRef;
 
-async fn curve_pool_loader_worker<P, T, N>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState>) -> WorkerResult
+async fn curve_pool_loader_worker<P, T, N, DB>(
+    client: P,
+    market: SharedState<Market>,
+    market_state: SharedState<MarketState<DB>>,
+) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
     for curve_contract in curve_contracts.into_iter() {

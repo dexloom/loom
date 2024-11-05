@@ -4,6 +4,7 @@ use std::fmt::Debug;
 use alloy_primitives::{Address, BlockNumber, TxHash};
 use alloy_rpc_types::Transaction;
 use revm::primitives::Env;
+use revm::DatabaseRef;
 
 use loom_evm_db::LoomDBType;
 use loom_evm_utils::evm_env::env_for_block;
@@ -11,11 +12,11 @@ use loom_types_blockchain::GethStateUpdateVec;
 use loom_types_entities::PoolWrapper;
 
 #[derive(Clone, Debug)]
-pub struct StateUpdateEvent {
+pub struct StateUpdateEvent<DB: DatabaseRef> {
     pub next_block_number: BlockNumber,
     pub next_block_timestamp: u64,
     pub next_base_fee: u64,
-    market_state: LoomDBType,
+    market_state: DB,
     state_update: GethStateUpdateVec,
     state_required: Option<GethStateUpdateVec>,
     directions: BTreeMap<PoolWrapper, Vec<(Address, Address)>>,
@@ -26,12 +27,12 @@ pub struct StateUpdateEvent {
 }
 
 #[allow(clippy::too_many_arguments)]
-impl StateUpdateEvent {
+impl<DB: DatabaseRef> StateUpdateEvent<DB> {
     pub fn new(
         next_block: u64,
         next_block_timestamp: u64,
         next_base_fee: u64,
-        market_state: LoomDBType,
+        market_state: DB,
         state_update: GethStateUpdateVec,
         state_required: Option<GethStateUpdateVec>,
         directions: BTreeMap<PoolWrapper, Vec<(Address, Address)>>,
@@ -39,7 +40,7 @@ impl StateUpdateEvent {
         stuffing_txs: Vec<Transaction>,
         origin: String,
         tips_pct: u32,
-    ) -> StateUpdateEvent {
+    ) -> StateUpdateEvent<DB> {
         StateUpdateEvent {
             next_block_number: next_block,
             next_block_timestamp,
@@ -63,7 +64,7 @@ impl StateUpdateEvent {
         &self.directions
     }
 
-    pub fn market_state(&self) -> &LoomDBType {
+    pub fn market_state(&self) -> &DB {
         &self.market_state
     }
 

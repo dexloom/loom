@@ -1,20 +1,20 @@
 use std::collections::{HashMap, HashSet};
 
 use alloy_primitives::{Address, BlockHash, BlockNumber, U256};
-
 use loom_evm_db::LoomDBType;
+use revm::DatabaseRef;
 
 #[derive(Clone)]
-pub struct MarketState {
+pub struct MarketState<DB> {
     pub block_number: BlockNumber,
     pub block_hash: BlockHash,
-    pub state_db: LoomDBType,
+    pub state_db: DB,
     force_insert_accounts: HashMap<Address, bool>,
     pub read_only_cells: HashMap<Address, HashSet<U256>>,
 }
 
-impl MarketState {
-    pub fn new(db: LoomDBType) -> MarketState {
+impl<DB: DatabaseRef> MarketState<DB> {
+    pub fn new(db: DB) -> MarketState<DB> {
         MarketState {
             block_number: Default::default(),
             block_hash: Default::default(),
@@ -33,22 +33,6 @@ impl MarketState {
 
     pub fn number_and_hash(&self) -> (BlockNumber, BlockHash) {
         (self.block_number, self.block_hash)
-    }
-
-    pub fn storage_len(&self) -> usize {
-        let mut ret = 0;
-        for (_, a) in self.state_db.accounts.iter() {
-            ret += a.storage.len()
-        }
-        ret
-    }
-
-    pub fn storage_db_len(&self) -> usize {
-        let mut ret = 0;
-        for (_, a) in self.state_db.accounts.iter() {
-            ret += a.storage.len()
-        }
-        ret
     }
 
     pub fn is_force_insert(&self, address: &Address) -> bool {

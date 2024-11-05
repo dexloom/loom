@@ -14,7 +14,7 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use revm::primitives::{BlockEnv, Env, CANCUN};
-use revm::Evm;
+use revm::{DatabaseRef, Evm};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, trace};
@@ -60,11 +60,11 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a HashMap<TxHash, V
     ret
 }
 
-async fn same_path_merger_task<P, T, N>(
+async fn same_path_merger_task<P, T, N, DB>(
     client: P,
     stuffing_txes: Vec<Transaction>,
     pre_states: Arc<RwLock<DataFetcher<TxHash, GethStateUpdate>>>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     call_opts: GethDebugTracingCallOptions,
     request: TxComposeData,
     swap_request_tx: Broadcaster<MessageTxCompose>,
@@ -233,10 +233,11 @@ async fn same_path_merger_worker<
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef,
 >(
     client: P,
     latest_block: SharedState<LatestBlock>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
     compose_channel_rx: Broadcaster<MessageTxCompose>,
     compose_channel_tx: Broadcaster<MessageTxCompose>,
@@ -345,11 +346,11 @@ async fn same_path_merger_worker<
 }
 
 #[derive(Consumer, Producer, Accessor)]
-pub struct SamePathMergerActor<P, T, N> {
+pub struct SamePathMergerActor<P, T, N, DB> {
     client: P,
     //encoder: SwapStepEncoder,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
@@ -362,11 +363,12 @@ pub struct SamePathMergerActor<P, T, N> {
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> SamePathMergerActor<P, T, N>
+impl<P, T, N, DB> SamePathMergerActor<P, T, N, DB>
 where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -381,7 +383,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             market_state: Some(bc.market_state()),
             latest_block: Some(bc.latest_block()),
@@ -393,11 +395,12 @@ where
     }
 }
 
-impl<P, T, N> Actor for SamePathMergerActor<P, T, N>
+impl<P, T, N, DB> Actor for SamePathMergerActor<P, T, N, DB>
 where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(same_path_merger_worker(

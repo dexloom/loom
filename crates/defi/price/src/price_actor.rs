@@ -14,10 +14,8 @@ use loom_defi_address_book::TokenAddress;
 use loom_defi_pools::protocols::CurveProtocol;
 use loom_defi_pools::CurvePool;
 use loom_types_entities::{Market, Pool};
+use revm::DatabaseRef;
 use tracing::{debug, error, info};
-
-//use market::{CurveProtocol, Market, PoolSetup};
-//use market::contracts::CurvePool;
 
 async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(
     client: P,
@@ -126,7 +124,7 @@ where
         Self { only_once: true, ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self { market: Some(bc.market()), ..self }
     }
 }

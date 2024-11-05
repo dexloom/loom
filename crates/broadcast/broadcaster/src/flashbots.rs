@@ -13,6 +13,7 @@ use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Wor
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_types_events::{BestTxCompose, MessageTxCompose, RlpState, TxCompose, TxComposeData};
+use revm::DatabaseRef;
 
 async fn broadcast_task<P, T>(broadcast_request: TxComposeData, client: Arc<Flashbots<P, T>>) -> Result<()>
 where
@@ -119,7 +120,7 @@ where
         FlashbotsBroadcastActor { client: Arc::new(client), smart, tx_compose_channel_rx: None, allow_broadcast }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self { tx_compose_channel_rx: Some(bc.compose_channel()), ..self }
     }
 }

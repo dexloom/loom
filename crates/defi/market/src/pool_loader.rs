@@ -22,6 +22,8 @@ use loom_types_entities::required_state::RequiredStateReader;
 use loom_types_entities::{get_protocol_by_factory, Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
 use loom_types_events::Task;
 
+use revm::DatabaseRef;
+
 pub async fn pool_loader_worker<P, T, N>(
     client: P,
     market: SharedState<Market>,
@@ -150,16 +152,17 @@ where
     Ok(())
 }
 
-pub async fn fetch_state_and_add_pool<P, T, N>(
+pub async fn fetch_state_and_add_pool<P, T, N, DB>(
     client: P,
     market: SharedState<Market>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     pool_wrapped: PoolWrapper,
 ) -> Result<()>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     match pool_wrapped.get_state_required() {
         Ok(required_state) => match RequiredStateReader::fetch_calls_and_slots(client, required_state, None).await {

@@ -17,11 +17,12 @@ use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_types_entities::MarketState;
 use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose};
+use revm::DatabaseRef;
 
-async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static>(
+async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static, DB: DatabaseRef>(
     client: P,
     address: Address,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
 ) -> Result<()> {
     info!("Verifying state {address:?}");
     let account = market_state.write().await.state_db.load_account(address).cloned()?;
@@ -52,9 +53,9 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
     Ok(())
 }
 
-pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Clone + 'static>(
+pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Clone + 'static, DB: DatabaseRef + 'static>(
     client: P,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
@@ -116,10 +117,10 @@ pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Et
 }
 
 #[derive(Accessor, Consumer)]
-pub struct StateHealthMonitorActor<P, T> {
+pub struct StateHealthMonitorActor<P, T, DB> {
     client: P,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
     tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[consumer]
@@ -127,16 +128,17 @@ pub struct StateHealthMonitorActor<P, T> {
     _t: PhantomData<T>,
 }
 
-impl<P, T> StateHealthMonitorActor<P, T>
+impl<P, T, DB> StateHealthMonitorActor<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         StateHealthMonitorActor { client, market_state: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             market_state: Some(bc.market_state()),
             tx_compose_channel_rx: Some(bc.compose_channel()),
@@ -146,7 +148,7 @@ where
     }
 }
 
-impl<P, T> Actor for StateHealthMonitorActor<P, T>
+impl<P, T, DB> Actor for StateHealthMonitorActor<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,

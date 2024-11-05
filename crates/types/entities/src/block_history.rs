@@ -26,7 +26,7 @@ pub struct BlockHistoryEntry {
     pub state_db: Option<LoomDBType>,
 }
 
-pub fn apply_state_update(db: LoomDBType, state_update: GethStateUpdateVec, market_state: &MarketState) -> LoomDBType {
+pub fn apply_state_update(db: LoomDBType, state_update: GethStateUpdateVec, market_state: &MarketState<LoomDBType>) -> LoomDBType {
     let mut db = db;
     for state_diff in state_update.into_iter() {
         for (address, account_state) in state_diff.into_iter() {
@@ -291,7 +291,7 @@ where
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     T: Transport + Clone + Send + Sync + 'static,
 {
-    pub async fn init(&self, current_state: Arc<RwLock<MarketState>>, depth: usize) -> Result<BlockHistory>
+    pub async fn init(&self, current_state: Arc<RwLock<MarketState<LoomDBType>>>, depth: usize) -> Result<BlockHistory>
     where
         T: Transport + Clone,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
@@ -430,10 +430,10 @@ where
         Ok((is_new_block, reorg_depth))
     }
 
-    pub async fn get_or_fetch_parent_db(
+    /*pub async fn get_or_fetch_parent_db(
         &self,
         block_history: &mut BlockHistory,
-        market_state: &MarketState,
+        market_state: &MarketState<LoomDBType>,
         parent_hash: BlockHash,
     ) -> Result<LoomDBType> {
         let mut parent_hash = parent_hash;
@@ -476,10 +476,12 @@ where
         }
     }
 
+     */
+
     pub async fn get_parent_db(
         &self,
         block_history: &mut BlockHistory,
-        market_state: &MarketState,
+        market_state: &MarketState<LoomDBType>,
         parent_hash: BlockHash,
     ) -> Result<LoomDBType> {
         let mut parent_hash = parent_hash;
@@ -526,7 +528,7 @@ where
     pub async fn apply_state_update_on_parent_db(
         &self,
         block_history: &mut BlockHistory,
-        market_state: &MarketState,
+        market_state: &MarketState<LoomDBType>,
         block_hash: BlockHash,
     ) -> Result<LoomDBType> {
         let mut entry = block_history.get_or_insert_entry_mut(block_hash).clone();

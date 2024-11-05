@@ -16,6 +16,7 @@ use loom_defi_address_book::TokenAddress;
 use loom_evm_utils::{BalanceCheater, NWETH};
 use loom_types_blockchain::GethStateUpdate;
 use loom_types_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
+use revm::DatabaseRef;
 use tracing::{debug, error, trace};
 
 async fn fetch_account_state<P, T, N>(client: P, address: Address) -> Result<AccountState>
@@ -57,18 +58,19 @@ async fn set_monitor_nonce(account_nonce_balance_state: Option<SharedState<Accou
     }
 }
 
-pub async fn preload_market_state<P, T, N>(
+pub async fn preload_market_state<P, T, N, DB>(
     client: P,
     copied_accounts_vec: Vec<Address>,
     new_accounts_vec: Vec<(Address, u64, U256, Option<Bytes>)>,
     token_balances_vec: Vec<(Address, Address, U256)>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     let mut market_state_guard = market_state.write().await;
 

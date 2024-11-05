@@ -4,6 +4,7 @@ use alloy_primitives::{Address, TxHash};
 use alloy_rpc_types::Transaction;
 use eyre::{OptionExt, Result};
 use lazy_static::lazy_static;
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error, info};
@@ -152,7 +153,7 @@ impl DiffPathMergerActor {
         Self::default()
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self {
             market_events: Some(bc.market_events_channel()),
             compose_channel_tx: Some(bc.compose_channel()),

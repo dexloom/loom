@@ -11,6 +11,7 @@ use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::ChainParameters;
 use loom_types_entities::{apply_state_update, BlockHistory, BlockHistoryManager, LatestBlock, MarketState};
 use loom_types_events::{MarketEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
+use revm::DatabaseRef;
 use std::borrow::BorrowMut;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
@@ -64,11 +65,11 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn new_block_history_worker<P, T>(
+pub async fn new_block_history_worker<P, T, DB>(
     client: P,
     chain_parameters: ChainParameters,
     latest_block: SharedState<LatestBlock>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     block_history: SharedState<BlockHistory>,
     block_header_update_rx: Broadcaster<MessageBlockHeader>,
     block_update_rx: Broadcaster<MessageBlock>,
@@ -79,6 +80,7 @@ pub async fn new_block_history_worker<P, T>(
 where
     T: Transport + Clone + Send + Sync + 'static,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     subscribe!(block_header_update_rx);
     subscribe!(block_update_rx);
@@ -323,14 +325,14 @@ where
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct BlockHistoryActor<P, T> {
+pub struct BlockHistoryActor<P, T, DB> {
     client: P,
     chain_parameters: ChainParameters,
     _t: PhantomData<T>,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
     block_history: Option<SharedState<BlockHistory>>,
     #[consumer]
@@ -345,10 +347,11 @@ pub struct BlockHistoryActor<P, T> {
     market_events_tx: Option<Broadcaster<MarketEvents>>,
 }
 
-impl<P, T> BlockHistoryActor<P, T>
+impl<P, T, DB> BlockHistoryActor<P, T, DB>
 where
     T: Transport + Sync + Send + Clone + 'static,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Sync + Send + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -366,7 +369,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             chain_parameters: bc.chain_parameters(),
             latest_block: Some(bc.latest_block()),
@@ -382,7 +385,7 @@ where
     }
 }
 
-impl<P, T> Actor for BlockHistoryActor<P, T>
+impl<P, T, DB> Actor for BlockHistoryActor<P, T, DB>
 where
     T: Transport + Sync + Send + Clone + 'static,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Sync + Send + Clone + 'static,

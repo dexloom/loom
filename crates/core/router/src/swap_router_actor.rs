@@ -4,6 +4,7 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_types_entities::{AccountNonceAndBalanceState, TxSigners};
 use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData};
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error, info};
@@ -100,7 +101,7 @@ impl SwapRouterActor {
         Self { signers: Some(signers), ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self {
             account_nonce_balance: Some(bc.nonce_and_balance()),
             compose_channel_rx: Some(bc.compose_channel()),

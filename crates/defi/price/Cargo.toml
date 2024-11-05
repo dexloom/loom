@@ -24,3 +24,6 @@ alloy-network.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true
+
+# revm
+revm.workspace = true

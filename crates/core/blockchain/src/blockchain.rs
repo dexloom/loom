@@ -9,14 +9,18 @@ use loom_types_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent, Task,
 };
+use revm::DatabaseRef;
 
 #[derive(Clone)]
-pub struct Blockchain {
+pub struct Blockchain<DB>
+where
+    DB: DatabaseRef + Clone + Send + Sync + 'static,
+{
     chain_id: ChainId,
     chain_parameters: ChainParameters,
     market: SharedState<Market>,
     latest_block: SharedState<LatestBlock>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     block_history_state: SharedState<BlockHistory>,
     mempool: SharedState<Mempool>,
     account_nonce_and_balance: SharedState<AccountNonceAndBalanceState>,
@@ -30,13 +34,13 @@ pub struct Blockchain {
     mempool_events_channel: Broadcaster<MempoolEvents>,
     pool_health_monitor_channel: Broadcaster<MessageHealthEvent>,
     compose_channel: Broadcaster<MessageTxCompose>,
-    state_update_channel: Broadcaster<StateUpdateEvent>,
+    state_update_channel: Broadcaster<StateUpdateEvent<DB>>,
     influxdb_write_channel: Broadcaster<WriteQuery>,
     tasks_channel: Broadcaster<Task>,
 }
 
-impl Blockchain {
-    pub fn new(chain_id: ChainId) -> Blockchain {
+impl<DB: DatabaseRef + Send + Sync + Clone + Default + 'static> Blockchain<DB> {
+    pub fn new(chain_id: ChainId) -> Blockchain<DB> {
         let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
         let new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate> = Broadcaster::new(10);
@@ -48,7 +52,7 @@ impl Blockchain {
         let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(2000);
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
         let compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
-        let state_update_channel: Broadcaster<StateUpdateEvent> = Broadcaster::new(100);
+        let state_update_channel: Broadcaster<StateUpdateEvent<DB>> = Broadcaster::new(100);
         let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
         let tasks_channel: Broadcaster<Task> = Broadcaster::new(1000);
 
@@ -92,7 +96,7 @@ impl Blockchain {
         }
     }
 
-    pub fn with_market_state(&self, market_state: MarketState) -> Blockchain {
+    pub fn with_market_state(self, market_state: MarketState<DB>) -> Blockchain<DB> {
         Blockchain { market_state: SharedState::new(market_state), ..self.clone() }
     }
 
@@ -112,7 +116,7 @@ impl Blockchain {
         self.latest_block.clone()
     }
 
-    pub fn market_state(&self) -> SharedState<MarketState> {
+    pub fn market_state(&self) -> SharedState<MarketState<DB>> {
         self.market_state.clone()
     }
 
@@ -163,7 +167,7 @@ impl Blockchain {
         self.compose_channel.clone()
     }
 
-    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent> {
+    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent<DB>> {
         self.state_update_channel.clone()
     }
 

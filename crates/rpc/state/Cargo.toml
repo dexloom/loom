@@ -12,3 +12,4 @@ version.workspace = true
 loom-core-blockchain.workspace = true
 loom-evm-utils.workspace = true
 loom-storage-db.workspace = true
+revm.workspace = true

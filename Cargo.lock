@@ -4640,6 +4640,7 @@ dependencies = [
  "loom-defi-abi",
  "loom-types-entities",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -4661,6 +4662,7 @@ dependencies = [
  "loom-core-blockchain",
  "loom-node-debug-provider",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -4816,6 +4818,7 @@ dependencies = [
  "loom-core-blockchain",
  "loom-types-blockchain",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -4830,6 +4833,7 @@ dependencies = [
  "loom-core-blockchain",
  "loom-types-entities",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -4917,6 +4921,7 @@ dependencies = [
  "loom-types-blockchain",
  "loom-types-entities",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -4941,6 +4946,7 @@ dependencies = [
  "loom-node-debug-provider",
  "loom-types-entities",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -4995,6 +5001,7 @@ dependencies = [
  "loom-evm-utils",
  "loom-types-blockchain",
  "loom-types-entities",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -5013,6 +5020,7 @@ dependencies = [
  "loom-defi-address-book",
  "loom-defi-pools",
  "loom-types-entities",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -5090,6 +5098,7 @@ dependencies = [
  "loom-node-debug-provider",
  "loom-types-entities",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -5302,6 +5311,7 @@ dependencies = [
  "loom-node-debug-provider",
  "loom-types-blockchain",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -5367,6 +5377,7 @@ dependencies = [
  "loom-core-blockchain",
  "loom-evm-utils",
  "loom-storage-db",
+ "revm",
 ]
 
 [[package]]
