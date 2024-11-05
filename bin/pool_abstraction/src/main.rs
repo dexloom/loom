@@ -1,10 +1,12 @@
 #[allow(dead_code, unused_variables)]
 use std::collections::HashMap;
+use std::sync::Arc;
 
 trait DataBase {
     fn read(&self) -> u32;
 }
 
+#[derive(Clone)]
 struct DataBaseImpl {
     id: u32,
 }
@@ -33,12 +35,22 @@ where
     fn name(&self) -> String;
     fn calc(&self, db: DB) -> u32;
 
-    fn calc_with_db(&self, db: Box<dyn DataBase>) -> u32;
+    fn calc_with_db(&self, db: &DB) -> u32;
 }
 
 struct PoolImpl1<DB> {
     db: DB,
 }
+
+impl<DB> PoolImpl1<DB>
+where
+    DB: DataBase,
+{
+    pub fn new(db: DB) -> Self {
+        Self { db }
+    }
+}
+
 impl<DB> Pool<DB> for PoolImpl1<DB>
 where
     DB: DataBase + 'static,
@@ -51,7 +63,7 @@ where
         self.db.read()
     }
 
-    fn calc_with_db(&self, db: Box<dyn DataBase>) -> u32 {
+    fn calc_with_db(&self, db: &DB) -> u32 {
         db.read()
     }
 }
@@ -95,21 +107,28 @@ impl<DB> Market<DB>
 where
     DB: DataBase + 'static,
 {
+    pub fn new() -> Self {
+        Self { map: HashMap::new() }
+    }
     fn add(&mut self, pool: Box<dyn Pool<DB>>) {
         self.map.insert(pool.name(), pool);
+    }
+
+    fn get(&self, name: &String) -> Option<&Box<dyn Pool<DB>>> {
+        self.map.get(name)
     }
 }
 
 fn main() {
-    let db = Box::new(DataBaseImpl { id: 1 });
+    let db = DataBaseImpl { id: 1 };
 
-    let empty_pool_0 = CleanPoolImpl1 {};
+    let empty_pool_0 = PoolImpl1::new(db.clone());
 
-    let mut clean_market = CleanMarket::default();
+    let mut market = Market::<DataBaseImpl>::new();
 
-    clean_market.add(Box::new(empty_pool_0));
+    market.add(Box::new(empty_pool_0));
 
-    let pool = clean_market.get(&"CLEANPOOL1".to_string()).unwrap();
+    let pool = market.get(&"CLEANPOOL1".to_string()).unwrap();
 
-    pool.calc_with_db(db);
+    pool.calc_with_db(&db);
 }
