@@ -10,8 +10,6 @@ use eyre::{eyre, ErrReport};
 use loom_evm_db::{AlloyDB, LoomDBType};
 use revm::primitives::Env;
 use revm::DatabaseRef;
-use std::any::Any;
-use std::fmt::Display;
 use std::marker::PhantomData;
 
 #[derive(Clone)]

@@ -30,12 +30,13 @@ use loom_node_db_access::RethDbAccessBlockActor;
 use loom_node_grpc::NodeExExGrpcActor;
 use loom_node_json_rpc::{NodeBlockActor, NodeMempoolActor};
 use loom_types_entities::TxSigners;
+use revm::{DatabaseCommit, DatabaseRef};
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
-pub struct Topology {
+pub struct Topology<DB: Clone + Send + Sync + 'static> {
     clients: HashMap<String, ClientConfigParams>,
-    blockchains: HashMap<String, Blockchain>,
+    blockchains: HashMap<String, Blockchain<DB>>,
     signers: HashMap<String, SharedState<TxSigners>>,
     multicaller_encoders: HashMap<String, MulticallerSwapEncoder>,
     default_blockchain_name: Option<String>,
@@ -43,9 +44,9 @@ pub struct Topology {
     default_signer_name: Option<String>,
 }
 
-impl Topology {
-    pub async fn from(config: TopologyConfig) -> Result<(Topology, Vec<JoinHandle<WorkerResult>>)> {
-        let mut topology = Topology {
+impl<DB: DatabaseRef + DatabaseCommit + Default + Send + Sync + Clone + 'static> Topology<DB> {
+    pub async fn from(config: TopologyConfig) -> Result<(Topology<DB>, Vec<JoinHandle<WorkerResult>>)> {
+        let mut topology = Topology::<DB> {
             clients: HashMap::new(),
             blockchains: HashMap::new(),
             signers: HashMap::new(),
@@ -107,7 +108,7 @@ impl Topology {
         }
 
         for (k, params) in config.blockchains.iter() {
-            let blockchain = Blockchain::new(params.chain_id.unwrap_or(1) as u64);
+            let blockchain = Blockchain::<DB>::new(params.chain_id.unwrap_or(1) as u64);
 
             info!("Starting block history actor {k}");
             let mut block_history_actor = BlockHistoryActor::new(topology.get_client(None)?);
@@ -527,7 +528,7 @@ impl Topology {
         }
     }
 
-    pub fn get_blockchain(&self, name: Option<&String>) -> Result<&Blockchain> {
+    pub fn get_blockchain(&self, name: Option<&String>) -> Result<&Blockchain<DB>> {
         match self.blockchains.get(name.unwrap_or(&self.default_blockchain_name.clone().unwrap())) {
             Some(a) => Ok(a),
             None => Err(eyre!("BLOCKCHAIN_NOT_FOUND")),
@@ -547,7 +548,7 @@ impl Topology {
             None => Err(eyre!("SIGNERS_NOT_FOUND")),
         }
     }
-    pub fn get_mut_blockchain(&mut self, name: Option<&String>) -> Result<&mut Blockchain> {
+    pub fn get_blockchain_mut(&mut self, name: Option<&String>) -> Result<&mut Blockchain<DB>> {
         match self.blockchains.get_mut(name.unwrap_or(&self.default_blockchain_name.clone().unwrap())) {
             Some(a) => Ok(a),
             None => Err(eyre!("CLIENT_NOT_FOUND")),

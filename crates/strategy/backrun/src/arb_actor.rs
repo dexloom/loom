@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
+use eyre::ErrReport;
 use revm::DatabaseRef;
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -79,7 +80,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let searcher_pool_update_channel = Broadcaster::new(100);

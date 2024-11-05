@@ -1,5 +1,4 @@
 use std::collections::BTreeMap;
-use std::fmt::Debug;
 
 use alloy_primitives::{Address, BlockNumber, TxHash};
 use alloy_rpc_types::Transaction;

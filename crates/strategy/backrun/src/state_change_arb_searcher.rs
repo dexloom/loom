@@ -25,7 +25,7 @@ use loom_types_events::{
     BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData,
 };
 
-async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Default + Clone + 'static>(
+async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static>(
     thread_pool: Arc<ThreadPool>,
     backrun_config: BackrunConfig,
     state_update_event: StateUpdateEvent<DB>,
@@ -192,7 +192,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Sen
     Ok(())
 }
 
-pub async fn state_change_arb_searcher_worker<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + Default + 'static>(
+pub async fn state_change_arb_searcher_worker<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static>(
     backrun_config: BackrunConfig,
     market: SharedState<Market>,
     search_request_rx: Broadcaster<StateUpdateEvent<DB>>,
@@ -255,7 +255,7 @@ impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateCh
     }
 }
 
-impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + Default + 'static> Actor for StateChangeArbSearcherActor<DB> {
+impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> Actor for StateChangeArbSearcherActor<DB> {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_change_arb_searcher_worker(
             self.backrun_config.clone(),

@@ -3,7 +3,7 @@ use alloy_primitives::{Address, B256, U256};
 use alloy_provider::{Provider, RootProvider};
 use alloy_transport::{BoxTransport, Transport};
 use axum::Router;
-use eyre::{eyre, Result};
+use eyre::{eyre, ErrReport, Result};
 use loom_broadcast_accounts::{InitializeSignersOneShotBlockingActor, NonceAndBalanceMonitorActor, TxSignersActor};
 use loom_broadcast_broadcaster::FlashbotsBroadcastActor;
 use loom_broadcast_flashbots::client::RelayConfig;
@@ -39,14 +39,15 @@ use loom_strategy_backrun::{
 use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{PoolClass, TxSigners};
+use revm::{DatabaseCommit, DatabaseRef};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
-pub struct BlockchainActors<P, T> {
+pub struct BlockchainActors<P, T, DB: Clone + Send + Sync + 'static> {
     provider: P,
-    bc: Blockchain,
+    bc: Blockchain<DB>,
     pub signers: SharedState<TxSigners>,
     actor_manager: ActorsManager,
     encoder: Option<MulticallerSwapEncoder>,
@@ -58,12 +59,13 @@ pub struct BlockchainActors<P, T> {
     _t: PhantomData<T>,
 }
 
-impl<P, T> BlockchainActors<P, T>
+impl<P, T, DB> BlockchainActors<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
-    pub fn new(provider: P, bc: Blockchain, relays: Vec<RelayConfig>) -> Self {
+    pub fn new(provider: P, bc: Blockchain<DB>, relays: Vec<RelayConfig>) -> Self {
         Self {
             provider,
             bc,
@@ -298,7 +300,7 @@ where
     /// Starts EVM gas estimator and tips filler
     pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(
-            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, MulticallerSwapEncoder>::new(
+            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, MulticallerSwapEncoder, DB>::new(
                 self.encoder.clone().unwrap(),
             )
             .on_bc(&self.bc),

@@ -56,7 +56,7 @@ impl InitializeSignersOneShotBlockingActor {
         InitializeSignersOneShotBlockingActor { key: Some(key), signers: None, monitor: None }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self { monitor: Some(bc.nonce_and_balance()), ..self }
     }
 

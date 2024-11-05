@@ -1,16 +1,13 @@
-use std::ops::Deref;
-use std::sync::Arc;
-
 use alloy_consensus::TxEnvelope;
 use alloy_primitives::private::alloy_rlp;
 use alloy_primitives::{Address, BlockNumber, Bytes, TxHash, U256};
 use alloy_rlp::Encodable;
 use alloy_rpc_types::{Transaction, TransactionRequest};
 use eyre::{eyre, Result};
-use loom_evm_db::LoomDBType;
 use loom_types_blockchain::GethStateUpdateVec;
 use loom_types_entities::{Swap, TxSigner};
 use revm::DatabaseRef;
+use std::ops::Deref;
 
 use crate::Message;
 

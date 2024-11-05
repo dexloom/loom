@@ -16,9 +16,9 @@ pub struct SwapCalculator {}
 
 impl SwapCalculator {
     #[inline]
-    pub fn calculate<'a>(
+    pub fn calculate<'a, DB: DatabaseRef<Error = ErrReport>>(
         path: &'a mut SwapLine,
-        state: &dyn DatabaseRef<Error = ErrReport>,
+        state: &DB,
         env: Env,
     ) -> eyre::Result<&'a mut SwapLine, SwapError> {
         let first_token = path.get_first_token().unwrap();

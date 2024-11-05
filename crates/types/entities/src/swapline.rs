@@ -1,6 +1,4 @@
-use std::any::Any;
 use std::fmt;
-use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
@@ -10,7 +8,6 @@ use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::debug;
 
-use loom_evm_db::LoomDBType;
 use loom_types_blockchain::SwapError;
 
 use crate::swappath::SwapPath;

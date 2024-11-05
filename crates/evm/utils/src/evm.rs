@@ -163,7 +163,7 @@ where
 
     let mut evm = Evm::builder().with_spec_id(CANCUN).with_ref_db(state_db).with_env(Box::new(env)).build();
 
-    evm.transact().map_err(|e| eyre!("TRANSACT_ERROR"))
+    evm.transact().map_err(|_| eyre!("TRANSACT_ERROR"))
 }
 
 pub fn convert_evm_result_to_rpc(

@@ -4802,6 +4802,7 @@ dependencies = [
  "loom-strategy-backrun",
  "loom-strategy-merger",
  "loom-types-entities",
+ "revm",
  "tokio-util",
 ]
 
