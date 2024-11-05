@@ -4,6 +4,7 @@ use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use eyre::{eyre, Result};
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{error, info};
 
@@ -13,17 +14,17 @@ use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::SwapEncoder;
 use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 
-async fn estimator_worker(
+async fn estimator_worker<DB: DatabaseRef + Send + Sync + Clone>(
     swap_encoder: impl SwapEncoder,
-    compose_channel_rx: Broadcaster<MessageTxCompose>,
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
+    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(compose_channel_rx);
 
     loop {
         tokio::select! {
                     msg = compose_channel_rx.recv() => {
-                        let compose_request_msg : Result<MessageTxCompose, RecvError> = msg;
+                        let compose_request_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
                         match compose_request_msg {
                             Ok(compose_request) =>{
                                 if let TxCompose::Estimate(estimate_request) = compose_request.inner {
@@ -99,29 +100,31 @@ async fn estimator_worker(
 
 #[allow(dead_code)]
 #[derive(Consumer, Producer)]
-pub struct HardhatEstimatorActor<P, E> {
+pub struct HardhatEstimatorActor<P, E, DB: Send + Sync + Clone + 'static> {
     client: P,
     encoder: E,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
 }
 
-impl<P, E> HardhatEstimatorActor<P, E>
+impl<P, E, DB> HardhatEstimatorActor<P, E, DB>
 where
     P: Provider + DebugProviderExt + Clone + Send + Sync + 'static,
     E: SwapEncoder + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone,
 {
     pub fn new(client: P, encoder: E) -> Self {
         Self { client, encoder, compose_channel_tx: None, compose_channel_rx: None }
     }
 }
 
-impl<P, E> Actor for HardhatEstimatorActor<P, E>
+impl<P, E, DB> Actor for HardhatEstimatorActor<P, E, DB>
 where
     P: Provider + DebugProviderExt + Clone + Send + Sync + 'static,
     E: SwapEncoder + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(

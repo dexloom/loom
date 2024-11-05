@@ -225,14 +225,14 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + Default + 'static,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         Self { client, market: None, market_state: None, tasks_rx: None, _t: PhantomData, _n: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self { market: Some(bc.market()), market_state: Some(bc.market_state()), tasks_rx: Some(bc.tasks_channel()), ..self }
+        Self { market: Some(bc.market()), market_state: Some(bc.market_state_commit()), tasks_rx: Some(bc.tasks_channel()), ..self }
     }
 }
 
@@ -241,7 +241,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(pool_loader_worker(

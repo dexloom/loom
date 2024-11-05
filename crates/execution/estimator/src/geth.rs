@@ -21,11 +21,15 @@ use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Pro
 use loom_core_actors_macros::{Consumer, Producer};
 use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 
-async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static>(
-    estimate_request: TxComposeData,
+async fn estimator_task<
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone,
+>(
+    estimate_request: TxComposeData<DB>,
     client: Arc<Flashbots<P, T>>,
     swap_encoder: impl SwapEncoder,
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
 ) -> Result<()> {
     let token_in = estimate_request.swap.get_first_token().cloned().ok_or(eyre!("NO_TOKEN"))?;
 
@@ -196,18 +200,22 @@ async fn estimator_task<T: Transport + Clone, P: Provider<T, Ethereum> + Send + 
     Ok(())
 }
 
-async fn estimator_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Send + Sync + Clone + 'static>(
+async fn estimator_worker<
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone,
+>(
     client: Arc<Flashbots<P, T>>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
-    compose_channel_rx: Broadcaster<MessageTxCompose>,
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
+    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(compose_channel_rx);
 
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let compose_request_msg : Result<MessageTxCompose, RecvError> = msg;
+                let compose_request_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
                 match compose_request_msg {
                     Ok(compose_request) =>{
                         if let TxCompose::Estimate(estimate_request) = compose_request.inner {
@@ -235,35 +243,37 @@ async fn estimator_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Send 
 }
 
 #[derive(Consumer, Producer)]
-pub struct GethEstimatorActor<P, T, E> {
+pub struct GethEstimatorActor<P, T, E, DB: Clone + Send + Sync + 'static> {
     client: Arc<Flashbots<P, T>>,
     encoder: E,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
 }
 
-impl<P, T, E> GethEstimatorActor<P, T, E>
+impl<P, T, E, DB> GethEstimatorActor<P, T, E, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     E: SwapEncoder + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone,
 {
     pub fn new(client: Arc<Flashbots<P, T>>, encoder: E) -> Self {
         Self { client, encoder, compose_channel_tx: None, compose_channel_rx: None }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self { compose_channel_tx: Some(bc.compose_channel()), compose_channel_rx: Some(bc.compose_channel()), ..self }
     }
 }
 
-impl<P, T, E> Actor for GethEstimatorActor<P, T, E>
+impl<P, T, E, DB> Actor for GethEstimatorActor<P, T, E, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     E: SwapEncoder + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(

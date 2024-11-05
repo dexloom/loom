@@ -29,7 +29,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     for (pool_address, pool_class) in pools {
         debug!(class=%pool_class, address=%pool_address, "Loading pool");
@@ -58,7 +58,7 @@ where
 
     if let Some(required_state) = required_state {
         let update = RequiredStateReader::fetch_calls_and_slots(client.clone(), required_state, None).await?;
-        market_state.write().await.state_db.apply_geth_update(update);
+        market_state.write().await.apply_geth_update(update);
     }
 
     Ok("required_pools_loader_worker".to_string())

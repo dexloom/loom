@@ -10,7 +10,7 @@ use loom_evm_utils::evm_env::env_for_block;
 use loom_types_blockchain::GethStateUpdateVec;
 use loom_types_entities::PoolWrapper;
 
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub struct StateUpdateEvent<DB> {
     pub next_block_number: BlockNumber,
     pub next_block_timestamp: u64,

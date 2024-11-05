@@ -27,7 +27,7 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    let mut market_state = MarketState::new(Default::default());
+    let mut market_state = MarketState::new(LoomDB::new());
     market_state.state_db.apply_geth_state_update(state_update, true, false);
 
     let mut ret: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();

@@ -10,6 +10,7 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
+use revm::DatabaseRef;
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -35,24 +36,25 @@ lazy_static! {
 
 /// Process a pending tx from the mempool
 #[allow(clippy::too_many_arguments)]
-pub async fn pending_tx_state_change_task<P, T, N>(
+pub async fn pending_tx_state_change_task<P, T, N, DB>(
     client: P,
     tx_hash: TxHash,
     market: SharedState<Market>,
     mempool: SharedState<Mempool>,
     latest_block: SharedState<LatestBlock>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     affecting_tx: Arc<RwLock<HashMap<TxHash, bool>>>,
     cur_block_number: BlockNumber,
     cur_block_time: u64,
     cur_next_base_fee: u64,
     cur_state_override: StateOverride,
-    state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB>>,
 ) -> Result<()>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Clone + Send + Sync + 'static,
 {
     let mut state_update_vec: GethStateUpdateVec = Vec::new();
     let mut state_required_vec: GethStateUpdateVec = Vec::new();
@@ -247,20 +249,21 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn pending_tx_state_change_worker<P, T, N>(
+pub async fn pending_tx_state_change_worker<P, T, N, DB>(
     client: P,
     market: SharedState<Market>,
     mempool: SharedState<Mempool>,
     latest_block: SharedState<LatestBlock>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     mempool_events_rx: Broadcaster<MempoolEvents>,
     market_events_rx: Broadcaster<MarketEvents>,
-    state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB>>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Clone + Send + Sync + 'static,
 {
     subscribe!(mempool_events_rx);
     subscribe!(market_events_rx);
@@ -327,14 +330,14 @@ where
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct PendingTxStateChangeProcessorActor<P, T, N> {
+pub struct PendingTxStateChangeProcessorActor<P, T, N, DB: Clone + Send + Sync + 'static> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
     mempool: Option<SharedState<Mempool>>,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
@@ -342,18 +345,19 @@ pub struct PendingTxStateChangeProcessorActor<P, T, N> {
     #[consumer]
     mempool_events_rx: Option<Broadcaster<MempoolEvents>>,
     #[producer]
-    state_updates_tx: Option<Broadcaster<StateUpdateEvent>>,
+    state_updates_tx: Option<Broadcaster<StateUpdateEvent<DB>>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> PendingTxStateChangeProcessorActor<P, T, N>
+impl<P, T, N, DB> PendingTxStateChangeProcessorActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P) -> PendingTxStateChangeProcessorActor<P, T, N> {
+    pub fn new(client: P) -> PendingTxStateChangeProcessorActor<P, T, N, DB> {
         PendingTxStateChangeProcessorActor {
             client,
             market: None,
@@ -368,7 +372,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             market: Some(bc.market()),
             mempool: Some(bc.mempool()),
@@ -382,11 +386,12 @@ where
     }
 }
 
-impl<P, T, N> Actor for PendingTxStateChangeProcessorActor<P, T, N>
+impl<P, T, N, DB> Actor for PendingTxStateChangeProcessorActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(pending_tx_state_change_worker(

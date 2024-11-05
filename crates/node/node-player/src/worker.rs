@@ -11,7 +11,7 @@ use loom_types_entities::MarketState;
 use loom_types_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
 };
-use revm::DatabaseRef;
+use revm::{DatabaseCommit, DatabaseRef};
 use std::ops::RangeInclusive;
 use std::time::Duration;
 use tracing::{debug, error};
@@ -30,7 +30,7 @@ pub async fn node_player_worker<P, DB>(
 ) -> WorkerResult
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     for _ in RangeInclusive::new(start_block, end_block) {
         let curblock_number = provider.client().transport().fetch_next_block().await?;
@@ -147,10 +147,12 @@ where
                             let mut marker_state_guard = market_state.write().await;
                             for mempool_tx in txes {
                                 if let Some(state_update) = &mempool_tx.state_update {
-                                    marker_state_guard.state_db.apply_geth_update(state_update.clone());
+                                    marker_state_guard.apply_geth_update(state_update.clone());
                                 }
                             }
-                            marker_state_guard.state_db = marker_state_guard.state_db.clone().merge_all();
+                            panic!("NOT_IMPLEMENTED")
+                            // TODO : Fix
+                            //marker_state_guard.state_db = marker_state_guard.state_db.clone().merge_all();
                         }
                     }
                 }

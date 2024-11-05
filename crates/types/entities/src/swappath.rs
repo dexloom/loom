@@ -149,6 +149,7 @@ mod test {
     use eyre::{eyre, ErrReport};
     use loom_evm_db::LoomDBType;
     use revm::primitives::Env;
+    use revm::DatabaseRef;
     use tokio::task::JoinHandle;
     use tracing::error;
 
@@ -170,7 +171,7 @@ mod test {
 
         fn calculate_out_amount(
             &self,
-            _state: &LoomDBType,
+            _state: &dyn DatabaseRef<Error = ErrReport>,
             _env: Env,
             _token_address_from: &Address,
             _token_address_to: &Address,
@@ -181,7 +182,7 @@ mod test {
 
         fn calculate_in_amount(
             &self,
-            _state: &LoomDBType,
+            _state: &dyn DatabaseRef<Error = ErrReport>,
             _env: Env,
             _token_address_from: &Address,
             _token_address_to: &Address,

@@ -7,10 +7,10 @@ use alloy_primitives::{Address, BlockNumber, Bytes, TxHash, U256};
 use alloy_rlp::Encodable;
 use alloy_rpc_types::{Transaction, TransactionRequest};
 use eyre::{eyre, Result};
-
 use loom_evm_db::LoomDBType;
 use loom_types_blockchain::GethStateUpdateVec;
 use loom_types_entities::{Swap, TxSigner};
+use revm::DatabaseRef;
 
 use crate::Message;
 
@@ -38,23 +38,23 @@ impl TxState {
 }
 
 #[derive(Clone, Debug)]
-pub enum TxCompose {
-    Route(TxComposeData),
-    Estimate(TxComposeData),
-    Sign(TxComposeData),
-    Broadcast(TxComposeData),
+pub enum TxCompose<DB> {
+    Route(TxComposeData<DB>),
+    Estimate(TxComposeData<DB>),
+    Sign(TxComposeData<DB>),
+    Broadcast(TxComposeData<DB>),
 }
 
-impl Deref for TxCompose {
-    type Target = TxComposeData;
+impl<DB> Deref for TxCompose<DB> {
+    type Target = TxComposeData<DB>;
 
     fn deref(&self) -> &Self::Target {
         self.data()
     }
 }
 
-impl TxCompose {
-    pub fn data(&self) -> &TxComposeData {
+impl<DB> TxCompose<DB> {
+    pub fn data(&self) -> &TxComposeData<DB> {
         match self {
             TxCompose::Route(x) | TxCompose::Broadcast(x) | TxCompose::Sign(x) | TxCompose::Estimate(x) => x,
         }
@@ -82,7 +82,7 @@ impl RlpState {
 }
 
 #[derive(Clone, Debug)]
-pub struct TxComposeData {
+pub struct TxComposeData<DB> {
     /// The EOA address that will be used to sign the transaction.
     /// If this is None, the transaction will be signed by a random signer.
     pub eoa: Option<Address>,
@@ -100,15 +100,15 @@ pub struct TxComposeData {
     pub swap: Swap,
     pub tx_bundle: Option<Vec<TxState>>,
     pub rlp_bundle: Option<Vec<RlpState>>,
-    pub prestate: Option<Arc<LoomDBType>>,
-    pub poststate: Option<Arc<LoomDBType>>,
+    pub prestate: Option<DB>,
+    pub poststate: Option<DB>,
     pub poststate_update: Option<GethStateUpdateVec>,
     pub origin: Option<String>,
     pub tips_pct: Option<u32>,
     pub tips: Option<U256>,
 }
 
-impl TxComposeData {
+impl<DB: Clone + 'static> TxComposeData<DB> {
     pub fn same_stuffing(&self, others_stuffing_txs_hashes: &[TxHash]) -> bool {
         let tx_len = self.stuffing_txs_hashes.len();
 
@@ -154,7 +154,7 @@ impl TxComposeData {
     }
 }
 
-impl Default for TxComposeData {
+impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Default for TxComposeData<DB> {
     fn default() -> Self {
         Self {
             eoa: None,
@@ -182,22 +182,22 @@ impl Default for TxComposeData {
     }
 }
 
-pub type MessageTxCompose = Message<TxCompose>;
+pub type MessageTxCompose<DB> = Message<TxCompose<DB>>;
 
-impl MessageTxCompose {
-    pub fn route(data: TxComposeData) -> Self {
+impl<DB> MessageTxCompose<DB> {
+    pub fn route(data: TxComposeData<DB>) -> Self {
         Message::new(TxCompose::Route(data))
     }
 
-    pub fn sign(data: TxComposeData) -> Self {
+    pub fn sign(data: TxComposeData<DB>) -> Self {
         Message::new(TxCompose::Sign(data))
     }
 
-    pub fn estimate(data: TxComposeData) -> Self {
+    pub fn estimate(data: TxComposeData<DB>) -> Self {
         Message::new(TxCompose::Estimate(data))
     }
 
-    pub fn broadcast(data: TxComposeData) -> Self {
+    pub fn broadcast(data: TxComposeData<DB>) -> Self {
         Message::new(TxCompose::Broadcast(data))
     }
 }

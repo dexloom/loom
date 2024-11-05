@@ -14,7 +14,7 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use revm::primitives::{BlockEnv, Env, CANCUN};
-use revm::{DatabaseRef, Evm};
+use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, trace};
@@ -34,7 +34,10 @@ lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
-fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a HashMap<TxHash, Vec<TxComposeData>>) -> Vec<&'a TxComposeData> {
+fn get_merge_list<'a, DB: Clone + 'static>(
+    request: &TxComposeData<DB>,
+    swap_paths: &'a HashMap<TxHash, Vec<TxComposeData<DB>>>,
+) -> Vec<&'a TxComposeData<DB>> {
     //let mut ret : Vec<&TxComposeData> = Vec::new();
     let swap_line = if let Swap::BackrunSwapLine(swap_line) = &request.swap {
         swap_line
@@ -44,7 +47,7 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a HashMap<TxHash, V
 
     let swap_stuffing_hash = request.first_stuffing_hash();
 
-    let mut ret: Vec<&TxComposeData> = swap_paths
+    let mut ret: Vec<&TxComposeData<DB>> = swap_paths
         .iter()
         .filter_map(|(k, v)| {
             if *k != swap_stuffing_hash {
@@ -66,15 +69,18 @@ async fn same_path_merger_task<P, T, N, DB>(
     pre_states: Arc<RwLock<DataFetcher<TxHash, GethStateUpdate>>>,
     market_state: SharedState<MarketState<DB>>,
     call_opts: GethDebugTracingCallOptions,
-    request: TxComposeData,
-    swap_request_tx: Broadcaster<MessageTxCompose>,
+    request: TxComposeData<DB>,
+    swap_request_tx: Broadcaster<MessageTxCompose<DB>>,
 ) -> Result<()>
 where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
+    // TODO : FIX IT
+    panic!("NOT_IMPLEMENTED");
+    /*
     debug!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len());
 
     let mut prestate_guard = pre_states.write().await;
@@ -138,6 +144,7 @@ where
         let states: GethStateUpdateVec = tx_and_state.iter().map(|(_tx, state)| state.clone()).collect();
 
         let mut db = db_org.clone();
+
         db.apply_geth_update_vec(states);
 
         let mut evm = Evm::builder().with_spec_id(CANCUN).with_db(db).with_env(Box::new(env.clone())).build();
@@ -227,6 +234,8 @@ where
 
     trace!("same_path_merger_task stuffing_states len {}", stuffing_states.len());
 
+
+     */
     Ok(())
 }
 
@@ -234,19 +243,19 @@ async fn same_path_merger_worker<
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 >(
     client: P,
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
-    compose_channel_rx: Broadcaster<MessageTxCompose>,
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
+    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
     subscribe!(compose_channel_rx);
 
-    let mut swap_paths: HashMap<TxHash, Vec<TxComposeData>> = HashMap::new();
+    let mut swap_paths: HashMap<TxHash, Vec<TxComposeData<DB>>> = HashMap::new();
 
     let prestate = Arc::new(RwLock::new(DataFetcher::<TxHash, GethStateUpdate>::new()));
 
@@ -288,7 +297,7 @@ async fn same_path_merger_worker<
 
 
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageTxCompose, RecvError> = msg;
+                let msg : Result<MessageTxCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(compose_request)=>{
                         if let TxCompose::Sign(sign_request) = compose_request.inner() {
@@ -347,7 +356,7 @@ async fn same_path_merger_worker<
 }
 
 #[derive(Consumer, Producer, Accessor)]
-pub struct SamePathMergerActor<P, T, N, DB> {
+pub struct SamePathMergerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
     client: P,
     //encoder: SwapStepEncoder,
     #[accessor]
@@ -357,9 +366,9 @@ pub struct SamePathMergerActor<P, T, N, DB> {
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -369,7 +378,7 @@ where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -386,7 +395,7 @@ where
 
     pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
-            market_state: Some(bc.market_state()),
+            market_state: Some(bc.market_state_commit()),
             latest_block: Some(bc.latest_block()),
             market_events: Some(bc.market_events_channel()),
             compose_channel_tx: Some(bc.compose_channel()),
@@ -401,7 +410,7 @@ where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(same_path_merger_worker(

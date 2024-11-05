@@ -1,9 +1,13 @@
+use eyre::{eyre, ErrReport};
+use std::any::Any;
 #[allow(dead_code, unused_variables)]
 use std::collections::HashMap;
+use std::fmt::Display;
 use std::sync::Arc;
 
 trait DataBase {
-    fn read(&self) -> u32;
+    type Error;
+    fn read(&self) -> eyre::Result<u32, ErrReport>;
 }
 
 #[derive(Clone)]
@@ -18,14 +22,28 @@ impl DataBaseImpl {
 }
 
 impl DataBase for DataBaseImpl {
-    fn read(&self) -> u32 {
-        self.id
+    type Error = ErrReport;
+    fn read(&self) -> Result<u32, ErrReport> {
+        Ok(self.id)
     }
 }
 
 trait CleanPool {
     fn name(&self) -> String;
-    fn calc_with_db(&self, db: Box<dyn DataBase>) -> u32;
+    fn calc_with_db(&self, db: &dyn DataBase<Error = &dyn Display>) -> Result<u32, ErrReport>;
+}
+
+#[derive(Clone)]
+struct CleanPoolImpl1 {}
+
+impl CleanPool for CleanPoolImpl1 {
+    fn name(&self) -> String {
+        "CLEANPOOL1".to_string()
+    }
+
+    fn calc_with_db(&self, db: &dyn DataBase<Error = &dyn Display>) -> Result<u32, ErrReport> {
+        db.read().map_err(|e| eyre!(e))
+    }
 }
 
 trait Pool<DB>
@@ -35,7 +53,7 @@ where
     fn name(&self) -> String;
     fn calc(&self, db: DB) -> u32;
 
-    fn calc_with_db(&self, db: &DB) -> u32;
+    fn calc_with_db(&self, db: &DB) -> Result<u32, ErrReport>;
 }
 
 struct PoolImpl1<DB> {
@@ -60,24 +78,11 @@ where
     }
 
     fn calc(&self, db: DB) -> u32 {
-        self.db.read()
+        self.db.read().unwrap()
     }
 
-    fn calc_with_db(&self, db: &DB) -> u32 {
-        db.read()
-    }
-}
-
-#[derive(Clone)]
-struct CleanPoolImpl1 {}
-
-impl CleanPool for CleanPoolImpl1 {
-    fn name(&self) -> String {
-        "CLEANPOOL1".to_string()
-    }
-
-    fn calc_with_db(&self, db: Box<dyn DataBase>) -> u32 {
-        db.read()
+    fn calc_with_db(&self, db: &DB) -> Result<u32, ErrReport> {
+        db.read().map_err(|e| eyre!(e))
     }
 }
 

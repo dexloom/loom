@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
+use revm::DatabaseRef;
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -18,7 +19,7 @@ use crate::block_state_change_processor::BlockStateChangeProcessorActor;
 use crate::BackrunConfig;
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct StateChangeArbActor<P, T, N> {
+pub struct StateChangeArbActor<P, T, N, DB: Clone + Send + Sync + 'static> {
     backrun_config: BackrunConfig,
     client: P,
     use_blocks: bool,
@@ -30,7 +31,7 @@ pub struct StateChangeArbActor<P, T, N> {
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
     block_history: Option<SharedState<BlockHistory>>,
     #[consumer]
@@ -38,20 +39,21 @@ pub struct StateChangeArbActor<P, T, N> {
     #[consumer]
     market_events_tx: Option<Broadcaster<MarketEvents>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[producer]
     pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> StateChangeArbActor<P, T, N>
+impl<P, T, N, DB> StateChangeArbActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, use_blocks: bool, use_mempool: bool, backrun_config: BackrunConfig) -> StateChangeArbActor<P, T, N> {
+    pub fn new(client: P, use_blocks: bool, use_mempool: bool, backrun_config: BackrunConfig) -> StateChangeArbActor<P, T, N, DB> {
         StateChangeArbActor {
             backrun_config,
             client,
@@ -72,11 +74,12 @@ where
     }
 }
 
-impl<P, T, N> Actor for StateChangeArbActor<P, T, N>
+impl<P, T, N, DB> Actor for StateChangeArbActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let searcher_pool_update_channel = Broadcaster::new(100);

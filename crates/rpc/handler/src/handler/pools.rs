@@ -5,6 +5,7 @@ use alloy_primitives::Address;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
+use eyre::ErrReport;
 use loom_evm_utils::error_handler::internal_error;
 use loom_rpc_state::AppState;
 use loom_types_entities::PoolWrapper;
@@ -146,7 +147,7 @@ pub async fn market_stats<DB: DatabaseRef + Send + Sync + Clone + 'static>(
         (status = 200, description = "Market stats", body = QuoteResponse),
     )
 )]
-pub async fn pool_quote<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+pub async fn pool_quote<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static>(
     State(app_state): State<AppState<DB>>,
     Path(address): Path<String>,
     Json(quote_request): Json<QuoteRequest>,

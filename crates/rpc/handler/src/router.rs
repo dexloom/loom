@@ -5,11 +5,13 @@ use crate::handler::ws::ws_handler;
 use crate::openapi::ApiDoc;
 use axum::routing::{get, post};
 use axum::Router;
+use eyre::ErrReport;
 use loom_rpc_state::AppState;
+use revm::DatabaseRef;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-pub fn router(app_state: AppState) -> Router<()> {
+pub fn router<DB: DatabaseRef<Error = ErrReport> + Sync + Send + Clone + 'static>(app_state: AppState<DB>) -> Router<()> {
     Router::new()
         .nest(
             "/api/v1",
@@ -23,11 +25,11 @@ pub fn router(app_state: AppState) -> Router<()> {
         .with_state(app_state)
 }
 
-pub fn router_block() -> Router<AppState> {
+pub fn router_block<DB: DatabaseRef + Sync + Send + Clone + 'static>() -> Router<AppState<DB>> {
     Router::new().route("/latest_block", get(latest_block))
 }
 
-pub fn router_market() -> Router<AppState> {
+pub fn router_market<DB: DatabaseRef<Error = ErrReport> + Sync + Send + Clone + 'static>() -> Router<AppState<DB>> {
     Router::new()
         .route("/pools/:address", get(pool))
         .route("/pools/:address/quote", post(pool_quote))

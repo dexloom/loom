@@ -30,7 +30,7 @@ pub struct Blockchain<DB: Clone + Send + Sync + 'static> {
     market_events_channel: Broadcaster<MarketEvents>,
     mempool_events_channel: Broadcaster<MempoolEvents>,
     pool_health_monitor_channel: Broadcaster<MessageHealthEvent>,
-    compose_channel: Broadcaster<MessageTxCompose>,
+    compose_channel: Broadcaster<MessageTxCompose<DB>>,
     state_update_channel: Broadcaster<StateUpdateEvent<DB>>,
     influxdb_write_channel: Broadcaster<WriteQuery>,
     tasks_channel: Broadcaster<Task>,
@@ -48,7 +48,7 @@ impl<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static>
         let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(100);
         let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(2000);
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
-        let compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
+        let compose_channel: Broadcaster<MessageTxCompose<DB>> = Broadcaster::new(100);
         let state_update_channel: Broadcaster<StateUpdateEvent<DB>> = Broadcaster::new(100);
         let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
         let tasks_channel: Broadcaster<Task> = Broadcaster::new(1000);
@@ -168,7 +168,7 @@ impl<DB: DatabaseRef + Clone + Send + Sync> Blockchain<DB> {
         self.pool_health_monitor_channel.clone()
     }
 
-    pub fn compose_channel(&self) -> Broadcaster<MessageTxCompose> {
+    pub fn compose_channel(&self) -> Broadcaster<MessageTxCompose<DB>> {
         self.compose_channel.clone()
     }
 

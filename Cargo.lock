@@ -6553,6 +6553,9 @@ dependencies = [
 [[package]]
 name = "pool_abstraction"
 version = "0.2.0"
+dependencies = [
+ "eyre",
+]
 
 [[package]]
 name = "portable-atomic"

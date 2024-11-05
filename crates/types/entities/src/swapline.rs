@@ -1,4 +1,6 @@
+use std::any::Any;
 use std::fmt;
+use std::fmt::Display;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
@@ -292,9 +294,9 @@ impl SwapLine {
     }
 
     /// Calculate the out amount for the swap line for a given in amount
-    pub fn calculate_with_in_amount(
+    pub fn calculate_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
         &self,
-        state: &dyn DatabaseRef<Error = ErrReport>,
+        state: &DB,
         env: Env,
         in_amount: U256,
     ) -> Result<(U256, u64, Vec<CalculationResult>), SwapError> {
@@ -395,7 +397,12 @@ impl SwapLine {
     }
 
     /// Optimize the swap line for a given in amount
-    pub fn optimize_with_in_amount(&mut self, state: &LoomDBType, env: Env, in_amount: U256) -> Result<&mut Self, SwapError> {
+    pub fn optimize_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
+        &mut self,
+        state: &DB,
+        env: Env,
+        in_amount: U256,
+    ) -> Result<&mut Self, SwapError> {
         let mut current_in_amount = in_amount;
         let mut best_profit: Option<I256> = None;
         let mut current_step = U256::from(10000);

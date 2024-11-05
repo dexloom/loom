@@ -5,6 +5,8 @@ use eyre::ErrReport;
 use eyre::Result;
 use revm::primitives::Env;
 use revm::DatabaseRef;
+use std::any::Any;
+use std::fmt::Display;
 
 #[derive(Clone)]
 pub struct MockPool {

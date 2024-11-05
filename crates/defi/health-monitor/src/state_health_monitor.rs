@@ -56,10 +56,14 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
 
  */
 
-pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Clone + 'static, DB: DatabaseRef + 'static>(
+pub async fn state_health_monitor_worker<
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
+>(
     client: P,
     market_state: SharedState<MarketState<DB>>,
-    tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
+    tx_compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
     /*let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
@@ -123,12 +127,12 @@ pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Et
 }
 
 #[derive(Accessor, Consumer)]
-pub struct StateHealthMonitorActor<P, T, DB> {
+pub struct StateHealthMonitorActor<P, T, DB: Clone + Send + Sync + 'static> {
     client: P,
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
-    tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
+    tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     _t: PhantomData<T>,

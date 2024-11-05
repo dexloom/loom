@@ -346,9 +346,9 @@ impl SwapStep {
         Ok(out_amount)
     }
 
-    pub fn calculate_with_in_amount(
+    pub fn calculate_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
         &mut self,
-        state: &dyn DatabaseRef<Error = ErrReport>,
+        state: &DB,
         env: Env,
         in_ammount: Option<U256>,
     ) -> Result<(U256, u64)> {
@@ -462,8 +462,8 @@ impl SwapStep {
         }
     }
 
-    pub fn optimize_swap_steps(
-        state: &dyn DatabaseRef<Error = ErrReport>,
+    pub fn optimize_swap_steps<DB: DatabaseRef<Error = ErrReport>>(
+        state: &DB,
         env: Env,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
@@ -476,8 +476,8 @@ impl SwapStep {
         }
     }
 
-    pub fn optimize_with_middle_amount(
-        state: &dyn DatabaseRef<Error = ErrReport>,
+    pub fn optimize_with_middle_amount<DB: DatabaseRef<Error = ErrReport>>(
+        state: &DB,
         env: Env,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
@@ -646,8 +646,8 @@ impl SwapStep {
         }
     }
 
-    pub fn optimize_with_in_amount(
-        state: &dyn DatabaseRef<Error = ErrReport>,
+    pub fn optimize_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
+        state: &DB,
         env: Env,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
