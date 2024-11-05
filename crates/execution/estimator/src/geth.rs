@@ -1,3 +1,4 @@
+use revm::DatabaseRef;
 use std::sync::Arc;
 
 use alloy_consensus::TxEnvelope;
@@ -253,7 +254,7 @@ where
         Self { client, encoder, compose_channel_tx: None, compose_channel_rx: None }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain<DB>) -> Self {
         Self { compose_channel_tx: Some(bc.compose_channel()), compose_channel_rx: Some(bc.compose_channel()), ..self }
     }
 }

@@ -4,6 +4,7 @@ use influxdb::{Client, ReadQuery, WriteQuery};
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_core_actors_macros::Consumer;
 use loom_core_blockchain::Blockchain;
+use revm::DatabaseRef;
 use std::collections::HashMap;
 use tracing::{error, info, warn};
 
@@ -61,7 +62,7 @@ impl InfluxDbWriterActor {
         Self { url, database, tags, influxdb_write_channel_rx: None }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self { influxdb_write_channel_rx: Some(bc.influxdb_write_channel()), ..self }
     }
 }

@@ -73,6 +73,7 @@ where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Clone + 'static,
 {
     debug!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len());
 

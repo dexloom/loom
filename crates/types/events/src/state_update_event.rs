@@ -6,13 +6,12 @@ use alloy_rpc_types::Transaction;
 use revm::primitives::Env;
 use revm::DatabaseRef;
 
-use loom_evm_db::LoomDBType;
 use loom_evm_utils::evm_env::env_for_block;
 use loom_types_blockchain::GethStateUpdateVec;
 use loom_types_entities::PoolWrapper;
 
 #[derive(Clone, Debug)]
-pub struct StateUpdateEvent<DB: DatabaseRef> {
+pub struct StateUpdateEvent<DB> {
     pub next_block_number: BlockNumber,
     pub next_block_timestamp: u64,
     pub next_base_fee: u64,

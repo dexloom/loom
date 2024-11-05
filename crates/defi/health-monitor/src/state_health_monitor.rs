@@ -18,7 +18,8 @@ use loom_core_blockchain::Blockchain;
 use loom_types_entities::MarketState;
 use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose};
 use revm::DatabaseRef;
-
+//TODO FIX
+/*
 async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static, DB: DatabaseRef>(
     client: P,
     address: Address,
@@ -53,13 +54,15 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
     Ok(())
 }
 
+ */
+
 pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Clone + 'static, DB: DatabaseRef + 'static>(
     client: P,
     market_state: SharedState<MarketState<DB>>,
     tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
+    /*let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
     let mut check_time_map: HashMap<Address, DateTime<Local>> = HashMap::new();
@@ -112,8 +115,11 @@ pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Et
                 }
 
             }
+
         }
     }
+     */
+    Ok("FINISHED".to_string())
 }
 
 #[derive(Accessor, Consumer)]
@@ -152,6 +158,7 @@ impl<P, T, DB> Actor for StateHealthMonitorActor<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_health_monitor_worker(

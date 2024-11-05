@@ -8,13 +8,17 @@ use loom_evm_utils::evm_tx_env::env_from_signed_tx;
 use loom_rpc_state::AppState;
 use loom_types_blockchain::ChainParameters;
 use revm::primitives::{BlockEnv, Env, CANCUN};
-use revm::Evm;
+use revm::{DatabaseRef, Evm};
 use tracing::{error, info};
 
-pub async fn flashbots(
-    State(app_state): State<AppState>,
+pub async fn flashbots<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+    State(app_state): State<AppState<DB>>,
     Json(bundle_request): Json<BundleRequest>,
 ) -> Result<Json<SendBundleResponse>, (StatusCode, String)> {
+    panic!("NOT_IMPLEMENTED")
+
+    //TODO : Reimplement
+    /*
     for (bundle_idx, bundle_param) in bundle_request.params.iter().enumerate() {
         info!(
             "Flashbots bundle({bundle_idx}): target_block={:?}, transactions_len={:?}",
@@ -45,7 +49,7 @@ pub async fn flashbots(
             ..Env::default()
         };
         let db = app_state.bc.market_state().read().await.state_db.clone();
-        let mut evm = Evm::builder().with_spec_id(CANCUN).with_db(db).with_env(Box::new(evm_env)).build();
+        let mut evm = Evm::builder().with_spec_id(CANCUN).with_ref_db(db).with_env(Box::new(evm_env)).build();
         for (tx_idx, tx) in bundle_param.transactions.iter().enumerate() {
             let tx_hash = keccak256(tx);
 
@@ -64,4 +68,6 @@ pub async fn flashbots(
     }
 
     Ok(Json(SendBundleResponse { jsonrpc: "2.0".to_string(), id: 1, result: BundleResponse { bundle_hash: None } }))
+
+     */
 }

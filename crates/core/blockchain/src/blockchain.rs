@@ -9,13 +9,10 @@ use loom_types_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent, Task,
 };
-use revm::DatabaseRef;
+use revm::{DatabaseCommit, DatabaseRef};
 
 #[derive(Clone)]
-pub struct Blockchain<DB>
-where
-    DB: DatabaseRef + Clone + Send + Sync + 'static,
-{
+pub struct Blockchain<DB: Clone + Send + Sync + 'static> {
     chain_id: ChainId,
     chain_parameters: ChainParameters,
     market: SharedState<Market>,
@@ -39,7 +36,7 @@ where
     tasks_channel: Broadcaster<Task>,
 }
 
-impl<DB: DatabaseRef + Send + Sync + Clone + Default + 'static> Blockchain<DB> {
+impl<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static> Blockchain<DB> {
     pub fn new(chain_id: ChainId) -> Blockchain<DB> {
         let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
@@ -99,7 +96,15 @@ impl<DB: DatabaseRef + Send + Sync + Clone + Default + 'static> Blockchain<DB> {
     pub fn with_market_state(self, market_state: MarketState<DB>) -> Blockchain<DB> {
         Blockchain { market_state: SharedState::new(market_state), ..self.clone() }
     }
+}
 
+impl<DB: DatabaseRef + DatabaseCommit + Clone + Send + Sync> Blockchain<DB> {
+    pub fn market_state_commit(&self) -> SharedState<MarketState<DB>> {
+        self.market_state.clone()
+    }
+}
+
+impl<DB: DatabaseRef + Clone + Send + Sync> Blockchain<DB> {
     pub fn chain_id(&self) -> u64 {
         self.chain_id
     }

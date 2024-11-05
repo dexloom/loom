@@ -11,17 +11,18 @@ use loom_types_entities::MarketState;
 use loom_types_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
 };
+use revm::DatabaseRef;
 use std::ops::RangeInclusive;
 use std::time::Duration;
 use tracing::{debug, error};
 
 #[allow(clippy::too_many_arguments)]
-pub async fn node_player_worker<P>(
+pub async fn node_player_worker<P, DB>(
     provider: P,
     start_block: BlockNumber,
     end_block: BlockNumber,
     mempool: Option<SharedState<Mempool>>,
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     new_block_headers_channel: Option<Broadcaster<MessageBlockHeader>>,
     new_block_with_tx_channel: Option<Broadcaster<MessageBlock>>,
     new_block_logs_channel: Option<Broadcaster<MessageBlockLogs>>,
@@ -29,6 +30,7 @@ pub async fn node_player_worker<P>(
 ) -> WorkerResult
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     for _ in RangeInclusive::new(start_block, end_block) {
         let curblock_number = provider.client().transport().fetch_next_block().await?;

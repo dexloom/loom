@@ -19,3 +19,7 @@ eyre.workspace = true
 influxdb.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+
+#revm
+revm.workspace = true
+

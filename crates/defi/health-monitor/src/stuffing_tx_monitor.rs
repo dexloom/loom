@@ -148,7 +148,7 @@ impl<P: Provider<T, Ethereum> + Send + Sync + Clone + 'static, T: Transport + Cl
         StuffingTxMonitorActor { client, latest_block: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self {
             latest_block: Some(bc.latest_block()),
             tx_compose_channel_rx: Some(bc.compose_channel()),

@@ -1,3 +1,4 @@
+use revm::DatabaseRef;
 use std::any::type_name;
 use std::marker::PhantomData;
 
@@ -17,14 +18,14 @@ use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, Mess
 use tokio::task::JoinHandle;
 
 #[derive(Producer, Consumer, Accessor)]
-pub struct NodeBlockPlayerActor<P, T, N> {
+pub struct NodeBlockPlayerActor<P, T, N, DB> {
     client: P,
     start_block: BlockNumber,
     end_block: BlockNumber,
     #[accessor]
     mempool: Option<SharedState<Mempool>>,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
     compose_channel: Option<Broadcaster<MessageTxCompose>>,
     #[producer]
@@ -39,13 +40,14 @@ pub struct NodeBlockPlayerActor<P, T, N> {
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> NodeBlockPlayerActor<P, T, N>
+impl<P, T, N, DB> NodeBlockPlayerActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, start_block: BlockNumber, end_block: BlockNumber) -> NodeBlockPlayerActor<P, T, N> {
+    pub fn new(client: P, start_block: BlockNumber, end_block: BlockNumber) -> NodeBlockPlayerActor<P, T, N, DB> {
         NodeBlockPlayerActor {
             client,
             start_block,
@@ -62,7 +64,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             mempool: Some(bc.mempool()),
             market_state: Some(bc.market_state()),
@@ -76,11 +78,12 @@ where
     }
 }
 
-impl<P, T, N> Actor for NodeBlockPlayerActor<P, T, N>
+impl<P, T, N, DB> Actor for NodeBlockPlayerActor<P, T, N, DB>
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
     T: Send + Sync,
     N: Send + Sync,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let mut handles: Vec<JoinHandle<WorkerResult>> = Vec::new();

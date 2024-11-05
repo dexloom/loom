@@ -1,3 +1,5 @@
+use revm::DatabaseCommit;
+use revm::DatabaseRef;
 use std::marker::PhantomData;
 
 use alloy_network::Network;
@@ -16,17 +18,18 @@ use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::required_state::{RequiredState, RequiredStateReader};
 use loom_types_entities::{Market, MarketState, PoolClass};
 
-async fn required_pools_loader_worker<P, T, N>(
+async fn required_pools_loader_worker<P, T, N, DB>(
     client: P,
     pools: Vec<(Address, PoolClass)>,
     required_state: Option<RequiredState>,
     market: SharedState<Market>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit,
 {
     for (pool_address, pool_class) in pools {
         debug!(class=%pool_class, address=%pool_address, "Loading pool");
@@ -62,23 +65,24 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct RequiredPoolLoaderActor<P, T, N> {
+pub struct RequiredPoolLoaderActor<P, T, N, DB> {
     client: P,
     pools: Vec<(Address, PoolClass)>,
     required_state: Option<RequiredState>,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> RequiredPoolLoaderActor<P, T, N>
+impl<P, T, N, DB> RequiredPoolLoaderActor<P, T, N, DB>
 where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit + Clone + Send + Sync + 'static,
 {
     pub fn new(client: P) -> Self {
         Self { client, pools: Vec::new(), required_state: None, market: None, market_state: None, _n: PhantomData, _t: PhantomData }
@@ -90,8 +94,8 @@ where
         Self { pools, ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self { market: Some(bc.market()), market_state: Some(bc.market_state()), ..self }
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+        Self { market: Some(bc.market()), market_state: Some(bc.market_state_commit()), ..self }
     }
 
     pub fn with_required_state(self, required_state: RequiredState) -> Self {
@@ -99,11 +103,12 @@ where
     }
 }
 
-impl<P, T, N> Actor for RequiredPoolLoaderActor<P, T, N>
+impl<P, T, N, DB> Actor for RequiredPoolLoaderActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(required_pools_loader_worker(

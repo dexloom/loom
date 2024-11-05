@@ -105,7 +105,7 @@ impl TxSignersActor {
         TxSignersActor::default()
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: Clone + Send + Sync>(self, bc: &Blockchain<DB>) -> Self {
         Self { compose_channel_rx: Some(bc.compose_channel()), compose_channel_tx: Some(bc.compose_channel()) }
     }
 }

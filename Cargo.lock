@@ -5143,6 +5143,7 @@ dependencies = [
  "loom-core-actors-macros",
  "loom-core-blockchain",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]
@@ -5335,6 +5336,7 @@ dependencies = [
  "loom-types-blockchain",
  "loom-types-entities",
  "loom-types-events",
+ "revm",
  "tokio",
  "tracing",
 ]

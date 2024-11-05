@@ -11,7 +11,7 @@ use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::ChainParameters;
 use loom_types_entities::{apply_state_update, BlockHistory, BlockHistoryManager, LatestBlock, MarketState};
 use loom_types_events::{MarketEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
-use revm::DatabaseRef;
+use revm::{DatabaseCommit, DatabaseRef};
 use std::borrow::BorrowMut;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
@@ -80,7 +80,7 @@ pub async fn new_block_history_worker<P, T, DB>(
 where
     T: Transport + Clone + Send + Sync + 'static,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     subscribe!(block_header_update_rx);
     subscribe!(block_update_rx);
@@ -214,6 +214,9 @@ where
 
             }
             msg = state_update_rx.recv() => {
+                panic!("NOT_IMPLEMENTED")
+                //TODO: rewrite to DB
+                /*
                 let state_update_msg : Result<MessageBlockStateUpdate, RecvError> = msg;
 
                 let msg = match state_update_msg {
@@ -255,7 +258,8 @@ where
 
                     let new_market_state_db = if market_state_guard.block_hash.is_zero() || market_state_guard.block_hash == latest_block_parent_hash {
                         let db = market_state_guard.state_db.clone();
-                        apply_state_update(db, msg.state_update.clone(), &market_state_guard)
+                        //apply_state_update(db, msg.state_update.clone(), &market_state_guard)
+                        market_state_guard.apply_geth_update_vec(msg.state_update.clone())
                     } else {
                         match block_history_manager.apply_state_update_on_parent_db(block_history_guard.deref_mut(), &market_state_guard, msg_block_hash ).await {
                             Ok(db) => db,
@@ -265,6 +269,7 @@ where
                             }
                         }
                     };
+
 
                     if let Err(err) = block_history_guard.add_state_diff(msg_block_hash, Some(new_market_state_db.clone()), msg.state_update.clone()) {
                         error!(%err, %msg_block_number, %msg_block_hash, "Error during block_history.add_state_diff.");
@@ -319,6 +324,7 @@ where
 
 
                 }
+                     */
             }
         }
     }
@@ -389,6 +395,7 @@ impl<P, T, DB> Actor for BlockHistoryActor<P, T, DB>
 where
     T: Transport + Sync + Send + Clone + 'static,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Sync + Send + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_block_history_worker(

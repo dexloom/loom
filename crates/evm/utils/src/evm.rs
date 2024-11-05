@@ -158,16 +158,12 @@ where
 pub fn evm_call_tx_in_block<DB, T: Into<Transaction>>(tx: T, state_db: DB, header: &Header) -> eyre::Result<ResultAndState>
 where
     DB: DatabaseRef,
-    <DB as DatabaseRef>::Error: Display,
 {
     let env = evm_env_from_tx(tx, header);
 
     let mut evm = Evm::builder().with_spec_id(CANCUN).with_ref_db(state_db).with_env(Box::new(env)).build();
 
-    evm.transact().map_err(|e| {
-        error!("evm.transact : {e}");
-        eyre!("TRANSACT_ERROR")
-    })
+    evm.transact().map_err(|e| eyre!("TRANSACT_ERROR"))
 }
 
 pub fn convert_evm_result_to_rpc(
