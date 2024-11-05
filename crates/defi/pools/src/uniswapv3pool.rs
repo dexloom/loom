@@ -154,11 +154,11 @@ impl UniswapV3Pool {
     }
 
     pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
-        let token0 = UniswapV3StateReader::token0(db, env.clone(), address)?;
-        let token1 = UniswapV3StateReader::token1(db, env.clone(), address)?;
-        let fee: u32 = UniswapV3StateReader::fee(db, env.clone(), address)?.to();
+        let token0 = UniswapV3StateReader::token0(&db, env.clone(), address)?;
+        let token1 = UniswapV3StateReader::token1(&db, env.clone(), address)?;
+        let fee: u32 = UniswapV3StateReader::fee(&db, env.clone(), address)?.to();
         let liquidity = UniswapV3StateReader::liquidity(&db, env.clone(), address)?;
-        let factory = UniswapV3StateReader::factory(db, env.clone(), address).unwrap_or_default();
+        let factory = UniswapV3StateReader::factory(&db, env.clone(), address).unwrap_or_default();
         let protocol = UniswapV3Pool::get_protocol_by_factory(factory);
 
         let ret = UniswapV3Pool {
@@ -247,7 +247,7 @@ impl Pool for UniswapV3Pool {
         _token_address_to: &Address,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(state_db, self, *token_address_from, in_amount)?;
+        let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(&state_db, self, *token_address_from, in_amount)?;
 
         #[cfg(feature = "debug-calculation")]
         {
@@ -284,7 +284,7 @@ impl Pool for UniswapV3Pool {
         _token_address_to: &Address,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(state_db, self, *token_address_from, out_amount)?;
+        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(&state_db, self, *token_address_from, out_amount)?;
 
         #[cfg(feature = "debug-calculation")]
         {

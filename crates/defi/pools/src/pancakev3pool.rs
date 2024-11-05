@@ -122,11 +122,11 @@ impl PancakeV3Pool {
         }
     }
     pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
-        let token0: Address = UniswapV3StateReader::token0(db, env.clone(), address)?;
-        let token1: Address = UniswapV3StateReader::token1(db, env.clone(), address)?;
-        let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
+        let token0: Address = UniswapV3StateReader::token0(&db, env.clone(), address)?;
+        let token1: Address = UniswapV3StateReader::token1(&db, env.clone(), address)?;
+        let fee = UniswapV3StateReader::fee(&db, env.clone(), address)?;
         let fee_u32: u32 = fee.to();
-        let factory = UniswapV3StateReader::factory(db, env.clone(), address)?;
+        let factory = UniswapV3StateReader::factory(&db, env.clone(), address)?;
         let protocol = Self::get_protocol_by_factory(factory);
 
         let ret = PancakeV3Pool {

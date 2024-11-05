@@ -116,9 +116,9 @@ impl UniswapV2Pool {
     }
 
     pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
-        let token0 = UniswapV2StateReader::token0(db, env.clone(), address)?;
-        let token1 = UniswapV2StateReader::token1(db, env.clone(), address)?;
-        let factory = UniswapV2StateReader::factory(db, env.clone(), address)?;
+        let token0 = UniswapV2StateReader::token0(&db, env.clone(), address)?;
+        let token1 = UniswapV2StateReader::token1(&db, env.clone(), address)?;
+        let factory = UniswapV2StateReader::factory(&db, env.clone(), address)?;
         let protocol = Self::get_protocol_by_factory(factory);
 
         let fee = Self::get_fee_by_protocol(protocol);
@@ -191,7 +191,7 @@ impl UniswapV2Pool {
                     return Err(eyre!("ERROR_READING_STATE_DB"));
                 }
             }
-            None => UniswapV2StateReader::get_reserves(state_db, env, self.get_address())?,
+            None => UniswapV2StateReader::get_reserves(&state_db, env, self.get_address())?,
         };
         Ok((reserve_0, reserve_1))
     }
