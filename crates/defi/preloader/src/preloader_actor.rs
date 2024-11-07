@@ -16,7 +16,7 @@ use loom_defi_address_book::TokenAddress;
 use loom_evm_utils::{BalanceCheater, NWETH};
 use loom_types_blockchain::GethStateUpdate;
 use loom_types_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use tracing::{debug, error, trace};
 
 async fn fetch_account_state<P, T, N>(client: P, address: Address) -> Result<AccountState>
@@ -70,7 +70,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let mut market_state_guard = market_state.write().await;
 
@@ -224,7 +224,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start_and_wait(&self) -> Result<()> {
         let rt = tokio::runtime::Runtime::new()?; // we need a different runtime to wait for the result

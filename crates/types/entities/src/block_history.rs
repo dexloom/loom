@@ -9,6 +9,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{Block, BlockId, BlockTransactionsKind, Filter, Header, Log};
 use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
+use loom_evm_db::DatabaseLoomExt;
 use loom_evm_db::LoomDBType;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::{debug_trace_block, GethStateUpdateVec};

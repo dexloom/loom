@@ -15,12 +15,12 @@ use tracing::{error, info, warn};
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
+use loom_evm_db::DatabaseLoomExt;
 use loom_types_entities::MarketState;
 use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose};
 use revm::DatabaseRef;
-//TODO FIX
-/*
-async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static, DB: DatabaseRef>(
+
+async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static, DB: DatabaseLoomExt>(
     client: P,
     address: Address,
     market_state: SharedState<MarketState<DB>>,
@@ -54,19 +54,17 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
     Ok(())
 }
 
- */
-
 pub async fn state_health_monitor_worker<
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 >(
     client: P,
     market_state: SharedState<MarketState<DB>>,
     tx_compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    /*let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
+    let mut tx_compose_channel_rx: Receiver<MessageTxCompose<DB>> = tx_compose_channel_rx.subscribe().await;
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
     let mut check_time_map: HashMap<Address, DateTime<Local>> = HashMap::new();
@@ -96,7 +94,7 @@ pub async fn state_health_monitor_worker<
             },
 
             msg = tx_compose_channel_rx.recv() => {
-                let tx_compose_update : Result<MessageTxCompose, RecvError>  = msg;
+                let tx_compose_update : Result<MessageTxCompose<DB>, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
                         if let TxCompose::Broadcast(broadcast_data)= tx_compose_msg.inner {
@@ -122,8 +120,6 @@ pub async fn state_health_monitor_worker<
 
         }
     }
-     */
-    Ok("FINISHED".to_string())
 }
 
 #[derive(Accessor, Consumer)]
@@ -142,7 +138,7 @@ impl<P, T, DB> StateHealthMonitorActor<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + Default + 'static,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         StateHealthMonitorActor { client, market_state: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
@@ -162,7 +158,7 @@ impl<P, T, DB> Actor for StateHealthMonitorActor<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_health_monitor_worker(

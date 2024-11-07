@@ -1,5 +1,5 @@
-use revm::DatabaseCommit;
 use revm::DatabaseRef;
+use revm::{Database, DatabaseCommit};
 use std::marker::PhantomData;
 
 use alloy_network::Network;
@@ -29,7 +29,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     for (pool_address, pool_class) in pools {
         debug!(class=%pool_class, address=%pool_address, "Loading pool");
@@ -82,7 +82,7 @@ where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Clone + Send + Sync + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Clone + Send + Sync + 'static,
 {
     pub fn new(client: P) -> Self {
         Self { client, pools: Vec::new(), required_state: None, market: None, market_state: None, _n: PhantomData, _t: PhantomData }
@@ -108,7 +108,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(required_pools_loader_worker(

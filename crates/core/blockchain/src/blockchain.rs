@@ -9,7 +9,7 @@ use loom_types_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent, Task,
 };
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 
 #[derive(Clone)]
 pub struct Blockchain<DB: Clone + Send + Sync + 'static> {
@@ -36,7 +36,7 @@ pub struct Blockchain<DB: Clone + Send + Sync + 'static> {
     tasks_channel: Broadcaster<Task>,
 }
 
-impl<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static> Blockchain<DB> {
+impl<DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + Default + 'static> Blockchain<DB> {
     pub fn new(chain_id: ChainId) -> Blockchain<DB> {
         let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);

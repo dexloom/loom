@@ -1,8 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
 use alloy_primitives::{Address, BlockHash, BlockNumber, U256};
+use loom_evm_db::DatabaseHelpers;
 use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec};
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 
 #[derive(Clone)]
 pub struct MarketState<DB> {
@@ -13,7 +14,7 @@ pub struct MarketState<DB> {
     pub read_only_cells: HashMap<Address, HashSet<U256>>,
 }
 
-impl<DB: DatabaseRef + DatabaseCommit> MarketState<DB> {
+impl<DB: DatabaseRef + Database + DatabaseCommit> MarketState<DB> {
     pub fn new(db: DB) -> MarketState<DB> {
         MarketState {
             block_number: Default::default(),
@@ -43,9 +44,8 @@ impl<DB: DatabaseRef + DatabaseCommit> MarketState<DB> {
         self.force_insert_accounts.insert(address, true);
     }
 
-    //TODO : Implement
     pub fn apply_geth_update(&mut self, update: GethStateUpdate) {
-        panic!("NOT_IMPLEMENTED")
+        DatabaseHelpers::apply_geth_state_update(&mut self.state_db, update)
     }
 
     pub fn apply_geth_update_vec(&mut self, update: GethStateUpdateVec) {

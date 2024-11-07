@@ -39,7 +39,7 @@ use loom_strategy_backrun::{
 use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{PoolClass, TxSigners};
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -63,7 +63,7 @@ impl<P, T, DB> BlockchainActors<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+    DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(provider: P, bc: Blockchain<DB>, relays: Vec<RelayConfig>) -> Self {
         Self {
@@ -337,10 +337,13 @@ where
         Ok(self)
     }
     /// Starts state health monitor
-    pub fn with_health_monitor_state(&mut self) -> Result<&mut Self> {
+    //TODO : Move out of Blockchain
+    /*pub fn with_health_monitor_state(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(StateHealthMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
+
+     */
 
     /// Starts stuffing tx monitor
     pub fn with_health_monitor_stuffing_tx(&mut self) -> Result<&mut Self> {

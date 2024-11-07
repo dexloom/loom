@@ -9,7 +9,7 @@ use alloy::{
     primitives::{Address, Bytes, B256, U256},
     rpc::types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest},
 };
-use eyre::eyre;
+use eyre::{eyre, ErrReport};
 use lazy_static::lazy_static;
 use loom_types_blockchain::GethStateUpdate;
 #[cfg(feature = "trace-calls")]
@@ -84,9 +84,8 @@ where
 pub fn evm_transact<DB>(evm: &mut Evm<(), DB>) -> eyre::Result<(Vec<u8>, u64)>
 where
     DB: Database + DatabaseCommit,
-    <DB as Database>::Error: Display,
 {
-    let execution_result = evm.transact_commit().map_err(|e| EvmError::TransactCommitError(e.to_string()))?;
+    let execution_result = evm.transact_commit().map_err(|e| EvmError::TransactCommitError("COMMIT_ERROR".to_string()))?;
     let gas_used = execution_result.gas_used();
 
     match execution_result {
@@ -97,10 +96,7 @@ where
     }
 }
 
-pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &TransactionRequest) -> eyre::Result<(u64, AccessList)>
-where
-    <DB as DatabaseRef>::Error: Display,
-{
+pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &TransactionRequest) -> eyre::Result<(u64, AccessList)> {
     let mut env = env.clone();
 
     let txto = tx.to.unwrap_or_default().to().map_or(Address::ZERO, |x| *x);

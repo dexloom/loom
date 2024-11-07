@@ -2,6 +2,7 @@ use crate::alloydb::AlloyDB;
 use crate::fast_cache_db::FastDbAccount;
 use crate::fast_hasher::SimpleBuildHasher;
 use crate::loom_db_helper::LoomDBHelper;
+use crate::DatabaseLoomExt;
 use alloy::consensus::constants::KECCAK_EMPTY;
 use alloy::eips::BlockNumberOrTag;
 use alloy::primitives::map::HashMap;
@@ -78,11 +79,11 @@ impl LoomDB {
         }
     }
 
-    pub fn is_account(&self, address: &Address) -> bool {
+    pub fn is_rw_ro_account(&self, address: &Address) -> bool {
         self.accounts.contains_key(address) || if let Some(db) = &self.read_only_db { db.accounts.contains_key(address) } else { false }
     }
 
-    pub fn is_slot(&self, address: &Address, slot: &U256) -> bool {
+    pub fn is_rw_ro_slot(&self, address: &Address, slot: &U256) -> bool {
         if let Some(account) = self.accounts.get(address) {
             account.storage.contains_key(slot)
         } else if let Some(read_only_db) = &self.read_only_db {
@@ -99,10 +100,10 @@ impl LoomDB {
     pub fn read_only_db(&self) -> Self {
         self.read_only_db.clone().map_or(LoomDB::empty(), |a| a.as_ref().clone())
     }
-    pub fn contracts_len(&self) -> usize {
+    pub fn rw_contracts_len(&self) -> usize {
         self.contracts.len()
     }
-    pub fn accounts_len(&self) -> usize {
+    pub fn rw_accounts_len(&self) -> usize {
         self.accounts.len()
     }
 
@@ -114,7 +115,7 @@ impl LoomDB {
         self.read_only_db.as_ref().map_or(0, |db| db.accounts_len())
     }
 
-    pub fn storage_len(&self) -> usize {
+    pub fn rw_storage_len(&self) -> usize {
         self.accounts.values().map(|a| a.storage.len()).sum()
     }
     pub fn ro_storage_len(&self) -> usize {
@@ -145,7 +146,7 @@ impl LoomDB {
     // Returns the account for the given address.
     ///
     /// If the account was not found in the cache, it will be loaded from the underlying database.
-    pub fn load_account(&mut self, address: Address) -> Result<&mut FastDbAccount> {
+    pub fn load_ro_rw_ext_account(&mut self, address: Address) -> Result<&mut FastDbAccount> {
         match self.accounts.entry(address) {
             Entry::Occupied(entry) => Ok(entry.into_mut()),
             Entry::Vacant(entry) => Ok(entry.insert(
@@ -160,7 +161,7 @@ impl LoomDB {
     // Returns the account for the given address.
     ///
     /// If the account was not found in the cache, it will be loaded from the underlying database.
-    pub fn load_cached_account(&mut self, address: Address) -> Result<&mut FastDbAccount> {
+    pub fn load_ro_rw_account(&mut self, address: Address) -> Result<&mut FastDbAccount> {
         match self.accounts.entry(address) {
             Entry::Occupied(entry) => Ok(entry.into_mut()),
             Entry::Vacant(entry) => Ok(entry.insert(
@@ -455,6 +456,56 @@ impl LoomDB {
             }
         }
         self
+    }
+}
+
+impl DatabaseLoomExt for LoomDB {
+    fn accounts(&self) {
+        self.accounts()
+    }
+
+    fn is_account(&self, address: &Address) -> bool {
+        self.is_rw_ro_account(address)
+    }
+
+    fn is_slot(&self, address: &Address, slot: &U256) -> bool {
+        self.is_rw_ro_slot(address, slot)
+    }
+
+    fn contracts_len(&self) -> usize {
+        self.rw_contracts_len() + self.ro_contracts_len()
+    }
+
+    fn accounts_len(&self) -> usize {
+        self.rw_accounts_len() + self.ro_contracts_len()
+    }
+
+    fn storage_len(&self) -> usize {
+        self.rw_storage_len() + self.ro_storage_len()
+    }
+
+    fn load_account(&mut self, address: Address) -> Result<&mut FastDbAccount> {
+        self.load_ro_rw_ext_account(address)
+    }
+
+    fn load_cached_account(&mut self, address: Address) -> Result<&mut FastDbAccount> {
+        self.load_ro_rw_account(address)
+    }
+
+    fn insert_contract(&mut self, account: &mut AccountInfo) {
+        self.insert_contract(account)
+    }
+
+    fn insert_account_info(&mut self, address: Address, info: AccountInfo) {
+        self.insert_account_info(address, info)
+    }
+
+    fn insert_account_storage(&mut self, address: Address, slot: U256, value: U256) -> Result<()> {
+        self.insert_account_storage(address, slot, value)
+    }
+
+    fn replace_account_storage(&mut self, address: Address, storage: HashMap<U256, U256>) -> Result<()> {
+        self.replace_account_storage(address, storage)
     }
 }
 

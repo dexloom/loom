@@ -1,4 +1,4 @@
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::any::type_name;
 use std::marker::PhantomData;
 
@@ -8,6 +8,7 @@ use alloy_network::{Ethereum, Network};
 use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
+use eyre::ErrReport;
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
@@ -45,7 +46,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P, start_block: BlockNumber, end_block: BlockNumber) -> NodeBlockPlayerActor<P, T, N, DB> {
         NodeBlockPlayerActor {
@@ -83,7 +84,7 @@ where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
     T: Send + Sync,
     N: Send + Sync,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let mut handles: Vec<JoinHandle<WorkerResult>> = Vec::new();

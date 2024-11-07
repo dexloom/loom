@@ -80,7 +80,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + Default + 'static,
 {
     fn start(&self) -> ActorResult {
         let searcher_pool_update_channel = Broadcaster::new(100);

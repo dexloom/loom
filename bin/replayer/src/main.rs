@@ -1,3 +1,4 @@
+use loom_evm_db::LoomDBType;
 use std::env;
 use std::process::exit;
 use std::sync::Arc;
@@ -18,6 +19,7 @@ use loom_core_blockchain::Blockchain;
 use loom_core_blockchain_actors::BlockchainActors;
 use loom_defi_address_book::{TokenAddress, UniswapV3PoolAddress};
 use loom_defi_pools::state_readers::ERC20StateReader;
+use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::evm_env::env_for_block;
 use loom_evm_utils::NWETH;
 use loom_execution_multicaller::EncoderHelper;
@@ -65,7 +67,7 @@ async fn main() -> Result<()> {
     //let tx_signers = SharedState::new(TxSigners::new());
 
     // new blockchain
-    let bc = Blockchain::new(1);
+    let bc = Blockchain::<LoomDBType>::new(1);
 
     const TARGET_ADDRESS: Address = address!("A69babEF1cA67A37Ffaf7a485DfFF3382056e78C");
 
@@ -128,7 +130,7 @@ async fn main() -> Result<()> {
                             let tx_compose_encode_msg = MessageTxCompose::route(
                                 TxComposeData{
                                     next_block_base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
-                                    poststate : Some(Arc::new(market_state.read().await.state_db.clone())),
+                                    poststate : Some(market_state.read().await.state_db.clone()),
                                     swap : Swap::ExchangeSwapLine(swap_line),
                                     ..TxComposeData::default()
                                 });

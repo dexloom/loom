@@ -22,7 +22,7 @@ use loom_types_entities::required_state::RequiredStateReader;
 use loom_types_entities::{get_protocol_by_factory, Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
 use loom_types_events::Task;
 
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 
 pub async fn pool_loader_worker<P, T, N, DB>(
     client: P,
@@ -34,7 +34,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let mut fetch_tasks = FuturesUnordered::new();
     let mut processed_pools = HashMap::new();
@@ -82,7 +82,7 @@ where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     debug!("Fetching pool {:#20x}", pool_address);
 
@@ -164,7 +164,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     match pool_wrapped.get_state_required() {
         Ok(required_state) => match RequiredStateReader::fetch_calls_and_slots(client, required_state, None).await {
@@ -225,7 +225,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         Self { client, market: None, market_state: None, tasks_rx: None, _t: PhantomData, _n: PhantomData }
@@ -241,7 +241,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(pool_loader_worker(

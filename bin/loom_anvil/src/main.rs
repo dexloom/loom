@@ -349,7 +349,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    let tx_compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
+    let tx_compose_channel: Broadcaster<MessageTxCompose<LoomDBType>> = Broadcaster::new(100);
 
     let mut broadcast_actor = AnvilBroadcastActor::new(client.clone());
     match broadcast_actor.consume(tx_compose_channel.clone()).start() {

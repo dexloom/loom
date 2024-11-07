@@ -1,4 +1,4 @@
-use revm::DatabaseCommit;
+use revm::{Database, DatabaseCommit};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -26,7 +26,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
     for curve_contract in curve_contracts.into_iter() {
@@ -103,7 +103,7 @@ where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self { client, market: None, market_state: None, _n: PhantomData, _t: PhantomData }
@@ -119,7 +119,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(curve_pool_loader_worker(

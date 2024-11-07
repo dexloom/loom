@@ -11,7 +11,7 @@ use alloy_rpc_types::state::StateOverride;
 use alloy_rpc_types::{BlockOverrides, Transaction};
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use alloy_transport::Transport;
-use eyre::{eyre, Result};
+use eyre::{eyre, ErrReport, Result};
 use lazy_static::lazy_static;
 use revm::primitives::{BlockEnv, Env, CANCUN};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
@@ -22,7 +22,7 @@ use tracing::{debug, error, info, trace};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_evm_db::LoomDBType;
+use loom_evm_db::{DatabaseHelpers, LoomDBType};
 use loom_evm_utils::evm::evm_transact;
 use loom_evm_utils::evm_tx_env::tx_to_evm_tx;
 use loom_node_debug_provider::DebugProviderExt;
@@ -76,11 +76,8 @@ where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
-    // TODO : FIX IT
-    panic!("NOT_IMPLEMENTED");
-    /*
     debug!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len());
 
     let mut prestate_guard = pre_states.write().await;
@@ -131,7 +128,7 @@ where
 
     let db_org = market_state.read().await.state_db.clone();
 
-    let rdb: Option<LoomDBType> = loop {
+    let rdb: Option<DB> = loop {
         counter += 1;
         if counter > 10 {
             break None;
@@ -145,7 +142,7 @@ where
 
         let mut db = db_org.clone();
 
-        db.apply_geth_update_vec(states);
+        DatabaseHelpers::apply_geth_state_update_vec(&mut db, states);
 
         let mut evm = Evm::builder().with_spec_id(CANCUN).with_db(db).with_env(Box::new(env.clone())).build();
 
@@ -208,14 +205,13 @@ where
             let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
             match swap_line.optimize_with_in_amount(&db, env.clone(), amount_in) {
                 Ok(_r) => {
-                    let arc_db = Arc::new(db);
                     let encode_request = MessageTxCompose::route(TxComposeData {
                         stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.hash).collect(),
                         stuffing_txs: tx_order.iter().map(|i| stuffing_states[*i].0.clone()).collect(),
                         swap: Swap::BackrunSwapLine(swap_line.clone()),
                         origin: Some("samepath_merger".to_string()),
                         tips_pct: None,
-                        poststate: Some(arc_db.clone()),
+                        poststate: Some(db),
                         poststate_update: None,
                         ..request
                     });
@@ -234,8 +230,6 @@ where
 
     trace!("same_path_merger_task stuffing_states len {}", stuffing_states.len());
 
-
-     */
     Ok(())
 }
 
@@ -243,7 +237,7 @@ async fn same_path_merger_worker<
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 >(
     client: P,
     latest_block: SharedState<LatestBlock>,
@@ -410,7 +404,7 @@ where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(same_path_merger_worker(

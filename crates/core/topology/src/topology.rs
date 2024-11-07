@@ -9,7 +9,7 @@ use alloy_rpc_client::ClientBuilder;
 use alloy_transport::BoxTransport;
 use alloy_transport_ipc::IpcConnect;
 use alloy_transport_ws::WsConnect;
-use eyre::{eyre, OptionExt, Result};
+use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_broadcast_accounts::{InitializeSignersOneShotBlockingActor, NonceAndBalanceMonitorActor, TxSignersActor};
 use loom_broadcast_broadcaster::FlashbotsBroadcastActor;
 use loom_broadcast_flashbots::Flashbots;
@@ -30,7 +30,7 @@ use loom_node_db_access::RethDbAccessBlockActor;
 use loom_node_grpc::NodeExExGrpcActor;
 use loom_node_json_rpc::{NodeBlockActor, NodeMempoolActor};
 use loom_types_entities::TxSigners;
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
@@ -44,7 +44,9 @@ pub struct Topology<DB: Clone + Send + Sync + 'static> {
     default_signer_name: Option<String>,
 }
 
-impl<DB: DatabaseRef + DatabaseCommit + Default + Send + Sync + Clone + 'static> Topology<DB> {
+impl<DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Default + Send + Sync + Clone + 'static>
+    Topology<DB>
+{
     pub async fn from(config: TopologyConfig) -> Result<(Topology<DB>, Vec<JoinHandle<WorkerResult>>)> {
         let mut topology = Topology::<DB> {
             clients: HashMap::new(),
