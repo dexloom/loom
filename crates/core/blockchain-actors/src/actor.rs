@@ -38,7 +38,7 @@ use loom_strategy_backrun::{
 };
 use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{PoolClass, TxSigners};
+use loom_types_entities::{BlockHistoryState, PoolClass, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -63,7 +63,15 @@ impl<P, T, DB> BlockchainActors<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+    DB: DatabaseRef<Error = ErrReport>
+        + Database<Error = ErrReport>
+        + DatabaseCommit
+        + BlockHistoryState
+        + Send
+        + Sync
+        + Clone
+        + Default
+        + 'static,
 {
     pub fn new(provider: P, bc: Blockchain<DB>, relays: Vec<RelayConfig>) -> Self {
         Self {

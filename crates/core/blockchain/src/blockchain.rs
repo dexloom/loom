@@ -4,7 +4,7 @@ use influxdb::WriteQuery;
 use loom_core_actors::{Broadcaster, SharedState};
 use loom_defi_address_book::TokenAddress;
 use loom_types_blockchain::{ChainParameters, Mempool};
-use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
+use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, BlockHistoryState, LatestBlock, Market, MarketState, Token};
 use loom_types_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent, Task,
@@ -18,7 +18,7 @@ pub struct Blockchain<DB: Clone + Send + Sync + 'static> {
     market: SharedState<Market>,
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState<DB>>,
-    block_history_state: SharedState<BlockHistory>,
+    block_history_state: SharedState<BlockHistory<DB>>,
     mempool: SharedState<Mempool>,
     account_nonce_and_balance: SharedState<AccountNonceAndBalanceState>,
 
@@ -36,7 +36,7 @@ pub struct Blockchain<DB: Clone + Send + Sync + 'static> {
     tasks_channel: Broadcaster<Task>,
 }
 
-impl<DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + Default + 'static> Blockchain<DB> {
+impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + Send + Sync + Clone + Default + 'static> Blockchain<DB> {
     pub fn new(chain_id: ChainId) -> Blockchain<DB> {
         let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
@@ -125,7 +125,7 @@ impl<DB: DatabaseRef + Clone + Send + Sync> Blockchain<DB> {
         self.market_state.clone()
     }
 
-    pub fn block_history(&self) -> SharedState<BlockHistory> {
+    pub fn block_history(&self) -> SharedState<BlockHistory<DB>> {
         self.block_history_state.clone()
     }
 

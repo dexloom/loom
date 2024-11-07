@@ -12,7 +12,7 @@ use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Shar
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_defi_abi::IERC20::IERC20Events;
-use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory};
+use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock};
 use loom_types_events::MarketEvents;
 use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
@@ -58,7 +58,7 @@ where
 
 pub async fn nonce_and_balance_monitor_worker(
     accounts_state: SharedState<AccountNonceAndBalanceState>,
-    block_history_state: SharedState<BlockHistory>,
+    latest_block: SharedState<LatestBlock>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
     let mut market_events = market_events_rx.subscribe().await;
@@ -70,30 +70,28 @@ pub async fn nonce_and_balance_monitor_worker(
                 if let Ok(market_event_msg) = market_event_msg {
                     match market_event_msg {
                         MarketEvents::BlockTxUpdate{ block_hash, .. }=>{
-                            if let Some(block_entry) = block_history_state.read().await.get_entry(&block_hash).cloned() {
-                                if let Some(block) = block_entry.block {
-                                    if let BlockTransactions::Full(txs) = block.transactions {
+                            if let Some(block) = latest_block.read().await.block_with_txs.clone() {
+                                if let BlockTransactions::Full(txs) = block.transactions {
 
-                                        // acquire accounts shared state write lock
-                                        let mut accounts_lock = accounts_state.write().await;
+                                    // acquire accounts shared state write lock
+                                    let mut accounts_lock = accounts_state.write().await;
 
-                                        for tx in txs {
-                                            let tx_from : Address = tx.from;
-                                            if accounts_lock.is_monitored(&tx_from) {
-                                                if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&tx_from) {
-                                                    let spent = (tx.max_fee_per_gas.unwrap() + tx.max_priority_fee_per_gas.unwrap()) * tx.gas as u128 + tx.value.to::<u128>();
-                                                    let value = U256::from(spent);
-                                                    account.sub_balance(Address::ZERO, value).set_nonce(tx.nonce+1);
-                                                    debug!("Account {} : sub ETH balance {} -> {} nonce {}", tx_from, value, account.get_eth_balance(), tx.nonce+1);
-                                                }
+                                    for tx in txs {
+                                        let tx_from : Address = tx.from;
+                                        if accounts_lock.is_monitored(&tx_from) {
+                                            if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&tx_from) {
+                                                let spent = (tx.max_fee_per_gas.unwrap() + tx.max_priority_fee_per_gas.unwrap()) * tx.gas as u128 + tx.value.to::<u128>();
+                                                let value = U256::from(spent);
+                                                account.sub_balance(Address::ZERO, value).set_nonce(tx.nonce+1);
+                                                debug!("Account {} : sub ETH balance {} -> {} nonce {}", tx_from, value, account.get_eth_balance(), tx.nonce+1);
                                             }
+                                        }
 
-                                            if let Some(to )  = tx.to {
-                                                if accounts_lock.is_monitored(&to) {
-                                                    if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&to) {
-                                                        account.add_balance(Address::ZERO, tx.value);
-                                                        debug!("Account {} : add ETH balance {} -> {}", to, tx.value, account.get_eth_balance());
-                                                    }
+                                        if let Some(to )  = tx.to {
+                                            if accounts_lock.is_monitored(&to) {
+                                                if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&to) {
+                                                    account.add_balance(Address::ZERO, tx.value);
+                                                    debug!("Account {} : add ETH balance {} -> {}", to, tx.value, account.get_eth_balance());
                                                 }
                                             }
                                         }
@@ -102,8 +100,7 @@ pub async fn nonce_and_balance_monitor_worker(
                             }
                         },
                         MarketEvents::BlockLogsUpdate { block_hash, .. }=>{
-                            if let Some(block_entry) = block_history_state.read().await.get_entry(&block_hash) {
-                                if let Some(logs) = &block_entry.logs {
+                            if let Some(logs) = latest_block.read().await.logs.clone(){
 
                                     // acquire accounts shared state write lock
                                     let mut accounts_lock = accounts_state.write().await;
@@ -130,7 +127,7 @@ pub async fn nonce_and_balance_monitor_worker(
                                         }
                                     }
                                     drop(accounts_lock);
-                                }
+
                             }
                         }
                         _=>{}
@@ -149,7 +146,7 @@ pub struct NonceAndBalanceMonitorActor<P, T, N> {
     #[accessor]
     accounts_nonce_and_balance: Option<SharedState<AccountNonceAndBalanceState>>,
     #[accessor]
-    block_history: Option<SharedState<BlockHistory>>,
+    latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     _t: PhantomData<T>,
@@ -166,7 +163,7 @@ where
         NonceAndBalanceMonitorActor {
             client,
             accounts_nonce_and_balance: None,
-            block_history: None,
+            latest_block: None,
             market_events: None,
             only_once: false,
             with_fetcher: true,
@@ -189,7 +186,7 @@ where
     ) -> NonceAndBalanceMonitorActor<P, T, N> {
         NonceAndBalanceMonitorActor {
             accounts_nonce_and_balance: Some(bc.nonce_and_balance()),
-            block_history: Some(bc.block_history().clone()),
+            latest_block: Some(bc.latest_block().clone()),
             market_events: Some(bc.market_events_channel().clone()),
             ..self
         }
@@ -226,7 +223,7 @@ where
 
         let monitor_task = tokio::task::spawn(nonce_and_balance_monitor_worker(
             self.accounts_nonce_and_balance.clone().unwrap(),
-            self.block_history.clone().unwrap(),
+            self.latest_block.clone().unwrap(),
             self.market_events.clone().unwrap(),
         ));
         handles.push(monitor_task);

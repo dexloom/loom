@@ -4,7 +4,7 @@ use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broad
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_types_blockchain::ChainParameters;
-use loom_types_entities::{BlockHistory, Market};
+use loom_types_entities::{BlockHistory, BlockHistoryState, Market};
 use loom_types_events::{MarketEvents, StateUpdateEvent};
 use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
@@ -13,7 +13,7 @@ use tracing::error;
 pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + 'static>(
     chain_parameters: ChainParameters,
     market: SharedState<Market>,
-    block_history: SharedState<BlockHistory>,
+    block_history: SharedState<BlockHistory<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
     state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB>>,
 ) -> WorkerResult {
@@ -38,10 +38,16 @@ pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + '
             _ => continue,
         };
 
-        let Some(block_history_entry) = block_history.read().await.get_entry(&block_hash).cloned() else {
-            error!("Block not found in block history: {:?}", block_hash);
+        let Some(block_history_entry) = block_history.read().await.get_block_history_entry(&block_hash).cloned() else {
+            error!("Block history entry not found in block history: {:?}", block_hash);
             continue;
         };
+
+        let Some(block_state_entry) = block_history.read().await.get_block_state(&block_hash).cloned() else {
+            error!("Block state not found in block history: {:?}", block_hash);
+            continue;
+        };
+
         let Some(state_update) = block_history_entry.state_update.clone() else {
             error!("Block {:?} has no state update", block_hash);
             continue;
@@ -55,22 +61,15 @@ pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + '
             }
         };
 
-        let Some(cur_state) = block_history_entry.state_db.clone() else {
-            error!("Block {:?} has no state db", block_hash);
-            continue;
-        };
-
         let next_block_number = block_history_entry.number() + 1;
         let next_block_timestamp = block_history_entry.timestamp() + 12;
         let next_base_fee = chain_parameters.calc_next_block_base_fee_from_header(&block_history_entry.header);
 
-        panic!("NOT_IMPLEMENTED")
-        //TODO : Uncomment this
-        /* let request = StateUpdateEvent::new(
+        let request = StateUpdateEvent::new(
             next_block_number,
             next_block_timestamp,
             next_base_fee,
-            cur_state,
+            block_state_entry,
             state_update,
             None,
             affected_pools,
@@ -80,8 +79,6 @@ pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + '
             90_00,
         );
         run_async!(state_updates_broadcaster.send(request));
-
-        */
     }
 }
 
@@ -91,7 +88,7 @@ pub struct BlockStateChangeProcessorActor<DB: Clone + Send + Sync + 'static> {
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
-    block_history: Option<SharedState<BlockHistory>>,
+    block_history: Option<SharedState<BlockHistory<DB>>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     #[producer]

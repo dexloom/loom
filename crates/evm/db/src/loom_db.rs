@@ -2,7 +2,7 @@ use crate::alloydb::AlloyDB;
 use crate::fast_cache_db::FastDbAccount;
 use crate::fast_hasher::SimpleBuildHasher;
 use crate::loom_db_helper::LoomDBHelper;
-use crate::DatabaseLoomExt;
+use crate::{DatabaseLoomExt, LoomDBType};
 use alloy::consensus::constants::KECCAK_EMPTY;
 use alloy::eips::BlockNumberOrTag;
 use alloy::primitives::map::HashMap;

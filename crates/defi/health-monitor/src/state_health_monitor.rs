@@ -27,7 +27,7 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
 ) -> Result<()> {
     info!("Verifying state {address:?}");
     let account = market_state.write().await.state_db.load_account(address).cloned()?;
-    let read_only_cell_hash_set = market_state.read().await.read_only_cells.get(&address).cloned().unwrap_or_default();
+    let read_only_cell_hash_set = market_state.read().await.config.read_only_cells.get(&address).cloned().unwrap_or_default();
 
     for (cell, current_value) in account.storage.iter() {
         if read_only_cell_hash_set.contains(cell) {

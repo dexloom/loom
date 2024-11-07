@@ -147,7 +147,6 @@ mod test {
     use crate::{AbiSwapEncoder, Pool};
     use alloy_primitives::U256;
     use eyre::{eyre, ErrReport};
-    use loom_evm_db::LoomDBType;
     use revm::primitives::Env;
     use revm::DatabaseRef;
     use tokio::task::JoinHandle;

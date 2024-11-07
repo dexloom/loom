@@ -173,8 +173,8 @@ where
                 {
                     let mut market_state_write_guard = market_state.write().await;
                     market_state_write_guard.apply_geth_update(state);
-                    market_state_write_guard.add_force_insert(pool_address);
-                    market_state_write_guard.disable_cell_vec(pool_address, pool_wrapped.get_read_only_cell_vec());
+                    market_state_write_guard.config.add_force_insert(pool_address);
+                    market_state_write_guard.config.disable_cell_vec(pool_address, pool_wrapped.get_read_only_cell_vec());
 
                     drop(market_state_write_guard);
                 }

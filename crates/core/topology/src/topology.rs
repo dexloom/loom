@@ -29,7 +29,7 @@ use loom_node_actor_config::NodeBlockActorConfig;
 use loom_node_db_access::RethDbAccessBlockActor;
 use loom_node_grpc::NodeExExGrpcActor;
 use loom_node_json_rpc::{NodeBlockActor, NodeMempoolActor};
-use loom_types_entities::TxSigners;
+use loom_types_entities::{BlockHistoryState, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
@@ -44,8 +44,17 @@ pub struct Topology<DB: Clone + Send + Sync + 'static> {
     default_signer_name: Option<String>,
 }
 
-impl<DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Default + Send + Sync + Clone + 'static>
-    Topology<DB>
+impl<
+        DB: Database<Error = ErrReport>
+            + DatabaseRef<Error = ErrReport>
+            + DatabaseCommit
+            + BlockHistoryState
+            + Default
+            + Send
+            + Sync
+            + Clone
+            + 'static,
+    > Topology<DB>
 {
     pub async fn from(config: TopologyConfig) -> Result<(Topology<DB>, Vec<JoinHandle<WorkerResult>>)> {
         let mut topology = Topology::<DB> {
@@ -358,7 +367,7 @@ impl<DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + Database
                 let mut nonce_and_balance_monitor = NonceAndBalanceMonitorActor::new(client);
                 match nonce_and_balance_monitor
                     .access(blockchain.nonce_and_balance())
-                    .access(blockchain.block_history())
+                    .access(blockchain.latest_block())
                     .consume(blockchain.market_events_channel())
                     .start()
                 {

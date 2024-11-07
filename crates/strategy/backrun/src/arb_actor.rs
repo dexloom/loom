@@ -34,7 +34,7 @@ pub struct StateChangeArbActor<P, T, N, DB: Clone + Send + Sync + 'static> {
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
-    block_history: Option<SharedState<BlockHistory>>,
+    block_history: Option<SharedState<BlockHistory<DB>>>,
     #[consumer]
     mempool_events_tx: Option<Broadcaster<MempoolEvents>>,
     #[consumer]

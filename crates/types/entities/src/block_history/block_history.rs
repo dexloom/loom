@@ -3,6 +3,9 @@ use std::fmt::Debug;
 use std::marker::PhantomData;
 use std::sync::Arc;
 
+use crate::block_history::block_history_state::BlockHistoryState;
+use crate::market_state::MarketStateConfig;
+use crate::MarketState;
 use alloy_network::{BlockResponse, Ethereum};
 use alloy_primitives::{Address, BlockHash, BlockNumber};
 use alloy_provider::Provider;
@@ -16,66 +19,12 @@ use loom_types_blockchain::{debug_trace_block, GethStateUpdateVec};
 use tokio::sync::RwLock;
 use tracing::{debug, error, trace};
 
-use crate::MarketState;
-
 #[derive(Clone, Debug, Default)]
 pub struct BlockHistoryEntry {
     pub header: Header,
     pub block: Option<Block>,
     pub logs: Option<Vec<Log>>,
     pub state_update: Option<GethStateUpdateVec>,
-    pub state_db: Option<LoomDBType>,
-}
-
-pub fn apply_state_update(db: LoomDBType, state_update: GethStateUpdateVec, market_state: &MarketState<LoomDBType>) -> LoomDBType {
-    let mut db = db;
-    for state_diff in state_update.into_iter() {
-        for (address, account_state) in state_diff.into_iter() {
-            let address: Address = address;
-            if let Some(balance) = account_state.balance {
-                if market_state.state_db.is_account(&address) {
-                    match db.load_account(address) {
-                        Ok(x) => {
-                            x.info.balance = balance;
-                            //trace!("Balance updated {:#20x} {}", address, balance );
-                        }
-                        _ => {
-                            trace!("Balance updated for {:#20x} not found", address);
-                        }
-                    };
-                }
-            }
-
-            if let Some(nonce) = account_state.nonce {
-                if market_state.state_db.is_account(&address) {
-                    match db.load_account(address) {
-                        Ok(x) => {
-                            x.info.nonce = nonce;
-                            trace!("Nonce updated {:#20x} {}", address, nonce);
-                        }
-                        _ => {
-                            trace!("Nonce updated for {:#20x} not found", address);
-                        }
-                    };
-                }
-            }
-
-            for (slot, value) in account_state.storage.iter() {
-                if market_state.is_force_insert(&address) {
-                    trace!("Force slot updated {:#20x} {} {}", address, slot, value);
-                    if let Err(e) = db.insert_account_storage(address, (*slot).into(), (*value).into()) {
-                        error!("{}", e)
-                    }
-                } else if market_state.state_db.is_slot(&address, &(*slot).into()) {
-                    trace!("Slot updated {:#20x} {} {}", address, slot, value);
-                    if let Err(e) = db.insert_account_storage(address, (*slot).into(), (*value).into()) {
-                        error!("{}", e)
-                    }
-                }
-            }
-        }
-    }
-    db
 }
 
 impl BlockHistoryEntry {
@@ -84,13 +33,8 @@ impl BlockHistoryEntry {
         block: Option<Block>,
         logs: Option<Vec<Log>>,
         state_update: Option<GethStateUpdateVec>,
-        state_db: Option<LoomDBType>,
     ) -> BlockHistoryEntry {
-        BlockHistoryEntry { header, block, logs, state_update, state_db }
-    }
-
-    pub fn is_complete(&self) -> bool {
-        self.state_db.is_some() && self.is_fetched()
+        BlockHistoryEntry { header, block, logs, state_update }
     }
 
     pub fn is_fetched(&self) -> bool {
@@ -112,31 +56,38 @@ impl BlockHistoryEntry {
     pub fn timestamp(&self) -> BlockNumber {
         self.header.timestamp
     }
-
-    pub async fn add_parent_entry(&mut self, parent: &BlockHistoryEntry) {
-        if let Some(mut parent_db) = parent.state_db.clone() {
-            if let Some(parent_state_update) = parent.state_update.clone() {
-                // Update only current cells
-                parent_db.apply_geth_update_vec(parent_state_update);
-                self.state_db = Some(parent_db);
-            }
-        }
-    }
 }
 
 #[derive(Debug, Clone)]
-pub struct BlockHistory {
+pub struct BlockHistory<S> {
     depth: usize,
     pub latest_block_number: u64,
+    block_states: HashMap<BlockHash, S>,
     block_entries: HashMap<BlockHash, BlockHistoryEntry>,
     block_numbers: HashMap<u64, BlockHash>,
 }
 
-impl BlockHistory {
-    pub fn new(depth: usize) -> BlockHistory {
-        BlockHistory { depth, latest_block_number: 0, block_entries: HashMap::new(), block_numbers: HashMap::new() }
+impl<S> BlockHistory<S>
+where
+    S: BlockHistoryState,
+{
+    pub fn new(depth: usize) -> BlockHistory<S> {
+        BlockHistory::<S> {
+            depth,
+            latest_block_number: 0,
+            block_states: Default::default(),
+            block_entries: Default::default(),
+            block_numbers: HashMap::new(),
+        }
     }
 
+    pub fn add_db(&mut self, block_hash: BlockHash, state: S) -> Result<()> {
+        self.block_states.insert(block_hash, state);
+        Ok(())
+    }
+}
+
+impl<S> BlockHistory<S> {
     pub fn len(&self) -> usize {
         self.block_entries.len()
     }
@@ -161,7 +112,7 @@ impl BlockHistory {
             self.block_entries.retain(|key, _| actual_hashes.contains(key));
         }
 
-        self.block_entries.entry(block_hash).or_insert(BlockHistoryEntry::new(header, None, None, None, None))
+        self.block_entries.entry(block_hash).or_insert(BlockHistoryEntry::new(header, None, None, None))
     }
 
     fn get_or_insert_entry_mut(&mut self, block_hash: BlockHash) -> &mut BlockHistoryEntry {
@@ -199,7 +150,7 @@ impl BlockHistory {
             }
             Ok(is_new)
         } else {
-            if let Some(market_history_entry) = self.get_entry(&block_hash) {
+            if let Some(market_history_entry) = self.get_block_history_entry(&block_hash) {
                 debug!(
                     "Block is already processed header: {} block : {} state_update : {} logs : {}",
                     market_history_entry.header.hash,
@@ -227,13 +178,11 @@ impl BlockHistory {
         Ok(())
     }
 
-    pub fn add_state_diff(&mut self, block_hash: BlockHash, state_db: Option<LoomDBType>, state_diff: GethStateUpdateVec) -> Result<()> {
+    pub fn add_state_diff(&mut self, block_hash: BlockHash, state_diff: GethStateUpdateVec) -> Result<()> {
         let market_history_entry = self.get_or_insert_entry_mut(block_hash);
 
-        if market_history_entry.state_db.is_none() {
-            market_history_entry.state_db = state_db;
+        if market_history_entry.state_update.is_none() {
             market_history_entry.state_update = Some(state_diff);
-
             Ok(())
         } else {
             Err(ErrReport::msg("BLOCK_STATE_IS_ALREADY_PROCESSED"))
@@ -251,14 +200,12 @@ impl BlockHistory {
         }
     }
 
-    pub fn add_db(&mut self, block_hash: BlockHash, db: LoomDBType) -> Result<()> {
-        let market_history_entry = self.get_entry_mut(&block_hash).ok_or_eyre("ENTRY_NOT_FOUND")?;
-        market_history_entry.state_db = Some(db);
-        Ok(())
+    pub fn get_block_history_entry(&self, block_hash: &BlockHash) -> Option<&BlockHistoryEntry> {
+        self.block_entries.get(block_hash)
     }
 
-    pub fn get_entry(&self, block_hash: &BlockHash) -> Option<&BlockHistoryEntry> {
-        self.block_entries.get(block_hash)
+    pub fn get_block_state(&self, block_hash: &BlockHash) -> Option<&S> {
+        self.block_states.get(block_hash)
     }
 
     pub fn get_entry_mut(&mut self, block_hash: &BlockHash) -> Option<&mut BlockHistoryEntry> {
@@ -282,48 +229,17 @@ impl BlockHistory {
     }
 }
 
-pub struct BlockHistoryManager<P, T> {
+pub struct BlockHistoryManager<P, T, D> {
     client: P,
-    _t: PhantomData<T>,
+    _td: PhantomData<(T, D)>,
 }
 
-impl<P, T> BlockHistoryManager<P, T>
+impl<P, T, S> BlockHistoryManager<P, T, S>
 where
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     T: Transport + Clone + Send + Sync + 'static,
+    S: Clone,
 {
-    pub async fn init(&self, current_state: Arc<RwLock<MarketState<LoomDBType>>>, depth: usize) -> Result<BlockHistory>
-    where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
-    {
-        let latest_block_number = self.client.get_block_number().await?;
-
-        let block = self.client.get_block_by_number(latest_block_number.into(), true).await?;
-        if let Some(block) = block {
-            let block_hash = block.header.hash;
-
-            let market_state_guard = current_state.read().await;
-
-            let block_entry =
-                BlockHistoryEntry::new(block.header.clone(), Some(block), None, None, Some(market_state_guard.state_db.clone()));
-
-            let mut block_entries: HashMap<BlockHash, BlockHistoryEntry> = HashMap::new();
-            let mut block_numbers: HashMap<u64, BlockHash> = HashMap::new();
-
-            block_numbers.insert(latest_block_number, block_hash);
-            block_entries.insert(block_hash, block_entry);
-
-            Ok(BlockHistory { depth, latest_block_number, block_entries, block_numbers })
-        } else {
-            Err(eyre!("BLOCK_IS_EMPTY"))
-        }
-    }
-
-    pub fn new(client: P) -> Self {
-        Self { client, _t: PhantomData }
-    }
-
     pub async fn fetch_entry_by_hash(&self, block_hash: BlockHash) -> Result<BlockHistoryEntry> {
         let block = self.client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await?;
         if let Some(block) = block {
@@ -340,11 +256,84 @@ where
                 }
             };
 
-            let block_entry = BlockHistoryEntry::new(header, Some(block), Some(logs), Some(state_update), None);
+            let block_entry = BlockHistoryEntry::new(header, Some(block), Some(logs), Some(state_update));
             Ok(block_entry)
         } else {
             Err(eyre!("BLOCK_IS_EMPTY"))
         }
+    }
+
+    pub async fn set_chain_head(&self, block_history: &mut BlockHistory<S>, header: Header) -> Result<(bool, usize)> {
+        let mut reorg_depth = 0;
+        let mut is_new_block = false;
+        let parent_hash = header.parent_hash;
+        let first_block_number = block_history.get_first_block_number();
+
+        if let Ok(is_new) = block_history.add_block_header(header) {
+            is_new_block = is_new;
+            if let Some(min_block) = first_block_number {
+                let mut parent_block_hash: BlockHash = parent_hash;
+
+                if is_new {
+                    loop {
+                        match block_history.get_block_history_entry(&parent_block_hash).cloned() {
+                            Some(entry) => {
+                                if block_history.get_block_hash_for_block_number(entry.number()).unwrap_or_default() == entry.hash() {
+                                    break;
+                                } else {
+                                    block_history.block_numbers.insert(entry.number(), entry.hash());
+                                    reorg_depth += 1;
+                                    parent_block_hash = entry.parent_hash();
+                                }
+                            }
+                            None => {
+                                let entry = self.fetch_entry_by_hash(parent_block_hash).await?;
+                                if entry.number() < min_block {
+                                    break;
+                                }
+                                block_history.set_entry(entry.clone());
+                                parent_block_hash = entry.parent_hash();
+                                reorg_depth += 1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok((is_new_block, reorg_depth))
+    }
+}
+
+impl<P, T, S> BlockHistoryManager<P, T, S>
+where
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    T: Transport + Clone + Send + Sync + 'static,
+    S: BlockHistoryState + Clone,
+{
+    pub fn init(&self, current_state: S, depth: usize, block: Block) -> BlockHistory<S>
+    where
+        T: Transport + Clone,
+        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    {
+        let latest_block_number = block.header.number;
+        let block_hash = block.header.hash;
+
+        let block_entry = BlockHistoryEntry::new(block.header.clone(), Some(block), None, None);
+
+        let mut block_entries: HashMap<BlockHash, BlockHistoryEntry> = HashMap::new();
+        let mut block_numbers: HashMap<u64, BlockHash> = HashMap::new();
+        let mut block_states: HashMap<BlockHash, S> = HashMap::new();
+
+        block_numbers.insert(latest_block_number, block_hash);
+        block_entries.insert(block_hash, block_entry);
+        block_states.insert(block_hash, current_state);
+
+        BlockHistory { depth, latest_block_number, block_states, block_entries, block_numbers }
+    }
+
+    pub fn new(client: P) -> Self {
+        Self { client, _td: PhantomData }
     }
 
     pub async fn fetch_entry_data(&self, entry: &mut BlockHistoryEntry) -> Result<()>
@@ -380,8 +369,8 @@ where
             Err(eyre!("BLOCK_DATA_NOT_FETCHED"))
         }
     }
-    pub async fn get_or_fetch_entry_cloned(&self, block_history: &mut BlockHistory, block_hash: BlockHash) -> Result<BlockHistoryEntry> {
-        if let Some(entry) = block_history.get_entry(&block_hash) {
+    pub async fn get_or_fetch_entry_cloned(&self, block_history: &mut BlockHistory<S>, block_hash: BlockHash) -> Result<BlockHistoryEntry> {
+        if let Some(entry) = block_history.get_block_history_entry(&block_hash) {
             Ok(entry.clone())
         } else {
             let entry = self.fetch_entry_by_hash(block_hash).await?;
@@ -390,113 +379,24 @@ where
         }
     }
 
-    pub async fn set_chain_head(&self, block_history: &mut BlockHistory, header: Header) -> Result<(bool, usize)> {
-        let mut reorg_depth = 0;
-        let mut is_new_block = false;
-        let parent_hash = header.parent_hash;
-        let first_block_number = block_history.get_first_block_number();
-
-        if let Ok(is_new) = block_history.add_block_header(header) {
-            is_new_block = is_new;
-            if let Some(min_block) = first_block_number {
-                let mut parent_block_hash: BlockHash = parent_hash;
-
-                if is_new {
-                    loop {
-                        match block_history.get_entry(&parent_block_hash).cloned() {
-                            Some(entry) => {
-                                if block_history.get_block_hash_for_block_number(entry.number()).unwrap_or_default() == entry.hash() {
-                                    break;
-                                } else {
-                                    block_history.block_numbers.insert(entry.number(), entry.hash());
-                                    reorg_depth += 1;
-                                    parent_block_hash = entry.parent_hash();
-                                }
-                            }
-                            None => {
-                                let entry = self.fetch_entry_by_hash(parent_block_hash).await?;
-                                if entry.number() < min_block {
-                                    break;
-                                }
-                                block_history.set_entry(entry.clone());
-                                parent_block_hash = entry.parent_hash();
-                                reorg_depth += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        Ok((is_new_block, reorg_depth))
-    }
-
-    /*pub async fn get_or_fetch_parent_db(
+    pub async fn get_parent_state(
         &self,
-        block_history: &mut BlockHistory,
-        market_state: &MarketState<LoomDBType>,
+        block_history: &mut BlockHistory<S>,
+        market_state_config: &MarketStateConfig,
         parent_hash: BlockHash,
-    ) -> Result<LoomDBType> {
+    ) -> Result<S> {
         let mut parent_hash = parent_hash;
-        let mut parent_db: Option<LoomDBType> = None;
-        let mut missed_blocks: Vec<BlockHash> = vec![];
-        let first_block_number = block_history.get_first_block_number();
-        loop {
-            let parent_entry = self.get_or_fetch_entry_cloned(block_history, parent_hash).await?;
-            if let Some(first_block_number) = first_block_number {
-                if parent_entry.number() < first_block_number {
-                    break;
-                }
-                match parent_entry.state_db {
-                    Some(db) => {
-                        parent_db = Some(db);
-                        break;
-                    }
-                    None => {
-                        missed_blocks.push(parent_entry.hash());
-                        parent_hash = parent_entry.parent_hash();
-                    }
-                }
-            }
-        }
-
-        match parent_db {
-            Some(db) => {
-                let mut db = db;
-                missed_blocks.reverse();
-                for missed_block_hash in missed_blocks.into_iter() {
-                    let missed_entry = block_history.get_or_insert_entry_mut(missed_block_hash);
-                    if let Some(state_update) = missed_entry.state_update.clone() {
-                        db = apply_state_update(db, state_update, market_state);
-                        block_history.get_or_insert_entry_mut(missed_block_hash).state_db = Some(db.clone())
-                    }
-                }
-                Ok(db)
-            }
-            None => Err(eyre!("PARENT_DB_NOT_FOUND")),
-        }
-    }
-
-     */
-
-    pub async fn get_parent_db(
-        &self,
-        block_history: &mut BlockHistory,
-        market_state: &MarketState<LoomDBType>,
-        parent_hash: BlockHash,
-    ) -> Result<LoomDBType> {
-        let mut parent_hash = parent_hash;
-        let mut parent_db: Option<LoomDBType> = None;
+        let mut parent_db: Option<S> = None;
         let mut missed_blocks: Vec<BlockHash> = vec![];
         let first_block_number = block_history.get_first_block_number();
 
         loop {
-            let parent_entry = block_history.get_entry(&parent_hash).ok_or_eyre("PARENT_ENTRY_NOT_FOUND")?;
+            let parent_entry = block_history.get_block_history_entry(&parent_hash).ok_or_eyre("PARENT_ENTRY_NOT_FOUND")?;
             if let Some(first_block_number) = first_block_number {
                 if parent_entry.number() < first_block_number {
                     break;
                 }
-                match &parent_entry.state_db {
+                match block_history.block_states.get(&parent_hash) {
                     Some(db) => {
                         parent_db = Some(db.clone());
                         break;
@@ -515,10 +415,8 @@ where
                 missed_blocks.reverse();
                 for missed_block_hash in missed_blocks.into_iter() {
                     let missed_entry = block_history.get_entry_mut(&missed_block_hash).ok_or_eyre("ENTRY_NOT_FOUND")?;
-                    if let Some(state_update) = missed_entry.state_update.clone() {
-                        db = apply_state_update(db, state_update, market_state);
-                        missed_entry.state_db = Some(db.clone());
-                    }
+                    db = db.apply_update(missed_entry, market_state_config);
+                    block_history.block_states.insert(missed_block_hash, db.clone());
                 }
                 Ok(db)
             }
@@ -528,18 +426,18 @@ where
 
     pub async fn apply_state_update_on_parent_db(
         &self,
-        block_history: &mut BlockHistory,
-        market_state: &MarketState<LoomDBType>,
+        block_history: &mut BlockHistory<S>,
+        market_state_config: &MarketStateConfig,
         block_hash: BlockHash,
-    ) -> Result<LoomDBType> {
+    ) -> Result<S> {
         let mut entry = block_history.get_or_insert_entry_mut(block_hash).clone();
         if !entry.is_fetched() {
             self.fetch_entry_data(&mut entry).await?;
         }
 
-        let parent_db = self.get_parent_db(block_history, market_state, entry.parent_hash()).await?;
+        let parent_db = self.get_parent_state(block_history, market_state_config, entry.parent_hash()).await?;
 
-        let db = apply_state_update(parent_db, entry.state_update.clone().unwrap_or_default(), market_state);
+        let db = parent_db.apply_update(&entry, market_state_config);
 
         Ok(db)
     }
@@ -568,7 +466,7 @@ mod test {
 
     #[test]
     fn test_add_block_header() {
-        let mut block_history = BlockHistory::new(10);
+        let mut block_history = BlockHistory::<LoomDBType>::new(10);
 
         let header_1_0 = Header { number: 1, hash: U256::from(1).into(), ..Default::default() };
         let header_2_0 = create_next_header(&header_1_0, 0);
@@ -585,7 +483,7 @@ mod test {
 
     #[test]
     fn test_add_missed_header() {
-        let mut block_history = BlockHistory::new(10);
+        let mut block_history = BlockHistory::<LoomDBType>::new(10);
 
         let header_1_0 = Header { number: 1, hash: U256::from(1).into(), ..Default::default() };
         let header_2_0 = create_next_header(&header_1_0, 0);
@@ -604,7 +502,7 @@ mod test {
 
     #[test]
     fn test_add_reorged_header() {
-        let mut block_history = BlockHistory::new(10);
+        let mut block_history = BlockHistory::<LoomDBType>::new(10);
 
         let header_1_0 = Header { number: 1, hash: U256::from(1).into(), ..Default::default() };
         let header_2_0 = create_next_header(&header_1_0, 0);
@@ -643,7 +541,7 @@ mod test {
 
         let block_history_manager = BlockHistoryManager::new(provider.clone());
 
-        let mut block_history = block_history_manager.init(market_state.clone(), 10).await?;
+        let mut block_history = block_history_manager.init(LoomDBType::default(), 10, block_0.clone());
 
         let snap = provider.anvil_snapshot().await?;
 
