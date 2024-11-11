@@ -463,15 +463,19 @@ where
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::MarketState;
     use alloy_node_bindings::Anvil;
     use alloy_primitives::{Address, U256};
     use alloy_provider::ext::AnvilApi;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use alloy_rpc_types::BlockNumberOrTag;
+    use loom_evm_db::LoomDBType;
     use loom_evm_utils::geth_state_update::*;
     use loom_node_debug_provider::AnvilProviderExt;
     use loom_types_blockchain::GethStateUpdate;
+    use std::sync::Arc;
+    use tokio::sync::RwLock;
 
     fn create_next_header(parent: &Header, child_id: u64) -> Header {
         let number = parent.number + 1;

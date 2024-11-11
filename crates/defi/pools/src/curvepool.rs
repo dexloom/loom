@@ -516,7 +516,7 @@ mod tests {
     use alloy_provider::Provider;
     use alloy_rpc_types::BlockNumberOrTag;
     use env_logger::Env as EnvLog;
-    use loom_evm_db::LoomDBType;
+    use loom_evm_db::{DatabaseLoomExt, LoomDBType};
     use loom_node_debug_provider::AnvilDebugProviderFactory;
     use loom_types_entities::required_state::RequiredStateReader;
     use loom_types_entities::{MarketState, Pool};
@@ -546,7 +546,12 @@ mod tests {
             debug!("Pool state fetched {} {}", pool.address, state_required.len());
 
             market_state.state_db.apply_geth_update(state_required);
-            debug!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.state_db.accounts_len(), market_state.storage_len());
+            debug!(
+                "Pool : {} Accs : {} Storage : {}",
+                pool.address,
+                market_state.state_db.accounts_len(),
+                market_state.state_db.storage_len()
+            );
 
             let block_header = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.unwrap().unwrap().header;
             debug!("Block {} {}", block_header.number, block_header.timestamp);

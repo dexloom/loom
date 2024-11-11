@@ -254,7 +254,7 @@ impl Pool for UniswapV3Pool {
             let mut env = _env;
             env.tx.gas_limit = 1_000_000;
             let (ret_evm, _gas_used) = UniswapV3QuoterV2StateReader::quote_exact_input(
-                state_db,
+                &state_db,
                 env,
                 PeripheryAddress::UNISWAP_V3_QUOTER_V2,
                 *token_address_from,
@@ -291,7 +291,7 @@ impl Pool for UniswapV3Pool {
             let mut env = _env;
             env.tx.gas_limit = 1_000_000;
             let (ret_evm, _gas_used) = UniswapV3QuoterV2StateReader::quote_exact_output(
-                state_db,
+                &state_db,
                 env,
                 PeripheryAddress::UNISWAP_V3_QUOTER_V2,
                 *token_address_from,
