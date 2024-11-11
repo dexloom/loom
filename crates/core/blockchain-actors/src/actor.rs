@@ -21,6 +21,7 @@ use loom_defi_market::{
 use loom_defi_pools::PoolsConfig;
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
+use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::NWETH;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
 use loom_execution_multicaller::MulticallerSwapEncoder;
@@ -66,6 +67,7 @@ where
     DB: DatabaseRef<Error = ErrReport>
         + Database<Error = ErrReport>
         + DatabaseCommit
+        + DatabaseLoomExt
         + BlockHistoryState
         + Send
         + Sync

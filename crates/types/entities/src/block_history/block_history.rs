@@ -152,7 +152,7 @@ impl<S> BlockHistory<S> {
         } else {
             if let Some(market_history_entry) = self.get_block_history_entry(&block_hash) {
                 debug!(
-                    "Block is already processed header: {} block : {} state_update : {} logs : {}",
+                    "Block header is already processed: {} block : {} state_update : {} logs : {}",
                     market_history_entry.header.hash,
                     market_history_entry.block.is_some(),
                     market_history_entry.state_update.is_some(),
@@ -170,6 +170,14 @@ impl<S> BlockHistory<S> {
         let market_history_entry = self.get_or_insert_entry_with_header(block.header.clone());
 
         if market_history_entry.block.is_some() {
+            debug!(
+                "Block is already processed: {} block : {} state_update : {} logs : {}",
+                market_history_entry.header.hash,
+                market_history_entry.block.is_some(),
+                market_history_entry.state_update.is_some(),
+                market_history_entry.logs.is_some(),
+            );
+
             return Err(ErrReport::msg("BLOCK_IS_ALREADY_PROCESSED"));
         }
 
@@ -185,6 +193,13 @@ impl<S> BlockHistory<S> {
             market_history_entry.state_update = Some(state_diff);
             Ok(())
         } else {
+            debug!(
+                "Block state is already processed: {} block : {} state_update : {} logs : {}",
+                market_history_entry.header.hash,
+                market_history_entry.block.is_some(),
+                market_history_entry.state_update.is_some(),
+                market_history_entry.logs.is_some(),
+            );
             Err(ErrReport::msg("BLOCK_STATE_IS_ALREADY_PROCESSED"))
         }
     }
@@ -196,6 +211,13 @@ impl<S> BlockHistory<S> {
             market_history_entry.logs = Some(logs);
             Ok(())
         } else {
+            debug!(
+                "Block log is already processed : {} block : {} state_update : {} logs : {}",
+                market_history_entry.header.hash,
+                market_history_entry.block.is_some(),
+                market_history_entry.state_update.is_some(),
+                market_history_entry.logs.is_some(),
+            );
             Err(ErrReport::msg("BLOCK_LOGS_ARE_ALREADY_PROCESSED"))
         }
     }

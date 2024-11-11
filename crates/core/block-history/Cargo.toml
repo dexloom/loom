@@ -12,6 +12,7 @@ version.workspace = true
 loom-core-actors.workspace = true
 loom-core-actors-macros.workspace = true
 loom-core-blockchain.workspace = true
+loom-evm-db.workspace = true
 loom-node-debug-provider.workspace = true
 loom-types-blockchain.workspace = true
 loom-types-entities.workspace = true

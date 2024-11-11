@@ -179,17 +179,17 @@ async fn main() -> Result<()> {
                         state_db.apply_geth_update_vec(state_update.state_update);
 
                         if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddress::WETH, TARGET_ADDRESS ) {
-                            info!("------Balance of {} : {}", TARGET_ADDRESS, balance);
+                            info!("------WETH Balance of {} : {}", TARGET_ADDRESS, balance);
                             let fetched_balance = CallBuilder::new_raw(node_provider.clone(), EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS)).to(TokenAddress::WETH).block(cur_header.number.into()).call().await?;
 
                             let fetched_balance = U256::from_be_slice(fetched_balance.to_vec().as_slice());
                             if fetched_balance != balance {
-                                error!("Balance is wrong {:#x} need {:#x}", balance, fetched_balance);
+                                error!("Balance is wrong {}/({:#x}) need {}({:#x})", balance, balance, fetched_balance, fetched_balance);
                                 exit(1);
                             }
                         }
                         if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddress::WETH, UniswapV3PoolAddress::USDC_WETH_500 ) {
-                            info!("------Balance of {} : {}", UniswapV3PoolAddress::USDC_WETH_500, balance);
+                            info!("------WETH Balance of {} : {}/({:#x}) ", UniswapV3PoolAddress::USDC_WETH_500, balance, balance);
                         }
 
                         info!("StateDB : Accounts: {} / {} Contracts : {} / {}", state_db.accounts_len(), state_db.ro_accounts_len(), state_db.contracts_len(), state_db.ro_contracts_len())
