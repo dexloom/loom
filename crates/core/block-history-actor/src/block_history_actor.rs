@@ -257,9 +257,7 @@ where
                     latest_block_guard.update(msg_block_number, msg_block_hash, None, None, None, Some(msg.state_update.clone()) );
 
                     let new_market_state_db = if market_state_guard.block_hash.is_zero() || market_state_guard.block_hash == latest_block_parent_hash {
-                        let db = market_state_guard.state_db.clone();
-                        //market_state_guard.apply_geth_update_vec(msg.state_update.clone());
-                        db
+                         market_state_guard.state_db.clone()
                     } else {
                         match block_history_manager.apply_state_update_on_parent_db(block_history_guard.deref_mut(), &market_state_guard.config, msg_block_hash ).await {
                             Ok(db) => db,

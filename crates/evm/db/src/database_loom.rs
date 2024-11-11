@@ -4,8 +4,6 @@ use alloy::primitives::{Address, U256};
 use revm::primitives::AccountInfo;
 
 pub trait DatabaseLoomExt {
-    fn accounts(&self);
-
     fn is_account(&self, address: &Address) -> bool;
     fn is_slot(&self, address: &Address, slot: &U256) -> bool;
     fn contracts_len(&self) -> usize;

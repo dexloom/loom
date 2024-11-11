@@ -272,7 +272,7 @@ async fn main() -> Result<()> {
     let mut nonce_and_balance_monitor = NonceAndBalanceMonitorActor::new(client.clone());
     match nonce_and_balance_monitor
         .access(accounts_state.clone())
-        .access(block_history_state.clone())
+        .access(latest_block.clone())
         .consume(market_events_channel.clone())
         .start()
     {

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use alloy_primitives::{Address, U256};
 #[cfg(not(debug_assertions))]
 use chrono::TimeDelta;
-use eyre::{eyre, ErrReport, Report, Result};
+use eyre::{eyre, ErrReport, Result};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use revm::DatabaseRef;
@@ -35,7 +35,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Sen
 ) -> Result<()> {
     debug!("Message received {} stuffing : {:?}", state_update_event.origin, state_update_event.stuffing_tx_hash());
 
-    let mut db = state_update_event.market_state().clone();
+    let db = state_update_event.market_state().clone();
 
     let start_time = chrono::Local::now();
     let mut swap_path_vec: Vec<SwapPath> = Vec::new();

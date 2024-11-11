@@ -4,7 +4,7 @@ use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broad
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_types_blockchain::ChainParameters;
-use loom_types_entities::{BlockHistory, BlockHistoryState, Market};
+use loom_types_entities::{BlockHistory, Market};
 use loom_types_events::{MarketEvents, StateUpdateEvent};
 use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;

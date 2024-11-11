@@ -1,6 +1,5 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_eips::BlockId;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
@@ -8,7 +7,6 @@ use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use std::marker::PhantomData;
-use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info, trace};
 
@@ -18,14 +16,13 @@ use loom_types_entities::{Swap, SwapEncoder};
 
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Consumer, Producer};
-use loom_evm_db::AlloyDB;
 use loom_evm_utils::evm::evm_access_list;
 use loom_evm_utils::evm_env::env_for_block;
 use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use revm::DatabaseRef;
 
 async fn estimator_task<T, N, DB>(
-    client: Option<impl Provider<T, N> + 'static>,
+    _client: Option<impl Provider<T, N> + 'static>,
     swap_encoder: impl SwapEncoder,
     estimate_request: TxComposeData<DB>,
     compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,

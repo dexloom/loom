@@ -9,7 +9,7 @@ use alloy::{
     primitives::{Address, Bytes, B256, U256},
     rpc::types::{AccessList, AccessListItem, Header, Transaction, TransactionRequest},
 };
-use eyre::{eyre, ErrReport};
+use eyre::eyre;
 use lazy_static::lazy_static;
 use loom_types_blockchain::GethStateUpdate;
 #[cfg(feature = "trace-calls")]
@@ -21,7 +21,6 @@ use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 #[cfg(feature = "trace-calls")]
 use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
 use std::collections::BTreeMap;
-use std::fmt::Display;
 use thiserror::Error;
 use tracing::{debug, error};
 
@@ -85,7 +84,7 @@ pub fn evm_transact<DB>(evm: &mut Evm<(), DB>) -> eyre::Result<(Vec<u8>, u64)>
 where
     DB: Database + DatabaseCommit,
 {
-    let execution_result = evm.transact_commit().map_err(|e| EvmError::TransactCommitError("COMMIT_ERROR".to_string()))?;
+    let execution_result = evm.transact_commit().map_err(|_| EvmError::TransactCommitError("COMMIT_ERROR".to_string()))?;
     let gas_used = execution_result.gas_used();
 
     match execution_result {

@@ -1,23 +1,18 @@
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::marker::PhantomData;
-use std::sync::Arc;
 
 use crate::block_history::block_history_state::BlockHistoryState;
 use crate::market_state::MarketStateConfig;
-use crate::MarketState;
 use alloy_network::{BlockResponse, Ethereum};
-use alloy_primitives::{Address, BlockHash, BlockNumber};
+use alloy_primitives::{BlockHash, BlockNumber};
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, BlockId, BlockTransactionsKind, Filter, Header, Log};
 use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
-use loom_evm_db::DatabaseLoomExt;
-use loom_evm_db::LoomDBType;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::{debug_trace_block, GethStateUpdateVec};
-use tokio::sync::RwLock;
-use tracing::{debug, error, trace};
+use tracing::{debug, error};
 
 #[derive(Clone, Debug, Default)]
 pub struct BlockHistoryEntry {

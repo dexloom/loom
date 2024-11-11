@@ -8,17 +8,13 @@ use loom_evm_utils::evm_tx_env::env_from_signed_tx;
 use loom_rpc_state::AppState;
 use loom_types_blockchain::ChainParameters;
 use revm::primitives::{BlockEnv, Env, CANCUN};
-use revm::{DatabaseRef, Evm};
+use revm::{DatabaseCommit, DatabaseRef, Evm};
 use tracing::{error, info};
 
-pub async fn flashbots<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+pub async fn flashbots<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static>(
     State(app_state): State<AppState<DB>>,
     Json(bundle_request): Json<BundleRequest>,
 ) -> Result<Json<SendBundleResponse>, (StatusCode, String)> {
-    panic!("NOT_IMPLEMENTED")
-
-    //TODO : Reimplement
-    /*
     for (bundle_idx, bundle_param) in bundle_request.params.iter().enumerate() {
         info!(
             "Flashbots bundle({bundle_idx}): target_block={:?}, transactions_len={:?}",
@@ -68,6 +64,4 @@ pub async fn flashbots<DB: DatabaseRef + Send + Sync + Clone + 'static>(
     }
 
     Ok(Json(SendBundleResponse { jsonrpc: "2.0".to_string(), id: 1, result: BundleResponse { bundle_hash: None } }))
-
-     */
 }

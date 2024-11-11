@@ -18,7 +18,7 @@ use tracing::error;
 
 use loom::defi::address_book::UniswapV3PoolAddress;
 use loom::defi::pools::UniswapV3Pool;
-use loom::evm::db::LoomDBType;
+use loom::evm::db::{LoomDB, LoomDBType};
 use loom::node::debug_provider::AnvilDebugProviderFactory;
 use loom::types::entities::required_state::RequiredStateReader;
 use loom::types::entities::{MarketState, Pool, PoolWrapper};
@@ -48,14 +48,14 @@ async fn performance_test() {
     values.sort_unstable();
 }
 
-async fn fetch_data_and_pool() -> Result<(MarketState, PoolWrapper)> {
+async fn fetch_data_and_pool() -> Result<(MarketState<LoomDB>, PoolWrapper)> {
     let block_number: BlockNumber = 19948348;
 
     let node_url = env::var("MAINNET_WS")?;
 
     let client = AnvilDebugProviderFactory::from_node_on_block(node_url, block_number).await?;
 
-    let mut market_state = MarketState::new(Default::default());
+    let mut market_state = MarketState::<LoomDB>::new(Default::default());
 
     let pool_address: Address = UniswapV3PoolAddress::USDC_WETH_500;
     //let pool_address: Address = "0x5777d92f208679db4b9778590fa3cab3ac9e2168".parse().unwrap();

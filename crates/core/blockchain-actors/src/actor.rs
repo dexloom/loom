@@ -14,7 +14,7 @@ use loom_core_blockchain::Blockchain;
 use loom_core_mempool::MempoolActor;
 use loom_core_router::SwapRouterActor;
 use loom_defi_address_book::TokenAddress;
-use loom_defi_health_monitor::{PoolHealthMonitorActor, StateHealthMonitorActor, StuffingTxMonitorActor};
+use loom_defi_health_monitor::{PoolHealthMonitorActor, StuffingTxMonitorActor};
 use loom_defi_market::{
     CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, RequiredPoolLoaderActor,
 };

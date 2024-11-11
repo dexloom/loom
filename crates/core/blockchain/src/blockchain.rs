@@ -3,6 +3,7 @@ use alloy::primitives::ChainId;
 use influxdb::WriteQuery;
 use loom_core_actors::{Broadcaster, SharedState};
 use loom_defi_address_book::TokenAddress;
+use loom_evm_db::DatabaseLoomExt;
 use loom_types_blockchain::{ChainParameters, Mempool};
 use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, BlockHistoryState, LatestBlock, Market, MarketState, Token};
 use loom_types_events::{
@@ -36,7 +37,9 @@ pub struct Blockchain<DB: Clone + Send + Sync + 'static> {
     tasks_channel: Broadcaster<Task>,
 }
 
-impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + Send + Sync + Clone + Default + 'static> Blockchain<DB> {
+impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseLoomExt + Send + Sync + Clone + Default + 'static>
+    Blockchain<DB>
+{
     pub fn new(chain_id: ChainId) -> Blockchain<DB> {
         let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);

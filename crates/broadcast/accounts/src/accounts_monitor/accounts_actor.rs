@@ -12,7 +12,7 @@ use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Shar
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_defi_abi::IERC20::IERC20Events;
-use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock};
+use loom_types_entities::{AccountNonceAndBalanceState, LatestBlock};
 use loom_types_events::MarketEvents;
 use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
@@ -69,7 +69,7 @@ pub async fn nonce_and_balance_monitor_worker(
                 let market_event_msg : Result<MarketEvents, RecvError> = msg;
                 if let Ok(market_event_msg) = market_event_msg {
                     match market_event_msg {
-                        MarketEvents::BlockTxUpdate{ block_hash, .. }=>{
+                        MarketEvents::BlockTxUpdate{  .. }=>{
                             if let Some(block) = latest_block.read().await.block_with_txs.clone() {
                                 if let BlockTransactions::Full(txs) = block.transactions {
 
@@ -99,8 +99,9 @@ pub async fn nonce_and_balance_monitor_worker(
                                 }
                             }
                         },
-                        MarketEvents::BlockLogsUpdate { block_hash, .. }=>{
-                            if let Some(logs) = latest_block.read().await.logs.clone(){
+                        MarketEvents::BlockLogsUpdate {  .. }=>{
+                            let latest_block_guard = latest_block.read().await;
+                            if let Some(logs) = latest_block_guard.logs.clone(){
 
                                     // acquire accounts shared state write lock
                                     let mut accounts_lock = accounts_state.write().await;

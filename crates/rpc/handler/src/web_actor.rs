@@ -6,7 +6,7 @@ use loom_core_actors_macros::Consumer;
 use loom_core_blockchain::Blockchain;
 use loom_rpc_state::AppState;
 use loom_storage_db::DbPool;
-use revm::DatabaseRef;
+use revm::{DatabaseCommit, DatabaseRef};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
 use tokio_util::sync::CancellationToken;
@@ -21,7 +21,7 @@ pub async fn start_web_server_worker<S, DB>(
     shutdown_token: CancellationToken,
 ) -> WorkerResult
 where
-    DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + Default + 'static,
+    DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
     S: Clone + Send + Sync + 'static,
     Router: From<Router<S>>,
 {
@@ -72,7 +72,7 @@ impl<S, DB> Actor for WebServerActor<S, DB>
 where
     S: Clone + Send + Sync + 'static,
     Router: From<Router<S>>,
-    DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + Default + 'static,
+    DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::spawn(start_web_server_worker(

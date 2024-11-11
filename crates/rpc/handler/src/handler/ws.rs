@@ -8,7 +8,7 @@ use crate::dto::block::{BlockHeader, WebSocketMessage};
 use eyre::ErrReport;
 use loom_rpc_state::AppState;
 use loom_types_blockchain::ChainParameters;
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::DatabaseRef;
 use std::net::SocketAddr;
 use tracing::{error, warn};
 

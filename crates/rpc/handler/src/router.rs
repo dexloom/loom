@@ -7,11 +7,11 @@ use axum::routing::{get, post};
 use axum::Router;
 use eyre::ErrReport;
 use loom_rpc_state::AppState;
-use revm::DatabaseRef;
+use revm::{DatabaseCommit, DatabaseRef};
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
 
-pub fn router<DB: DatabaseRef<Error = ErrReport> + Sync + Send + Clone + 'static>(app_state: AppState<DB>) -> Router<()> {
+pub fn router<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Sync + Send + Clone + 'static>(app_state: AppState<DB>) -> Router<()> {
     Router::new()
         .nest(
             "/api/v1",

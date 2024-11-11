@@ -22,7 +22,7 @@ use tracing::{debug, error, info, trace};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_evm_db::{DatabaseHelpers, LoomDBType};
+use loom_evm_db::DatabaseHelpers;
 use loom_evm_utils::evm::evm_transact;
 use loom_evm_utils::evm_tx_env::tx_to_evm_tx;
 use loom_node_debug_provider::DebugProviderExt;

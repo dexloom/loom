@@ -1,6 +1,5 @@
 use crate::market_state::MarketStateConfig;
 use crate::BlockHistoryEntry;
-use alloy_primitives::Address;
 use loom_evm_db::{DatabaseLoomExt, LoomDB};
 use tracing::{error, trace};
 
@@ -12,10 +11,10 @@ impl BlockHistoryState for LoomDB {
     fn apply_update(self, block_history_entry: &BlockHistoryEntry, market_state_config: &MarketStateConfig) -> Self {
         let mut db = self;
         if let Some(state_update) = &block_history_entry.state_update {
-            for state_diff in state_update.into_iter() {
-                for (address, account_state) in state_diff.into_iter() {
+            for state_diff in state_update.iter() {
+                for (address, account_state) in state_diff.iter() {
                     if let Some(balance) = account_state.balance {
-                        if db.is_rw_ro_account(&address) {
+                        if db.is_rw_ro_account(address) {
                             match db.load_ro_rw_account(*address) {
                                 Ok(x) => {
                                     x.info.balance = balance;
@@ -29,7 +28,7 @@ impl BlockHistoryState for LoomDB {
                     }
 
                     if let Some(nonce) = account_state.nonce {
-                        if db.is_account(&address) {
+                        if db.is_account(address) {
                             match db.load_cached_account(*address) {
                                 Ok(x) => {
                                     x.info.nonce = nonce;

@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use alloy_primitives::{Address, TxHash};
 use alloy_rpc_types::Transaction;
 use eyre::{OptionExt, Result};

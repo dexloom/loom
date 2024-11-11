@@ -13,6 +13,7 @@ use eyre::{eyre, Result};
 use futures::future::join_all;
 use loom_core_blockchain::Blockchain;
 use loom_core_blockchain_actors::BlockchainActors;
+use loom_evm_db::LoomDB;
 use loom_node_actor_config::NodeBlockActorConfig;
 use loom_types_events::MempoolEvents;
 use std::fmt::Formatter;
@@ -227,7 +228,7 @@ async fn collect_stat_task(
     blocks_needed: usize,
     ping_time: TimeDelta,
 ) -> Result<()> {
-    let bc = Blockchain::new(1);
+    let bc = Blockchain::<LoomDB>::new(1);
 
     let mut bc_actors = BlockchainActors::new(provider, bc.clone(), vec![]);
     if grps {

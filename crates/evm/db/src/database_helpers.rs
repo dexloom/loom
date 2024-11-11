@@ -1,9 +1,8 @@
 use alloy::primitives::map::HashMap;
 use alloy::primitives::{Address, U256};
 use alloy::rpc::types::trace::geth::AccountState;
-use eyre::ErrReport;
-use revm::primitives::{Account, AccountStatus, Bytecode, EvmStorage, EvmStorageSlot};
-use revm::{Database, DatabaseCommit, DatabaseRef};
+use revm::primitives::{Account, AccountStatus, Bytecode, EvmStorageSlot};
+use revm::{DatabaseCommit, DatabaseRef};
 use std::collections::BTreeMap;
 
 pub struct DatabaseHelpers {}

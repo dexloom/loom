@@ -1,7 +1,6 @@
 use loom_evm_db::LoomDBType;
 use std::env;
 use std::process::exit;
-use std::sync::Arc;
 use std::time::Duration;
 
 use alloy::contract::CallBuilder;

@@ -22,6 +22,7 @@ use loom_defi_market::{CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActo
 use loom_defi_pools::PoolsConfig;
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
+use loom_evm_db::DatabaseLoomExt;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
 use loom_execution_multicaller::MulticallerSwapEncoder;
 use loom_node_actor_config::NodeBlockActorConfig;
@@ -48,6 +49,7 @@ impl<
         DB: Database<Error = ErrReport>
             + DatabaseRef<Error = ErrReport>
             + DatabaseCommit
+            + DatabaseLoomExt
             + BlockHistoryState
             + Default
             + Send

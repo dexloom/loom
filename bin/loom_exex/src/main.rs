@@ -82,7 +82,7 @@ fn main() -> eyre::Result<()> {
                 let transport = WsConnect { url: client_config.url(), auth: None, config: None };
                 let client = ClientBuilder::default().ws(transport).await?;
                 let provider = ProviderBuilder::new().on_client(client).boxed();
-                let bc = Blockchain::new(Chain::mainnet().id());
+                let bc = Blockchain::<LoomDB>::new(Chain::mainnet().id());
                 let bc_clone = bc.clone();
 
                 if let Err(e) = loom_runtime::start_loom(provider, bc_clone, topology_config, loom_args.loom_config.clone(), false).await {

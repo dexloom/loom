@@ -2,7 +2,7 @@ use crate::alloydb::AlloyDB;
 use crate::fast_cache_db::FastDbAccount;
 use crate::fast_hasher::SimpleBuildHasher;
 use crate::loom_db_helper::LoomDBHelper;
-use crate::{DatabaseLoomExt, LoomDBType};
+use crate::DatabaseLoomExt;
 use alloy::consensus::constants::KECCAK_EMPTY;
 use alloy::eips::BlockNumberOrTag;
 use alloy::primitives::map::HashMap;
@@ -460,10 +460,6 @@ impl LoomDB {
 }
 
 impl DatabaseLoomExt for LoomDB {
-    fn accounts(&self) {
-        self.accounts()
-    }
-
     fn is_account(&self, address: &Address) -> bool {
         self.is_rw_ro_account(address)
     }
