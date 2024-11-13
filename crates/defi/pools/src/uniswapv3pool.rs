@@ -475,6 +475,7 @@ mod test {
     use loom_evm_db::{AlloyDB, LoomDB};
     use loom_node_debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use loom_types_entities::required_state::RequiredStateReader;
+    use revm::db::EmptyDBTyped;
     use std::env;
 
     const POOL_ADDRESSES: [Address; 4] = [
@@ -620,7 +621,7 @@ mod test {
             let state_required = pool.get_state_required()?;
             let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(BLOCK_NUMBER)).await?;
 
-            let mut state_db = LoomDBType::default();
+            let mut state_db = LoomDBType::default().with_ext_db(EmptyDBTyped::<ErrReport>::new());
             state_db.apply_geth_update(state_update);
 
             let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;

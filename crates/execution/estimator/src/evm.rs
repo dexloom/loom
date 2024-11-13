@@ -1,5 +1,6 @@
 use alloy_consensus::TxEnvelope;
 use alloy_eips::eip2718::Encodable2718;
+use alloy_eips::BlockNumberOrTag;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
@@ -16,13 +17,14 @@ use loom_types_entities::{Swap, SwapEncoder};
 
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Consumer, Producer};
+use loom_evm_db::{AlloyDB, DatabaseLoomExt};
 use loom_evm_utils::evm::evm_access_list;
 use loom_evm_utils::evm_env::env_for_block;
 use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
 use revm::DatabaseRef;
 
 async fn estimator_task<T, N, DB>(
-    _client: Option<impl Provider<T, N> + 'static>,
+    client: Option<impl Provider<T, N> + 'static>,
     swap_encoder: impl SwapEncoder,
     estimate_request: TxComposeData<DB>,
     compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
@@ -30,7 +32,7 @@ async fn estimator_task<T, N, DB>(
 where
     T: Transport + Clone,
     N: Network,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     debug!(
         gas_limit = estimate_request.gas,
@@ -68,14 +70,17 @@ where
         ..TransactionRequest::default()
     };
 
-    let Some(db) = estimate_request.poststate else {
+    let Some(mut db) = estimate_request.poststate else {
         error!("StateDB is None");
         return Err(eyre!("STATE_DB_IS_NONE"));
     };
 
-    /*let db = client
-    .and_then(|client| AlloyDB::new(client, BlockId::latest()))
-    .map_or(db.clone(), |ext_db| Arc::new(db.as_ref().clone().with_ext_db(ext_db)));*/
+    if let Some(client) = client {
+        let ext_db = AlloyDB::new(client, BlockNumberOrTag::Latest.into());
+        if let Some(ext_db) = ext_db {
+            db.with_ext_db(ext_db)
+        }
+    }
 
     let evm_env = env_for_block(estimate_request.next_block_number, estimate_request.next_block_timestamp);
 
@@ -202,7 +207,7 @@ async fn estimator_worker<T, N, DB>(
 where
     T: Transport + Clone,
     N: Network,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     subscribe!(compose_channel_rx);
 
@@ -255,7 +260,7 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum>,
     E: SwapEncoder + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     pub fn new(encoder: E) -> Self {
         Self { encoder, client: None, compose_channel_tx: None, compose_channel_rx: None, _t: PhantomData::<T>, _n: PhantomData::<N> }
@@ -276,7 +281,7 @@ where
     T: Transport + Clone,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
     E: SwapEncoder + Clone + Send + Sync + 'static,
-    DB: DatabaseRef + Send + Sync + Clone,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(estimator_worker(

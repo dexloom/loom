@@ -14,7 +14,7 @@ use alloy_rpc_types::{BlockId, BlockNumberOrTag, BlockTransactionsKind};
 use clap::Parser;
 use loom::node::debug_provider::AnvilDebugProviderFactory;
 
-use eyre::{OptionExt, Result};
+use eyre::{ErrReport, OptionExt, Result};
 use loom::broadcast::accounts::{InitializeSignersOneShotBlockingActor, NonceAndBalanceMonitorActor, TxSignersActor};
 use loom::broadcast::broadcaster::{AnvilBroadcastActor, FlashbotsBroadcastActor};
 use loom::broadcast::flashbots::client::RelayConfig;
@@ -45,6 +45,7 @@ use loom::types::events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageTxCompose, TxCompose,
 };
+use revm::db::EmptyDBTyped;
 use tracing::{debug, error, info};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -157,7 +158,7 @@ async fn main() -> Result<()> {
 
     let block_header_with_txes = client.get_block(block_number.into(), BlockTransactionsKind::Full).await?.unwrap();
 
-    let cache_db = LoomDBType::default();
+    let cache_db = LoomDBType::default().with_ext_db(EmptyDBTyped::<ErrReport>::new());
     let mut market_instance = Market::default();
     let market_state_instance = MarketState::new(cache_db.clone());
 

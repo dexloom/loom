@@ -4,7 +4,7 @@ use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::ErrReport;
-use revm::DatabaseRef;
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::task::JoinHandle;
 use tracing::info;
 
@@ -80,7 +80,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + Default + 'static,
+    DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     fn start(&self) -> ActorResult {
         let searcher_pool_update_channel = Broadcaster::new(100);

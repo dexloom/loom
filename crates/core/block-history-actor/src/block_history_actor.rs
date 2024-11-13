@@ -35,6 +35,8 @@ where
     let block_number = header.number;
     let block_hash = header.hash;
 
+    debug!(%block_number, %block_hash, "set_chain_head block_number");
+
     match block_history_manager.set_chain_head(block_history, header.clone()).await {
         Ok((is_new_block, reorg_depth)) => {
             if reorg_depth > 0 {
@@ -89,6 +91,8 @@ where
     subscribe!(log_update_rx);
     subscribe!(state_update_rx);
 
+    debug!("new_block_history_worker started");
+
     let block_history_manager = BlockHistoryManager::new(client);
 
     loop {
@@ -99,6 +103,9 @@ where
                     Ok(block_header)=>{
                         let mut block_history_guard = block_history.write().await;
                         let mut latest_block_guard = latest_block.write().await;
+
+                        debug!("Block Header, Update {} {}", block_header.header.number, block_header.header.hash);
+
 
                         set_chain_head(
                             &block_history_manager,

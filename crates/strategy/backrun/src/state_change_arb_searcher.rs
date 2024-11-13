@@ -7,7 +7,7 @@ use chrono::TimeDelta;
 use eyre::{eyre, ErrReport, Result};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use revm::DatabaseRef;
+use revm::{DatabaseCommit, DatabaseRef};
 use tokio::sync::broadcast::error::RecvError;
 #[cfg(not(debug_assertions))]
 use tracing::warn;
@@ -18,6 +18,7 @@ use crate::SwapCalculator;
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
+use loom_evm_db::DatabaseHelpers;
 use loom_types_blockchain::SwapError;
 use loom_types_entities::config::StrategyConfig;
 use loom_types_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
@@ -25,7 +26,7 @@ use loom_types_events::{
     BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData,
 };
 
-async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + Default + 'static>(
+async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static>(
     thread_pool: Arc<ThreadPool>,
     backrun_config: BackrunConfig,
     state_update_event: StateUpdateEvent<DB>,
@@ -35,7 +36,8 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Sen
 ) -> Result<()> {
     debug!("Message received {} stuffing : {:?}", state_update_event.origin, state_update_event.stuffing_tx_hash());
 
-    let db = state_update_event.market_state().clone();
+    let mut db = state_update_event.market_state().clone();
+    DatabaseHelpers::apply_geth_state_update_vec(&mut db, state_update_event.state_update().clone());
 
     let start_time = chrono::Local::now();
     let mut swap_path_vec: Vec<SwapPath> = Vec::new();
@@ -184,7 +186,9 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Sen
     Ok(())
 }
 
-pub async fn state_change_arb_searcher_worker<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + Default + 'static>(
+pub async fn state_change_arb_searcher_worker<
+    DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+>(
     backrun_config: BackrunConfig,
     market: SharedState<Market>,
     search_request_rx: Broadcaster<StateUpdateEvent<DB>>,
@@ -247,7 +251,9 @@ impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateCh
     }
 }
 
-impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + Default + 'static> Actor for StateChangeArbSearcherActor<DB> {
+impl<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static> Actor
+    for StateChangeArbSearcherActor<DB>
+{
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_change_arb_searcher_worker(
             self.backrun_config.clone(),

@@ -411,7 +411,7 @@ impl LoomDB {
         if insert {
             if let Ok(account) = self.load_cached_account(*address) {
                 for (slot, value) in acc_state.storage.iter() {
-                    trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
+                    trace!(%address, ?slot, ?value, "Inserting storage");
                     account.storage.insert((*slot).into(), (*value).into());
                 }
             }
@@ -432,7 +432,7 @@ impl LoomDB {
             if let Ok(account) = self.load_cached_account(*address) {
                 for (slot, value) in slots_to_insert {
                     account.storage.insert(slot, value);
-                    trace!("Inserting storage {address:?} slot : {slot:?} value : {value:?}");
+                    trace!(%address, ?slot, ?value, "Inserting storage");
                 }
             }
         }
@@ -460,6 +460,10 @@ impl LoomDB {
 }
 
 impl DatabaseLoomExt for LoomDB {
+    fn with_ext_db(&mut self, arc_db: impl DatabaseRef<Error = ErrReport> + Send + Sync + 'static) {
+        self.ext_db = Some(Arc::new(arc_db))
+    }
+
     fn is_account(&self, address: &Address) -> bool {
         self.is_rw_ro_account(address)
     }
@@ -508,10 +512,19 @@ impl DatabaseLoomExt for LoomDB {
 impl DatabaseRef for LoomDB {
     type Error = eyre::ErrReport;
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
-        match self.accounts.get(&address) {
-            Some(acc) => Ok(acc.info()),
-            None => LoomDBHelper::get_or_fetch_basic(&self.read_only_db, &self.ext_db, address),
-        }
+        trace!(%address, "basic_ref");
+        let result = match address {
+            Address::ZERO => Ok(Some(AccountInfo::default())),
+            _ => match self.accounts.get(&address) {
+                Some(acc) => {
+                    trace!(%address, "account found");
+                    Ok(acc.info())
+                }
+                None => Ok(LoomDBHelper::get_or_fetch_basic(&self.read_only_db, &self.ext_db, address).unwrap_or_default()),
+            },
+        };
+
+        result
     }
 
     fn code_by_hash_ref(&self, code_hash: B256) -> Result<Bytecode, Self::Error> {
@@ -521,19 +534,25 @@ impl DatabaseRef for LoomDB {
         }
     }
 
-    fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
+    fn storage_ref(&self, address: Address, slot: U256) -> Result<U256, Self::Error> {
+        trace!(%address, ?slot, "storage_ref");
+
         match self.accounts.get(&address) {
-            Some(acc_entry) => match acc_entry.storage.get(&index) {
-                Some(entry) => Ok(*entry),
+            Some(acc_entry) => match acc_entry.storage.get(&slot) {
+                Some(entry) => {
+                    trace!(%address, ?slot, %entry,  "storage_ref");
+                    Ok(*entry)
+                }
                 None => {
                     if matches!(acc_entry.account_state, DBAccountState::StorageCleared | DBAccountState::NotExisting) {
+                        trace!(%address, ?slot, state=?acc_entry.account_state, "storage_ref ZERO");
                         Ok(U256::ZERO)
                     } else {
-                        LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, index)
+                        LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, slot)
                     }
                 }
             },
-            None => LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, index),
+            None => LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, slot),
         }
     }
 
@@ -549,6 +568,8 @@ impl Database for LoomDB {
     type Error = ErrReport;
 
     fn basic(&mut self, address: Address) -> std::result::Result<Option<AccountInfo>, Self::Error> {
+        trace!(%address, "basic");
+
         let basic = match self.accounts.entry(address) {
             Entry::Occupied(entry) => entry.into_mut(),
             Entry::Vacant(entry) => entry.insert(
@@ -574,17 +595,19 @@ impl Database for LoomDB {
     /// Get the value in an account's storage slot.
     ///
     /// It is assumed that account is already loaded.
-    fn storage(&mut self, address: Address, index: U256) -> std::result::Result<U256, Self::Error> {
+    fn storage(&mut self, address: Address, slot: U256) -> std::result::Result<U256, Self::Error> {
+        trace!(%address, ?slot, "storage");
+
         match self.accounts.entry(address) {
             Entry::Occupied(mut acc_entry) => {
                 let acc_entry = acc_entry.get_mut();
-                match acc_entry.storage.entry(index) {
+                match acc_entry.storage.entry(slot) {
                     Entry::Occupied(entry) => Ok(*entry.get()),
                     Entry::Vacant(entry) => {
                         if matches!(acc_entry.account_state, DBAccountState::StorageCleared | DBAccountState::NotExisting) {
                             Ok(U256::ZERO)
                         } else {
-                            let slot = LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, index)?;
+                            let slot = LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, slot)?;
                             entry.insert(slot);
                             Ok(slot)
                         }
@@ -594,9 +617,9 @@ impl Database for LoomDB {
             Entry::Vacant(acc_entry) => {
                 let info = LoomDBHelper::get_or_fetch_basic(&self.read_only_db, &self.ext_db, address)?;
                 let (account, value) = if info.is_some() {
-                    let value = LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, index)?;
+                    let value = LoomDBHelper::get_or_fetch_storage(&self.read_only_db, &self.ext_db, address, slot)?;
                     let mut account: FastDbAccount = info.into();
-                    account.storage.insert(index, value);
+                    account.storage.insert(slot, value);
                     (account, value)
                 } else {
                     (info.into(), U256::ZERO)
@@ -662,6 +685,7 @@ mod test1 {
     use alloy::primitives::{Address, Bytes, B256, I256, U256};
     use alloy::providers::{Provider, ProviderBuilder};
     use eyre::ErrReport;
+    use revm::db::EmptyDBTyped;
     use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
     use revm::{Database, DatabaseRef};
     use std::collections::BTreeMap;
@@ -868,7 +892,7 @@ mod test1 {
         init_state.insert_account_storage(account, key0, value0).unwrap();
         init_state.insert_account_storage(account, key1, value1).unwrap();
 
-        let mut new_state = LoomDB::new().with_ro_db(Some(init_state));
+        let mut new_state = LoomDB::new().with_ro_db(Some(init_state)).with_ext_db(EmptyDBTyped::<ErrReport>::new());
         assert_eq!(new_state.accounts.len(), 0);
 
         new_state.insert_account_info(

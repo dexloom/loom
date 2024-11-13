@@ -4,6 +4,7 @@ use alloy::rpc::types::trace::geth::AccountState;
 use revm::primitives::{Account, AccountStatus, Bytecode, EvmStorageSlot};
 use revm::{DatabaseCommit, DatabaseRef};
 use std::collections::BTreeMap;
+use tracing::trace;
 
 pub struct DatabaseHelpers {}
 
@@ -12,6 +13,10 @@ impl DatabaseHelpers {
     pub fn trace_update_to_commit_update<DB: DatabaseRef>(db: &DB, update: BTreeMap<Address, AccountState>) -> HashMap<Address, Account> {
         let mut result: HashMap<Address, Account> = Default::default();
         for (address, state) in update {
+            trace!(%address, code=state.code.is_some(), storage=state.storage.len(), "trace_update_to_commit_update");
+            if address.is_zero() {
+                continue;
+            }
             let mut info = db.basic_ref(address).map(|a| a.unwrap_or_default()).unwrap_or_default();
 
             if let Some(code) = state.code {

@@ -90,7 +90,7 @@ impl RequiredStateReader {
                         let entry = ret.entry(address).or_insert(account_state.clone());
                         for (slot, value) in account_state.storage.clone().into_iter() {
                             entry.storage.insert(slot, value);
-                            trace!("Inserting storage {:#20x} {} {}", address, slot, value);
+                            trace!(%address, %slot, %value, "Inserting storage");
                         }
                     }
                 }
@@ -132,5 +132,9 @@ pub fn accounts_len(state: &BTreeMap<Address, AccountState>) -> (usize, usize) {
 }
 
 pub fn accounts_vec_len(state: &GethStateUpdateVec) -> usize {
+    state.iter().map(|item| accounts_len(item).0).sum()
+}
+
+pub fn storage_vec_len(state: &GethStateUpdateVec) -> usize {
     state.iter().map(|item| accounts_len(item).1).sum()
 }

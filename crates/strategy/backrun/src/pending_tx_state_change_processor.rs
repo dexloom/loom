@@ -10,7 +10,7 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use revm::primitives::bitvec::macros::internal::funty::Fundamental;
-use revm::DatabaseRef;
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -23,7 +23,7 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::{debug_trace_call_diff, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
-use loom_types_entities::required_state::accounts_vec_len;
+use loom_types_entities::required_state::{accounts_vec_len, storage_vec_len};
 use loom_types_entities::{LatestBlock, Market, MarketState};
 use loom_types_events::{MarketEvents, MempoolEvents, StateUpdateEvent};
 
@@ -54,7 +54,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Clone + Send + Sync + 'static,
+    DB: DatabaseRef + Database + DatabaseCommit + Clone + Send + Sync + 'static,
 {
     let mut state_update_vec: GethStateUpdateVec = Vec::new();
     let mut state_required_vec: GethStateUpdateVec = Vec::new();
@@ -156,9 +156,10 @@ where
     let affected_pools = get_affected_pools(market.clone(), &state_update_vec).await;
     match affected_pools {
         Ok(affected_pools) => {
-            let storage_len = accounts_vec_len(&state_update_vec);
+            let accounts_len = accounts_vec_len(&state_update_vec);
+            let storage_len = storage_vec_len(&state_update_vec);
 
-            debug!(%tx_hash, %source, pools = affected_pools.len(), storage = storage_len, "Mempool affected pools",);
+            debug!(%tx_hash, %source, pools = affected_pools.len(), accounts = accounts_len, storage = storage_len, "Mempool affected pools");
 
             affecting_tx.write().await.insert(tx_hash, !affected_pools.is_empty());
 
@@ -211,12 +212,13 @@ where
                             let block_timestamp = latest_header.timestamp.as_u64() + 12;
 
                             if !affected_pools.is_empty() {
-                                let cur_state = market_state.read().await.clone();
+                                let cur_state_db = market_state.read().await.state_db.clone();
+
                                 let request = StateUpdateEvent::new(
                                     block_number,
                                     block_timestamp,
                                     cur_next_base_fee,
-                                    cur_state.state_db,
+                                    cur_state_db,
                                     merged_state_update_vec,
                                     None,
                                     affected_pools,
@@ -263,7 +265,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Clone + Send + Sync + 'static,
+    DB: DatabaseRef + Database + DatabaseCommit + Clone + Send + Sync + 'static,
 {
     subscribe!(mempool_events_rx);
     subscribe!(market_events_rx);
@@ -391,7 +393,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(pending_tx_state_change_worker(
