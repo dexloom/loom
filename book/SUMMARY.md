@@ -2,6 +2,7 @@
 
 - [Introduction](introduction.md)
 - [Getting started](getting_started.md)
+- [Examples](examples.md)
 - [Architecture](architecture.md)
   - [Actor](architecture/actor.md) 
   - [State management](architecture/state_management.md)
