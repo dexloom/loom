@@ -3,7 +3,7 @@ use alloy_primitives::{Address, B256, U256};
 use alloy_provider::{Provider, RootProvider};
 use alloy_transport::{BoxTransport, Transport};
 use axum::Router;
-use eyre::{eyre, Result};
+use eyre::{eyre, ErrReport, Result};
 use loom_broadcast_accounts::{InitializeSignersOneShotBlockingActor, NonceAndBalanceMonitorActor, TxSignersActor};
 use loom_broadcast_broadcaster::FlashbotsBroadcastActor;
 use loom_broadcast_flashbots::client::RelayConfig;
@@ -14,13 +14,14 @@ use loom_core_blockchain::Blockchain;
 use loom_core_mempool::MempoolActor;
 use loom_core_router::SwapRouterActor;
 use loom_defi_address_book::TokenAddress;
-use loom_defi_health_monitor::{PoolHealthMonitorActor, StateHealthMonitorActor, StuffingTxMonitorActor};
+use loom_defi_health_monitor::{PoolHealthMonitorActor, StuffingTxMonitorActor};
 use loom_defi_market::{
     CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, RequiredPoolLoaderActor,
 };
 use loom_defi_pools::PoolsConfig;
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
+use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::NWETH;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
 use loom_execution_multicaller::MulticallerSwapEncoder;
@@ -38,15 +39,16 @@ use loom_strategy_backrun::{
 };
 use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{PoolClass, TxSigners};
+use loom_types_entities::{BlockHistoryState, PoolClass, TxSigners};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
-pub struct BlockchainActors<P, T> {
+pub struct BlockchainActors<P, T, DB: Clone + Send + Sync + 'static> {
     provider: P,
-    bc: Blockchain,
+    bc: Blockchain<DB>,
     pub signers: SharedState<TxSigners>,
     actor_manager: ActorsManager,
     encoder: Option<MulticallerSwapEncoder>,
@@ -58,12 +60,22 @@ pub struct BlockchainActors<P, T> {
     _t: PhantomData<T>,
 }
 
-impl<P, T> BlockchainActors<P, T>
+impl<P, T, DB> BlockchainActors<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = ErrReport>
+        + Database<Error = ErrReport>
+        + DatabaseCommit
+        + DatabaseLoomExt
+        + BlockHistoryState
+        + Send
+        + Sync
+        + Clone
+        + Default
+        + 'static,
 {
-    pub fn new(provider: P, bc: Blockchain, relays: Vec<RelayConfig>) -> Self {
+    pub fn new(provider: P, bc: Blockchain<DB>, relays: Vec<RelayConfig>) -> Self {
         Self {
             provider,
             bc,
@@ -298,7 +310,7 @@ where
     /// Starts EVM gas estimator and tips filler
     pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(
-            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, MulticallerSwapEncoder>::new(
+            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, MulticallerSwapEncoder, DB>::new(
                 self.encoder.clone().unwrap(),
             )
             .on_bc(&self.bc),
@@ -335,10 +347,13 @@ where
         Ok(self)
     }
     /// Starts state health monitor
-    pub fn with_health_monitor_state(&mut self) -> Result<&mut Self> {
+    //TODO : Move out of Blockchain
+    /*pub fn with_health_monitor_state(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(StateHealthMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
+
+     */
 
     /// Starts stuffing tx monitor
     pub fn with_health_monitor_stuffing_tx(&mut self) -> Result<&mut Self> {

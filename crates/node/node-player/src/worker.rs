@@ -11,17 +11,18 @@ use loom_types_entities::MarketState;
 use loom_types_events::{
     BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
 };
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::ops::RangeInclusive;
 use std::time::Duration;
 use tracing::{debug, error};
 
 #[allow(clippy::too_many_arguments)]
-pub async fn node_player_worker<P>(
+pub async fn node_player_worker<P, DB>(
     provider: P,
     start_block: BlockNumber,
     end_block: BlockNumber,
     mempool: Option<SharedState<Mempool>>,
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     new_block_headers_channel: Option<Broadcaster<MessageBlockHeader>>,
     new_block_with_tx_channel: Option<Broadcaster<MessageBlock>>,
     new_block_logs_channel: Option<Broadcaster<MessageBlockLogs>>,
@@ -29,6 +30,7 @@ pub async fn node_player_worker<P>(
 ) -> WorkerResult
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     for _ in RangeInclusive::new(start_block, end_block) {
         let curblock_number = provider.client().transport().fetch_next_block().await?;
@@ -145,10 +147,12 @@ where
                             let mut marker_state_guard = market_state.write().await;
                             for mempool_tx in txes {
                                 if let Some(state_update) = &mempool_tx.state_update {
-                                    marker_state_guard.state_db.apply_geth_update(state_update.clone());
+                                    marker_state_guard.apply_geth_update(state_update.clone());
                                 }
                             }
-                            marker_state_guard.state_db = marker_state_guard.state_db.clone().merge_all();
+                            //panic!("NOT_IMPLEMENTED")
+                            // TODO : Fix
+                            //marker_state_guard.state_db = marker_state_guard.state_db.clone().merge_all();
                         }
                     }
                 }

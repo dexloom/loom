@@ -8,7 +8,6 @@ use lazy_static::lazy_static;
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::FactoryAddress;
-use loom_evm_db::LoomDBType;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
@@ -116,10 +115,10 @@ impl UniswapV2Pool {
         ((value >> 0) & *U112_MASK, (value >> (112)) & *U112_MASK)
     }
 
-    pub fn fetch_pool_data_evm(db: &LoomDBType, env: Env, address: Address) -> Result<Self> {
-        let token0 = UniswapV2StateReader::token0(db, env.clone(), address)?;
-        let token1 = UniswapV2StateReader::token1(db, env.clone(), address)?;
-        let factory = UniswapV2StateReader::factory(db, env.clone(), address)?;
+    pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
+        let token0 = UniswapV2StateReader::token0(&db, env.clone(), address)?;
+        let token1 = UniswapV2StateReader::token1(&db, env.clone(), address)?;
+        let factory = UniswapV2StateReader::factory(&db, env.clone(), address)?;
         let protocol = Self::get_protocol_by_factory(factory);
 
         let fee = Self::get_fee_by_protocol(protocol);
@@ -183,7 +182,7 @@ impl UniswapV2Pool {
         Ok(ret)
     }
 
-    pub fn fetch_reserves(&self, state_db: &LoomDBType, env: Env) -> Result<(U256, U256)> {
+    pub fn fetch_reserves(&self, state_db: &dyn DatabaseRef<Error = ErrReport>, env: Env) -> Result<(U256, U256)> {
         let (reserve_0, reserve_1) = match self.reserves_cell {
             Some(cell) => {
                 if let Ok(storage_value) = state_db.storage_ref(self.get_address(), cell) {
@@ -192,7 +191,7 @@ impl UniswapV2Pool {
                     return Err(eyre!("ERROR_READING_STATE_DB"));
                 }
             }
-            None => UniswapV2StateReader::get_reserves(state_db, env, self.get_address())?,
+            None => UniswapV2StateReader::get_reserves(&state_db, env, self.get_address())?,
         };
         Ok((reserve_0, reserve_1))
     }
@@ -225,7 +224,7 @@ impl Pool for UniswapV2Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -255,7 +254,7 @@ impl Pool for UniswapV2Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -372,6 +371,7 @@ mod test {
     use alloy_rpc_types::BlockId;
     use loom_defi_abi::uniswap2::IUniswapV2Router;
     use loom_defi_address_book::PeripheryAddress;
+    use loom_evm_db::LoomDBType;
     use loom_node_debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use loom_types_entities::required_state::RequiredStateReader;
     use rand::Rng;

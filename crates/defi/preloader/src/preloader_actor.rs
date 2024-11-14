@@ -16,6 +16,7 @@ use loom_defi_address_book::TokenAddress;
 use loom_evm_utils::{BalanceCheater, NWETH};
 use loom_types_blockchain::GethStateUpdate;
 use loom_types_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use tracing::{debug, error, trace};
 
 async fn fetch_account_state<P, T, N>(client: P, address: Address) -> Result<AccountState>
@@ -57,18 +58,19 @@ async fn set_monitor_nonce(account_nonce_balance_state: Option<SharedState<Accou
     }
 }
 
-pub async fn preload_market_state<P, T, N>(
+pub async fn preload_market_state<P, T, N, DB>(
     client: P,
     copied_accounts_vec: Vec<Address>,
     new_accounts_vec: Vec<(Address, u64, U256, Option<Bytes>)>,
     token_balances_vec: Vec<(Address, Address, U256)>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let mut market_state_guard = market_state.write().await;
 
@@ -123,21 +125,21 @@ where
 
         set_monitor_token_balance(account_nonce_balance_state.clone(), owner, token, balance).await;
     }
-    market_state_guard.state_db.apply_geth_update(state);
+    market_state_guard.apply_geth_update(state);
 
     Ok("DONE".to_string())
 }
 
 #[allow(dead_code)]
 #[derive(Accessor)]
-pub struct MarketStatePreloadedOneShotActor<P, T, N> {
+pub struct MarketStatePreloadedOneShotActor<P, T, N, DB> {
     name: &'static str,
     client: P,
     copied_accounts: Vec<Address>,
     new_accounts: Vec<(Address, u64, U256, Option<Bytes>)>,
     token_balances: Vec<(Address, Address, U256)>,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
     account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
     _t: PhantomData<T>,
@@ -145,11 +147,12 @@ pub struct MarketStatePreloadedOneShotActor<P, T, N> {
 }
 
 #[allow(dead_code)]
-impl<P, T, N> MarketStatePreloadedOneShotActor<P, T, N>
+impl<P, T, N, DB> MarketStatePreloadedOneShotActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn name(&self) -> &'static str {
         self.name
@@ -173,8 +176,8 @@ where
         Self { name, ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self { market_state: Some(bc.market_state()), account_nonce_balance_state: Some(bc.nonce_and_balance()), ..self }
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+        Self { market_state: Some(bc.market_state_commit()), account_nonce_balance_state: Some(bc.nonce_and_balance()), ..self }
     }
 
     pub fn with_signers(self, tx_signers: SharedState<TxSigners>) -> Self {
@@ -216,11 +219,12 @@ where
     }
 }
 
-impl<P, T, N> Actor for MarketStatePreloadedOneShotActor<P, T, N>
+impl<P, T, N, DB> Actor for MarketStatePreloadedOneShotActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start_and_wait(&self) -> Result<()> {
         let rt = tokio::runtime::Runtime::new()?; // we need a different runtime to wait for the result

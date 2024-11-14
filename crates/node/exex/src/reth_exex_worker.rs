@@ -20,6 +20,7 @@ use reth_rpc::eth::EthTxBuilder;
 use reth_transaction_pool::TransactionPool;
 use revm::db::states::StorageSlot;
 use revm::db::{BundleAccount, StorageWithOriginalValues};
+use revm::DatabaseRef;
 use std::sync::Arc;
 use tokio::select;
 use tracing::{debug, error, info};
@@ -129,9 +130,9 @@ async fn process_chain(
     Ok(())
 }
 
-pub async fn loom_exex<Node: FullNodeComponents>(
+pub async fn loom_exex<Node: FullNodeComponents, DB: DatabaseRef + Send + Sync + Clone + 'static>(
     mut ctx: ExExContext<Node>,
-    bc: Blockchain,
+    bc: Blockchain<DB>,
     config: NodeBlockActorConfig,
 ) -> eyre::Result<()> {
     info!("Loom ExEx is started");
@@ -182,9 +183,10 @@ pub async fn loom_exex<Node: FullNodeComponents>(
     Ok(())
 }
 
-pub async fn mempool_worker<Pool>(mempool: Pool, bc: Blockchain) -> eyre::Result<()>
+pub async fn mempool_worker<Pool, DB>(mempool: Pool, bc: Blockchain<DB>) -> eyre::Result<()>
 where
     Pool: TransactionPool + Clone + 'static,
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     info!("Mempool worker started");
     let mut tx_listener = mempool.new_transactions_listener();

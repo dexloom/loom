@@ -4,14 +4,15 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_types_entities::{AccountNonceAndBalanceState, TxSigners};
 use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData};
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error, info};
 
 /// encoder task performs encode for request
-async fn router_task(
-    route_request: TxComposeData,
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
+async fn router_task<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+    route_request: TxComposeData<DB>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
 ) -> Result<()> {
@@ -36,28 +37,28 @@ async fn router_task(
     let estimate_request = MessageTxCompose::estimate(estimate_request);
 
     match compose_channel_tx.send(estimate_request).await {
-        Err(e) => {
-            error!("{e}");
-            Err(eyre!(e))
+        Err(_) => {
+            error!("compose_channel_tx.send(estimate_request)");
+            Err(eyre!("ERROR_SENDING_REQUEST"))
         }
         Ok(_) => Ok(()),
     }
 }
 
-async fn swap_router_worker(
+async fn swap_router_worker<DB: DatabaseRef + Clone + Send + Sync + 'static>(
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
-    compose_channel_rx: Broadcaster<MessageTxCompose>,
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
+    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
 ) -> WorkerResult {
-    let mut compose_channel_rx: Receiver<MessageTxCompose> = compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageTxCompose<DB>> = compose_channel_rx.subscribe().await;
 
     info!("swap router worker started");
 
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageTxCompose, RecvError> = msg;
+                let msg : Result<MessageTxCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(compose_request) => {
                         if let TxCompose::Route(encode_request) = compose_request.inner {
@@ -80,19 +81,22 @@ async fn swap_router_worker(
 }
 
 #[derive(Consumer, Producer, Accessor, Default)]
-pub struct SwapRouterActor {
+pub struct SwapRouterActor<DB: Send + Sync + Clone + 'static> {
     #[accessor]
     signers: Option<SharedState<TxSigners>>,
     #[accessor]
     account_nonce_balance: Option<SharedState<AccountNonceAndBalanceState>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
 }
 
-impl SwapRouterActor {
-    pub fn new() -> SwapRouterActor {
+impl<DB> SwapRouterActor<DB>
+where
+    DB: DatabaseRef + Send + Sync + Clone + Default + 'static,
+{
+    pub fn new() -> SwapRouterActor<DB> {
         SwapRouterActor { signers: None, account_nonce_balance: None, compose_channel_rx: None, compose_channel_tx: None }
     }
 
@@ -100,7 +104,7 @@ impl SwapRouterActor {
         Self { signers: Some(signers), ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             account_nonce_balance: Some(bc.nonce_and_balance()),
             compose_channel_rx: Some(bc.compose_channel()),
@@ -110,7 +114,10 @@ impl SwapRouterActor {
     }
 }
 
-impl Actor for SwapRouterActor {
+impl<DB> Actor for SwapRouterActor<DB>
+where
+    DB: DatabaseRef + Send + Sync + Clone + Default + 'static,
+{
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(swap_router_worker(
             self.signers.clone().unwrap(),

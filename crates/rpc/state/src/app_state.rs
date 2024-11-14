@@ -1,8 +1,9 @@
 use loom_core_blockchain::Blockchain;
 use loom_storage_db::DbPool;
+use revm::DatabaseRef;
 
 #[derive(Clone)]
-pub struct AppState {
+pub struct AppState<DB: DatabaseRef + Clone + Send + Sync + 'static> {
     pub db: DbPool,
-    pub bc: Blockchain,
+    pub bc: Blockchain<DB>,
 }

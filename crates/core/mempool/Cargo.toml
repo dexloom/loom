@@ -20,5 +20,9 @@ eyre.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
+#alloy
 alloy-primitives.workspace = true
 alloy-rpc-types.workspace = true
+
+#revm
+revm.workspace = true

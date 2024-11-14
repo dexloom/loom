@@ -15,6 +15,8 @@ loom-core-blockchain-actors.workspace = true
 loom-node-actor-config.workspace = true
 loom-types-events.workspace = true
 
+loom-evm-db.workspace = true
+
 alloy.workspace = true
 chrono.workspace = true
 clap.workspace = true

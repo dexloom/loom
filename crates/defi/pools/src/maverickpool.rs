@@ -8,11 +8,11 @@ use loom_defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuote
 use loom_defi_abi::maverick::{IMaverickPool, IMaverickQuoter, State};
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::PeripheryAddress;
-use loom_evm_db::LoomDBType;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
+use revm::DatabaseRef;
 use tracing::error;
 
 use crate::state_readers::UniswapV3StateReader;
@@ -114,12 +114,12 @@ impl MaverickPool {
 
         Ok(ret)
     }
-    pub fn fetch_pool_data_evm(db: &LoomDBType, env: Env, address: Address) -> Result<Self> {
-        let token0: Address = UniswapV3StateReader::token0(db, env.clone(), address)?;
-        let token1: Address = UniswapV3StateReader::token1(db, env.clone(), address)?;
-        let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
-        let factory: Address = UniswapV3StateReader::factory(db, env.clone(), address)?;
-        let spacing: u32 = UniswapV3StateReader::tick_spacing(db, env.clone(), address)?;
+    pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
+        let token0: Address = UniswapV3StateReader::token0(&db, env.clone(), address)?;
+        let token1: Address = UniswapV3StateReader::token1(&db, env.clone(), address)?;
+        let fee = UniswapV3StateReader::fee(&db, env.clone(), address)?;
+        let factory: Address = UniswapV3StateReader::factory(&db, env.clone(), address)?;
+        let spacing: u32 = UniswapV3StateReader::tick_spacing(&db, env.clone(), address)?;
 
         let protocol = Self::get_protocol_by_factory(factory);
 
@@ -164,7 +164,7 @@ impl Pool for MaverickPool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -203,7 +203,7 @@ impl Pool for MaverickPool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -419,6 +419,7 @@ mod tests {
     use super::*;
     use alloy_rpc_types::BlockNumberOrTag;
     use loom_defi_abi::maverick::IMaverickQuoter::IMaverickQuoterInstance;
+    use loom_evm_db::LoomDBType;
     use loom_evm_utils::evm_env::env_for_block;
     use loom_node_debug_provider::AnvilDebugProviderFactory;
     use loom_types_entities::required_state::RequiredStateReader;

@@ -1,7 +1,6 @@
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-
 use loom_core_actors::SharedState;
 use loom_defi_address_book::{
     CurveMetapoolAddress, CurvePoolAddress, PancakeV2PoolAddress, PancakeV3PoolAddress, TokenAddress, UniswapV2PoolAddress,
@@ -10,12 +9,18 @@ use loom_defi_address_book::{
 use loom_defi_market::fetch_and_add_pool_by_address;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::{Market, MarketState, PoolClass, Token};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 
-pub async fn preload_pools<P, T, N>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState>) -> eyre::Result<()>
+pub async fn preload_pools<P, T, N, DB>(
+    client: P,
+    market: SharedState<Market>,
+    market_state: SharedState<MarketState<DB>>,
+) -> eyre::Result<()>
 where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseCommit + Database + Send + Sync + Clone + 'static,
 {
     let mut market_instance = market.write().await;
 

@@ -1,6 +1,6 @@
+use loom_evm_db::LoomDBType;
 use std::env;
 use std::process::exit;
-use std::sync::Arc;
 use std::time::Duration;
 
 use alloy::contract::CallBuilder;
@@ -18,6 +18,7 @@ use loom_core_blockchain::Blockchain;
 use loom_core_blockchain_actors::BlockchainActors;
 use loom_defi_address_book::{TokenAddress, UniswapV3PoolAddress};
 use loom_defi_pools::state_readers::ERC20StateReader;
+use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::evm_env::env_for_block;
 use loom_evm_utils::NWETH;
 use loom_execution_multicaller::EncoderHelper;
@@ -65,7 +66,7 @@ async fn main() -> Result<()> {
     //let tx_signers = SharedState::new(TxSigners::new());
 
     // new blockchain
-    let bc = Blockchain::new(1);
+    let bc = Blockchain::<LoomDBType>::new(1);
 
     const TARGET_ADDRESS: Address = address!("A69babEF1cA67A37Ffaf7a485DfFF3382056e78C");
 
@@ -128,7 +129,7 @@ async fn main() -> Result<()> {
                             let tx_compose_encode_msg = MessageTxCompose::route(
                                 TxComposeData{
                                     next_block_base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
-                                    poststate : Some(Arc::new(market_state.read().await.state_db.clone())),
+                                    poststate : Some(market_state.read().await.state_db.clone()),
                                     swap : Swap::ExchangeSwapLine(swap_line),
                                     ..TxComposeData::default()
                                 });
@@ -177,17 +178,17 @@ async fn main() -> Result<()> {
                         state_db.apply_geth_update_vec(state_update.state_update);
 
                         if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddress::WETH, TARGET_ADDRESS ) {
-                            info!("------Balance of {} : {}", TARGET_ADDRESS, balance);
+                            info!("------WETH Balance of {} : {}", TARGET_ADDRESS, balance);
                             let fetched_balance = CallBuilder::new_raw(node_provider.clone(), EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS)).to(TokenAddress::WETH).block(cur_header.number.into()).call().await?;
 
                             let fetched_balance = U256::from_be_slice(fetched_balance.to_vec().as_slice());
                             if fetched_balance != balance {
-                                error!("Balance is wrong {:#x} need {:#x}", balance, fetched_balance);
+                                error!("Balance is wrong {}/({:#x}) need {}({:#x})", balance, balance, fetched_balance, fetched_balance);
                                 exit(1);
                             }
                         }
                         if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddress::WETH, UniswapV3PoolAddress::USDC_WETH_500 ) {
-                            info!("------Balance of {} : {}", UniswapV3PoolAddress::USDC_WETH_500, balance);
+                            info!("------WETH Balance of {} : {}/({:#x}) ", UniswapV3PoolAddress::USDC_WETH_500, balance, balance);
                         }
 
                         info!("StateDB : Accounts: {} / {} Contracts : {} / {}", state_db.accounts_len(), state_db.ro_accounts_len(), state_db.contracts_len(), state_db.ro_contracts_len())

@@ -3,6 +3,7 @@ use std::marker::PhantomData;
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
+use revm::DatabaseRef;
 use tokio::task::JoinHandle;
 
 use crate::node_block_hash_worker::new_node_block_header_worker;
@@ -85,7 +86,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self {
             block_header_channel: if self.config.block_header { Some(bc.new_block_headers_channel()) } else { None },
             block_with_tx_channel: if self.config.block_with_tx { Some(bc.new_block_with_tx_channel()) } else { None },

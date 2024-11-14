@@ -22,7 +22,7 @@ members = [
   "crates/broadcast/accounts",
   "crates/broadcast/broadcaster",
   "crates/broadcast/flashbots",
-  "crates/core/block-history",
+  "crates/core/block-history-actor",
   "crates/core/blockchain",
   "crates/core/blockchain-actors",
   "crates/core/mempool",
@@ -78,7 +78,7 @@ loom-broadcast-flashbots = { path = "crates/broadcast/flashbots" }
 # core
 loom-core-actors = { path = "crates/core/actors" }
 loom-core-actors-macros = { path = "crates/core/actors-macros" }
-loom-core-block-history = { path = "crates/core/block-history" }
+loom-core-block-history = { path = "crates/core/block-history-actor" }
 loom-core-blockchain = { path = "crates/core/blockchain" }
 loom-core-blockchain-actors = { path = "crates/core/blockchain-actors" }
 loom-core-mempool = { path = "crates/core/mempool" }

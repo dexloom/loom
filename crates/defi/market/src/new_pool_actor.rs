@@ -1,4 +1,6 @@
 use eyre::Result;
+use revm::DatabaseCommit;
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error};
 
@@ -55,7 +57,7 @@ impl NewPoolLoaderActor {
         NewPoolLoaderActor { log_update_rx: None, pools_config, tasks_tx: None }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB>) -> Self {
         Self { log_update_rx: Some(bc.new_block_logs_channel()), tasks_tx: Some(bc.tasks_channel()), ..self }
     }
 }

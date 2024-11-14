@@ -14,10 +14,10 @@ use loom_defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use loom_defi_abi::uniswap_periphery::ITickLens;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::{FactoryAddress, PeripheryAddress};
-use loom_evm_db::LoomDBType;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
+use revm::DatabaseRef;
 use tracing::debug;
 #[cfg(feature = "debug-calculation")]
 use tracing::error;
@@ -153,12 +153,12 @@ impl UniswapV3Pool {
         }
     }
 
-    pub fn fetch_pool_data_evm(db: &LoomDBType, env: Env, address: Address) -> Result<Self> {
-        let token0 = UniswapV3StateReader::token0(db, env.clone(), address)?;
-        let token1 = UniswapV3StateReader::token1(db, env.clone(), address)?;
-        let fee: u32 = UniswapV3StateReader::fee(db, env.clone(), address)?.to();
-        let liquidity = UniswapV3StateReader::liquidity(db, env.clone(), address)?;
-        let factory = UniswapV3StateReader::factory(db, env.clone(), address).unwrap_or_default();
+    pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
+        let token0 = UniswapV3StateReader::token0(&db, env.clone(), address)?;
+        let token1 = UniswapV3StateReader::token1(&db, env.clone(), address)?;
+        let fee: u32 = UniswapV3StateReader::fee(&db, env.clone(), address)?.to();
+        let liquidity = UniswapV3StateReader::liquidity(&db, env.clone(), address)?;
+        let factory = UniswapV3StateReader::factory(&db, env.clone(), address).unwrap_or_default();
         let protocol = UniswapV3Pool::get_protocol_by_factory(factory);
 
         let ret = UniswapV3Pool {
@@ -241,20 +241,20 @@ impl Pool for UniswapV3Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         _env: Env,
         token_address_from: &Address,
         _token_address_to: &Address,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(state_db, self, *token_address_from, in_amount)?;
+        let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(&state_db, self, *token_address_from, in_amount)?;
 
         #[cfg(feature = "debug-calculation")]
         {
             let mut env = _env;
             env.tx.gas_limit = 1_000_000;
             let (ret_evm, _gas_used) = UniswapV3QuoterV2StateReader::quote_exact_input(
-                state_db,
+                &state_db,
                 env,
                 PeripheryAddress::UNISWAP_V3_QUOTER_V2,
                 *token_address_from,
@@ -278,20 +278,20 @@ impl Pool for UniswapV3Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         _env: Env,
         token_address_from: &Address,
         _token_address_to: &Address,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(state_db, self, *token_address_from, out_amount)?;
+        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(&state_db, self, *token_address_from, out_amount)?;
 
         #[cfg(feature = "debug-calculation")]
         {
             let mut env = _env;
             env.tx.gas_limit = 1_000_000;
             let (ret_evm, _gas_used) = UniswapV3QuoterV2StateReader::quote_exact_output(
-                state_db,
+                &state_db,
                 env,
                 PeripheryAddress::UNISWAP_V3_QUOTER_V2,
                 *token_address_from,
@@ -471,9 +471,11 @@ mod test {
     use loom_defi_abi::uniswap_periphery::IQuoterV2;
     use loom_defi_abi::uniswap_periphery::IQuoterV2::{QuoteExactInputSingleParams, QuoteExactOutputSingleParams};
     use loom_defi_address_book::{PeripheryAddress, UniswapV3PoolAddress};
+    use loom_evm_db::LoomDBType;
     use loom_evm_db::{AlloyDB, LoomDB};
     use loom_node_debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use loom_types_entities::required_state::RequiredStateReader;
+    use revm::db::EmptyDBTyped;
     use std::env;
 
     const POOL_ADDRESSES: [Address; 4] = [
@@ -619,7 +621,7 @@ mod test {
             let state_required = pool.get_state_required()?;
             let state_update = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, Some(BLOCK_NUMBER)).await?;
 
-            let mut state_db = LoomDBType::default();
+            let mut state_db = LoomDBType::default().with_ext_db(EmptyDBTyped::<ErrReport>::new());
             state_db.apply_geth_update(state_update);
 
             let token0_decimals = IERC20::new(pool.token0, client.clone()).decimals().call().block(BlockId::from(BLOCK_NUMBER)).await?._0;

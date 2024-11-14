@@ -18,3 +18,5 @@ loom-types-events.workspace = true
 eyre.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+
+revm.workspace = true

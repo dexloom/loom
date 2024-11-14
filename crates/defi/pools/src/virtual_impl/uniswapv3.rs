@@ -1,11 +1,11 @@
 use alloy_primitives::{Address, I256, U256};
 use eyre::eyre;
 use loom_defi_uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
+use revm::DatabaseRef;
 
 use crate::db_reader::UniswapV3DBReader;
-use crate::virtual_impl::tick_provider::TickProviderLoomDB;
+use crate::virtual_impl::tick_provider::TickProviderEVMDB;
 use crate::UniswapV3Pool;
-use loom_evm_db::LoomDBType;
 use loom_types_entities::Pool;
 
 pub struct UniswapV3PoolVirtual;
@@ -81,7 +81,12 @@ pub struct Tick {
 }
 
 impl UniswapV3PoolVirtual {
-    pub fn simulate_swap_in_amount(db: &LoomDBType, pool: &UniswapV3Pool, token_in: Address, amount_in: U256) -> eyre::Result<U256> {
+    pub fn simulate_swap_in_amount<DB: DatabaseRef>(
+        db: &DB,
+        pool: &UniswapV3Pool,
+        token_in: Address,
+        amount_in: U256,
+    ) -> eyre::Result<U256> {
         if amount_in.is_zero() {
             return Ok(U256::ZERO);
         }
@@ -93,8 +98,8 @@ impl UniswapV3PoolVirtual {
 
         let pool_address = pool.get_address();
 
-        let slot0 = UniswapV3DBReader::slot0(db, pool_address)?;
-        let liquidity = UniswapV3DBReader::liquidity(db, pool_address)?;
+        let slot0 = UniswapV3DBReader::slot0(&db, pool_address)?;
+        let liquidity = UniswapV3DBReader::liquidity(&db, pool_address)?;
         let tick_spacing = pool.tick_spacing();
         let fee = pool.fee;
 
@@ -107,7 +112,7 @@ impl UniswapV3PoolVirtual {
             liquidity,                                             //Current available liquidity in the tick range
         };
 
-        let tick_provider = TickProviderLoomDB::new(db, pool_address);
+        let tick_provider = TickProviderEVMDB::new(db, pool_address);
 
         while current_state.amount_specified_remaining != I256::ZERO && current_state.sqrt_price_x_96 != sqrt_price_limit_x_96 {
             // Initialize a new step struct to hold the dynamic state of the pool at each step
@@ -167,7 +172,7 @@ impl UniswapV3PoolVirtual {
             if current_state.sqrt_price_x_96 == step.sqrt_price_next_x96 {
                 if step.initialized {
                     let mut liquidity_net: i128 =
-                        UniswapV3DBReader::ticks_liquidity_net(db, pool_address, step.tick_next).unwrap_or_default();
+                        UniswapV3DBReader::ticks_liquidity_net(&db, pool_address, step.tick_next).unwrap_or_default();
 
                     // we are on a tick boundary, and the next tick is initialized, so we must charge a protocol fee
                     if zero_for_one {
@@ -202,7 +207,12 @@ impl UniswapV3PoolVirtual {
         }
     }
 
-    pub fn simulate_swap_out_amount(db: &LoomDBType, pool: &UniswapV3Pool, token_in: Address, amount_out: U256) -> eyre::Result<U256> {
+    pub fn simulate_swap_out_amount<DB: DatabaseRef>(
+        db: &DB,
+        pool: &UniswapV3Pool,
+        token_in: Address,
+        amount_out: U256,
+    ) -> eyre::Result<U256> {
         if amount_out.is_zero() {
             return Ok(U256::ZERO);
         }
@@ -214,7 +224,7 @@ impl UniswapV3PoolVirtual {
 
         let pool_address = pool.get_address();
 
-        let slot0 = UniswapV3DBReader::slot0(db, pool_address)?;
+        let slot0 = UniswapV3DBReader::slot0(&db, pool_address)?;
         let liquidity = UniswapV3DBReader::liquidity(db, pool_address)?;
         let tick_spacing = pool.tick_spacing();
         let fee = pool.fee;
@@ -236,7 +246,7 @@ impl UniswapV3PoolVirtual {
                 ..Default::default()
             };
 
-            let tick_provider = TickProviderLoomDB::new(db, pool_address);
+            let tick_provider = TickProviderEVMDB::new(&db, pool_address);
 
             // Get the next tick from the current tick
             (step.tick_next, step.initialized) = loom_defi_uniswap_v3_math::tick_bitmap::next_initialized_tick_within_one_word(

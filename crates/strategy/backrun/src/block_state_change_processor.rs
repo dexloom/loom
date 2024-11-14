@@ -6,15 +6,16 @@ use loom_core_blockchain::Blockchain;
 use loom_types_blockchain::ChainParameters;
 use loom_types_entities::{BlockHistory, Market};
 use loom_types_events::{MarketEvents, StateUpdateEvent};
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::error;
 
-pub async fn block_state_change_worker(
+pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + 'static>(
     chain_parameters: ChainParameters,
     market: SharedState<Market>,
-    block_history: SharedState<BlockHistory>,
+    block_history: SharedState<BlockHistory<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
-    state_updates_broadcaster: Broadcaster<StateUpdateEvent>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
 
@@ -37,10 +38,16 @@ pub async fn block_state_change_worker(
             _ => continue,
         };
 
-        let Some(block_history_entry) = block_history.read().await.get_entry(&block_hash).cloned() else {
-            error!("Block not found in block history: {:?}", block_hash);
+        let Some(block_history_entry) = block_history.read().await.get_block_history_entry(&block_hash).cloned() else {
+            error!("Block history entry not found in block history: {:?}", block_hash);
             continue;
         };
+
+        let Some(block_state_entry) = block_history.read().await.get_block_state(&block_hash).cloned() else {
+            error!("Block state not found in block history: {:?}", block_hash);
+            continue;
+        };
+
         let Some(state_update) = block_history_entry.state_update.clone() else {
             error!("Block {:?} has no state update", block_hash);
             continue;
@@ -54,11 +61,6 @@ pub async fn block_state_change_worker(
             }
         };
 
-        let Some(cur_state) = block_history_entry.state_db.clone() else {
-            error!("Block {:?} has no state db", block_hash);
-            continue;
-        };
-
         let next_block_number = block_history_entry.number() + 1;
         let next_block_timestamp = block_history_entry.timestamp() + 12;
         let next_base_fee = chain_parameters.calc_next_block_base_fee_from_header(&block_history_entry.header);
@@ -67,7 +69,7 @@ pub async fn block_state_change_worker(
             next_block_number,
             next_block_timestamp,
             next_base_fee,
-            cur_state,
+            block_state_entry,
             state_update,
             None,
             affected_pools,
@@ -81,20 +83,20 @@ pub async fn block_state_change_worker(
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct BlockStateChangeProcessorActor {
+pub struct BlockStateChangeProcessorActor<DB: Clone + Send + Sync + 'static> {
     chain_parameters: ChainParameters,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
-    block_history: Option<SharedState<BlockHistory>>,
+    block_history: Option<SharedState<BlockHistory<DB>>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     #[producer]
-    state_updates_tx: Option<Broadcaster<StateUpdateEvent>>,
+    state_updates_tx: Option<Broadcaster<StateUpdateEvent<DB>>>,
 }
 
-impl BlockStateChangeProcessorActor {
-    pub fn new() -> BlockStateChangeProcessorActor {
+impl<DB: DatabaseRef + Send + Sync + Clone + 'static> BlockStateChangeProcessorActor<DB> {
+    pub fn new() -> BlockStateChangeProcessorActor<DB> {
         BlockStateChangeProcessorActor {
             chain_parameters: ChainParameters::ethereum(),
             market: None,
@@ -104,7 +106,7 @@ impl BlockStateChangeProcessorActor {
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             chain_parameters: bc.chain_parameters(),
             market: Some(bc.market()),
@@ -115,13 +117,13 @@ impl BlockStateChangeProcessorActor {
     }
 }
 
-impl Default for BlockStateChangeProcessorActor {
+impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Default for BlockStateChangeProcessorActor<DB> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl Actor for BlockStateChangeProcessorActor {
+impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Actor for BlockStateChangeProcessorActor<DB> {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(block_state_change_worker(
             self.chain_parameters.clone(),

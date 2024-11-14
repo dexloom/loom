@@ -1,19 +1,19 @@
-use std::collections::BTreeMap;
-use std::sync::Arc;
-
+use alloy_eips::BlockNumberOrTag;
 use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::eyre;
 use revm::primitives::Env;
+use std::collections::BTreeMap;
+use std::sync::Arc;
 use tracing::{debug, error};
 
 use loom_core_actors::SharedState;
 use loom_defi_pools::protocols::{UniswapV2Protocol, UniswapV3Protocol};
-use loom_defi_pools::state_readers::{UniswapV2StateReader, UniswapV3StateReader};
+use loom_defi_pools::state_readers::UniswapV3StateReader;
 use loom_defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
-use loom_evm_db::LoomDB;
+use loom_evm_db::{AlloyDB, LoomDB};
 use loom_types_blockchain::GethStateUpdateVec;
 use loom_types_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolProtocol, PoolWrapper};
 
@@ -27,7 +27,8 @@ where
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    let mut market_state = MarketState::new(Default::default());
+    let mut market_state = MarketState::new(LoomDB::new());
+
     market_state.state_db.apply_geth_state_update(state_update, true, false);
 
     let mut ret: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
@@ -41,14 +42,23 @@ where
                             debug!(?address, "Loading UniswapV2 class pool");
                             let env = Env::default();
 
-                            let state_db = LoomDB::new_with_ro_db_and_provider(Some(market_state.state_db.clone()), client.clone())?;
+                            let ext_db = AlloyDB::new(client.clone(), BlockNumberOrTag::Latest.into());
 
-                            match UniswapV2StateReader::factory(&state_db, env.clone(), *address) {
+                            let Some(ext_db) = ext_db else {
+                                error!("Cannot create AlloyDB");
+                                continue;
+                            };
+
+                            let state_db = market_state.state_db.clone().with_ext_db(ext_db);
+
+                            match UniswapV3StateReader::factory(&state_db, env.clone(), *address) {
                                 Ok(_factory_address) => match UniswapV2Pool::fetch_pool_data_evm(&state_db, env.clone(), *address) {
                                     Ok(pool) => {
                                         let pool = PoolWrapper::new(Arc::new(pool));
-                                        debug!(?address, protocol = ?pool.get_protocol(), "UniswapV2 pool loaded");
+                                        let protocol = pool.get_protocol();
                                         let swap_directions = pool.get_swap_directions();
+
+                                        debug!(%address, %protocol, ?swap_directions, "UniswapV2 pool loaded");
                                         ret.insert(pool, swap_directions);
                                     }
                                     Err(err) => {
@@ -69,10 +79,18 @@ where
                 if UniswapV3Protocol::is_code(code) {
                     match market.read().await.get_pool(address) {
                         None => {
-                            debug!(?address, "Loading UniswapV3 class pool");
+                            debug!(%address, "Loading UniswapV3 class pool");
                             let env = Env::default();
-                            // TODO : Fix factory
-                            let state_db = LoomDB::new_with_ro_db_and_provider(Some(market_state.state_db.clone()), client.clone())?;
+
+                            let ext_db = AlloyDB::new(client.clone(), BlockNumberOrTag::Latest.into());
+
+                            let Some(ext_db) = ext_db else {
+                                error!("Cannot create AlloyDB");
+                                continue;
+                            };
+
+                            let state_db = market_state.state_db.clone().with_ext_db(ext_db);
+
                             match UniswapV3StateReader::factory(&state_db, env.clone(), *address) {
                                 Ok(factory_address) => {
                                     match get_protocol_by_factory(factory_address) {
@@ -80,8 +98,9 @@ where
                                             let pool = PancakeV3Pool::fetch_pool_data_evm(&state_db, env.clone(), *address);
                                             match pool {
                                                 Ok(pool) => {
-                                                    debug!(?address, protocol = ?pool.get_protocol(), "PancakeV3 Pool loaded");
                                                     let swap_directions = pool.get_swap_directions();
+                                                    let protocol = pool.get_protocol();
+                                                    debug!(?address, %protocol, ?swap_directions, "PancakeV3 Pool loaded");
                                                     ret.insert(PoolWrapper::new(Arc::new(pool)), swap_directions);
                                                 }
                                                 Err(err) => {
@@ -93,9 +112,12 @@ where
                                             let pool = MaverickPool::fetch_pool_data_evm(&state_db, env.clone(), *address);
                                             match pool {
                                                 Ok(pool) => {
-                                                    debug!(?address, "Maverick Pool loaded");
+                                                    let pool = PoolWrapper::new(Arc::new(pool));
                                                     let swap_directions = pool.get_swap_directions();
-                                                    ret.insert(PoolWrapper::new(Arc::new(pool)), swap_directions);
+                                                    let protocol = pool.get_protocol();
+                                                    debug!(?address, %protocol, ?swap_directions, "Maverick Pool loaded");
+
+                                                    ret.insert(pool, swap_directions);
                                                 }
                                                 Err(err) => {
                                                     error!(?address, %err, "Error loading Maverick pool");
@@ -106,11 +128,17 @@ where
                                             Ok(pool) => {
                                                 let pool = PoolWrapper::new(Arc::new(pool));
                                                 let swap_directions = pool.get_swap_directions();
-                                                debug!("UniswapV3 Pool loaded {address:?} {} : {:?}", pool.get_protocol(), swap_directions);
+                                                let protocol = pool.get_protocol();
+                                                debug!(
+                                                    %address,
+                                                    %protocol,
+                                                    ?swap_directions,
+                                                    "UniswapV3 Pool loaded"
+                                                );
                                                 ret.insert(pool, swap_directions);
                                             }
                                             Err(err) => {
-                                                error!(?address, %err, "Error loading UniswapV3 pool");
+                                                error!(%address, %err, "Error loading UniswapV3 pool");
                                             }
                                         },
                                     };

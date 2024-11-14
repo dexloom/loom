@@ -1,24 +1,22 @@
-use std::sync::Arc;
-
 use alloy_primitives::{Address, U256};
-use eyre::{eyre, Result};
+use eyre::{eyre, ErrReport, Result};
 use revm::primitives::Env;
+use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info};
 
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_evm_db::LoomDBType;
 use loom_execution_multicaller::SwapStepEncoder;
 use loom_types_entities::{LatestBlock, Swap, SwapStep};
 use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
 
-async fn arb_swap_steps_optimizer_task(
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
-    state_db: Arc<LoomDBType>,
+async fn arb_swap_steps_optimizer_task<DB: DatabaseRef + Send + Sync + Clone>(
+    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    state_db: &(dyn DatabaseRef<Error = ErrReport> + Send + Sync + 'static),
     evm_env: Env,
-    request: TxComposeData,
+    request: TxComposeData<DB>,
 ) -> Result<()> {
     debug!("Step Simulation started");
 
@@ -32,7 +30,7 @@ async fn arb_swap_steps_optimizer_task(
                     swap: Swap::BackrunSwapSteps((s0, s1)),
                     ..request
                 });
-                compose_channel_tx.send(encode_request).await?;
+                compose_channel_tx.send(encode_request).await.map_err(|_| eyre!("CANNOT_SEND"))?;
             }
             Err(e) => {
                 error!("Optimization error:{}", e);
@@ -48,17 +46,17 @@ async fn arb_swap_steps_optimizer_task(
     Ok(())
 }
 
-async fn arb_swap_path_merger_worker(
+async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static>(
     encoder: SwapStepEncoder,
     latest_block: SharedState<LatestBlock>,
     market_events_rx: Broadcaster<MarketEvents>,
-    compose_channel_rx: Broadcaster<MessageTxCompose>,
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
+    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
     subscribe!(compose_channel_rx);
 
-    let mut ready_requests: Vec<TxComposeData> = Vec::new();
+    let mut ready_requests: Vec<TxComposeData<DB>> = Vec::new();
 
     loop {
         tokio::select! {
@@ -83,7 +81,7 @@ async fn arb_swap_path_merger_worker(
 
             },
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageTxCompose, RecvError> = msg;
+                let msg : Result<MessageTxCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(swap) => {
 
@@ -128,16 +126,18 @@ async fn arb_swap_path_merger_worker(
                                     evm_env.block.number = U256::from(block_header.number + 1);
                                     evm_env.block.timestamp = U256::from(block_header.timestamp + 12);
 
+
                                     if let Some(db) = compose_data.poststate.clone() {
-                                        tokio::task::spawn(
-                                            arb_swap_steps_optimizer_task(
-                                                //encoder.clone(),
-                                                compose_channel_tx.clone(),
-                                                db,
+                                        let db_clone = db.clone();
+                                        let compose_channel_clone = compose_channel_tx.clone();
+                                        tokio::task::spawn( async move {
+                                                arb_swap_steps_optimizer_task(
+                                                compose_channel_clone,
+                                                &db_clone,
                                                 evm_env,
                                                 request
-                                            )
-                                        );
+                                            ).await
+                                        });
                                     }
                                     break; // only first
                                 }
@@ -158,20 +158,23 @@ async fn arb_swap_path_merger_worker(
 }
 
 #[derive(Consumer, Producer, Accessor)]
-pub struct ArbSwapPathMergerActor {
+pub struct ArbSwapPathMergerActor<DB: Send + Sync + Clone + 'static> {
     encoder: SwapStepEncoder,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
 }
 
-impl ArbSwapPathMergerActor {
-    pub fn new(multicaller: Address) -> ArbSwapPathMergerActor {
+impl<DB> ArbSwapPathMergerActor<DB>
+where
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
+{
+    pub fn new(multicaller: Address) -> ArbSwapPathMergerActor<DB> {
         ArbSwapPathMergerActor {
             encoder: SwapStepEncoder::new(multicaller),
             latest_block: None,
@@ -180,7 +183,7 @@ impl ArbSwapPathMergerActor {
             compose_channel_tx: None,
         }
     }
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             latest_block: Some(bc.latest_block()),
             market_events: Some(bc.market_events_channel()),
@@ -191,7 +194,10 @@ impl ArbSwapPathMergerActor {
     }
 }
 
-impl Actor for ArbSwapPathMergerActor {
+impl<DB> Actor for ArbSwapPathMergerActor<DB>
+where
+    DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static,
+{
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(arb_swap_path_merger_worker(
             self.encoder.clone(),
@@ -211,14 +217,14 @@ impl Actor for ArbSwapPathMergerActor {
 #[cfg(test)]
 mod test {
     use alloy_primitives::{Address, U256};
-    use std::sync::Arc;
-
+    use loom_evm_db::LoomDB;
     use loom_types_entities::{Swap, SwapAmountType, SwapLine, SwapPath, Token};
     use loom_types_events::TxComposeData;
+    use std::sync::Arc;
 
     #[test]
     pub fn test_sort() {
-        let mut ready_requests: Vec<TxComposeData> = Vec::new();
+        let mut ready_requests: Vec<TxComposeData<LoomDB>> = Vec::new();
         let token = Arc::new(Token::new(Address::random()));
 
         let sp0 = SwapLine {

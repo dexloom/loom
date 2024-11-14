@@ -15,11 +15,11 @@ use loom_defi_abi::uniswap3::IUniswapV3Pool;
 use loom_defi_abi::uniswap_periphery::ITickLens;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::PeripheryAddress;
-use loom_evm_db::LoomDBType;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
+use revm::DatabaseRef;
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
@@ -121,12 +121,12 @@ impl PancakeV3Pool {
             PoolProtocol::UniswapV3Like
         }
     }
-    pub fn fetch_pool_data_evm(db: &LoomDBType, env: Env, address: Address) -> Result<Self> {
-        let token0: Address = UniswapV3StateReader::token0(db, env.clone(), address)?;
-        let token1: Address = UniswapV3StateReader::token1(db, env.clone(), address)?;
-        let fee = UniswapV3StateReader::fee(db, env.clone(), address)?;
+    pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
+        let token0: Address = UniswapV3StateReader::token0(&db, env.clone(), address)?;
+        let token1: Address = UniswapV3StateReader::token1(&db, env.clone(), address)?;
+        let fee = UniswapV3StateReader::fee(&db, env.clone(), address)?;
         let fee_u32: u32 = fee.to();
-        let factory = UniswapV3StateReader::factory(db, env.clone(), address)?;
+        let factory = UniswapV3StateReader::factory(&db, env.clone(), address)?;
         let protocol = Self::get_protocol_by_factory(factory);
 
         let ret = PancakeV3Pool {
@@ -208,7 +208,7 @@ impl Pool for PancakeV3Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -241,7 +241,7 @@ impl Pool for PancakeV3Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -487,6 +487,7 @@ impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
 #[cfg(test)]
 mod tests {
     use env_logger::Env as EnvLog;
+    use loom_evm_db::LoomDBType;
     use std::env;
     use tracing::debug;
 

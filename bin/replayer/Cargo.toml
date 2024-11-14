@@ -15,6 +15,7 @@ loom-core-blockchain.workspace = true
 loom-core-blockchain-actors.workspace = true
 loom-defi-address-book.workspace = true
 loom-defi-pools.workspace = true
+loom-evm-db.workspace = true
 loom-evm-utils.workspace = true
 loom-execution-multicaller.workspace = true
 loom-node-debug-provider.workspace = true

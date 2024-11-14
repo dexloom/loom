@@ -5,10 +5,12 @@ use alloy_primitives::Address;
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use axum::Json;
+use eyre::ErrReport;
 use loom_evm_utils::error_handler::internal_error;
 use loom_rpc_state::AppState;
 use loom_types_entities::PoolWrapper;
 use revm::primitives::Env;
+use revm::DatabaseRef;
 use std::str::FromStr;
 
 /// Get latest block
@@ -26,8 +28,8 @@ use std::str::FromStr;
     (status = 200, description = "All available pools", body = PoolResponse),
     )
 )]
-pub async fn pools(
-    State(app_state): State<AppState>,
+pub async fn pools<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+    State(app_state): State<AppState<DB>>,
     pagination: Query<Pagination>,
     filter: Query<Filter>,
 ) -> Result<Json<PoolResponse>, (StatusCode, String)> {
@@ -88,8 +90,8 @@ pub async fn pools(
     (status = 200, description = "Pool detail response", body = PoolDetailsResponse),
     )
 )]
-pub async fn pool(
-    State(app_state): State<AppState>,
+pub async fn pool<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+    State(app_state): State<AppState<DB>>,
     Path(address): Path<String>,
 ) -> Result<Json<PoolDetailsResponse>, (StatusCode, String)> {
     let address = Address::from_str(&address).map_err(internal_error)?;
@@ -121,7 +123,9 @@ pub async fn pool(
         (status = 200, description = "Market stats", body = MarketStats),
     )
 )]
-pub async fn market_stats(State(app_state): State<AppState>) -> Result<Json<MarketStats>, (StatusCode, String)> {
+pub async fn market_stats<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+    State(app_state): State<AppState<DB>>,
+) -> Result<Json<MarketStats>, (StatusCode, String)> {
     let total_pools = app_state.bc.market().read().await.pools().len();
 
     Ok(Json(MarketStats { total_pools }))
@@ -143,8 +147,8 @@ pub async fn market_stats(State(app_state): State<AppState>) -> Result<Json<Mark
         (status = 200, description = "Market stats", body = QuoteResponse),
     )
 )]
-pub async fn pool_quote(
-    State(app_state): State<AppState>,
+pub async fn pool_quote<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static>(
+    State(app_state): State<AppState<DB>>,
     Path(address): Path<String>,
     Json(quote_request): Json<QuoteRequest>,
 ) -> Result<Json<QuoteResponse>, (StatusCode, String)> {

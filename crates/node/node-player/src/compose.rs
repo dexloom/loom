@@ -5,7 +5,10 @@ use loom_types_events::{MessageTxCompose, RlpState, TxCompose};
 use tokio::select;
 use tracing::{error, info};
 
-pub(crate) async fn replayer_compose_worker(mempool: SharedState<Mempool>, compose_channel: Broadcaster<MessageTxCompose>) -> WorkerResult {
+pub(crate) async fn replayer_compose_worker<DB: Clone + Send + Sync>(
+    mempool: SharedState<Mempool>,
+    compose_channel: Broadcaster<MessageTxCompose<DB>>,
+) -> WorkerResult {
     let mut compose_channel_rx = compose_channel.subscribe().await;
 
     loop {

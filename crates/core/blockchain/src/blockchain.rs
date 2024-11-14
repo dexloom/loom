@@ -3,21 +3,23 @@ use alloy::primitives::ChainId;
 use influxdb::WriteQuery;
 use loom_core_actors::{Broadcaster, SharedState};
 use loom_defi_address_book::TokenAddress;
+use loom_evm_db::DatabaseLoomExt;
 use loom_types_blockchain::{ChainParameters, Mempool};
-use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, Token};
+use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, BlockHistoryState, LatestBlock, Market, MarketState, Token};
 use loom_types_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent, Task,
 };
+use revm::{Database, DatabaseCommit, DatabaseRef};
 
 #[derive(Clone)]
-pub struct Blockchain {
+pub struct Blockchain<DB: Clone + Send + Sync + 'static> {
     chain_id: ChainId,
     chain_parameters: ChainParameters,
     market: SharedState<Market>,
     latest_block: SharedState<LatestBlock>,
-    market_state: SharedState<MarketState>,
-    block_history_state: SharedState<BlockHistory>,
+    market_state: SharedState<MarketState<DB>>,
+    block_history_state: SharedState<BlockHistory<DB>>,
     mempool: SharedState<Mempool>,
     account_nonce_and_balance: SharedState<AccountNonceAndBalanceState>,
 
@@ -29,14 +31,16 @@ pub struct Blockchain {
     market_events_channel: Broadcaster<MarketEvents>,
     mempool_events_channel: Broadcaster<MempoolEvents>,
     pool_health_monitor_channel: Broadcaster<MessageHealthEvent>,
-    compose_channel: Broadcaster<MessageTxCompose>,
-    state_update_channel: Broadcaster<StateUpdateEvent>,
+    compose_channel: Broadcaster<MessageTxCompose<DB>>,
+    state_update_channel: Broadcaster<StateUpdateEvent<DB>>,
     influxdb_write_channel: Broadcaster<WriteQuery>,
     tasks_channel: Broadcaster<Task>,
 }
 
-impl Blockchain {
-    pub fn new(chain_id: ChainId) -> Blockchain {
+impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseLoomExt + Send + Sync + Clone + Default + 'static>
+    Blockchain<DB>
+{
+    pub fn new(chain_id: ChainId) -> Blockchain<DB> {
         let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
         let new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate> = Broadcaster::new(10);
@@ -47,8 +51,8 @@ impl Blockchain {
         let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(100);
         let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(2000);
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
-        let compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
-        let state_update_channel: Broadcaster<StateUpdateEvent> = Broadcaster::new(100);
+        let compose_channel: Broadcaster<MessageTxCompose<DB>> = Broadcaster::new(100);
+        let state_update_channel: Broadcaster<StateUpdateEvent<DB>> = Broadcaster::new(100);
         let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
         let tasks_channel: Broadcaster<Task> = Broadcaster::new(1000);
 
@@ -92,10 +96,18 @@ impl Blockchain {
         }
     }
 
-    pub fn with_market_state(&self, market_state: MarketState) -> Blockchain {
+    pub fn with_market_state(self, market_state: MarketState<DB>) -> Blockchain<DB> {
         Blockchain { market_state: SharedState::new(market_state), ..self.clone() }
     }
+}
 
+impl<DB: DatabaseRef + DatabaseCommit + Clone + Send + Sync> Blockchain<DB> {
+    pub fn market_state_commit(&self) -> SharedState<MarketState<DB>> {
+        self.market_state.clone()
+    }
+}
+
+impl<DB: DatabaseRef + Clone + Send + Sync> Blockchain<DB> {
     pub fn chain_id(&self) -> u64 {
         self.chain_id
     }
@@ -112,11 +124,11 @@ impl Blockchain {
         self.latest_block.clone()
     }
 
-    pub fn market_state(&self) -> SharedState<MarketState> {
+    pub fn market_state(&self) -> SharedState<MarketState<DB>> {
         self.market_state.clone()
     }
 
-    pub fn block_history(&self) -> SharedState<BlockHistory> {
+    pub fn block_history(&self) -> SharedState<BlockHistory<DB>> {
         self.block_history_state.clone()
     }
 
@@ -159,11 +171,11 @@ impl Blockchain {
         self.pool_health_monitor_channel.clone()
     }
 
-    pub fn compose_channel(&self) -> Broadcaster<MessageTxCompose> {
+    pub fn compose_channel(&self) -> Broadcaster<MessageTxCompose<DB>> {
         self.compose_channel.clone()
     }
 
-    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent> {
+    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent<DB>> {
         self.state_update_channel.clone()
     }
 

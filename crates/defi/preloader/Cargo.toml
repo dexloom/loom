@@ -21,9 +21,13 @@ eyre.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
+#alloy
 alloy-eips.workspace = true
 alloy-network.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-rpc-types-trace.workspace = true
 alloy-transport.workspace = true
+
+#revm
+revm.workspace = true

@@ -4,14 +4,14 @@ use alloy_primitives::{address, Address, Bytes, U256};
 use alloy_provider::{Network, Provider};
 use alloy_sol_types::SolCall;
 use alloy_transport::Transport;
-use eyre::{eyre, Result};
+use eyre::{eyre, ErrReport, Result};
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::TokenAddress;
-use loom_evm_db::LoomDBType;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
+use revm::DatabaseRef;
 use tracing::error;
 
 use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};
@@ -197,7 +197,7 @@ where
 
     fn calculate_out_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -247,7 +247,7 @@ where
 
     fn calculate_in_amount(
         &self,
-        state_db: &LoomDBType,
+        state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
         token_address_from: &Address,
         token_address_to: &Address,
@@ -516,7 +516,7 @@ mod tests {
     use alloy_provider::Provider;
     use alloy_rpc_types::BlockNumberOrTag;
     use env_logger::Env as EnvLog;
-    use loom_evm_db::LoomDBType;
+    use loom_evm_db::{DatabaseLoomExt, LoomDBType};
     use loom_node_debug_provider::AnvilDebugProviderFactory;
     use loom_types_entities::required_state::RequiredStateReader;
     use loom_types_entities::{MarketState, Pool};
@@ -546,7 +546,12 @@ mod tests {
             debug!("Pool state fetched {} {}", pool.address, state_required.len());
 
             market_state.state_db.apply_geth_update(state_required);
-            debug!("Pool : {} Accs : {} Storage : {}", pool.address, market_state.state_db.accounts_len(), market_state.storage_len());
+            debug!(
+                "Pool : {} Accs : {} Storage : {}",
+                pool.address,
+                market_state.state_db.accounts_len(),
+                market_state.state_db.storage_len()
+            );
 
             let block_header = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.unwrap().unwrap().header;
             debug!("Block {} {}", block_header.number, block_header.timestamp);

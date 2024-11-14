@@ -22,16 +22,19 @@ use loom_types_entities::required_state::RequiredStateReader;
 use loom_types_entities::{get_protocol_by_factory, Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
 use loom_types_events::Task;
 
-pub async fn pool_loader_worker<P, T, N>(
+use revm::{Database, DatabaseCommit, DatabaseRef};
+
+pub async fn pool_loader_worker<P, T, N, DB>(
     client: P,
     market: SharedState<Market>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     tasks_rx: Broadcaster<Task>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let mut fetch_tasks = FuturesUnordered::new();
     let mut processed_pools = HashMap::new();
@@ -68,10 +71,10 @@ where
 }
 
 /// Fetch pool data, add it to the market and fetch the required state
-pub async fn fetch_and_add_pool_by_address<P, T, N>(
+pub async fn fetch_and_add_pool_by_address<P, T, N, DB>(
     client: P,
     market: SharedState<Market>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     pool_address: Address,
     pool_class: PoolClass,
 ) -> Result<()>
@@ -79,6 +82,7 @@ where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     debug!("Fetching pool {:#20x}", pool_address);
 
@@ -150,16 +154,17 @@ where
     Ok(())
 }
 
-pub async fn fetch_state_and_add_pool<P, T, N>(
+pub async fn fetch_state_and_add_pool<P, T, N, DB>(
     client: P,
     market: SharedState<Market>,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
     pool_wrapped: PoolWrapper,
 ) -> Result<()>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     match pool_wrapped.get_state_required() {
         Ok(required_state) => match RequiredStateReader::fetch_calls_and_slots(client, required_state, None).await {
@@ -167,9 +172,9 @@ where
                 let pool_address = pool_wrapped.get_address();
                 {
                     let mut market_state_write_guard = market_state.write().await;
-                    market_state_write_guard.state_db.apply_geth_update(state);
-                    market_state_write_guard.add_force_insert(pool_address);
-                    market_state_write_guard.disable_cell_vec(pool_address, pool_wrapped.get_read_only_cell_vec());
+                    market_state_write_guard.apply_geth_update(state);
+                    market_state_write_guard.config.add_force_insert(pool_address);
+                    market_state_write_guard.config.disable_cell_vec(pool_address, pool_wrapped.get_read_only_cell_vec());
 
                     drop(market_state_write_guard);
                 }
@@ -203,38 +208,40 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct PoolLoaderActor<P, T, N> {
+pub struct PoolLoaderActor<P, T, N, DB> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
     tasks_rx: Option<Broadcaster<Task>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> PoolLoaderActor<P, T, N>
+impl<P, T, N, DB> PoolLoaderActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         Self { client, market: None, market_state: None, tasks_rx: None, _t: PhantomData, _n: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self { market: Some(bc.market()), market_state: Some(bc.market_state()), tasks_rx: Some(bc.tasks_channel()), ..self }
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+        Self { market: Some(bc.market()), market_state: Some(bc.market_state_commit()), tasks_rx: Some(bc.tasks_channel()), ..self }
     }
 }
 
-impl<P, T, N> Actor for PoolLoaderActor<P, T, N>
+impl<P, T, N, DB> Actor for PoolLoaderActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(pool_loader_worker(

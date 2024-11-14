@@ -21,7 +21,6 @@ use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 #[cfg(feature = "trace-calls")]
 use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
 use std::collections::BTreeMap;
-use std::fmt::Display;
 use thiserror::Error;
 use tracing::{debug, error};
 
@@ -84,9 +83,8 @@ where
 pub fn evm_transact<DB>(evm: &mut Evm<(), DB>) -> eyre::Result<(Vec<u8>, u64)>
 where
     DB: Database + DatabaseCommit,
-    <DB as Database>::Error: Display,
 {
-    let execution_result = evm.transact_commit().map_err(|e| EvmError::TransactCommitError(e.to_string()))?;
+    let execution_result = evm.transact_commit().map_err(|_| EvmError::TransactCommitError("COMMIT_ERROR".to_string()))?;
     let gas_used = execution_result.gas_used();
 
     match execution_result {
@@ -97,10 +95,7 @@ where
     }
 }
 
-pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &TransactionRequest) -> eyre::Result<(u64, AccessList)>
-where
-    <DB as DatabaseRef>::Error: Display,
-{
+pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &TransactionRequest) -> eyre::Result<(u64, AccessList)> {
     let mut env = env.clone();
 
     let txto = tx.to.unwrap_or_default().to().map_or(Address::ZERO, |x| *x);
@@ -158,16 +153,12 @@ where
 pub fn evm_call_tx_in_block<DB, T: Into<Transaction>>(tx: T, state_db: DB, header: &Header) -> eyre::Result<ResultAndState>
 where
     DB: DatabaseRef,
-    <DB as DatabaseRef>::Error: Display,
 {
     let env = evm_env_from_tx(tx, header);
 
     let mut evm = Evm::builder().with_spec_id(CANCUN).with_ref_db(state_db).with_env(Box::new(env)).build();
 
-    evm.transact().map_err(|e| {
-        error!("evm.transact : {e}");
-        eyre!("TRANSACT_ERROR")
-    })
+    evm.transact().map_err(|_| eyre!("TRANSACT_ERROR"))
 }
 
 pub fn convert_evm_result_to_rpc(

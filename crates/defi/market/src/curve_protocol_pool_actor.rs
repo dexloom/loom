@@ -1,3 +1,4 @@
+use revm::{Database, DatabaseCommit};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
@@ -14,12 +15,18 @@ use loom_defi_pools::protocols::CurveProtocol;
 use loom_defi_pools::CurvePool;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::{Market, MarketState, PoolWrapper};
+use revm::DatabaseRef;
 
-async fn curve_pool_loader_worker<P, T, N>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState>) -> WorkerResult
+async fn curve_pool_loader_worker<P, T, N, DB>(
+    client: P,
+    market: SharedState<Market>,
+    market_state: SharedState<MarketState<DB>>,
+) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
     for curve_contract in curve_contracts.into_iter() {
@@ -81,36 +88,38 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct CurvePoolLoaderOneShotActor<P, T, N> {
+pub struct CurvePoolLoaderOneShotActor<P, T, N, DB> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> CurvePoolLoaderOneShotActor<P, T, N>
+impl<P, T, N, DB> CurvePoolLoaderOneShotActor<P, T, N, DB>
 where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self { client, market: None, market_state: None, _n: PhantomData, _t: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self { market: Some(bc.market()), market_state: Some(bc.market_state()), ..self }
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+        Self { market: Some(bc.market()), market_state: Some(bc.market_state_commit()), ..self }
     }
 }
 
-impl<P, T, N> Actor for CurvePoolLoaderOneShotActor<P, T, N>
+impl<P, T, N, DB> Actor for CurvePoolLoaderOneShotActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(curve_pool_loader_worker(

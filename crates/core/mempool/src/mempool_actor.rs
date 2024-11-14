@@ -10,6 +10,7 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_types_blockchain::{ChainParameters, Mempool, MempoolTx};
 use loom_types_events::{MempoolEvents, MessageBlock, MessageBlockHeader, MessageMempoolDataUpdate};
+use revm::DatabaseRef;
 
 pub async fn new_mempool_worker(
     chain_parameters: ChainParameters,
@@ -187,7 +188,7 @@ impl MempoolActor {
         MempoolActor::default()
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> MempoolActor {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> MempoolActor {
         Self {
             chain_parameters: bc.chain_parameters(),
             mempool: Some(bc.mempool()),

@@ -1,3 +1,4 @@
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::any::type_name;
 use std::marker::PhantomData;
 
@@ -7,6 +8,7 @@ use alloy_network::{Ethereum, Network};
 use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
+use eyre::ErrReport;
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
@@ -17,16 +19,16 @@ use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, Mess
 use tokio::task::JoinHandle;
 
 #[derive(Producer, Consumer, Accessor)]
-pub struct NodeBlockPlayerActor<P, T, N> {
+pub struct NodeBlockPlayerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
     client: P,
     start_block: BlockNumber,
     end_block: BlockNumber,
     #[accessor]
     mempool: Option<SharedState<Mempool>>,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
-    compose_channel: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[producer]
     block_header_channel: Option<Broadcaster<MessageBlockHeader>>,
     #[producer]
@@ -39,13 +41,14 @@ pub struct NodeBlockPlayerActor<P, T, N> {
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> NodeBlockPlayerActor<P, T, N>
+impl<P, T, N, DB> NodeBlockPlayerActor<P, T, N, DB>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, start_block: BlockNumber, end_block: BlockNumber) -> NodeBlockPlayerActor<P, T, N> {
+    pub fn new(client: P, start_block: BlockNumber, end_block: BlockNumber) -> NodeBlockPlayerActor<P, T, N, DB> {
         NodeBlockPlayerActor {
             client,
             start_block,
@@ -62,10 +65,10 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             mempool: Some(bc.mempool()),
-            market_state: Some(bc.market_state()),
+            market_state: Some(bc.market_state_commit()),
             compose_channel: Some(bc.compose_channel()),
             block_header_channel: Some(bc.new_block_headers_channel()),
             block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
@@ -76,11 +79,12 @@ where
     }
 }
 
-impl<P, T, N> Actor for NodeBlockPlayerActor<P, T, N>
+impl<P, T, N, DB> Actor for NodeBlockPlayerActor<P, T, N, DB>
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
     T: Send + Sync,
     N: Send + Sync,
+    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let mut handles: Vec<JoinHandle<WorkerResult>> = Vec::new();

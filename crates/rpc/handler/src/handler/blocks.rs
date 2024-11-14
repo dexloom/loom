@@ -3,6 +3,7 @@ use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
 use loom_rpc_state::AppState;
+use revm::DatabaseRef;
 
 /// Get latest block
 ///
@@ -16,7 +17,9 @@ use loom_rpc_state::AppState;
     (status = 200, description = "Todo item created successfully", body = BlockHeader),
     )
 )]
-pub async fn latest_block(State(app_state): State<AppState>) -> Result<Json<BlockHeader>, (StatusCode, String)> {
+pub async fn latest_block<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+    State(app_state): State<AppState<DB>>,
+) -> Result<Json<BlockHeader>, (StatusCode, String)> {
     {
         let block_header_opt = app_state.bc.latest_block().read().await.block_header.clone();
         if let Some(block_header) = block_header_opt {

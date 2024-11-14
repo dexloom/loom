@@ -12,6 +12,7 @@ use reth_db::mdbx::DatabaseArguments;
 use reth_db::{open_db_read_only, ClientVersion, DatabaseEnv};
 use reth_node_ethereum::EthereumNode;
 use reth_node_types::NodeTypesWithDBAdapter;
+use reth_primitives::revm_primitives::db::DatabaseRef;
 use reth_primitives::{BlockHashOrNumber, BlockWithSenders};
 use reth_provider::providers::StaticFileProvider;
 use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider, StateProvider, StorageReader, TransactionVariant};
@@ -306,7 +307,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain<DB>) -> Self {
         Self {
             block_header_channel: if self.config.block_header { Some(bc.new_block_headers_channel()) } else { None },
             block_with_tx_channel: if self.config.block_with_tx { Some(bc.new_block_with_tx_channel()) } else { None },

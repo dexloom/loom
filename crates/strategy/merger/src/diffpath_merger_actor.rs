@@ -1,9 +1,8 @@
-use std::sync::Arc;
-
 use alloy_primitives::{Address, TxHash};
 use alloy_rpc_types::Transaction;
 use eyre::{OptionExt, Result};
 use lazy_static::lazy_static;
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error, info};
@@ -19,8 +18,11 @@ lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
-fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a [TxComposeData]) -> Vec<&'a TxComposeData> {
-    let mut ret: Vec<&TxComposeData> = Vec::new();
+fn get_merge_list<'a, DB: Clone + Send + Sync + 'static>(
+    request: &TxComposeData<DB>,
+    swap_paths: &'a [TxComposeData<DB>],
+) -> Vec<&'a TxComposeData<DB>> {
+    let mut ret: Vec<&TxComposeData<DB>> = Vec::new();
     let mut pools = request.swap.get_pool_address_vec();
     for p in swap_paths.iter() {
         if !p.cross_pools(&pools) {
@@ -31,16 +33,19 @@ fn get_merge_list<'a>(request: &TxComposeData, swap_paths: &'a [TxComposeData]) 
     ret
 }
 
-async fn diff_path_merger_worker(
+async fn diff_path_merger_worker<DB>(
     market_events_rx: Broadcaster<MarketEvents>,
-    compose_channel_rx: Broadcaster<MessageTxCompose>,
-    compose_channel_tx: Broadcaster<MessageTxCompose>,
-) -> WorkerResult {
+    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+) -> WorkerResult
+where
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
+{
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
-    let mut compose_channel_rx: Receiver<MessageTxCompose> = compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageTxCompose<DB>> = compose_channel_rx.subscribe().await;
 
-    let mut swap_paths: Vec<TxComposeData> = Vec::new();
+    let mut swap_paths: Vec<TxComposeData<DB>> = Vec::new();
 
     loop {
         tokio::select! {
@@ -70,7 +75,7 @@ async fn diff_path_merger_worker(
 
 
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageTxCompose, RecvError> = msg;
+                let msg : Result<MessageTxCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(compose_request)=>{
                         if let TxCompose::Sign(sign_request) = compose_request.inner() {
@@ -81,12 +86,11 @@ async fn diff_path_merger_worker(
                                     let swap_vec : Vec<Swap> = merge_list.iter().map(|x|x.swap.clone()).collect();
                                     info!("Merging started {:?}", swap_vec );
 
-                                    let mut state = MarketState::new(sign_request.poststate.clone().unwrap().as_ref().clone());
+                                    let mut state = MarketState::new(sign_request.poststate.clone().unwrap().clone());
 
                                     for dbs in merge_list.iter() {
-                                        state.state_db.apply_geth_state_update( dbs.poststate_update.as_ref().ok_or_eyre("NO_STATE_UPDATE")?, false, false );
+                                        state.apply_geth_update_vec( dbs.poststate_update.clone().ok_or_eyre("NO_STATE_UPDATE")?);
                                     }
-                                    let arc_db = Arc::new(state.state_db);
 
                                     merge_list.push(sign_request);
 
@@ -109,11 +113,11 @@ async fn diff_path_merger_worker(
                                             swap : Swap::Multiple( merge_list.iter().map(|i| i.swap.clone()  ).collect()) ,
                                             origin : Some("diffpath_merger".to_string()),
                                             tips_pct : Some(5000),
-                                            poststate : Some(arc_db),
+                                            poststate : Some(state.state_db),
                                             ..sign_request.clone()
                                         }
                                     );
-                                    info!("+++ Calculation finished. Merge list : {} profit : {}",merge_list.len(), NWETH::to_float(encode_request.swap.abs_profit_eth())  );
+                                    info!("+++ Calculation finished. Merge list : {} profit : {}",merge_list.len(), NWETH::to_float(encode_request.inner.swap.abs_profit_eth())  );
 
                                     if let Err(e) = compose_channel_tx.send(encode_request).await {
                                        error!("{}",e)
@@ -138,21 +142,24 @@ async fn diff_path_merger_worker(
 }
 
 #[derive(Consumer, Producer, Accessor, Default)]
-pub struct DiffPathMergerActor {
+pub struct DiffPathMergerActor<DB: Clone + Send + Sync + 'static> {
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
+    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
 }
 
-impl DiffPathMergerActor {
+impl<DB> DiffPathMergerActor<DB>
+where
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+{
     pub fn new() -> Self {
         Self::default()
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             market_events: Some(bc.market_events_channel()),
             compose_channel_tx: Some(bc.compose_channel()),
@@ -161,7 +168,10 @@ impl DiffPathMergerActor {
     }
 }
 
-impl Actor for DiffPathMergerActor {
+impl<DB> Actor for DiffPathMergerActor<DB>
+where
+    DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+{
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(diff_path_merger_worker(
             self.market_events.clone().unwrap(),

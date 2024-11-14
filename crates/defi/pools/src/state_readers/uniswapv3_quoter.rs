@@ -54,7 +54,7 @@ pub struct UniswapV3QuoterV2StateReader {}
 
 impl UniswapV3QuoterV2StateReader {
     pub fn quote_exact_input<DB: DatabaseRef>(
-        db: DB,
+        db: &DB,
         env: Env,
         quoter_address: Address,
         token_from: Address,
@@ -71,7 +71,7 @@ impl UniswapV3QuoterV2StateReader {
     }
 
     pub fn quote_exact_output<DB: DatabaseRef>(
-        db: DB,
+        db: &DB,
         env: Env,
         quoter_address: Address,
         token_from: Address,

@@ -3,35 +3,49 @@ use alloy::primitives::Address;
 use alloy::providers::Provider;
 use alloy::transports::Transport;
 use axum::Router;
-use eyre::OptionExt;
+use eyre::{ErrReport, OptionExt};
 use loom::core::blockchain::Blockchain;
 use loom::core::blockchain_actors::BlockchainActors;
 use loom::core::topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use loom::defi::pools::PoolsConfig;
+use loom::evm::db::DatabaseLoomExt;
 use loom::node::actor_config::NodeBlockActorConfig;
 use loom::node::debug_provider::DebugProviderExt;
 use loom::node::exex::loom_exex;
 use loom::storage::db::init_db_pool;
 use loom::strategy::backrun::{BackrunConfig, BackrunConfigSection};
 use loom::types::entities::config::load_from_file;
-use loom::types::entities::PoolClass;
+use loom::types::entities::{BlockHistoryState, PoolClass};
+use reth::revm::{Database, DatabaseCommit, DatabaseRef};
 use reth_exex::ExExContext;
 use reth_node_api::FullNodeComponents;
 use std::env;
 use std::future::Future;
 use tracing::info;
 
-pub async fn init<Node: FullNodeComponents>(
+pub async fn init<
+    Node: FullNodeComponents,
+    DB: Database<Error = ErrReport>
+        + DatabaseRef<Error = ErrReport>
+        + DatabaseCommit
+        + DatabaseLoomExt
+        + BlockHistoryState
+        + Send
+        + Sync
+        + Clone
+        + Default
+        + 'static,
+>(
     ctx: ExExContext<Node>,
-    bc: Blockchain,
+    bc: Blockchain<DB>,
     config: NodeBlockActorConfig,
 ) -> eyre::Result<impl Future<Output = eyre::Result<()>>> {
     Ok(loom_exex(ctx, bc, config.clone()))
 }
 
-pub async fn start_loom<P, T>(
+pub async fn start_loom<P, T, DB>(
     provider: P,
-    bc: Blockchain,
+    bc: Blockchain<DB>,
     topology_config: TopologyConfig,
     loom_config_filepath: String,
     is_exex: bool,
@@ -39,6 +53,16 @@ pub async fn start_loom<P, T>(
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: Database<Error = ErrReport>
+        + DatabaseRef<Error = ErrReport>
+        + DatabaseCommit
+        + DatabaseLoomExt
+        + BlockHistoryState
+        + Send
+        + Sync
+        + Clone
+        + Default
+        + 'static,
 {
     let chain_id = provider.get_chain_id().await?;
 
@@ -81,7 +105,7 @@ where
         .with_block_history()? // collect blocks
         .with_price_station()? // calculate price fo tokens
         .with_health_monitor_pools()? // monitor pools health to disable empty
-        .with_health_monitor_state()? // monitor state health
+        //.with_health_monitor_state()? // monitor state health
         .with_health_monitor_stuffing_tx()? // collect stuffing tx information
         .with_swap_encoder(Some(multicaller_address))? // convert swaps to opcodes and passes to estimator
         .with_evm_estimator()? // estimate gas, add tips

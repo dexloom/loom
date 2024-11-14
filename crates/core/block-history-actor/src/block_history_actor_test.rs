@@ -18,7 +18,7 @@ mod test {
     use alloy_rpc_types::{Block, Filter, Header, Log};
     use eyre::eyre;
     use loom_core_actors::Actor;
-    use loom_evm_db::LoomDBType;
+    use loom_evm_db::{DatabaseLoomExt, LoomDB, LoomDBType};
     use loom_evm_utils::geth_state_update::{
         account_state_add_storage, account_state_with_nonce_and_balance, geth_state_update_add_account,
     };
@@ -28,7 +28,7 @@ mod test {
     use tracing::info;
 
     async fn broadcast_to_channels(
-        bc: &Blockchain,
+        bc: &Blockchain<LoomDB>,
         header: Header,
         block: Option<Block>,
         logs: Option<Vec<Log>>,
@@ -69,7 +69,11 @@ mod test {
         Ok(())
     }
 
-    async fn broadcast_latest_block<P, T>(provider: P, bc: &Blockchain, state_update: Option<GethStateUpdateVec>) -> eyre::Result<()>
+    async fn broadcast_latest_block<P, T>(
+        provider: P,
+        bc: &Blockchain<LoomDB>,
+        state_update: Option<GethStateUpdateVec>,
+    ) -> eyre::Result<()>
     where
         T: Transport + Send + Sync + Clone + 'static,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
@@ -84,7 +88,7 @@ mod test {
         broadcast_to_channels(bc, block.header.clone(), Some(block), Some(logs), Some(state_update)).await
     }
 
-    async fn test_actor_block_history_actor_chain_head_worker<P, T>(provider: P, bc: Blockchain) -> eyre::Result<()>
+    async fn test_actor_block_history_actor_chain_head_worker<P, T>(provider: P, bc: Blockchain<LoomDB>) -> eyre::Result<()>
     where
         T: Transport + Send + Sync + Clone + 'static,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
@@ -229,7 +233,7 @@ mod test {
         Ok(())
     }
 
-    async fn test_actor_block_history_actor_reorg_worker<P, T>(provider: P, bc: Blockchain) -> eyre::Result<()>
+    async fn test_actor_block_history_actor_reorg_worker<P, T>(provider: P, bc: Blockchain<LoomDB>) -> eyre::Result<()>
     where
         T: Transport + Send + Sync + Clone + 'static,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,

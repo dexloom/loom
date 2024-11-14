@@ -15,17 +15,19 @@ use tracing::{error, info, warn};
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
+use loom_evm_db::DatabaseLoomExt;
 use loom_types_entities::MarketState;
 use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose};
+use revm::DatabaseRef;
 
-async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static>(
+async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static, DB: DatabaseLoomExt>(
     client: P,
     address: Address,
-    market_state: SharedState<MarketState>,
+    market_state: SharedState<MarketState<DB>>,
 ) -> Result<()> {
     info!("Verifying state {address:?}");
     let account = market_state.write().await.state_db.load_account(address).cloned()?;
-    let read_only_cell_hash_set = market_state.read().await.read_only_cells.get(&address).cloned().unwrap_or_default();
+    let read_only_cell_hash_set = market_state.read().await.config.read_only_cells.get(&address).cloned().unwrap_or_default();
 
     for (cell, current_value) in account.storage.iter() {
         if read_only_cell_hash_set.contains(cell) {
@@ -52,13 +54,17 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
     Ok(())
 }
 
-pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Ethereum> + Clone + 'static>(
+pub async fn state_health_monitor_worker<
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Clone + 'static,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
+>(
     client: P,
-    market_state: SharedState<MarketState>,
-    tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
+    market_state: SharedState<MarketState<DB>>,
+    tx_compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
+    let mut tx_compose_channel_rx: Receiver<MessageTxCompose<DB>> = tx_compose_channel_rx.subscribe().await;
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
     let mut check_time_map: HashMap<Address, DateTime<Local>> = HashMap::new();
@@ -88,7 +94,7 @@ pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Et
             },
 
             msg = tx_compose_channel_rx.recv() => {
-                let tx_compose_update : Result<MessageTxCompose, RecvError>  = msg;
+                let tx_compose_update : Result<MessageTxCompose<DB>, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
                         if let TxCompose::Broadcast(broadcast_data)= tx_compose_msg.inner {
@@ -111,32 +117,34 @@ pub async fn state_health_monitor_worker<T: Transport + Clone, P: Provider<T, Et
                 }
 
             }
+
         }
     }
 }
 
 #[derive(Accessor, Consumer)]
-pub struct StateHealthMonitorActor<P, T> {
+pub struct StateHealthMonitorActor<P, T, DB: Clone + Send + Sync + 'static> {
     client: P,
     #[accessor]
-    market_state: Option<SharedState<MarketState>>,
+    market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
-    tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
+    tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     _t: PhantomData<T>,
 }
 
-impl<P, T> StateHealthMonitorActor<P, T>
+impl<P, T, DB> StateHealthMonitorActor<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         StateHealthMonitorActor { client, market_state: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
         Self {
             market_state: Some(bc.market_state()),
             tx_compose_channel_rx: Some(bc.compose_channel()),
@@ -146,10 +154,11 @@ where
     }
 }
 
-impl<P, T> Actor for StateHealthMonitorActor<P, T>
+impl<P, T, DB> Actor for StateHealthMonitorActor<P, T, DB>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_health_monitor_worker(

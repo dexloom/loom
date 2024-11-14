@@ -13,7 +13,7 @@ macro_rules! run_async {
     ($fx:expr) => {
         match $fx.await {
             Ok(_) => {}
-            Err(e) => error!("{}, {:?}", e, e),
+            Err(e) => error!("ERROR_RUNNING_ASYNC"),
         }
     };
 }

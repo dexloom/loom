@@ -50,5 +50,8 @@ alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-transport.workspace = true
 
+#revm
+revm.workspace = true
+
 [features]
 db-access = ["dep:loom-node-db-access"]

@@ -5,16 +5,18 @@ use axum::{
 };
 
 use crate::dto::block::{BlockHeader, WebSocketMessage};
+use eyre::ErrReport;
 use loom_rpc_state::AppState;
 use loom_types_blockchain::ChainParameters;
+use revm::DatabaseRef;
 use std::net::SocketAddr;
 use tracing::{error, warn};
 
 /// Handle websocket upgrade
-pub async fn ws_handler(
+pub async fn ws_handler<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static>(
     ws: WebSocketUpgrade,
     ConnectInfo(addr): ConnectInfo<SocketAddr>,
-    State(app_state): State<AppState>,
+    State(app_state): State<AppState<DB>>,
 ) -> impl IntoResponse {
     ws.on_failed_upgrade(move |e| {
         warn!("ws upgrade error: {} with {}", e, addr);
@@ -23,7 +25,7 @@ pub async fn ws_handler(
 }
 
 /// Actual websocket statemachine (one will be spawned per connection)
-async fn on_upgrade(mut socket: WebSocket, _who: SocketAddr, app_state: AppState) {
+async fn on_upgrade<DB: DatabaseRef + Send + Sync + Clone + 'static>(mut socket: WebSocket, _who: SocketAddr, app_state: AppState<DB>) {
     let mut receiver = app_state.bc.new_block_headers_channel().subscribe().await;
 
     while let Ok(header) = receiver.recv().await {

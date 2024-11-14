@@ -21,6 +21,7 @@ loom-defi-market.workspace = true
 loom-defi-pools.workspace = true
 loom-defi-preloader.workspace = true
 loom-defi-price.workspace = true
+loom-evm-db.workspace = true
 loom-execution-estimator.workspace = true
 loom-execution-multicaller.workspace = true
 loom-node-actor-config.workspace = true

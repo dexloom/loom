@@ -1,19 +1,31 @@
 use crate::required_state::RequiredState;
 use crate::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol};
+use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
-use eyre::ErrReport;
+use alloy_provider::Provider;
+use alloy_rpc_types::BlockNumberOrTag;
+use alloy_transport::Transport;
 use eyre::Result;
+use eyre::{eyre, ErrReport};
+use loom_evm_db::{AlloyDB, LoomDBType};
 use revm::primitives::Env;
 use revm::DatabaseRef;
+use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct MockPool {
+pub struct MockPoolGeneric<P, T> {
+    pub(crate) client: P,
     pub(crate) token0: Address,
     pub(crate) token1: Address,
     pub(crate) address: Address,
+    _t: PhantomData<T>,
 }
 
-impl Pool for MockPool {
+impl<P, T> Pool for MockPoolGeneric<P, T>
+where
+    T: Transport + Clone,
+    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+{
     fn get_class(&self) -> PoolClass {
         PoolClass::UniswapV2
     }
@@ -42,6 +54,9 @@ impl Pool for MockPool {
         token_address_to: &Address,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
+        let alloy_db = AlloyDB::new(self.client.clone(), BlockNumberOrTag::Latest.into()).ok_or(eyre!("ALLOY_DB_NOT_CREATED"))?;
+        let state = LoomDBType::new().with_ext_db(alloy_db);
+
         panic!("Not implemented")
     }
 
