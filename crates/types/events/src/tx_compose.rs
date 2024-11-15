@@ -1,7 +1,5 @@
-use alloy_consensus::TxEnvelope;
-use alloy_primitives::private::alloy_rlp;
+use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, BlockNumber, Bytes, TxHash, U256};
-use alloy_rlp::Encodable;
 use alloy_rpc_types::{Transaction, TransactionRequest};
 use eyre::{eyre, Result};
 use loom_types_blockchain::GethStateUpdateVec;
@@ -22,12 +20,7 @@ pub enum TxState {
 impl TxState {
     pub fn rlp(&self) -> Result<Bytes> {
         match self {
-            TxState::Stuffing(t) => {
-                let mut r: Vec<u8> = Vec::new();
-                let tenv: TxEnvelope = t.clone().try_into()?;
-                tenv.encode(&mut r);
-                Ok(Bytes::from(r))
-            }
+            TxState::Stuffing(t) => Ok(Bytes::from(t.clone().inner.encoded_2718())),
             TxState::ReadyForBroadcast(t) | TxState::ReadyForBroadcastStuffing(t) => Ok(t.clone()),
             _ => Err(eyre!("NOT_READY_FOR_BROADCAST")),
         }

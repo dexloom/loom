@@ -1,6 +1,4 @@
-use std::marker::PhantomData;
-use std::time::Duration;
-
+use alloy_consensus::Transaction;
 use alloy_eips::{BlockId, BlockNumberOrTag};
 use alloy_network::Network;
 use alloy_primitives::{Address, Log, U256};
@@ -15,6 +13,8 @@ use loom_defi_abi::IERC20::IERC20Events;
 use loom_types_entities::{AccountNonceAndBalanceState, LatestBlock};
 use loom_types_events::MarketEvents;
 use revm::DatabaseRef;
+use std::marker::PhantomData;
+use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::time::sleep;
 use tracing::debug;
@@ -80,18 +80,18 @@ pub async fn nonce_and_balance_monitor_worker(
                                         let tx_from : Address = tx.from;
                                         if accounts_lock.is_monitored(&tx_from) {
                                             if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&tx_from) {
-                                                let spent = (tx.max_fee_per_gas.unwrap() + tx.max_priority_fee_per_gas.unwrap()) * tx.gas as u128 + tx.value.to::<u128>();
+                                                let spent = (tx.max_fee_per_gas() + tx.max_priority_fee_per_gas().unwrap()) * tx.gas_limit() as u128 + tx.value().to::<u128>();
                                                 let value = U256::from(spent);
-                                                account.sub_balance(Address::ZERO, value).set_nonce(tx.nonce+1);
-                                                debug!("Account {} : sub ETH balance {} -> {} nonce {}", tx_from, value, account.get_eth_balance(), tx.nonce+1);
+                                                account.sub_balance(Address::ZERO, value).set_nonce(tx.nonce()+1);
+                                                debug!("Account {} : sub ETH balance {} -> {} nonce {}", tx_from, value, account.get_eth_balance(), tx.nonce()+1);
                                             }
                                         }
 
-                                        if let Some(to )  = tx.to {
+                                        if let Some(to )  = tx.to() {
                                             if accounts_lock.is_monitored(&to) {
                                                 if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&to) {
-                                                    account.add_balance(Address::ZERO, tx.value);
-                                                    debug!("Account {} : add ETH balance {} -> {}", to, tx.value, account.get_eth_balance());
+                                                    account.add_balance(Address::ZERO, tx.value());
+                                                    debug!("Account {} : add ETH balance {} -> {}", to, tx.value(), account.get_eth_balance());
                                                 }
                                             }
                                         }

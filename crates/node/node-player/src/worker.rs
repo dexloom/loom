@@ -34,7 +34,7 @@ where
 {
     for _ in RangeInclusive::new(start_block, end_block) {
         let curblock_number = provider.client().transport().fetch_next_block().await?;
-        let block = provider.get_block_by_number(curblock_number.into(), false).await?;
+        let block = provider.get_block_by_number(curblock_number.into(), BlockTransactionsKind::Hashes).await?;
 
         if let Some(block) = block {
             let block_header = block.header.clone();

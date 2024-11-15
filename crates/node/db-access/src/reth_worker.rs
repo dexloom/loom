@@ -1,4 +1,4 @@
-use alloy_eips::BlockNumHash;
+use alloy_eips::{BlockHashOrNumber, BlockNumHash};
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, BlockHash, B256};
 use alloy_provider::Provider;
@@ -13,7 +13,7 @@ use reth_db::{open_db_read_only, ClientVersion, DatabaseEnv};
 use reth_node_ethereum::EthereumNode;
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_primitives::revm_primitives::db::DatabaseRef;
-use reth_primitives::{BlockHashOrNumber, BlockWithSenders};
+use reth_primitives::BlockWithSenders;
 use reth_provider::providers::StaticFileProvider;
 use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider, StateProvider, StorageReader, TransactionVariant};
 use std::collections::{BTreeMap, HashMap};
@@ -63,11 +63,11 @@ where
     loop {
         tokio::select! {
         block_msg = stream.next() => {
-            let Some(block) = block_msg else {
+            let Some(block_header) = block_msg else {
                     continue
             };
-            let block_number = block.header.number;
-            let block_hash = block.header.hash;
+            let block_number = block_header.number;
+            let block_hash = block_header.hash;
                     info!("Block hash received: {:?}" , block_hash);
 
                     let db_provider = factory.provider()?;
@@ -89,7 +89,7 @@ where
                     }
 
                         if let Some(block_headers_channel) = &new_block_headers_channel {
-                            if let Err(e) = block_headers_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new( block.header.clone()))).await {
+                            if let Err(e) = block_headers_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new( block_header.clone()))).await {
                                 error!("Block header broadcaster error {}", e);
                             }
                         };
@@ -104,7 +104,7 @@ where
                                         debug!("block_with_senders_reth : txs {}", block_with_senders_reth.body.transactions.len());
 
                                         //convert RETH->RPCx
-                                        let block_with_senders_rpc = reth_rpc_types_compat::block::from_block_with_tx_hashes::<Transaction>(block_with_senders_reth, block.header.total_difficulty.unwrap_or_default(), Some(block.header.hash));
+                                        let block_with_senders_rpc = reth_rpc_types_compat::block::from_block_with_tx_hashes::<Transaction>(block_with_senders_reth, block_header.total_difficulty.unwrap_or_default(), Some(block_header.hash));
 
                                         let txs = BlockTransactions::Full(block_with_senders_rpc.transactions.clone().into_transactions().collect());
                                         // remove OtherFields
@@ -112,7 +112,6 @@ where
                                             transactions: txs,
                                             header: block_with_senders_rpc.header,
                                             uncles: block_with_senders_rpc.uncles,
-                                            size : block_with_senders_rpc.size,
                                             withdrawals : block_with_senders_rpc.withdrawals,
                                         };
 
@@ -148,7 +147,7 @@ where
                                                         trace!("logs {block_number} {block_hash} : {logs:?}");
 
                                                         let logs_update = BlockLogs {
-                                                            block_header : block.header.clone(),
+                                                            block_header : block_header.clone(),
                                                             logs
                                                         };
 
@@ -224,7 +223,7 @@ where
 
 
                             let state_update = BlockStateUpdate {
-                                block_header : block.header.clone(),
+                                block_header : block_header.clone(),
                                 state_update: vec![account_btree],
                             };
 

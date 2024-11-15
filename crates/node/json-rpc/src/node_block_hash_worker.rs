@@ -4,7 +4,7 @@ use alloy_network::Ethereum;
 use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_pubsub::PubSubConnect;
-use alloy_rpc_types::{Block, Header};
+use alloy_rpc_types::Header;
 use alloy_transport::Transport;
 use chrono::Utc;
 use eyre::Result;
@@ -24,12 +24,12 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
 
     loop {
         tokio::select! {
-            block = stream.next() => {
-                if let Some(block) = block {
-                    info!("Block hash received: {:?}" , block.header.hash );
-                    if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block.header.hash) {
+            header = stream.next() => {
+                if let Some(header) = header {
+                    info!("Block hash received: {:?}" , header);
+                    if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(header.hash) {
                         e.insert(Utc::now());
-                        run_async!(sender.send(block.header));
+                        run_async!(sender.send(header));
                         block_processed.retain(|_, &mut v| v > Utc::now() - chrono::TimeDelta::minutes(10) );
                     }
                 }
@@ -58,15 +58,14 @@ where
         tokio::select! {
             block_msg = stream.next() => {
                 if let Some(block_header) = block_msg {
-                    let block : Block = block_header;
-                    let block_hash = block.header.hash;
+                    let block_hash = block_header.hash;
                     info!("Block hash received: {:?}" , block_hash);
                     if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block_hash) {
                         e.insert(Utc::now());
-                        if let Err(e) =  new_block_header_channel.send(block.header.clone()).await {
+                        if let Err(e) =  new_block_header_channel.send(block_header.clone()).await {
                             error!("Block hash broadcaster error  {}", e);
                         }
-                        if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(block.header))).await {
+                        if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(block_header))).await {
                             error!("Block header broadcaster error {}", e);
                         }
                     }

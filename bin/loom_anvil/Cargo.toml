@@ -1,6 +1,6 @@
 [package]
 name = "loom_anvil"
-version = "0.2.0"
+version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -28,6 +28,7 @@ alloy-node-bindings.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-rpc-types.workspace = true
+alloy-rpc-types-eth.workspace = true
 alloy-rpc-types-trace.workspace = true
 alloy-transport-http.workspace = true
 alloy-transport-ipc.workspace = true

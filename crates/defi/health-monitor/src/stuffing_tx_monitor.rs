@@ -1,4 +1,4 @@
-use alloy_network::Ethereum;
+use alloy_network::{Ethereum, TransactionResponse};
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
@@ -70,17 +70,17 @@ pub async fn stuffing_tx_monitor_worker<
                             let coinbase =  latest_block.read().await.coinbase().unwrap_or_default();
                             if let Some(txs) = latest_block.read().await.txs().cloned() {
                                 for (idx, tx) in txs.iter().enumerate() {
-                                    let tx_hash = tx.hash;
+                                    let tx_hash = tx.tx_hash();
                                     if let Some(tx_to_check) = txs_to_check.get(&tx_hash).cloned(){
-                                        info!("Stuffing tx found mined {:?} block: {} -> {} idx: {} profit: {} tips: {} token: {} to: {:?} {}", tx.hash, tx_to_check.block, block_number, idx, NWETH::to_float(tx_to_check.profit), NWETH::to_float(tx_to_check.tips), tx_to_check.token_in.get_symbol(), tx.to.unwrap_or_default(), tx_to_check.swap );
+                                        info!("Stuffing tx found mined {:?} block: {} -> {} idx: {} profit: {} tips: {} token: {} to: {:?} {}", tx.tx_hash(), tx_to_check.block, block_number, idx, NWETH::to_float(tx_to_check.profit), NWETH::to_float(tx_to_check.tips), tx_to_check.token_in.get_symbol(), tx.to().unwrap_or_default(), tx_to_check.swap );
                                         if idx < txs.len() - 1 {
                                             let mf_tx = &txs[idx+1];
-                                            info!("Stuffing tx mined {:?} MF tx: {:?} to: {:?}", tx.hash, mf_tx.hash, mf_tx.to.unwrap_or_default() );
+                                            info!("Stuffing tx mined {:?} MF tx: {:?} to: {:?}", tx.tx_hash(), mf_tx.tx_hash(), mf_tx.to().unwrap_or_default() );
                                             tokio::task::spawn(
-                                                check_mf_tx(client.clone(), mf_tx.hash, coinbase)
+                                                check_mf_tx(client.clone(), mf_tx.tx_hash(), coinbase)
                                             );
                                         }
-                                        txs_to_check.remove::<TxHash>(&tx.hash);
+                                        txs_to_check.remove::<TxHash>(&tx.tx_hash());
                                     }
                                 }
                             }

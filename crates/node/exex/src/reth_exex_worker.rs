@@ -35,7 +35,13 @@ async fn process_chain(
 ) -> eyre::Result<()> {
     if config.block_header {
         for sealed_header in chain.headers() {
-            let header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_header);
+            //let header = TryInto::<alloy_SealedHeader>::reth_rpc_types_compat::block::from_primitive_with_hash(sealed_header);
+            let header = alloy_rpc_types::Header {
+                hash: sealed_header.hash(),
+                inner: sealed_header.header().clone(),
+                total_difficulty: None,
+                size: None,
+            };
             if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(header))).await {
                 error!(error=?e.to_string(), "block_header_channel.send")
             }
@@ -60,10 +66,9 @@ async fn process_chain(
             ) {
                 Ok(block) => {
                     let block: Block = Block {
-                        transactions: BlockTransactions::Full(block.transactions.into_transactions().map(|t| t.inner).collect()),
+                        transactions: BlockTransactions::Full(block.transactions.into_transactions().collect()),
                         header: block.header,
                         uncles: block.uncles,
-                        size: block.size,
                         withdrawals: block.withdrawals,
                     };
 
@@ -85,7 +90,13 @@ async fn process_chain(
 
             append_all_matching_block_logs_sealed(&mut logs, block_hash_num, receipts, false, sealed_block)?;
 
-            let block_header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_block.header.clone());
+            let sealed_header = sealed_block.header.clone();
+            let block_header = alloy_rpc_types::Header {
+                hash: sealed_header.hash(),
+                inner: sealed_header.header().clone(),
+                total_difficulty: Some(sealed_header.difficulty),
+                size: Some(U256::from(sealed_header.size())),
+            };
 
             let log_update = BlockLogs { block_header: block_header.clone(), logs };
 
@@ -116,7 +127,13 @@ async fn process_chain(
                         account_state.storage.insert((*key).into(), storage_slot.present_value.into());
                     }
                 }
-                let block_header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_block.header.clone());
+                let sealed_header = sealed_block.header.clone();
+                let block_header = alloy_rpc_types::Header {
+                    hash: sealed_header.hash(),
+                    inner: sealed_header.header().clone(),
+                    total_difficulty: Some(sealed_header.difficulty),
+                    size: Some(U256::from(sealed_header.size())),
+                };
 
                 let block_state_update = BlockStateUpdate { block_header: block_header.clone(), state_update: vec![state_update] };
 
@@ -199,7 +216,7 @@ where
                 if let Some(tx_notification) = tx_notification {
                     let recovered_tx = tx_notification.transaction.to_recovered_transaction();
                     let tx_hash: TxHash = recovered_tx.hash;
-                    let tx : alloy_rpc_types_eth::Transaction = reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(recovered_tx,&EthTxBuilder).inner;
+                    let Ok(tx)  = reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(recovered_tx,&EthTxBuilder) else {continue};
                     let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, "exex".to_string());
                     if let Err(e) =  mempool_tx.send(update_msg).await {
                         error!(error=?e.to_string(), "mempool_tx.send");

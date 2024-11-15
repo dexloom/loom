@@ -149,10 +149,9 @@ where
         ..TransactionRequest::default()
     };
 
-    let encoded_txes: Result<Vec<TxEnvelope>, _> =
-        estimate_request.stuffing_txs.iter().map(|item| TxEnvelope::try_from(item.clone())).collect();
+    let encoded_txes: Vec<TxEnvelope> = estimate_request.stuffing_txs.iter().map(|item| TxEnvelope::from(item.clone())).collect();
 
-    let stuffing_txs_rlp: Vec<Bytes> = encoded_txes?.into_iter().map(|x| Bytes::from(x.encoded_2718())).collect();
+    let stuffing_txs_rlp: Vec<Bytes> = encoded_txes.into_iter().map(|x| Bytes::from(x.encoded_2718())).collect();
 
     let mut tx_with_state: Vec<TxState> = stuffing_txs_rlp.into_iter().map(TxState::ReadyForBroadcastStuffing).collect();
 

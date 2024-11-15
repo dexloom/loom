@@ -9,6 +9,7 @@ use crate::anvilprovider::convert_u64;
 use crate::httpcached::HttpCachedTransport;
 use alloy::eips::BlockId;
 use alloy::primitives::{Address, StorageValue};
+use alloy::rpc::types::BlockTransactionsKind;
 use alloy::{
     network::Ethereum,
     primitives::{BlockNumber, Bytes, U256, U64},
@@ -109,13 +110,13 @@ where
     fn get_block_by_number<'life0, 'async_trait>(
         &'life0 self,
         number: BlockNumberOrTag,
-        hydrate: bool,
+        tx_kind: BlockTransactionsKind,
     ) -> Pin<Box<dyn Future<Output = TransportResult<Option<Block>>> + Send + 'async_trait>>
     where
         'life0: 'async_trait,
         Self: 'async_trait,
     {
-        self.provider.get_block_by_number(number, hydrate)
+        self.provider.get_block_by_number(number, tx_kind)
     }
 
     async fn get_filter_changes<R: RpcReturn>(&self, id: U256) -> TransportResult<Vec<R>> {

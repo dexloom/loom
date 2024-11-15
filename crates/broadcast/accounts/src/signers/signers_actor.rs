@@ -1,5 +1,4 @@
-use alloy_consensus::TxEnvelope;
-use alloy_rlp::Encodable;
+use alloy_eips::eip2718::Encodable2718;
 use eyre::{eyre, Result};
 use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
@@ -29,18 +28,7 @@ async fn sign_task<DB: Send + Sync + Clone>(
         .unwrap()
         .iter()
         .map(|tx_request| match &tx_request {
-            TxState::Stuffing(t) => {
-                let typed_tx: Result<TxEnvelope, _> = t.clone().try_into();
-
-                match typed_tx {
-                    Ok(typed_tx) => {
-                        let mut v: Vec<u8> = Vec::new();
-                        typed_tx.encode(&mut v);
-                        RlpState::Stuffing(v.into())
-                    }
-                    _ => RlpState::None,
-                }
-            }
+            TxState::Stuffing(t) => RlpState::Stuffing(t.inner.encoded_2718().into()),
             TxState::SignatureRequired(t) => {
                 let (tx_hash, signed_tx_bytes) = signer.sign_sync(t.clone()).unwrap();
                 info!("Tx signed {tx_hash:?}");

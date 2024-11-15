@@ -10,6 +10,7 @@ mod test {
     use tracing::error;
 
     use alloy_eips::BlockNumberOrTag;
+    use alloy_network::primitives::BlockTransactionsKind;
     use alloy_node_bindings::Anvil;
     use alloy_primitives::{Address, B256, U256};
     use alloy_provider::ext::AnvilApi;
@@ -78,7 +79,7 @@ mod test {
         T: Transport + Send + Sync + Clone + 'static,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     {
-        let block = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+        let block = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
         let filter = Filter::new().at_block_hash(block.header.hash);
 
         let logs = provider.get_logs(&filter).await?;
@@ -132,12 +133,12 @@ mod test {
         broadcast_latest_block(provider.clone(), &bc, None).await?; // broadcast 1#0
 
         provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 2#0
-        let block_2_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+        let block_2_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
 
         broadcast_latest_block(provider.clone(), &bc, None).await?; // broadcast 2#0
 
         provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 3#0
-        let block_3_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+        let block_3_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
 
         provider.anvil_revert(snap).await?;
         provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 1#1
@@ -151,7 +152,7 @@ mod test {
         assert_eq!(bc.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(2));
 
         provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 2#1
-        let block_2_1 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+        let block_2_1 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
 
         broadcast_latest_block(provider.clone(), &bc, None).await?; // broadcast 2#1, chain_head must change
 

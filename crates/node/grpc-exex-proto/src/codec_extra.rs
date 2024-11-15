@@ -46,7 +46,7 @@ impl TryFrom<proto::SealedHeader> for reth::primitives::SealedHeader {
     type Error = eyre::Error;
 
     fn try_from(sealed_header: proto::SealedHeader) -> Result<Self, Self::Error> {
-        let header = sealed_header.header.as_ref().ok_or_eyre("no header")?.try_into()?;
-        Ok(reth::primitives::SealedHeader::new(header, BlockHash::try_from(sealed_header.hash.as_slice())?))
+        let header = sealed_header.header.as_ref().ok_or_eyre("no header")?;
+        Ok(reth::primitives::SealedHeader::new(header.try_into()?, BlockHash::try_from(sealed_header.hash.as_slice())?))
     }
 }

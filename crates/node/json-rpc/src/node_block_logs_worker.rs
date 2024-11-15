@@ -1,4 +1,4 @@
-use alloy_network::{HeaderResponse, Network};
+use alloy_network::{primitives::HeaderResponse, Network};
 use std::time::Duration;
 
 use alloy_provider::Provider;

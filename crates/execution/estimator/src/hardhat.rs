@@ -72,8 +72,8 @@ async fn estimator_worker<DB: DatabaseRef + Send + Sync + Clone>(
                                         return Err(eyre!("TOO_SMALL_PROFIT"));
                                     }
 
-                                    let enveloped_txs : Result<Vec<TxEnvelope>,_>= estimate_request.stuffing_txs.iter().map(|item| item.clone().try_into()).collect();
-                                    let stuffing_txs_rlp : Vec<Bytes> = enveloped_txs?.into_iter().map(|x| Bytes::from(x.encoded_2718()) ).collect();
+                                    let enveloped_txs : Vec<TxEnvelope>= estimate_request.stuffing_txs.iter().map(|item| item.clone().into()).collect();
+                                    let stuffing_txs_rlp : Vec<Bytes> = enveloped_txs.into_iter().map(|x| Bytes::from(x.encoded_2718()) ).collect();
 
                                     let mut tx_with_state: Vec<TxState> = stuffing_txs_rlp.into_iter().map(TxState::ReadyForBroadcastStuffing).collect();
 

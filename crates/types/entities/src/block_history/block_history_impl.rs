@@ -482,14 +482,22 @@ mod test {
         let hash: BlockHash = (U256::try_from(parent.hash).unwrap() * U256::from(256) + U256::from(number + child_id)).try_into().unwrap();
         let number = parent.number + 1;
 
-        Header { hash, parent_hash: parent.hash, number, ..Default::default() }
+        let consensus_header = alloy_consensus::Header { parent_hash: parent.hash, number, ..Default::default() };
+
+        Header { hash, inner: consensus_header, total_difficulty: None, size: None }
+    }
+
+    fn create_header(number: BlockNumber, hash: BlockHash) -> Header {
+        let consensus_header = alloy_consensus::Header { number, ..Default::default() };
+
+        Header { hash, inner: consensus_header, total_difficulty: None, size: None }
     }
 
     #[test]
     fn test_add_block_header() {
         let mut block_history = BlockHistory::<LoomDBType>::new(10);
 
-        let header_1_0 = Header { number: 1, hash: U256::from(1).into(), ..Default::default() };
+        let header_1_0 = create_header(1, U256::from(1).into());
         let header_2_0 = create_next_header(&header_1_0, 0);
         let header_3_0 = create_next_header(&header_2_0, 0);
 
@@ -506,7 +514,7 @@ mod test {
     fn test_add_missed_header() {
         let mut block_history = BlockHistory::<LoomDBType>::new(10);
 
-        let header_1_0 = Header { number: 1, hash: U256::from(1).into(), ..Default::default() };
+        let header_1_0 = create_header(1, U256::from(1).into());
         let header_2_0 = create_next_header(&header_1_0, 0);
         let header_2_1 = create_next_header(&header_1_0, 1);
         let header_3_0 = create_next_header(&header_2_0, 0);
@@ -525,7 +533,7 @@ mod test {
     fn test_add_reorged_header() {
         let mut block_history = BlockHistory::<LoomDBType>::new(10);
 
-        let header_1_0 = Header { number: 1, hash: U256::from(1).into(), ..Default::default() };
+        let header_1_0 = create_header(1, U256::from(1).into());
         let header_2_0 = create_next_header(&header_1_0, 0);
         let header_2_1 = create_next_header(&header_1_0, 1);
         let header_3_0 = create_next_header(&header_2_0, 0);
@@ -556,7 +564,7 @@ mod test {
 
         let block_number_0 = provider.get_block_number().await?;
 
-        let block_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+        let block_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
 
         let market_state = Arc::new(RwLock::new(MarketState::new(LoomDBType::default())));
 
@@ -569,7 +577,7 @@ mod test {
         provider.anvil_mine(Some(U256::from(1)), None).await?;
 
         let block_number_2 = provider.get_block_number().await?;
-        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
 
         assert_eq!(block_number_2, block_number_0 + 1);
         assert_eq!(block_2.header.parent_hash, block_0.header.hash);
@@ -588,7 +596,7 @@ mod test {
 
         provider.revert(snap.to()).await?;
         let block_number_2 = provider.get_block_number().await?;
-        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest, true).await?.unwrap();
+        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
 
         assert_eq!(block_number_2, block_number_0);
         assert_eq!(block_2.header.hash, block_0.header.hash);

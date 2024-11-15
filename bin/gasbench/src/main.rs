@@ -1,7 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
-use std::env;
-use std::sync::Arc;
-
+use alloy_network::primitives::BlockTransactionsKind;
 use alloy_primitives::{Address, BlockNumber, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockNumberOrTag, TransactionInput, TransactionRequest};
@@ -10,6 +7,9 @@ use colored::*;
 use eyre::{OptionExt, Result};
 use revm::primitives::Env;
 use serde::{Deserialize, Serialize};
+use std::collections::{BTreeMap, HashMap};
+use std::env;
+use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
 use tracing::{error, info};
@@ -53,7 +53,8 @@ async fn main() -> Result<()> {
 
     let client = AnvilDebugProviderFactory::from_node_on_block(node_url, BlockNumber::from(block_number)).await?;
 
-    let block_header = client.get_block_by_number(BlockNumberOrTag::Number(block_number), false).await?.unwrap().header;
+    let block_header =
+        client.get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Hashes).await?.unwrap().header;
 
     let operator_address = Address::repeat_byte(0x12);
     let multicaller_address = Address::repeat_byte(0x78);

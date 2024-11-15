@@ -1,8 +1,6 @@
 use alloy::eips::BlockId;
-use alloy::providers::{
-    network::{BlockResponse, HeaderResponse},
-    Network, Provider,
-};
+use alloy::network::primitives::{BlockTransactionsKind, HeaderResponse};
+use alloy::providers::{network::BlockResponse, Network, Provider};
 use alloy::transports::Transport;
 use eyre::ErrReport;
 use revm::{
@@ -143,7 +141,7 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> DatabaseRef for AlloyD
         let block = self.block_on(
             self.provider
                 // SAFETY: We know number <= u64::MAX, so we can safely convert it to u64
-                .get_block_by_number(number.into(), false),
+                .get_block_by_number(number.into(), BlockTransactionsKind::Hashes),
         )?;
         // SAFETY: If the number is given, the block is supposed to be finalized, so unwrapping is safe.
         Ok(B256::new(*block.unwrap().header().hash()))

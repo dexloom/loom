@@ -1,6 +1,6 @@
 use alloy_consensus::constants::{EIP1559_TX_TYPE_ID, EIP2930_TX_TYPE_ID, EIP4844_TX_TYPE_ID, LEGACY_TX_TYPE_ID};
 use alloy_eips::BlockNumberOrTag;
-use alloy_network::{Network, TransactionBuilder};
+use alloy_network::{Network, TransactionBuilder, TransactionResponse};
 use alloy_primitives::{Address, BlockNumber, TxHash, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::state::StateOverride;
@@ -148,8 +148,8 @@ where
             merged_state_update_vec.push(post);
         }
         Err(e) => {
-            mempool.write().await.set_failed(tx.hash);
-            debug!("debug_trace_call error for cur_block_number={}, hash={:?}, err={}", cur_block_number, tx.hash, e);
+            mempool.write().await.set_failed(tx.tx_hash());
+            debug!("debug_trace_call error for cur_block_number={}, hash={:?}, err={}", cur_block_number, tx.tx_hash(), e);
         }
     }
 
