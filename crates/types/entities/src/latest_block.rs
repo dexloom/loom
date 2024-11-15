@@ -1,3 +1,4 @@
+use alloy_consensus::BlockHeader;
 use alloy_primitives::map::B256HashMap;
 use alloy_primitives::{Address, BlockHash, BlockNumber, B256};
 use alloy_rpc_types::state::{AccountOverride, StateOverride};
@@ -63,7 +64,7 @@ impl LatestBlock {
 
     pub fn coinbase(&self) -> Option<Address> {
         if let Some(block) = &self.block_with_txs {
-            return Some(block.header.miner);
+            return Some(block.header.beneficiary());
         }
         None
     }

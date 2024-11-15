@@ -45,7 +45,7 @@ async fn block_latency_worker(
         // check if we received twice the same block number
         if last_block_number == block_header.inner.header.number {
             // check that we have not received the same block hash
-            if last_block_hash != block_header.header.hash {
+            if last_block_hash != block_header.inner.header.hash_slow() {
                 let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "reorg_detected")
                     .add_field("block_number", block_header.inner.header.number);
                 if let Err(e) = influx_channel_tx.send(write_query).await {
@@ -55,7 +55,7 @@ async fn block_latency_worker(
         }
 
         last_block_number = block_header.inner.header.number;
-        last_block_hash = block_header.header.hash;
+        last_block_hash = block_header.header.hash_slow();
     }
 }
 

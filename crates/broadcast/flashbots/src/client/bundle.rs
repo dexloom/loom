@@ -2,9 +2,10 @@ use std::fmt::{Display, Formatter};
 
 use alloy_consensus::TxEnvelope;
 use alloy_network::eip2718::Encodable2718;
+use alloy_network::TransactionResponse;
 use alloy_primitives::{keccak256, Address, Bytes, TxHash, U256, U64};
 use alloy_rpc_types::{AccessList, Log, Transaction};
-use eyre::{eyre, Result};
+use eyre::Result;
 use serde::ser::Error as SerdeError;
 use serde::{Deserialize, Serialize, Serializer};
 
@@ -97,10 +98,7 @@ where
         .map(|tx| match tx {
             BundleTransaction::Signed(inner) => {
                 let tx = inner.as_ref().clone();
-                match TryInto::<TxEnvelope>::try_into(tx) {
-                    Ok(x) => Ok(Bytes::from(x.encoded_2718())),
-                    Err(_) => Err(eyre!("CONVERSION_ERROR")),
-                }
+                Ok(Bytes::from(tx.inner.encoded_2718()))
             }
             BundleTransaction::Raw(inner) => Ok(inner.clone()),
         })
@@ -144,7 +142,7 @@ impl BundleRequest {
         self.transactions.push(tx.clone());
 
         let tx_hash: TxHash = match tx {
-            BundleTransaction::Signed(inner) => inner.hash,
+            BundleTransaction::Signed(inner) => inner.tx_hash(),
             BundleTransaction::Raw(inner) => keccak256(inner),
         };
         self.revertible_transaction_hashes.push(tx_hash);
@@ -164,7 +162,7 @@ impl BundleRequest {
         self.transactions.push(tx.clone());
 
         let tx_hash: TxHash = match tx {
-            BundleTransaction::Signed(inner) => inner.hash,
+            BundleTransaction::Signed(inner) => inner.tx_hash(),
             BundleTransaction::Raw(inner) => keccak256(inner),
         };
         self.revertible_transaction_hashes.push(tx_hash);

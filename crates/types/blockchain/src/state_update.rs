@@ -185,6 +185,7 @@ mod test {
     use super::*;
     use alloy_primitives::map::B256HashMap;
     use alloy_primitives::{B256, U256};
+    use alloy_provider::network::primitives::BlockTransactionsKind;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::{ClientBuilder, WsConnect};
     use alloy_rpc_types::state::{AccountOverride, StateOverride};
@@ -204,7 +205,7 @@ mod test {
         let client = ProviderBuilder::new().on_client(client).boxed();
 
         let blocknumber = client.get_block_number().await?;
-        let _block = client.get_block_by_number(blocknumber.into(), false).await?.unwrap();
+        let _block = client.get_block_by_number(blocknumber.into(), BlockTransactionsKind::Hashes).await?.unwrap();
 
         let _ret = debug_trace_block(client, BlockId::Number(blocknumber.into()), true).await?;
 

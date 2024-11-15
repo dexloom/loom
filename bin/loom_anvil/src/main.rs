@@ -3,10 +3,11 @@ use std::fmt::{Display, Formatter};
 use std::process::exit;
 use std::time::Duration;
 
+use alloy_provider::network::TransactionResponse;
+
 use crate::flashbots_mock::mount_flashbots_mock;
 use crate::flashbots_mock::BundleRequest;
 use crate::test_config::TestConfig;
-use alloy_consensus::TxEnvelope;
 use alloy_primitives::{address, TxHash, U256};
 use alloy_provider::network::eip2718::Encodable2718;
 use alloy_provider::Provider;
@@ -547,29 +548,28 @@ async fn main() -> Result<()> {
             };
 
             let from = tx.from;
-            let to = tx.to.unwrap_or_default();
-            if let Ok(tx_env) = TryInto::<TxEnvelope>::try_into(tx.clone()) {
-                match tx_config.send.to_lowercase().as_str() {
-                    "mempool" => {
-                        let mut mempool_guard = mempool_instance.write().await;
-                        let tx_hash: TxHash = tx.hash;
+            let to = tx.to().unwrap_or_default();
 
-                        mempool_guard.add_tx(tx.clone());
-                        if let Err(e) = mempool_events_channel.send(MempoolEvents::MempoolActualTxUpdate { tx_hash }).await {
-                            error!("{e}");
-                        }
+            match tx_config.send.to_lowercase().as_str() {
+                "mempool" => {
+                    let mut mempool_guard = mempool_instance.write().await;
+                    let tx_hash: TxHash = tx.tx_hash();
+
+                    mempool_guard.add_tx(tx.clone());
+                    if let Err(e) = mempool_events_channel.send(MempoolEvents::MempoolActualTxUpdate { tx_hash }).await {
+                        error!("{e}");
                     }
-                    "block" => match client_clone.send_raw_transaction(tx_env.encoded_2718().as_slice()).await {
-                        Ok(p) => {
-                            debug!("Transaction sent {}", p.tx_hash());
-                        }
-                        Err(e) => {
-                            error!("Error sending transaction : {e}");
-                        }
-                    },
-                    _ => {
-                        debug!("Incorrect action {} for : hash {} from {} to {}  ", tx_config.send, tx_env.tx_hash(), from, to);
+                }
+                "block" => match client_clone.send_raw_transaction(tx.inner.encoded_2718().as_slice()).await {
+                    Ok(p) => {
+                        debug!("Transaction sent {}", p.tx_hash());
                     }
+                    Err(e) => {
+                        error!("Error sending transaction : {e}");
+                    }
+                },
+                _ => {
+                    debug!("Incorrect action {} for : hash {} from {} to {}  ", tx_config.send, tx.tx_hash(), from, to);
                 }
             }
         }

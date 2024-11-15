@@ -417,6 +417,7 @@ impl AbiSwapEncoder for MaverickAbiSwapEncoder {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloy_provider::network::primitives::BlockTransactionsKind;
     use alloy_rpc_types::BlockNumberOrTag;
     use loom_defi_abi::maverick::IMaverickQuoter::IMaverickQuoterInstance;
     use loom_evm_db::LoomDBType;
@@ -448,7 +449,7 @@ mod tests {
         market_state.state_db.apply_geth_update(state_required);
 
         let block_number = client.get_block_number().await?;
-        let block = client.get_block_by_number(BlockNumberOrTag::Number(block_number), false).await?.unwrap();
+        let block = client.get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Hashes).await?.unwrap();
 
         let evm_env = env_for_block(block.header.number, block.header.timestamp);
 

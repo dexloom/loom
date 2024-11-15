@@ -1,4 +1,4 @@
-use alloy_network::{Ethereum, HeaderResponse};
+use alloy_network::{primitives::HeaderResponse, Ethereum};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockTransactionsKind, Header};
 use alloy_transport::Transport;

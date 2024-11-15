@@ -4,7 +4,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use alloy_eips::BlockNumberOrTag;
-use alloy_network::Network;
+use alloy_network::{Network, TransactionResponse};
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::state::StateOverride;
@@ -97,7 +97,7 @@ where
     for tx in stuffing_txes.into_iter() {
         let client_clone = client.clone(); //Pin::new(Box::new(client.clone()));
         let tx_clone = tx.clone();
-        let tx_hash: TxHash = tx.hash;
+        let tx_hash: TxHash = tx.tx_hash();
         let call_opts_clone = call_opts.clone();
 
         let lock = prestate_guard
@@ -154,10 +154,10 @@ where
 
             match evm_transact(&mut evm) {
                 Ok(_c) => {
-                    trace!("Transaction {} committed successfully {:?}", idx, tx.hash);
+                    trace!("Transaction {} committed successfully {:?}", idx, tx.tx_hash());
                 }
                 Err(e) => {
-                    error!("Transaction {} {:?} commit error: {}", idx, tx.hash, e);
+                    error!("Transaction {} {:?} commit error: {}", idx, tx.tx_hash(), e);
                     match changing {
                         Some(changing_idx) => {
                             if (changing_idx == idx && idx == 0) || (changing_idx == idx - 1) {
@@ -206,7 +206,7 @@ where
             match swap_line.optimize_with_in_amount(&db, env.clone(), amount_in) {
                 Ok(_r) => {
                     let encode_request = MessageTxCompose::route(TxComposeData {
-                        stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.hash).collect(),
+                        stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.tx_hash()).collect(),
                         stuffing_txs: tx_order.iter().map(|i| stuffing_states[*i].0.clone()).collect(),
                         swap: Swap::BackrunSwapLine(swap_line.clone()),
                         origin: Some("samepath_merger".to_string()),

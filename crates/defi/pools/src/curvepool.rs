@@ -513,6 +513,7 @@ mod tests {
     use eyre::Result;
 
     use alloy_primitives::U256;
+    use alloy_provider::network::primitives::BlockTransactionsKind;
     use alloy_provider::Provider;
     use alloy_rpc_types::BlockNumberOrTag;
     use env_logger::Env as EnvLog;
@@ -553,7 +554,8 @@ mod tests {
                 market_state.state_db.storage_len()
             );
 
-            let block_header = client.get_block_by_number(BlockNumberOrTag::Latest, false).await.unwrap().unwrap().header;
+            let block_header =
+                client.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes).await.unwrap().unwrap().header;
             debug!("Block {} {}", block_header.number, block_header.timestamp);
 
             let mut evm_env = revm::primitives::Env::default();

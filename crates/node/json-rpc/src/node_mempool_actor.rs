@@ -1,6 +1,6 @@
 use std::marker::PhantomData;
 
-use alloy_network::Ethereum;
+use alloy_network::{Ethereum, TransactionResponse};
 use alloy_primitives::TxHash;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
@@ -24,7 +24,7 @@ where
     let mut stream = mempool_subscription.into_stream();
 
     while let Some(tx) = stream.next().await {
-        let tx_hash: TxHash = tx.hash;
+        let tx_hash: TxHash = tx.tx_hash();
         let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(
             NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } },
             name.clone(),

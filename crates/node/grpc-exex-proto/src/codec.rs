@@ -1,9 +1,8 @@
-use std::sync::Arc;
-
-use alloy_primitives::{Address, BlockHash, Bloom, TxHash, B256, B64, U256};
-use eyre::OptionExt;
-
 use crate::proto;
+use alloy_consensus::Header;
+use alloy_primitives::{Address, BlockHash, Bloom, PrimitiveSignature, TxHash, B256, B64, U256};
+use eyre::{eyre, OptionExt};
+use std::sync::Arc;
 
 impl TryFrom<&reth_exex::ExExNotification> for proto::ExExNotification {
     type Error = eyre::Error;
@@ -89,8 +88,8 @@ impl TryFrom<&reth::providers::Chain> for proto::Chain {
     }
 }
 
-impl From<&reth::primitives::Header> for proto::Header {
-    fn from(header: &reth::primitives::Header) -> Self {
+impl From<&Header> for proto::Header {
+    fn from(header: &Header) -> Self {
         proto::Header {
             parent_hash: header.parent_hash.to_vec(),
             ommers_hash: header.ommers_hash.to_vec(),
@@ -116,7 +115,6 @@ impl From<&reth::primitives::Header> for proto::Header {
         }
     }
 }
-
 impl TryFrom<&reth::primitives::TransactionSigned> for proto::Transaction {
     type Error = eyre::Error;
 
@@ -125,7 +123,7 @@ impl TryFrom<&reth::primitives::TransactionSigned> for proto::Transaction {
         let signature = proto::Signature {
             r: transaction.signature.r().to_le_bytes_vec(),
             s: transaction.signature.s().to_le_bytes_vec(),
-            y_parity: transaction.signature.v().y_parity(),
+            y_parity: transaction.signature.v(),
         };
         let transaction = match &transaction.transaction {
             reth::primitives::Transaction::Legacy(alloy_consensus::TxLegacy {
@@ -221,36 +219,41 @@ impl TryFrom<&reth::primitives::TransactionSigned> for proto::Transaction {
                 access_list,
                 authorization_list,
                 input,
-            }) => proto::transaction::Transaction::Eip7702(proto::TransactionEip7702 {
-                chain_id: *chain_id,
-                nonce: *nonce,
-                gas_limit: gas_limit.to_le_bytes().to_vec(),
-                max_fee_per_gas: max_fee_per_gas.to_le_bytes().to_vec(),
-                max_priority_fee_per_gas: max_priority_fee_per_gas.to_le_bytes().to_vec(),
-                to: to.to_vec(),
-                value: value.to_le_bytes_vec(),
-                access_list: access_list.iter().map(Into::into).collect(),
-                authorization_list: authorization_list
+            }) => {
+                // Map over the authorization_list and collect into a Result<Vec<_>, _>
+                let authorization_list: Vec<proto::AuthorizationListItem> = authorization_list
                     .iter()
-                    .map(|authorization| proto::AuthorizationListItem {
-                        authorization: Some(proto::Authorization {
-                            chain_id: authorization.chain_id(),
-                            address: authorization.address().to_vec(),
-                            nonce: authorization.nonce(),
-                        }),
-                        signature: if let Ok(signature) = authorization.signature() {
-                            Some(proto::Signature {
+                    .map(|authorization| -> Result<proto::AuthorizationListItem, eyre::Error> {
+                        let signature = authorization.signature().map_err(|_| eyre!("signature missing"))?;
+
+                        Ok(proto::AuthorizationListItem {
+                            authorization: Some(proto::Authorization {
+                                chain_id: authorization.chain_id(),
+                                address: authorization.address().to_vec(),
+                                nonce: authorization.nonce(),
+                            }),
+                            signature: Some(proto::Signature {
                                 r: signature.r().to_le_bytes_vec(),
                                 s: signature.s().to_le_bytes_vec(),
-                                y_parity: signature.v().y_parity(),
-                            })
-                        } else {
-                            None
-                        },
+                                y_parity: signature.v(),
+                            }),
+                        })
                     })
-                    .collect(),
-                input: input.to_vec(),
-            }),
+                    .collect::<Result<Vec<_>, _>>()?;
+
+                proto::transaction::Transaction::Eip7702(proto::TransactionEip7702 {
+                    chain_id: *chain_id,
+                    nonce: *nonce,
+                    gas_limit: gas_limit.to_le_bytes().to_vec(),
+                    max_fee_per_gas: max_fee_per_gas.to_le_bytes().to_vec(),
+                    max_priority_fee_per_gas: max_priority_fee_per_gas.to_le_bytes().to_vec(),
+                    to: to.to_vec(),
+                    value: value.to_le_bytes_vec(),
+                    access_list: access_list.iter().map(Into::into).collect(),
+                    authorization_list,
+                    input: input.to_vec(),
+                })
+            }
         };
 
         Ok(proto::Transaction { hash, signature: Some(signature), transaction: Some(transaction) })
@@ -515,11 +518,11 @@ impl TryFrom<&proto::Block> for reth::primitives::SealedBlockWithSenders {
     }
 }
 
-impl TryFrom<&proto::Header> for reth::primitives::Header {
+impl TryFrom<&proto::Header> for Header {
     type Error = eyre::Error;
 
     fn try_from(header: &proto::Header) -> Result<Self, Self::Error> {
-        Ok(reth::primitives::Header {
+        Ok(Header {
             parent_hash: B256::try_from(header.parent_hash.as_slice())?,
             ommers_hash: B256::try_from(header.ommers_hash.as_slice())?,
             beneficiary: Address::try_from(header.beneficiary.as_slice())?,
@@ -551,11 +554,11 @@ impl TryFrom<&proto::Transaction> for reth::primitives::TransactionSigned {
     fn try_from(transaction: &proto::Transaction) -> Result<Self, Self::Error> {
         let hash = TxHash::try_from(transaction.hash.as_slice())?;
         let signature = transaction.signature.as_ref().ok_or_eyre("no signature")?;
-        let signature = alloy_primitives::Signature::from_rs_and_parity(
+        let signature = PrimitiveSignature::new(
             U256::try_from_le_slice(signature.r.as_slice()).ok_or_eyre("failed to parse r")?,
             U256::try_from_le_slice(signature.s.as_slice()).ok_or_eyre("failed to parse s")?,
             signature.y_parity,
-        )?;
+        );
         let transaction = match transaction.transaction.as_ref().ok_or_eyre("no transaction")? {
             proto::transaction::Transaction::Legacy(proto::TransactionLegacy {
                 chain_id,
@@ -665,13 +668,6 @@ impl TryFrom<&proto::Transaction> for reth::primitives::TransactionSigned {
                 authorization_list: authorization_list
                     .iter()
                     .map(|authorization| {
-                        let signature = authorization.signature.as_ref().ok_or_eyre("no signature")?;
-                        let signature = alloy_primitives::Signature::from_rs_and_parity(
-                            U256::try_from_le_slice(signature.r.as_slice()).ok_or_eyre("failed to parse r")?,
-                            U256::try_from_le_slice(signature.s.as_slice()).ok_or_eyre("failed to parse s")?,
-                            signature.y_parity,
-                        )?;
-
                         let authorization = authorization.authorization.as_ref().ok_or_eyre("no authorization")?;
                         Ok(alloy_eips::eip7702::Authorization {
                             chain_id: authorization.chain_id,

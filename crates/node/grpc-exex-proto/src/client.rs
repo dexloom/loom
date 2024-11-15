@@ -1,9 +1,7 @@
-use std::collections::BTreeMap;
-
+use alloy_consensus::BlockHeader;
 use alloy_primitives::{map::HashMap, Address, U256};
 use alloy_rpc_types::{
-    serde_helpers::WithOtherFields,
-    {Block, BlockTransactions, BlockTransactionsKind},
+    Block, {BlockTransactions, BlockTransactionsKind},
 };
 use alloy_rpc_types_trace::geth::AccountState;
 use async_stream::stream;
@@ -15,6 +13,7 @@ use reth::rpc::eth::EthTxBuilder;
 use reth_exex::ExExNotification;
 use reth_primitives::SealedBlockWithSenders;
 use reth_tracing::tracing::error;
+use std::collections::BTreeMap;
 use tokio_stream::Stream;
 use tonic::transport::Channel;
 
@@ -34,7 +33,7 @@ impl ExExClient {
         Ok(ExExClient { client })
     }
 
-    pub async fn subscribe_mempool_tx(&self) -> Result<impl Stream<Item = WithOtherFields<alloy_rpc_types::eth::Transaction>> + '_> {
+    pub async fn subscribe_mempool_tx(&self) -> Result<impl Stream<Item = alloy_rpc_types::eth::Transaction> + '_> {
         let stream = self.client.clone().subscribe_mempool_tx(SubscribeRequest {}).await;
         let mut stream = match stream {
             Ok(stream) => stream.into_inner(),
@@ -51,7 +50,9 @@ impl ExExClient {
                         if let Ok(transaction) = TransactionSigned::try_from(&transaction_proto){
                             if let Some(transaction) = transaction.into_ecrecovered() {
                                 let transaction = reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(transaction, &EthTxBuilder);
-                                yield transaction;
+                                if let Ok(transaction) = transaction {
+                                    yield transaction;
+                                }
                             }
                         }
                     }
@@ -79,10 +80,14 @@ impl ExExClient {
             loop {
                 match stream.message().await {
                     Ok(Some(sealed_header)) => {
-                        if let Ok(header)  = sealed_header.try_into() {
-                            let header = reth_rpc_types_compat::block::from_primitive_with_hash(header);
-                            yield header;
-                        }
+                        let Ok(sealed_header) = TryInto::<SealedHeader>::try_into(sealed_header) else {continue};
+                        let header = alloy_rpc_types::Header {
+                            hash: sealed_header.hash(),
+                            total_difficulty: Some(sealed_header.header().difficulty) ,
+                            size: Some(U256::from(sealed_header.header().size())),
+                            inner : sealed_header.header().clone()};
+                        yield header
+
                     },
                     Ok(None) => {
                         break;
@@ -124,11 +129,12 @@ impl ExExClient {
                                 &EthTxBuilder)
                             {
 
+                                let txes = block.transactions.into_transactions().collect();
+
                                 let block_eth : Block = Block {
                                     header: block.header,
                                     uncles: block.uncles,
-                                    transactions: BlockTransactions::Full(block.transactions.into_transactions().map(|t| t.inner).collect()),
-                                    size: block.size,
+                                    transactions: BlockTransactions::Full(txes),
                                     withdrawals: block.withdrawals
                                 };
 
@@ -161,15 +167,26 @@ impl ExExClient {
                 match stream.message().await {
                     Ok(Some(notification)) => {
                         if let Some(receipts) = notification.receipts {
-                            if let Some(sealed_block) = notification.block {
-                                if let Ok((block_hash, block_header, logvec)) = append_all_matching_block_logs_sealed(
+                            if let Some(block) = notification.block {
+                                let Some(sealed_header) = block.header.clone() else {continue};
+                                let Ok(sealed_header) = TryInto::<SealedHeader>::try_into(sealed_header) else {continue};
+
+
+                                if let Ok( logvec) = append_all_matching_block_logs_sealed(
                                     receipts,
                                     false,
-                                    sealed_block,
+                                    block,
                                 ){
-                                    let header : alloy_rpc_types::Header = reth_rpc_types_compat::block::from_primitive_with_hash(SealedHeader::new(block_header, block_hash));
+                                    let header = alloy_rpc_types::Header {
+                                        hash : sealed_header.hash(),
+                                        inner: sealed_header.header().clone(),
+                                        total_difficulty:Some(sealed_header.difficulty),
+                                        size: Some(U256::from(sealed_header.size())),
+                                        };
                                     yield (header, logvec);
                                 }
+
+
                             }
                         }
 
@@ -199,11 +216,8 @@ impl ExExClient {
                 match stream.message().await {
                     Ok(Some(state_update)) => {
                         if let Some(sealed_header) = state_update.sealed_header {
-                            if let Ok(header)  = sealed_header.try_into() {
-                                let header = reth_rpc_types_compat::block::from_primitive_with_hash(header);
-
+                            if let Ok(sealed_header) = TryInto::<SealedHeader>::try_into(sealed_header) {
                                 if let Some(bundle_proto) = state_update.bundle {
-
                                     if let Ok(bundle_state) = reth::revm::db::BundleState::try_from(&bundle_proto){
                                         let mut state_update : BTreeMap<Address, AccountState> = BTreeMap::new();
 
@@ -226,6 +240,13 @@ impl ExExClient {
                                                     .insert((*key).into(), storage_slot.present_value.into());
                                             }
                                         }
+                                        let header = alloy_rpc_types::Header {
+                                            hash: sealed_header.hash(),
+                                            total_difficulty: Some(sealed_header.difficulty()),
+                                            size: Some(U256::from(sealed_header.size())),
+                                            inner : sealed_header.header().clone()
+                                        };
+
                                         yield (header, state_update);
                                     }
                                 }

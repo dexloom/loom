@@ -1,3 +1,4 @@
+use alloy::consensus::Transaction as TransactionTrait;
 use alloy::primitives::U256;
 use alloy::rpc::types::{Header, Transaction};
 use reth_primitives::revm_primitives::{BlockEnv, Env, TransactTo, TxEnv};
@@ -16,7 +17,7 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> En
         cfg: Default::default(),
         block: BlockEnv {
             number: U256::from(block_header.number),
-            coinbase: block_header.miner,
+            coinbase: block_header.beneficiary,
             timestamp: U256::from(block_header.timestamp),
             gas_limit: U256::from(block_header.gas_limit),
             basefee: U256::from(block_header.base_fee_per_gas.unwrap_or_default()),
@@ -26,15 +27,15 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> En
         },
         tx: TxEnv {
             caller: tx.from,
-            gas_limit: tx.gas,
-            gas_price: U256::from(tx.gas_price.unwrap_or_default()),
-            transact_to: TransactTo::Call(tx.to.unwrap_or_default()),
-            value: tx.value,
-            data: tx.input,
-            nonce: Some(tx.nonce),
-            chain_id: tx.chain_id,
+            gas_limit: tx.gas_limit(),
+            gas_price: U256::from(tx.max_fee_per_gas()),
+            transact_to: TransactTo::Call(tx.to().unwrap_or_default()),
+            value: tx.value(),
+            data: tx.input().clone(),
+            nonce: Some(tx.nonce()),
+            chain_id: tx.chain_id(),
             access_list: Vec::new(),
-            gas_priority_fee: tx.max_priority_fee_per_gas.map(|x| U256::from(x)),
+            gas_priority_fee: tx.max_priority_fee_per_gas().map(|x| U256::from(x)),
             blob_hashes: Vec::new(),
             max_fee_per_blob_gas: None,
             authorization_list: None,

@@ -1,4 +1,5 @@
 use crate::cli::Cli;
+use alloy::network::primitives::BlockTransactionsKind;
 use alloy::primitives::{BlockHash, BlockNumber};
 use alloy::transports::BoxTransport;
 use alloy::{
@@ -386,7 +387,7 @@ async fn main() -> Result<()> {
         let start_time = Local::now();
         for _i in 0u64..10 {
             let block_number = provider.get_block_number().await?;
-            let _ = provider.get_block_by_number(BlockNumberOrTag::Number(block_number), false).await?;
+            let _ = provider.get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Hashes).await?;
         }
         let ping_time = (Local::now() - start_time) / (10 * 2);
         println!("Ping time {idx} : {ping_time}");
@@ -407,7 +408,8 @@ async fn main() -> Result<()> {
 
     for (block_number, _) in stat.block_headers.iter() {
         println!("Getting block {block_number}");
-        let block = first_provider.get_block_by_number(BlockNumberOrTag::Number(*block_number), false).await?.unwrap();
+        let block =
+            first_provider.get_block_by_number(BlockNumberOrTag::Number(*block_number), BlockTransactionsKind::Hashes).await?.unwrap();
 
         calc.total_txs += block.transactions.len();
 

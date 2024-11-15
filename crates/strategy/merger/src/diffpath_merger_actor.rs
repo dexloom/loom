@@ -1,3 +1,4 @@
+use alloy_network::TransactionResponse;
 use alloy_primitives::{Address, TxHash};
 use alloy_rpc_types::Transaction;
 use eyre::{OptionExt, Result};
@@ -99,8 +100,8 @@ where
 
                                     for req in merge_list.iter() {
                                         for tx in req.stuffing_txs.iter() {
-                                            if !stuffing_txs_hashes.contains(&tx.hash) {
-                                                stuffing_txs_hashes.push(tx.hash);
+                                            if !stuffing_txs_hashes.contains(&tx.tx_hash()) {
+                                                stuffing_txs_hashes.push(tx.tx_hash());
                                                 stuffing_txs.push(tx.clone());
                                             }
                                         }

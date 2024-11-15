@@ -478,7 +478,7 @@ mod test {
             let total_supply = weth.totalSupply().call().await.unwrap();
             debug!("Total supply : {}", total_supply._0);
 
-            let block_by_number = provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?.unwrap();
+            let block_by_number = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes).await?.unwrap();
             let block_by_hash = provider.get_block_by_hash(block_by_number.header.hash, BlockTransactionsKind::Full).await?.unwrap();
             assert_eq!(block_by_hash.header, block_by_number.header);
 

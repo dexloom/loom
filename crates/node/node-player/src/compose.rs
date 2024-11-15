@@ -22,7 +22,7 @@ pub(crate) async fn replayer_compose_worker<DB: Clone + Send + Sync>(
                                 RlpState::Backrun( rlp_tx) | RlpState::Stuffing( rlp_tx)=>{
                                     match decode_into_transaction( &rlp_tx ) {
                                         Ok(new_tx)=>{
-                                            mempool.write().await.add_tx(new_tx.inner);
+                                            mempool.write().await.add_tx(new_tx);
                                         }
                                         Err(e)=>{
                                             error!("decode_into_transaction {}", e);

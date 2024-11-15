@@ -1,3 +1,4 @@
+use alloy_consensus::Transaction as _;
 use alloy_primitives::BlockNumber;
 use alloy_rpc_types::BlockTransactions;
 use chrono::{Duration, Utc};
@@ -65,10 +66,8 @@ pub async fn new_mempool_worker(
                         if mempool_entry.tx.is_none() {
                             mempool_entry.tx = Some(tx.clone());
                             if let Some(cur_gas_price) = current_gas_price {
-                                if let Some(tx_gas_price) = if tx.max_fee_per_gas.is_some() {tx.max_fee_per_gas} else{ tx.gas_price } {
-                                    if tx.gas > 30000 && tx_gas_price >= cur_gas_price && mempool_guard.is_valid_tx(tx) {
-                                        run_async!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate {tx_hash }));
-                                    }
+                                if tx.gas_limit() > 30000 && tx.max_fee_per_gas() >= cur_gas_price && mempool_guard.is_valid_tx(tx) {
+                                    run_async!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate {tx_hash }));
                                 }
                             }
                             run_async!(broadcaster.send(MempoolEvents::MempoolTxUpdate {tx_hash }));
@@ -106,16 +105,16 @@ pub async fn new_mempool_worker(
                     let ok_txes = mempool_read_guard.filter_ok_by_gas_price(next_base_fee as u128);
                     debug!("Mempool gas update {} {}", next_base_fee, ok_txes.len());
                     for mempool_tx in ok_txes {
-                        let tx  = mempool_tx.tx.clone().unwrap();
-                        if tx.gas  < 50000 {
+                        let tx = mempool_tx.tx.clone().unwrap();
+                        if tx.gas_limit()  < 50000 {
                             continue
                         }
                         if mempool_read_guard.is_valid_tx(&tx) {
-                            let tx_hash = tx.hash;
+                            let tx_hash = *tx.inner.tx_hash();
                             trace!("new tx ok {:?}", tx_hash);
                             run_async!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate { tx_hash }));
                         } else{
-                           trace!("new tx gas change tx not valid {:?}", tx.hash);
+                           trace!("new tx gas change tx not valid {:?}", tx.inner.tx_hash());
                         }
                     }
                     drop(mempool_read_guard);
@@ -157,8 +156,8 @@ pub async fn new_mempool_worker(
                     if let BlockTransactions::Full(txs) = block_with_txs.transactions {
                         for tx in txs.iter() {
                             mempool_write_guard
-                                .set_mined(tx.hash, block_with_txs.header.number)
-                                .set_nonce(tx.from, tx.nonce);
+                                .set_mined(*tx.inner.tx_hash(), block_with_txs.header.number)
+                                .set_nonce(tx.from, tx.nonce());
                         }
 
                     }

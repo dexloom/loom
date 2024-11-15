@@ -2,7 +2,6 @@ use std::sync::Arc;
 
 use alloy_eips::BlockNumHash;
 use alloy_primitives::{map::HashMap, Address, U256};
-use alloy_rpc_types::serde_helpers::WithOtherFields;
 use alloy_rpc_types::{Block, BlockTransactionsKind, Header, Transaction};
 use chrono::Utc;
 use futures::{pin_mut, StreamExt};
@@ -27,12 +26,23 @@ use loom_types_events::{
 async fn process_chain_task(
     chain: Arc<Chain>,
     block_header_channel: Broadcaster<Header>,
-    block_with_tx_channel: Broadcaster<Block<WithOtherFields<Transaction>>>,
+    block_with_tx_channel: Broadcaster<Block<Transaction>>,
     logs_channel: Broadcaster<BlockLogs>,
     state_update_channel: Broadcaster<BlockStateUpdate>,
 ) -> eyre::Result<()> {
     for sealed_header in chain.headers() {
-        let header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_header);
+        //let Ok(sealed_header) = TryInto::<reth::primitives::SealedHeader>::try_into(sealed_header.header().clone()) else { continue };
+        //let Ok(sealed_header) = TryInto::<Sealed>
+
+        let header = sealed_header.header().clone();
+
+        let header = alloy_rpc_types::Header {
+            hash: sealed_header.hash(),
+            total_difficulty: Some(sealed_header.difficulty),
+            size: Some(U256::from(sealed_header.size())),
+            inner: header,
+        };
+
         if let Err(e) = block_header_channel.send(header).await {
             error!("block_header_channel.send error: {}", e)
         }
@@ -43,7 +53,7 @@ async fn process_chain_task(
         let hash = sealed_block.hash();
 
         let block_hash_num = BlockNumHash { number, hash };
-        let block_header = reth_rpc_types_compat::block::from_primitive_with_hash(sealed_block.header.clone());
+        let block_consensus_header = sealed_block.header().clone();
 
         info!("Processing block block_number={} block_hash={}", block_hash_num.number, block_hash_num.hash);
         match reth_rpc_types_compat::block::from_block::<EthTxBuilder>(
@@ -68,6 +78,13 @@ async fn process_chain_task(
         let receipts = receipts.iter().filter_map(|r| r.clone()).collect();
 
         append_all_matching_block_logs_sealed(&mut logs, block_hash_num, receipts, false, sealed_block)?;
+
+        let block_header = Header {
+            hash: block_consensus_header.hash_slow(),
+            total_difficulty: Some(block_consensus_header.difficulty),
+            size: Some(U256::from(block_consensus_header.size())),
+            inner: block_consensus_header.clone(),
+        };
 
         let log_update = BlockLogs { block_header: block_header.clone(), logs };
 
@@ -96,7 +113,7 @@ async fn process_chain_task(
                 }
             }
 
-            let block_state_update = BlockStateUpdate { block_header: block_header.clone(), state_update: vec![state_update] };
+            let block_state_update = BlockStateUpdate { block_header, state_update: vec![state_update] };
 
             if let Err(e) = state_update_channel.send(block_state_update).await {
                 error!("state_update_channel.send error : {}", e)
@@ -152,25 +169,11 @@ pub async fn node_exex_grpc_worker(
 
     loop {
         select! {
-            /*notification = stream_exex.next() => {
-                if let Some(notification) = notification {
-                    if let Some(chain) = get_current_chain(notification){
-                        tokio::task::spawn(process_chain_task(
-                            chain,
-                            block_header_channel.clone(),
-                            block_with_tx_channel.clone(),
-                            logs_channel.clone(),
-                            state_update_channel.clone()
-                        ));
-                    }
-                }
-            },
 
-             */
             header = stream_header.next() => {
                 if let Some(header) = header {
                     if let Err(e) = block_header_channel.send(
-                            MessageBlockHeader::new_with_time(BlockHeader::new( header))).await
+                        MessageBlockHeader::new_with_time(BlockHeader::new( header))).await
                     {
                         error!("block_header_channel.send error : {}", e)
                     }
@@ -213,13 +216,13 @@ pub async fn node_exex_grpc_worker(
             }
             pending_tx = stream_tx.next() => {
                 if let Some(tx) = pending_tx {
-                    let tx_hash = tx.hash;
+                    let tx_hash = *tx.inner.tx_hash();
 
                     let mempool_tx = MempoolTx{
                         source: "exex".to_string(),
                         tx_hash,
                         time: Utc::now(),
-                        tx: Some(tx.inner),
+                        tx: Some(tx),
                         logs: None,
                         mined: None,
                         failed: None,

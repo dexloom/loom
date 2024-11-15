@@ -1,7 +1,8 @@
 use crate::{AccountNonceAndTransactions, FetchState, GethStateUpdate, MempoolTx};
+use alloy_consensus::Transaction as TransactionTrait;
 use alloy_primitives::{Address, BlockNumber, TxHash};
 use alloy_provider::network::TransactionResponse;
-use alloy_rpc_types::{Log, Transaction};
+use alloy_rpc_types_eth::{Log, Transaction};
 use chrono::{DateTime, Utc};
 use eyre::{eyre, Result};
 use std::collections::hash_map::Entry;
@@ -53,8 +54,7 @@ impl Mempool {
         self.txs
             .values()
             .filter(|&item| {
-                item.mined.is_none()
-                    && item.tx.clone().map_or_else(|| false, |i| i.max_fee_per_gas.unwrap_or(i.gas_price.unwrap_or_default()) >= gas_price)
+                item.mined.is_none() && item.tx.clone().map_or_else(|| false, |i| TransactionTrait::max_fee_per_gas(&i) >= gas_price)
             })
             .collect()
     }
@@ -65,7 +65,7 @@ impl Mempool {
             .filter(|&item| {
                 item.mined.is_none()
                     && !item.failed.unwrap_or(false)
-                    && item.tx.clone().map_or_else(|| false, |i| i.max_fee_per_gas.unwrap_or(i.gas_price.unwrap_or_default()) >= gas_price)
+                    && item.tx.clone().map_or_else(|| false, |i| TransactionTrait::max_fee_per_gas(&i) >= gas_price)
             })
             .collect()
     }
@@ -122,7 +122,7 @@ impl Mempool {
     }
 
     pub fn is_valid_tx(&self, tx: &Transaction) -> bool {
-        self.accounts.get(&tx.from).map_or_else(|| true, |acc| acc.nonce.map_or_else(|| true, |nonce| tx.nonce == nonce + 1))
+        self.accounts.get(&tx.from).map_or_else(|| true, |acc| acc.nonce.map_or_else(|| true, |nonce| tx.nonce() == nonce + 1))
     }
 
     pub fn get_tx_by_hash(&self, tx_hash: &TxHash) -> Option<&MempoolTx> {

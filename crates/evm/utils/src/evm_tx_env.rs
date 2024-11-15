@@ -1,3 +1,4 @@
+use alloy::consensus::Transaction as TransactionTrait;
 use alloy::consensus::{TxEip4844Variant, TxEnvelope};
 use alloy::primitives::private::alloy_rlp;
 use alloy::primitives::{Bytes, SignatureError, TxKind, U256};
@@ -123,20 +124,20 @@ pub fn env_from_signed_tx(rpl_bytes: Bytes) -> Result<TxEnv, EnvError> {
 
 pub fn tx_to_evm_tx(tx: &Transaction) -> TxEnv {
     TxEnv {
-        transact_to: match tx.to {
+        transact_to: match tx.to() {
             Some(to) => TxKind::Call(to),
             None => TxKind::Create,
         },
-        nonce: Some(tx.nonce),
-        chain_id: tx.chain_id,
-        data: tx.input.clone(),
-        value: tx.value,
+        nonce: Some(tx.nonce()),
+        chain_id: tx.chain_id(),
+        data: tx.input().clone(),
+        value: tx.value(),
         caller: tx.from,
-        gas_limit: tx.gas,
+        gas_limit: tx.gas_limit(),
 
         // support type 1 and 2
-        gas_price: U256::from(tx.max_fee_per_gas.unwrap_or(tx.gas_price.unwrap_or_default())),
-        gas_priority_fee: Some(U256::from(tx.max_priority_fee_per_gas.unwrap_or_default())),
+        gas_price: U256::from(tx.max_fee_per_gas()),
+        gas_priority_fee: Some(U256::from(tx.max_priority_fee_per_gas().unwrap_or_default())),
 
         // Not used in loom context
         blob_hashes: vec![],

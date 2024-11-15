@@ -10,7 +10,7 @@ use alloy::{
     rpc::{
         client::{NoParams, WsConnect},
         types::trace::geth::{GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, TraceResult},
-        types::{BlockNumberOrTag, TransactionRequest},
+        types::{BlockNumberOrTag, BlockTransactionsKind, TransactionRequest},
     },
     transports::{BoxTransport, Transport, TransportResult},
 };
@@ -56,7 +56,7 @@ impl AnvilDebugProviderFactory {
 
         let anvil_provider = ProviderBuilder::new().on_ws(anvil_ws).await?.boxed();
 
-        let curblock = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
+        let curblock = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes).await?;
 
         match curblock {
             Some(curblock) => {
@@ -79,7 +79,7 @@ impl AnvilDebugProviderFactory {
             _n: PhantomData::<Ethereum>,
         };
 
-        let curblock = ret._anvil.get_block_by_number(BlockNumberOrTag::Latest, false).await?;
+        let curblock = ret._anvil.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes).await?;
 
         match curblock {
             Some(curblock) => {

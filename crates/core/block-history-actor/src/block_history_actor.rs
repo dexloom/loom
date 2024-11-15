@@ -104,7 +104,7 @@ where
                         let mut block_history_guard = block_history.write().await;
                         let mut latest_block_guard = latest_block.write().await;
 
-                        debug!("Block Header, Update {} {}", block_header.header.number, block_header.header.hash);
+                        debug!("Block Header, Update {} {}", block_header.header.number, block_header.header.hash_slow());
 
 
                         set_chain_head(
