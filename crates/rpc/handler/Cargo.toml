@@ -13,7 +13,7 @@ loom-core-actors.workspace = true
 loom-core-actors-macros.workspace = true
 loom-core-blockchain.workspace = true
 loom-evm-db.workspace = true
-loom-evm-utils = { workspace = true, features = ["trace-calls"] }
+loom-evm-utils.workspace = true
 loom-rpc-state.workspace = true
 loom-storage-db.workspace = true
 loom-types-blockchain.workspace = true

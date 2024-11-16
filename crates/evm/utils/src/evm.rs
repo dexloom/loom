@@ -2,8 +2,6 @@ use crate::evm_env::evm_env_from_tx;
 use alloy::eips::BlockNumHash;
 use alloy::primitives::TxHash;
 use alloy::rpc::types::trace::geth::AccountState;
-#[cfg(feature = "trace-calls")]
-use alloy::rpc::types::trace::parity::TraceType;
 use alloy::rpc::types::Log;
 use alloy::{
     primitives::{Address, Bytes, B256, U256},
@@ -12,14 +10,8 @@ use alloy::{
 use eyre::eyre;
 use lazy_static::lazy_static;
 use loom_types_blockchain::GethStateUpdate;
-#[cfg(feature = "trace-calls")]
-use revm::inspector_handle_register;
-#[cfg(feature = "trace-calls")]
-use revm::primitives::HashSet;
 use revm::primitives::{Account, Env, ExecutionResult, HaltReason, Output, ResultAndState, TransactTo, CANCUN};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
-#[cfg(feature = "trace-calls")]
-use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
 use std::collections::BTreeMap;
 use thiserror::Error;
 use tracing::{debug, error};
@@ -40,6 +32,15 @@ pub enum EvmError {
     Halted(HaltReason, u64),
 }
 
+fn parse_execution_result(execution_result: ExecutionResult, gas_used: u64) -> eyre::Result<(Vec<u8>, u64)> {
+    match execution_result {
+        ExecutionResult::Success { output: Output::Call(value), .. } => Ok((value.to_vec(), gas_used)),
+        ExecutionResult::Success { output: Output::Create(_bytes, _address), .. } => Ok((vec![], gas_used)),
+        ExecutionResult::Revert { output, gas_used } => Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output), gas_used))),
+        ExecutionResult::Halt { reason, gas_used } => Err(eyre!(EvmError::Halted(reason, gas_used))),
+    }
+}
+
 pub fn evm_call<DB>(state_db: DB, env: Env, transact_to: Address, call_data_vec: Vec<u8>) -> eyre::Result<(Vec<u8>, u64)>
 where
     DB: DatabaseRef,
@@ -48,18 +49,6 @@ where
     env.tx.transact_to = TransactTo::Call(transact_to);
     env.tx.data = Bytes::from(call_data_vec);
 
-    #[cfg(feature = "trace-calls")]
-    let mut evm = Evm::builder()
-        .with_ref_db(state_db)
-        .with_spec_id(CANCUN)
-        .with_env(Box::new(env))
-        .with_external_context(TracingInspector::new(TracingInspectorConfig::from_parity_config(&HashSet::from_iter(vec![
-            TraceType::Trace,
-        ]))))
-        .append_handler_register(inspector_handle_register)
-        .build();
-
-    #[cfg(not(feature = "trace-calls"))]
     let mut evm = Evm::builder().with_spec_id(CANCUN).with_ref_db(state_db).with_env(Box::new(env)).build();
 
     let ref_tx = evm.transact().map_err(|_| EvmError::TransactError)?;
@@ -67,17 +56,7 @@ where
 
     let gas_used = execution_result.gas_used();
 
-    match execution_result {
-        ExecutionResult::Success { output: Output::Call(value), .. } => Ok((value.to_vec(), gas_used)),
-        ExecutionResult::Success { output: Output::Create(_bytes, _address), .. } => Ok((vec![], gas_used)),
-        ExecutionResult::Revert { output, gas_used } => {
-            #[cfg(feature = "trace-calls")]
-            debug!("Revert trace: {:#?}", evm.context.external.into_parity_builder().into_transaction_traces());
-
-            Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output), gas_used)))
-        }
-        ExecutionResult::Halt { reason, gas_used } => Err(eyre!(EvmError::Halted(reason, gas_used))),
-    }
+    parse_execution_result(execution_result, gas_used)
 }
 
 pub fn evm_transact<DB>(evm: &mut Evm<(), DB>) -> eyre::Result<(Vec<u8>, u64)>
@@ -87,12 +66,7 @@ where
     let execution_result = evm.transact_commit().map_err(|_| EvmError::TransactCommitError("COMMIT_ERROR".to_string()))?;
     let gas_used = execution_result.gas_used();
 
-    match execution_result {
-        ExecutionResult::Success { output: Output::Call(value), .. } => Ok((value.to_vec(), gas_used)),
-        ExecutionResult::Success { output: Output::Create(_bytes, _address), .. } => Ok((vec![], gas_used)),
-        ExecutionResult::Revert { output, gas_used } => Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output), gas_used))),
-        ExecutionResult::Halt { reason, gas_used } => Err(eyre!(EvmError::Halted(reason, gas_used))),
-    }
+    parse_execution_result(execution_result, gas_used)
 }
 
 pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &TransactionRequest) -> eyre::Result<(u64, AccessList)> {
@@ -112,18 +86,6 @@ pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &Transactio
 
     env.block.coinbase = *COINBASE;
 
-    #[cfg(feature = "trace-calls")]
-    let mut evm = Evm::builder()
-        .with_ref_db(state_db)
-        .with_spec_id(CANCUN)
-        .with_env(Box::new(env))
-        .with_external_context(TracingInspector::new(TracingInspectorConfig::from_parity_config(&HashSet::from_iter(vec![
-            TraceType::Trace,
-        ]))))
-        .append_handler_register(inspector_handle_register)
-        .build();
-
-    #[cfg(not(feature = "trace-calls"))]
     let mut evm = Evm::builder().with_ref_db(state_db).with_spec_id(CANCUN).with_env(Box::new(env)).build();
 
     let ref_tx = evm.transact().map_err(|_| EvmError::TransactError)?;
@@ -140,12 +102,7 @@ pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &Transactio
 
             Ok((gas_used, acl))
         }
-        ExecutionResult::Revert { output, gas_used } => {
-            #[cfg(feature = "trace-calls")]
-            debug!("Trace: {:#?}", evm.context.external.into_parity_builder().into_transaction_traces());
-
-            Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output), gas_used)))
-        }
+        ExecutionResult::Revert { output, gas_used } => Err(eyre!(EvmError::Reverted(revert_bytes_to_string(&output), gas_used))),
         ExecutionResult::Halt { reason, gas_used } => Err(eyre!(EvmError::Halted(reason, gas_used))),
     }
 }
