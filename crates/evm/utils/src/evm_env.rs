@@ -1,7 +1,7 @@
 use alloy::consensus::Transaction as TransactionTrait;
 use alloy::primitives::U256;
 use alloy::rpc::types::{Header, Transaction};
-use reth_primitives::revm_primitives::{BlockEnv, Env, TransactTo, TxEnv};
+use revm::primitives::{BlockEnv, Env, TransactTo, TxEnv};
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();

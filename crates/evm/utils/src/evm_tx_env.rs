@@ -4,7 +4,7 @@ use alloy::primitives::private::alloy_rlp;
 use alloy::primitives::{Bytes, SignatureError, TxKind, U256};
 use alloy::rlp::Decodable;
 use alloy::rpc::types::Transaction;
-use reth_primitives::revm_primitives::{AuthorizationList, TxEnv};
+use revm::primitives::{AuthorizationList, TxEnv};
 use thiserror::Error;
 
 #[derive(Debug, Error)]

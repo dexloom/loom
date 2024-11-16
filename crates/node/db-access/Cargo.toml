@@ -19,6 +19,7 @@ loom-types-events.workspace = true
 
 chrono.workspace = true
 futures.workspace = true
+revm.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
