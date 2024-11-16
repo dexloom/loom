@@ -3,8 +3,8 @@ use alloy::primitives::map::HashSet;
 use alloy::primitives::{Address, Bytes};
 use alloy::rpc::types::trace::parity::{TraceType, TransactionTrace};
 use eyre::eyre;
-use reth_primitives::revm_primitives::db::{Database, DatabaseCommit, DatabaseRef};
-use reth_primitives::revm_primitives::{Env, ExecutionResult, HaltReason, Output, TransactTo, CANCUN};
+use revm::primitives::db::{Database, DatabaseCommit, DatabaseRef};
+use revm::primitives::{Env, ExecutionResult, HaltReason, Output, TransactTo, CANCUN};
 use revm::{inspector_handle_register, Evm};
 use revm_inspectors::tracing::{TracingInspector, TracingInspectorConfig};
 use thiserror::Error;
@@ -78,4 +78,3 @@ where
 
     parse_execution_result(execution_result, gas_used, tx_trace)
 }
-
