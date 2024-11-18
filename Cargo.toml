@@ -249,29 +249,29 @@ alloy-trie = "0.7.4"
 
 
 # reth
-reth = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a", features = ["asm-keccak"] }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a", features = ["serde"] }
-reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-node-builder = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-node-core = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a", features = ["asm-keccak"] }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-node-types = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a", features = ["asm-keccak"] }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-rpc = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
-reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", rev = "d9ed07a" }
+reth = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08", features = ["asm-keccak"] }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08", features = ["serde"] }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-node-core = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08", features = ["asm-keccak"] }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-node-types = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08", features = ["asm-keccak"] }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-rpc = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", rev = "5056a08" }
 
 [profile.test]
 debug = 1
