@@ -12,22 +12,22 @@ use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Pro
 use loom_core_actors_macros::{Consumer, Producer};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::SwapEncoder;
-use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
+use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose, TxState};
 
 async fn estimator_worker<DB: DatabaseRef + Send + Sync + Clone>(
     swap_encoder: impl SwapEncoder,
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(compose_channel_rx);
 
     loop {
         tokio::select! {
                     msg = compose_channel_rx.recv() => {
-                        let compose_request_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                        let compose_request_msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
                         match compose_request_msg {
                             Ok(compose_request) =>{
-                                if let TxCompose::Estimate(estimate_request) = compose_request.inner {
+                                if let BackrunComposeMessage::Estimate(estimate_request) = compose_request.inner {
                                     info!("Hardhat estimation");
                                     let token_in = estimate_request.swap.get_first_token().cloned().ok_or(eyre!("NO_TOKEN"))?;
 
@@ -79,8 +79,8 @@ async fn estimator_worker<DB: DatabaseRef + Send + Sync + Clone>(
 
                                     tx_with_state.push(TxState::SignatureRequired(tx_request));
 
-                                    let sign_request = MessageTxCompose::sign(
-                                        TxComposeData{
+                                    let sign_request = MessageBackrunTxCompose::sign(
+                                        BackrunComposeData{
                                             tx_bundle : Some(tx_with_state),
                                             ..estimate_request
                                         }
@@ -104,9 +104,9 @@ pub struct HardhatEstimatorActor<P, E, DB: Send + Sync + Clone + 'static> {
     client: P,
     encoder: E,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
 }
 
 impl<P, E, DB> HardhatEstimatorActor<P, E, DB>

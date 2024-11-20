@@ -5,6 +5,7 @@ use eyre::{eyre, Result};
 use tracing::{trace, warn};
 
 use loom_defi_address_book::TokenAddress;
+use loom_types_blockchain::loom_data_types::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 
@@ -24,7 +25,7 @@ impl SwapLineEncoder {
 
     pub fn encode_flash_swap_line_in_amount(
         &self,
-        swap_path: &SwapLine,
+        swap_path: &SwapLine<LoomDataTypesEthereum>,
         inside_swap_opcodes: MulticallerCalls,
         funds_to: Address,
     ) -> Result<MulticallerCalls> {
@@ -246,7 +247,7 @@ impl SwapLineEncoder {
 
     pub fn encode_flash_swap_line_out_amount(
         &self,
-        swap_path: &SwapLine,
+        swap_path: &SwapLine<LoomDataTypesEthereum>,
         inside_swap_opcodes: MulticallerCalls,
         _funds_from: Address,
     ) -> Result<MulticallerCalls> {
@@ -471,7 +472,12 @@ impl SwapLineEncoder {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    pub fn encode_swap_line_in_amount(&self, swap_path: &SwapLine, funds_from: Address, funds_to: Address) -> Result<MulticallerCalls> {
+    pub fn encode_swap_line_in_amount(
+        &self,
+        swap_path: &SwapLine<LoomDataTypesEthereum>,
+        funds_from: Address,
+        funds_to: Address,
+    ) -> Result<MulticallerCalls> {
         let mut swap_opcodes = MulticallerCalls::new();
 
         for i in 0..swap_path.pools().len() {

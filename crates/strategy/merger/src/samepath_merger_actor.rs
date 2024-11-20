@@ -28,16 +28,16 @@ use loom_evm_utils::evm_tx_env::tx_to_evm_tx;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, TRACING_CALL_OPTS};
 use loom_types_entities::{DataFetcher, FetchState, LatestBlock, MarketState, Swap};
-use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
+use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MarketEvents, MessageBackrunTxCompose};
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
 fn get_merge_list<'a, DB: Clone + 'static>(
-    request: &TxComposeData<DB>,
-    swap_paths: &'a HashMap<TxHash, Vec<TxComposeData<DB>>>,
-) -> Vec<&'a TxComposeData<DB>> {
+    request: &BackrunComposeData<DB>,
+    swap_paths: &'a HashMap<TxHash, Vec<BackrunComposeData<DB>>>,
+) -> Vec<&'a BackrunComposeData<DB>> {
     //let mut ret : Vec<&TxComposeData> = Vec::new();
     let swap_line = if let Swap::BackrunSwapLine(swap_line) = &request.swap {
         swap_line
@@ -47,7 +47,7 @@ fn get_merge_list<'a, DB: Clone + 'static>(
 
     let swap_stuffing_hash = request.first_stuffing_hash();
 
-    let mut ret: Vec<&TxComposeData<DB>> = swap_paths
+    let mut ret: Vec<&BackrunComposeData<DB>> = swap_paths
         .iter()
         .filter_map(|(k, v)| {
             if *k != swap_stuffing_hash {
@@ -69,8 +69,8 @@ async fn same_path_merger_task<P, T, N, DB>(
     pre_states: Arc<RwLock<DataFetcher<TxHash, GethStateUpdate>>>,
     market_state: SharedState<MarketState<DB>>,
     call_opts: GethDebugTracingCallOptions,
-    request: TxComposeData<DB>,
-    swap_request_tx: Broadcaster<MessageTxCompose<DB>>,
+    request: BackrunComposeData<DB>,
+    swap_request_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> Result<()>
 where
     N: Network,
@@ -205,7 +205,7 @@ where
             let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
             match swap_line.optimize_with_in_amount(&db, env.clone(), amount_in) {
                 Ok(_r) => {
-                    let encode_request = MessageTxCompose::route(TxComposeData {
+                    let encode_request = MessageBackrunTxCompose::route(BackrunComposeData {
                         stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.tx_hash()).collect(),
                         stuffing_txs: tx_order.iter().map(|i| stuffing_states[*i].0.clone()).collect(),
                         swap: Swap::BackrunSwapLine(swap_line.clone()),
@@ -243,13 +243,13 @@ async fn same_path_merger_worker<
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
     subscribe!(compose_channel_rx);
 
-    let mut swap_paths: HashMap<TxHash, Vec<TxComposeData<DB>>> = HashMap::new();
+    let mut swap_paths: HashMap<TxHash, Vec<BackrunComposeData<DB>>> = HashMap::new();
 
     let prestate = Arc::new(RwLock::new(DataFetcher::<TxHash, GethStateUpdate>::new()));
 
@@ -291,10 +291,10 @@ async fn same_path_merger_worker<
 
 
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(compose_request)=>{
-                        if let TxCompose::Sign(sign_request) = compose_request.inner() {
+                        if let BackrunComposeMessage::Sign(sign_request) = compose_request.inner() {
 
                             if sign_request.stuffing_txs_hashes.len() == 1 {
                                 if let Swap::BackrunSwapLine( _swap_line ) = &sign_request.swap {
@@ -360,9 +360,9 @@ pub struct SamePathMergerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }

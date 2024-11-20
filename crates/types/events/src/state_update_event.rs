@@ -1,6 +1,5 @@
 use std::collections::BTreeMap;
 
-use alloy_primitives::{Address, TxHash};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 
@@ -16,8 +15,8 @@ pub struct StateUpdateEvent<DB, LDT: LoomDataTypes = LoomDataTypesEthereum> {
     market_state: DB,
     state_update: Vec<LDT::StateUpdate>,
     state_required: Option<Vec<LDT::StateUpdate>>,
-    directions: BTreeMap<PoolWrapper, Vec<(Address, Address)>>,
-    pub stuffing_txs_hashes: Vec<TxHash>,
+    directions: BTreeMap<PoolWrapper, Vec<(LDT::Address, LDT::Address)>>,
+    pub stuffing_txs_hashes: Vec<LDT::TxHash>,
     pub stuffing_txs: Vec<LDT::Transaction>,
     pub origin: String,
     pub tips_pct: u32,
@@ -32,8 +31,8 @@ impl<DB: DatabaseRef, LDT: LoomDataTypes> StateUpdateEvent<DB, LDT> {
         market_state: DB,
         state_update: Vec<LDT::StateUpdate>,
         state_required: Option<Vec<LDT::StateUpdate>>,
-        directions: BTreeMap<PoolWrapper, Vec<(Address, Address)>>,
-        stuffing_txs_hashes: Vec<TxHash>,
+        directions: BTreeMap<PoolWrapper, Vec<(LDT::Address, LDT::Address)>>,
+        stuffing_txs_hashes: Vec<LDT::TxHash>,
         stuffing_txs: Vec<LDT::Transaction>,
         origin: String,
         tips_pct: u32,
@@ -57,7 +56,7 @@ impl<DB: DatabaseRef, LDT: LoomDataTypes> StateUpdateEvent<DB, LDT> {
         env_for_block(self.next_block_number, self.next_block_timestamp)
     }
 
-    pub fn directions(&self) -> &BTreeMap<PoolWrapper, Vec<(Address, Address)>> {
+    pub fn directions(&self) -> &BTreeMap<PoolWrapper, Vec<(LDT::Address, LDT::Address)>> {
         &self.directions
     }
 
@@ -77,14 +76,14 @@ impl<DB: DatabaseRef, LDT: LoomDataTypes> StateUpdateEvent<DB, LDT> {
         self.stuffing_txs_hashes.len()
     }
 
-    pub fn stuffing_txs_hashes(&self) -> &Vec<TxHash> {
+    pub fn stuffing_txs_hashes(&self) -> &Vec<LDT::TxHash> {
         &self.stuffing_txs_hashes
     }
     pub fn stuffing_txs(&self) -> &Vec<LDT::Transaction> {
         &self.stuffing_txs
     }
 
-    pub fn stuffing_tx_hash(&self) -> TxHash {
+    pub fn stuffing_tx_hash(&self) -> LDT::TxHash {
         self.stuffing_txs_hashes.first().cloned().unwrap_or_default()
     }
 }

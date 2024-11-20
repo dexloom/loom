@@ -19,17 +19,17 @@ use loom_types_entities::{Swap, SwapEncoder};
 use loom_broadcast_flashbots::Flashbots;
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Consumer, Producer};
-use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
+use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose, TxState};
 
 async fn estimator_task<
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Send + Sync + Clone,
 >(
-    estimate_request: TxComposeData<DB>,
+    estimate_request: BackrunComposeData<DB>,
     client: Arc<Flashbots<P, T>>,
     swap_encoder: impl SwapEncoder,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> Result<()> {
     let token_in = estimate_request.swap.get_first_token().cloned().ok_or(eyre!("NO_TOKEN"))?;
 
@@ -152,7 +152,7 @@ async fn estimator_task<
 
                         let total_tips = tips_vec.into_iter().map(|v| v.tips).sum();
 
-                        let sign_request = MessageTxCompose::sign(TxComposeData {
+                        let sign_request = MessageBackrunTxCompose::sign(BackrunComposeData {
                             gas,
                             tips: Some(total_tips + gas_cost),
                             tx_bundle: Some(tx_with_state),
@@ -206,18 +206,18 @@ async fn estimator_worker<
 >(
     client: Arc<Flashbots<P, T>>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(compose_channel_rx);
 
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let compose_request_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let compose_request_msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
                 match compose_request_msg {
                     Ok(compose_request) =>{
-                        if let TxCompose::Estimate(estimate_request) = compose_request.inner {
+                        if let BackrunComposeMessage::Estimate(estimate_request) = compose_request.inner {
                             let compose_channel_tx_cloned = compose_channel_tx.clone();
                             let client_cloned = client.clone();
                             let encoder_cloned = encoder.clone();
@@ -246,9 +246,9 @@ pub struct GethEstimatorActor<P, T, E, DB: Clone + Send + Sync + 'static> {
     client: Arc<Flashbots<P, T>>,
     encoder: E,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
 }
 
 impl<P, T, E, DB> GethEstimatorActor<P, T, E, DB>

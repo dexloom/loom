@@ -11,13 +11,14 @@ use eyre::{eyre, Result};
 use tracing::{error, trace};
 
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec};
 
 #[derive(Clone, Debug, Default)]
-pub struct RequiredState {
-    calls: Vec<TransactionRequest>,
-    slots: Vec<(Address, U256)>,
-    empty_slots: Vec<(Address, U256)>,
+pub struct RequiredState<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    calls: Vec<LDT::TransactionRequest>,
+    slots: Vec<(LDT::Address, U256)>,
+    empty_slots: Vec<(LDT::Address, U256)>,
 }
 
 impl RequiredState {

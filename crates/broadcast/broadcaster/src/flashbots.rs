@@ -12,10 +12,10 @@ use loom_broadcast_flashbots::Flashbots;
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
-use loom_types_events::{BestTxCompose, MessageTxCompose, RlpState, TxCompose, TxComposeData};
+use loom_types_events::{BackrunComposeData, BackrunComposeMessage, BestTxCompose, MessageBackrunTxCompose, RlpState};
 use revm::DatabaseRef;
 
-async fn broadcast_task<P, T, DB>(broadcast_request: TxComposeData<DB>, client: Arc<Flashbots<P, T>>) -> Result<()>
+async fn broadcast_task<P, T, DB>(broadcast_request: BackrunComposeData<DB>, client: Arc<Flashbots<P, T>>) -> Result<()>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
@@ -45,7 +45,7 @@ where
 async fn flashbots_broadcaster_worker<P, T, DB: Send + Sync + Clone + Default + 'static>(
     client: Arc<Flashbots<P, T>>,
     smart_mode: bool,
-    bundle_rx: Broadcaster<MessageTxCompose<DB>>,
+    bundle_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
     allow_broadcast: bool,
 ) -> WorkerResult
 where
@@ -60,10 +60,10 @@ where
     loop {
         tokio::select! {
             msg = bundle_rx.recv() => {
-                let broadcast_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let broadcast_msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
                 match broadcast_msg {
                     Ok(compose_request) => {
-                        if let TxCompose::Broadcast(broadcast_request)  = compose_request.inner {
+                        if let BackrunComposeMessage::Broadcast(broadcast_request)  = compose_request.inner {
                             if smart_mode {
                                 if current_block < broadcast_request.next_block_number {
                                     current_block = broadcast_request.next_block_number;
@@ -108,7 +108,7 @@ pub struct FlashbotsBroadcastActor<P, T, DB: Clone + Send + Sync + 'static> {
     client: Arc<Flashbots<P, T>>,
     smart: bool,
     #[consumer]
-    tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    tx_compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     allow_broadcast: bool,
 }
 

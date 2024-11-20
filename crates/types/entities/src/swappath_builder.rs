@@ -4,38 +4,39 @@ use std::sync::Arc;
 use crate::{Market, PoolWrapper, SwapPath};
 use alloy_primitives::Address;
 use eyre::Result;
+use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 
-struct SwapPathSet {
-    set: HashSet<SwapPath>,
+struct SwapPathSet<LDT: LoomDataTypes> {
+    set: HashSet<SwapPath<LDT>>,
 }
 
-impl SwapPathSet {
-    pub fn new() -> SwapPathSet {
+impl<LDT: LoomDataTypes> SwapPathSet<LDT> {
+    pub fn new() -> SwapPathSet<LDT> {
         SwapPathSet { set: HashSet::new() }
     }
 
-    pub fn extend(&mut self, path_vec: Vec<SwapPath>) {
+    pub fn extend(&mut self, path_vec: Vec<SwapPath<LDT>>) {
         for path in path_vec {
             self.set.insert(path);
         }
     }
-    pub fn vec(self) -> Vec<SwapPath> {
+    pub fn vec(self) -> Vec<SwapPath<LDT>> {
         self.set.into_iter().collect()
     }
 
-    pub fn arc_vec(self) -> Vec<Arc<SwapPath>> {
+    pub fn arc_vec(self) -> Vec<Arc<SwapPath<LDT>>> {
         self.set.into_iter().map(Arc::new).collect()
     }
 }
 
 // (Basic -> Token1) -> (Token1 -> Basic)
-fn build_swap_path_two_hopes_basic_in(
-    market: &Market,
-    pool: &PoolWrapper,
-    token_from_address: Address,
-    token_to_address: Address,
-) -> Result<Vec<SwapPath>> {
-    let mut ret: Vec<SwapPath> = Vec::new();
+fn build_swap_path_two_hopes_basic_in<LDT: LoomDataTypes>(
+    market: &Market<LDT>,
+    pool: &PoolWrapper<LDT>,
+    token_from_address: LDT::Address,
+    token_to_address: LDT::Address,
+) -> Result<Vec<SwapPath<LDT>>> {
+    let mut ret: Vec<SwapPath<LDT>> = Vec::new();
     let Some(token_token_pools) = market.get_token_token_pools(&token_to_address, &token_from_address) else {
         return Ok(ret);
     };
@@ -48,7 +49,7 @@ fn build_swap_path_two_hopes_basic_in(
         let token_from = market.get_token_or_default(&token_from_address);
         let token_to = market.get_token_or_default(&token_to_address);
 
-        let mut swap_path = SwapPath::new_swap(token_from.clone(), token_to.clone(), pool.clone());
+        let mut swap_path = SwapPath::<LDT>::new_swap(token_from.clone(), token_to.clone(), pool.clone());
         if !swap_path.contains_pool(loop_pool) {
             swap_path.push_swap_hope(token_to, token_from, loop_pool.clone())?;
             ret.push(swap_path)
@@ -57,13 +58,13 @@ fn build_swap_path_two_hopes_basic_in(
     Ok(ret)
 }
 // (Basic -> Token1) -> (Token1 -> Token2) -> (Token2 -> Basic)
-fn build_swap_path_three_hopes_basic_in(
-    market: &Market,
-    pool: &PoolWrapper,
-    token_from_address: Address,
-    token_to_address: Address,
-) -> Result<Vec<SwapPath>> {
-    let mut ret: Vec<SwapPath> = Vec::new();
+fn build_swap_path_three_hopes_basic_in<LDT: LoomDataTypes>(
+    market: &Market<LDT>,
+    pool: &PoolWrapper<LDT>,
+    token_from_address: LDT::Address,
+    token_to_address: LDT::Address,
+) -> Result<Vec<SwapPath<LDT>>> {
+    let mut ret: Vec<SwapPath<LDT>> = Vec::new();
     let Some(token_tokens) = market.get_token_tokens(&token_to_address) else {
         return Ok(ret);
     };
@@ -108,13 +109,13 @@ fn build_swap_path_three_hopes_basic_in(
     Ok(ret)
 }
 // (Basic -> Token) -> (Token -> Token) -> (Token -> Token) -> (Token -> Basic)
-fn build_swap_path_four_hopes_basic_in(
-    market: &Market,
-    pool: &PoolWrapper,
-    token_from_address: Address,
-    token_to_address: Address,
-) -> Result<Vec<SwapPath>> {
-    let mut ret: Vec<SwapPath> = Vec::new();
+fn build_swap_path_four_hopes_basic_in<LDT: LoomDataTypes>(
+    market: &Market<LDT>,
+    pool: &PoolWrapper<LDT>,
+    token_from_address: LDT::Address,
+    token_to_address: LDT::Address,
+) -> Result<Vec<SwapPath<LDT>>> {
+    let mut ret: Vec<SwapPath<LDT>> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_to_address) {
         for token_middle_address in token_tokens.iter() {
             if !market.get_token_or_default(token_middle_address).is_middle() {
@@ -189,13 +190,13 @@ fn build_swap_path_four_hopes_basic_in(
     Ok(ret)
 }
 
-fn build_swap_path_two_hopes_basic_out(
-    market: &Market,
-    pool: &PoolWrapper,
-    token_from_address: Address,
-    token_to_address: Address,
-) -> Result<Vec<SwapPath>> {
-    let mut ret: Vec<SwapPath> = Vec::new();
+fn build_swap_path_two_hopes_basic_out<LDT: LoomDataTypes>(
+    market: &Market<LDT>,
+    pool: &PoolWrapper<LDT>,
+    token_from_address: LDT::Address,
+    token_to_address: LDT::Address,
+) -> Result<Vec<SwapPath<LDT>>> {
+    let mut ret: Vec<SwapPath<LDT>> = Vec::new();
     if let Some(token_token_pools) = market.get_token_token_pools(&token_to_address, &token_from_address) {
         for pool_address in token_token_pools.iter() {
             if !market.is_pool_ok(pool_address) {
@@ -217,13 +218,13 @@ fn build_swap_path_two_hopes_basic_out(
     Ok(ret)
 }
 
-fn build_swap_path_three_hopes_basic_out(
-    market: &Market,
-    pool: &PoolWrapper,
-    token_from_address: Address,
-    token_to_address: Address,
-) -> Result<Vec<SwapPath>> {
-    let mut ret: Vec<SwapPath> = Vec::new();
+fn build_swap_path_three_hopes_basic_out<LDT: LoomDataTypes>(
+    market: &Market<LDT>,
+    pool: &PoolWrapper<LDT>,
+    token_from_address: LDT::Address,
+    token_to_address: LDT::Address,
+) -> Result<Vec<SwapPath<LDT>>> {
+    let mut ret: Vec<SwapPath<LDT>> = Vec::new();
     let Some(token_tokens) = market.get_token_tokens(&token_from_address) else {
         return Ok(vec![]);
     };
@@ -265,13 +266,13 @@ fn build_swap_path_three_hopes_basic_out(
     Ok(ret)
 }
 
-fn build_swap_path_four_hopes_basic_out(
-    market: &Market,
-    pool: &PoolWrapper,
-    token_from_address: Address,
-    token_to_address: Address,
-) -> Result<Vec<SwapPath>> {
-    let mut ret: Vec<SwapPath> = Vec::new();
+fn build_swap_path_four_hopes_basic_out<LDT: LoomDataTypes>(
+    market: &Market<LDT>,
+    pool: &PoolWrapper<LDT>,
+    token_from_address: LDT::Address,
+    token_to_address: LDT::Address,
+) -> Result<Vec<SwapPath<LDT>>> {
+    let mut ret: Vec<SwapPath<LDT>> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_from_address) {
         for token_middle_address in token_tokens.iter() {
             if !market.get_token_or_default(token_middle_address).is_middle() {
@@ -354,13 +355,13 @@ fn build_swap_path_four_hopes_basic_out(
 }
 
 // (Token -> Token) -> (Token -> Token) -> (Token -> Token)
-fn build_swap_path_three_hopes_no_basic(
-    market: &Market,
-    pool: &PoolWrapper,
-    token_from_address: Address,
-    token_to_address: Address,
-) -> Result<Vec<SwapPath>> {
-    let mut ret: Vec<SwapPath> = Vec::new();
+fn build_swap_path_three_hopes_no_basic<LDT: LoomDataTypes>(
+    market: &Market<LDT>,
+    pool: &PoolWrapper<LDT>,
+    token_from_address: LDT::Address,
+    token_to_address: LDT::Address,
+) -> Result<Vec<SwapPath<LDT>>> {
+    let mut ret: Vec<SwapPath<LDT>> = Vec::new();
     if let Some(token_tokens) = market.get_token_tokens(&token_from_address) {
         for token_basic_address in token_tokens.iter() {
             let token_basic = market.get_token_or_default(token_basic_address);
@@ -410,7 +411,10 @@ fn build_swap_path_three_hopes_no_basic(
     Ok(ret)
 }
 
-pub fn build_swap_path_vec(market: &Market, directions: &BTreeMap<PoolWrapper, Vec<(Address, Address)>>) -> Result<Vec<SwapPath>> {
+pub fn build_swap_path_vec<LDT: LoomDataTypes>(
+    market: &Market<LDT>,
+    directions: &BTreeMap<PoolWrapper<LDT>, Vec<(LDT::Address, LDT::Address)>>,
+) -> Result<Vec<SwapPath<LDT>>> {
     let mut ret_map = SwapPathSet::new();
 
     for (pool, directions) in directions.iter() {
@@ -434,7 +438,7 @@ pub fn build_swap_path_vec(market: &Market, directions: &BTreeMap<PoolWrapper, V
             }
 
             if (!market.is_basic_token(&token_from_address) && !market.is_basic_token(&token_to_address))
-                || (!Market::is_weth(&token_from_address) && !Market::is_weth(&token_to_address))
+                || ((token_from_address != LDT::WETH) && (token_to_address != LDT::WETH))
             {
                 ret_map.extend(build_swap_path_three_hopes_no_basic(market, pool, token_from_address, token_to_address)?);
             }

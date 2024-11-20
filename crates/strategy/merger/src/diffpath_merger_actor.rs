@@ -13,17 +13,17 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_evm_utils::NWETH;
 use loom_types_entities::{MarketState, Swap};
-use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
+use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MarketEvents, MessageBackrunTxCompose};
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
 fn get_merge_list<'a, DB: Clone + Send + Sync + 'static>(
-    request: &TxComposeData<DB>,
-    swap_paths: &'a [TxComposeData<DB>],
-) -> Vec<&'a TxComposeData<DB>> {
-    let mut ret: Vec<&TxComposeData<DB>> = Vec::new();
+    request: &BackrunComposeData<DB>,
+    swap_paths: &'a [BackrunComposeData<DB>],
+) -> Vec<&'a BackrunComposeData<DB>> {
+    let mut ret: Vec<&BackrunComposeData<DB>> = Vec::new();
     let mut pools = request.swap.get_pool_address_vec();
     for p in swap_paths.iter() {
         if !p.cross_pools(&pools) {
@@ -36,17 +36,17 @@ fn get_merge_list<'a, DB: Clone + Send + Sync + 'static>(
 
 async fn diff_path_merger_worker<DB>(
     market_events_rx: Broadcaster<MarketEvents>,
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> WorkerResult
 where
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
-    let mut compose_channel_rx: Receiver<MessageTxCompose<DB>> = compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageBackrunTxCompose<DB>> = compose_channel_rx.subscribe().await;
 
-    let mut swap_paths: Vec<TxComposeData<DB>> = Vec::new();
+    let mut swap_paths: Vec<BackrunComposeData<DB>> = Vec::new();
 
     loop {
         tokio::select! {
@@ -76,10 +76,10 @@ where
 
 
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(compose_request)=>{
-                        if let TxCompose::Sign(sign_request) = compose_request.inner() {
+                        if let BackrunComposeMessage::Sign(sign_request) = compose_request.inner() {
                             if matches!( sign_request.swap, Swap::BackrunSwapLine(_)) || matches!( sign_request.swap, Swap::BackrunSwapSteps(_)) {
                                 let mut merge_list = get_merge_list(sign_request, &swap_paths);
 
@@ -107,8 +107,8 @@ where
                                         }
                                     }
 
-                                    let encode_request = MessageTxCompose::route(
-                                        TxComposeData {
+                                    let encode_request = MessageBackrunTxCompose::route(
+                                        BackrunComposeData {
                                             stuffing_txs_hashes,
                                             stuffing_txs,
                                             swap : Swap::Multiple( merge_list.iter().map(|i| i.swap.clone()  ).collect()) ,
@@ -147,9 +147,9 @@ pub struct DiffPathMergerActor<DB: Clone + Send + Sync + 'static> {
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
 }
 
 impl<DB> DiffPathMergerActor<DB>

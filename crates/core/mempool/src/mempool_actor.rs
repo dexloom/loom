@@ -9,13 +9,14 @@ use tracing::{debug, error, info, trace};
 use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
+use loom_types_blockchain::loom_data_types::LoomDataTypesEthereum;
 use loom_types_blockchain::{ChainParameters, Mempool, MempoolTx};
 use loom_types_events::{MempoolEvents, MessageBlock, MessageBlockHeader, MessageMempoolDataUpdate};
 use revm::DatabaseRef;
 
 pub async fn new_mempool_worker(
     chain_parameters: ChainParameters,
-    mempool: SharedState<Mempool>,
+    mempool: SharedState<Mempool<LoomDataTypesEthereum>>,
     mempool_update_rx: Broadcaster<MessageMempoolDataUpdate>,
     block_header_rx: Broadcaster<MessageBlockHeader>,
     block_with_txs_rx: Broadcaster<MessageBlock>,
@@ -138,7 +139,7 @@ pub async fn new_mempool_worker(
                 },
                 msg = block_with_txs_rx.recv() => {
                     let block_with_txs = match msg {
-                        Ok(block_with_txs) => block_with_txs.inner,
+                        Ok(block_with_txs) => block_with_txs.inner.block,
                         Err(e) => {
                             match e {
                                 RecvError::Closed => {

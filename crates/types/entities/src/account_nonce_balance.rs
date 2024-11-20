@@ -1,16 +1,17 @@
 use std::collections::HashMap;
 
 use alloy_primitives::{Address, U256};
+use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Debug, Clone, Default)]
-pub struct AccountNonceAndBalances {
+pub struct AccountNonceAndBalances<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     nonce: u64,
-    balance: HashMap<Address, U256>,
+    balance: HashMap<LDT::Address, U256>,
 }
 
-impl AccountNonceAndBalances {
+impl<LDT: LoomDataTypes> AccountNonceAndBalances<LDT> {
     pub fn new() -> Self {
-        Self::default()
+        Self { nonce: 0, balance: HashMap::new() }
     }
 
     pub fn get_nonce(&self) -> u64 {
@@ -22,13 +23,13 @@ impl AccountNonceAndBalances {
         self
     }
 
-    pub fn set_balance(&mut self, token: Address, balance: U256) -> &mut Self {
+    pub fn set_balance(&mut self, token: LDT::Address, balance: U256) -> &mut Self {
         let entry = self.balance.entry(token).or_default();
         *entry = balance;
         self
     }
 
-    pub fn add_balance(&mut self, token: Address, balance: U256) -> &mut Self {
+    pub fn add_balance(&mut self, token: LDT::Address, balance: U256) -> &mut Self {
         let entry = self.balance.entry(token).or_default();
         if let Some(value) = entry.checked_add(balance) {
             *entry = value
@@ -36,7 +37,7 @@ impl AccountNonceAndBalances {
         self
     }
 
-    pub fn sub_balance(&mut self, token: Address, balance: U256) -> &mut Self {
+    pub fn sub_balance(&mut self, token: LDT::Address, balance: U256) -> &mut Self {
         let entry = self.balance.entry(token).or_default();
         if let Some(value) = entry.checked_sub(balance) {
             *entry = value
@@ -45,16 +46,16 @@ impl AccountNonceAndBalances {
     }
 
     pub fn get_eth_balance(&self) -> U256 {
-        self.balance.get(&Address::ZERO).cloned().unwrap_or_default()
+        self.balance.get(&LDT::Address::default()).cloned().unwrap_or_default()
     }
-    pub fn get_balance(&self, token_address: &Address) -> U256 {
+    pub fn get_balance(&self, token_address: &LDT::Address) -> U256 {
         self.balance.get(token_address).cloned().unwrap_or_default()
     }
 }
 
 #[derive(Debug, Clone, Default)]
-pub struct AccountNonceAndBalanceState {
-    accounts: HashMap<Address, AccountNonceAndBalances>,
+pub struct AccountNonceAndBalanceState<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    accounts: HashMap<LDT::Address, AccountNonceAndBalances>,
 }
 
 impl AccountNonceAndBalanceState {

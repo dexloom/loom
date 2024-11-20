@@ -17,7 +17,7 @@ use loom_types_entities::{LatestBlock, Swap, Token};
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_types_blockchain::debug_trace_transaction;
-use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose};
+use loom_types_events::{BackrunComposeMessage, MarketEvents, MessageBackrunTxCompose};
 use revm::DatabaseRef;
 
 #[derive(Clone, Debug)]
@@ -52,10 +52,10 @@ pub async fn stuffing_tx_monitor_worker<
 >(
     client: P,
     latest_block: SharedState<LatestBlock>,
-    tx_compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
+    tx_compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    let mut tx_compose_channel_rx: Receiver<MessageTxCompose<DB>> = tx_compose_channel_rx.subscribe().await;
+    let mut tx_compose_channel_rx: Receiver<MessageBackrunTxCompose<DB>> = tx_compose_channel_rx.subscribe().await;
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
     let mut txs_to_check: HashMap<TxHash, TxToCheck> = HashMap::new();
@@ -94,10 +94,10 @@ pub async fn stuffing_tx_monitor_worker<
             },
 
             msg = tx_compose_channel_rx.recv() => {
-                let tx_compose_update : Result<MessageTxCompose<DB>, RecvError>  = msg;
+                let tx_compose_update : Result<MessageBackrunTxCompose<DB>, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
-                        if let TxCompose::Broadcast(broadcast_data) = tx_compose_msg.inner {
+                        if let BackrunComposeMessage::Broadcast(broadcast_data) = tx_compose_msg.inner {
                             for stuffing_tx_hash in broadcast_data.stuffing_txs_hashes.iter() {
 
                                 let token_in = broadcast_data.swap.get_first_token().map_or(
@@ -141,7 +141,7 @@ pub struct StuffingTxMonitorActor<P, T, DB: Send + Sync + Clone + 'static> {
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
-    tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    tx_compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     _t: PhantomData<T>,

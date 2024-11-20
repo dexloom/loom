@@ -9,7 +9,8 @@ use loom_node_debug_provider::{DebugProviderExt, HttpCachedTransport};
 use loom_types_blockchain::{debug_trace_block, Mempool};
 use loom_types_entities::MarketState;
 use loom_types_events::{
-    BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
+    BlockHeader, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
+    MessageBlockStateUpdate,
 };
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::ops::RangeInclusive;
@@ -85,15 +86,17 @@ where
                             };
 
                             if txs.is_empty() {
-                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block)).await {
+                                let block_update = BlockUpdate { block };
+                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block_update)).await {
                                     error!("new_block_with_tx_channel.send error: {e}");
                                 }
                             } else if let Some(block_txs) = block.transactions.as_transactions() {
                                 txs.extend(block_txs.iter().cloned());
-                                let mut updated_block = block;
+                                let mut block = block;
 
-                                updated_block.transactions = BlockTransactions::Full(txs);
-                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(updated_block)).await {
+                                block.transactions = BlockTransactions::Full(txs);
+                                let block_update = BlockUpdate { block };
+                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block_update)).await {
                                     error!("new_block_with_tx_channel.send updated block error: {e}");
                                 }
                             }

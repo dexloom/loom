@@ -19,7 +19,7 @@ use tracing::{debug, error, info};
 
 async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(
     client: P,
-    market: SharedState<Market>,
+    market: SharedState<Market<LoomDataTypesEthereum>>,
     once: bool,
 ) -> WorkerResult {
     let curve_tricrypto_usdc = CurveProtocol::new_u256_3_eth_to(client.clone(), address!("7F86Bf177Dd4F3494b841a37e810A34dD56c829B"));

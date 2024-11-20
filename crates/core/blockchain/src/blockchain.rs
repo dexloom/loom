@@ -8,8 +8,8 @@ use loom_evm_db::DatabaseLoomExt;
 use loom_types_blockchain::{ChainParameters, Mempool};
 use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, BlockHistoryState, LatestBlock, Market, MarketState, Token};
 use loom_types_events::{
-    MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
-    MessageMempoolDataUpdate, MessageTxCompose, StateUpdateEvent, Task,
+    MarketEvents, MempoolEvents, MessageBackrunTxCompose, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
+    MessageHealthEvent, MessageMempoolDataUpdate, StateUpdateEvent, Task,
 };
 use revm::{Database, DatabaseCommit, DatabaseRef};
 
@@ -17,22 +17,22 @@ use revm::{Database, DatabaseCommit, DatabaseRef};
 pub struct Blockchain<DB: Clone + Send + Sync + 'static, LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
     chain_id: ChainId,
     chain_parameters: ChainParameters,
-    market: SharedState<Market>,
-    latest_block: SharedState<LatestBlock>,
+    market: SharedState<Market<LDT>>,
+    latest_block: SharedState<LatestBlock<LDT>>,
     market_state: SharedState<MarketState<DB>>,
     block_history_state: SharedState<BlockHistory<DB>>,
     mempool: SharedState<Mempool<LDT>>,
-    account_nonce_and_balance: SharedState<AccountNonceAndBalanceState>,
+    account_nonce_and_balance: SharedState<AccountNonceAndBalanceState<LDT>>,
 
-    new_block_headers_channel: Broadcaster<MessageBlockHeader>,
-    new_block_with_tx_channel: Broadcaster<MessageBlock>,
-    new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate>,
-    new_block_logs_channel: Broadcaster<MessageBlockLogs>,
+    new_block_headers_channel: Broadcaster<MessageBlockHeader<LDT>>,
+    new_block_with_tx_channel: Broadcaster<MessageBlock<LDT>>,
+    new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate<LDT>>,
+    new_block_logs_channel: Broadcaster<MessageBlockLogs<LDT>>,
     new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate>,
-    market_events_channel: Broadcaster<MarketEvents>,
-    mempool_events_channel: Broadcaster<MempoolEvents>,
-    pool_health_monitor_channel: Broadcaster<MessageHealthEvent>,
-    compose_channel: Broadcaster<MessageTxCompose<DB>>,
+    market_events_channel: Broadcaster<MarketEvents<LDT>>,
+    mempool_events_channel: Broadcaster<MempoolEvents<LDT>>,
+    pool_health_monitor_channel: Broadcaster<MessageHealthEvent<LDT>>,
+    compose_channel: Broadcaster<MessageBackrunTxCompose<DB, LDT>>,
     state_update_channel: Broadcaster<StateUpdateEvent<DB, LDT>>,
     influxdb_write_channel: Broadcaster<WriteQuery>,
     tasks_channel: Broadcaster<Task>,
@@ -52,7 +52,7 @@ impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseL
         let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(100);
         let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(2000);
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
-        let compose_channel: Broadcaster<MessageTxCompose<DB>> = Broadcaster::new(100);
+        let compose_channel: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>> = Broadcaster::new(100);
         let state_update_channel: Broadcaster<StateUpdateEvent<DB, LoomDataTypesEthereum>> = Broadcaster::new(100);
         let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
         let tasks_channel: Broadcaster<Task> = Broadcaster::new(1000);
@@ -102,13 +102,17 @@ impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseL
     }
 }
 
-impl<DB: DatabaseRef + DatabaseCommit + Clone + Send + Sync> Blockchain<DB, LoomDataTypesEthereum> {
+impl<DB: Clone + Send + Sync> Blockchain<DB, LoomDataTypesEthereum> {
     pub fn market_state_commit(&self) -> SharedState<MarketState<DB>> {
         self.market_state.clone()
     }
+
+    pub fn compose_channel(&self) -> Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>> {
+        self.compose_channel.clone()
+    }
 }
 
-impl<DB: DatabaseRef + Clone + Send + Sync> Blockchain<DB, LoomDataTypesEthereum> {
+impl<DB: DatabaseRef + Clone + Send + Sync, LDT: LoomDataTypes> Blockchain<DB, LDT> {
     pub fn chain_id(&self) -> u64 {
         self.chain_id
     }
@@ -117,11 +121,11 @@ impl<DB: DatabaseRef + Clone + Send + Sync> Blockchain<DB, LoomDataTypesEthereum
         self.chain_parameters.clone()
     }
 
-    pub fn market(&self) -> SharedState<Market> {
+    pub fn market(&self) -> SharedState<Market<LDT>> {
         self.market.clone()
     }
 
-    pub fn latest_block(&self) -> SharedState<LatestBlock> {
+    pub fn latest_block(&self) -> SharedState<LatestBlock<LDT>> {
         self.latest_block.clone()
     }
 
@@ -133,27 +137,27 @@ impl<DB: DatabaseRef + Clone + Send + Sync> Blockchain<DB, LoomDataTypesEthereum
         self.block_history_state.clone()
     }
 
-    pub fn mempool(&self) -> SharedState<Mempool<LoomDataTypesEthereum>> {
+    pub fn mempool(&self) -> SharedState<Mempool<LDT>> {
         self.mempool.clone()
     }
 
-    pub fn nonce_and_balance(&self) -> SharedState<AccountNonceAndBalanceState> {
+    pub fn nonce_and_balance(&self) -> SharedState<AccountNonceAndBalanceState<LDT>> {
         self.account_nonce_and_balance.clone()
     }
 
-    pub fn new_block_headers_channel(&self) -> Broadcaster<MessageBlockHeader> {
+    pub fn new_block_headers_channel(&self) -> Broadcaster<MessageBlockHeader<LDT>> {
         self.new_block_headers_channel.clone()
     }
 
-    pub fn new_block_with_tx_channel(&self) -> Broadcaster<MessageBlock> {
+    pub fn new_block_with_tx_channel(&self) -> Broadcaster<MessageBlock<LDT>> {
         self.new_block_with_tx_channel.clone()
     }
 
-    pub fn new_block_state_update_channel(&self) -> Broadcaster<MessageBlockStateUpdate> {
+    pub fn new_block_state_update_channel(&self) -> Broadcaster<MessageBlockStateUpdate<LDT>> {
         self.new_block_state_update_channel.clone()
     }
 
-    pub fn new_block_logs_channel(&self) -> Broadcaster<MessageBlockLogs> {
+    pub fn new_block_logs_channel(&self) -> Broadcaster<MessageBlockLogs<LDT>> {
         self.new_block_logs_channel.clone()
     }
 
@@ -161,22 +165,18 @@ impl<DB: DatabaseRef + Clone + Send + Sync> Blockchain<DB, LoomDataTypesEthereum
         self.new_mempool_tx_channel.clone()
     }
 
-    pub fn market_events_channel(&self) -> Broadcaster<MarketEvents> {
+    pub fn market_events_channel(&self) -> Broadcaster<MarketEvents<LDT>> {
         self.market_events_channel.clone()
     }
 
-    pub fn mempool_events_channel(&self) -> Broadcaster<MempoolEvents> {
+    pub fn mempool_events_channel(&self) -> Broadcaster<MempoolEvents<LDT>> {
         self.mempool_events_channel.clone()
     }
-    pub fn pool_health_monitor_channel(&self) -> Broadcaster<MessageHealthEvent> {
+    pub fn pool_health_monitor_channel(&self) -> Broadcaster<MessageHealthEvent<LDT>> {
         self.pool_health_monitor_channel.clone()
     }
 
-    pub fn compose_channel(&self) -> Broadcaster<MessageTxCompose<DB>> {
-        self.compose_channel.clone()
-    }
-
-    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent<DB, LoomDataTypesEthereum>> {
+    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent<DB, LDT>> {
         self.state_update_channel.clone()
     }
 

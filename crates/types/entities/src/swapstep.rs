@@ -7,34 +7,34 @@ use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::error;
 
-use loom_evm_db::LoomDBType;
-
 use crate::{PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
+use loom_evm_db::LoomDBType;
+use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug)]
-pub struct SwapStep {
-    swap_line_vec: Vec<SwapLine>,
-    swap_from: Option<Address>,
-    swap_to: Address,
+pub struct SwapStep<LDT: LoomDataTypes> {
+    swap_line_vec: Vec<SwapLine<LDT>>,
+    swap_from: Option<LDT::Address>,
+    swap_to: LDT::Address,
 }
 
-impl Display for SwapStep {
+impl<LDT: LoomDataTypes> Display for SwapStep<LDT> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let paths = self.swap_line_vec.iter().map(|path| format!("{path}")).collect::<Vec<String>>().join(" / ");
         write!(f, "{}", paths)
     }
 }
 
-impl SwapStep {
-    pub fn new(swap_to: Address) -> Self {
+impl<LDT: LoomDataTypes> SwapStep<LDT> {
+    pub fn new(swap_to: LDT::Address) -> Self {
         Self { swap_line_vec: Vec::new(), swap_to, swap_from: None }
     }
 
-    pub fn get_mut_swap_line_by_index(&mut self, idx: usize) -> &mut SwapLine {
+    pub fn get_mut_swap_line_by_index(&mut self, idx: usize) -> &mut SwapLine<LDT> {
         &mut self.swap_line_vec[idx]
     }
 
-    pub fn swap_line_vec(&self) -> &Vec<SwapLine> {
+    pub fn swap_line_vec(&self) -> &Vec<SwapLine<LDT>> {
         &self.swap_line_vec
     }
 
@@ -46,25 +46,25 @@ impl SwapStep {
         self.swap_line_vec.is_empty()
     }
 
-    fn first_swap_line(&self) -> Option<&SwapLine> {
+    fn first_swap_line(&self) -> Option<&SwapLine<LDT>> {
         self.swap_line_vec.first()
     }
 
-    pub fn first_token(&self) -> Option<&Arc<Token>> {
+    pub fn first_token(&self) -> Option<&Arc<Token<LDT>>> {
         match self.first_swap_line() {
             Some(s) => s.get_first_token(),
             None => None,
         }
     }
 
-    pub fn last_token(&self) -> Option<&Arc<Token>> {
+    pub fn last_token(&self) -> Option<&Arc<Token<LDT>>> {
         match self.first_swap_line() {
             Some(s) => s.get_last_token(),
             None => None,
         }
     }
 
-    pub fn add(&mut self, swap_path: SwapLine) -> &mut Self {
+    pub fn add(&mut self, swap_path: SwapLine<LDT>) -> &mut Self {
         if self.is_empty()
             || ((self.first_token().unwrap() == swap_path.get_first_token().unwrap())
                 && (self.last_token().unwrap() == swap_path.get_last_token().unwrap()))
@@ -117,11 +117,11 @@ impl SwapStep {
         true
     }
 
-    pub fn get_pools(&self) -> Vec<PoolWrapper> {
+    pub fn get_pools(&self) -> Vec<PoolWrapper<LDT>> {
         self.swap_line_vec.iter().flat_map(|sp| sp.pools().clone()).collect()
     }
 
-    fn common_pools(swap_path_0: &SwapLine, swap_path_1: &SwapLine) -> usize {
+    fn common_pools(swap_path_0: &SwapLine<LDT>, swap_path_1: &SwapLine<LDT>) -> usize {
         let mut ret = 0;
         for pool in swap_path_0.pools().iter() {
             if swap_path_1.pools().contains(pool) {
@@ -131,7 +131,11 @@ impl SwapStep {
         ret
     }
 
-    pub fn merge_swap_paths(swap_path_0: SwapLine, swap_path_1: SwapLine, multicaller: Address) -> Result<(SwapStep, SwapStep)> {
+    pub fn merge_swap_paths(
+        swap_path_0: SwapLine<LDT>,
+        swap_path_1: SwapLine<LDT>,
+        multicaller: LDT::Address,
+    ) -> Result<(SwapStep<LDT>, SwapStep<LDT>)> {
         let mut split_index_start = 0;
         let mut split_index_end = 0;
 
@@ -190,8 +194,8 @@ impl SwapStep {
             let (mut split_0_0, mut split_0_1) = swap_path_0.split(split_index_start)?;
             let (split_1_0, mut split_1_1) = swap_path_1.split(split_index_start)?;
 
-            let mut swap_step_0 = SwapStep::new(multicaller);
-            let mut swap_step_1 = SwapStep::new(multicaller);
+            let mut swap_step_0 = SwapStep::<LDT>::new(multicaller);
+            let mut swap_step_1 = SwapStep::<LDT>::new(multicaller);
 
             if let SwapAmountType::Set(a0) = swap_path_0.amount_in {
                 if let SwapAmountType::Set(a1) = swap_path_1.amount_in {
@@ -280,8 +284,8 @@ impl SwapStep {
         Err(eyre!("CANNOT_MERGE"))
     }
 
-    pub fn get_first_token_address(&self) -> Option<Address> {
-        let mut ret: Option<Address> = None;
+    pub fn get_first_token_address(&self) -> Option<LDT::Address> {
+        let mut ret: Option<LDT::Address> = None;
         for sp in self.swap_line_vec.iter() {
             match sp.get_first_token() {
                 Some(token) => match ret {
@@ -302,8 +306,8 @@ impl SwapStep {
         ret
     }
 
-    pub fn get_first_token(&self) -> Option<&Arc<Token>> {
-        let mut ret: Option<&Arc<Token>> = None;
+    pub fn get_first_token(&self) -> Option<&Arc<Token<LDT>>> {
+        let mut ret: Option<&Arc<Token<LDT>>> = None;
         for sp in self.swap_line_vec.iter() {
             match sp.get_first_token() {
                 Some(token) => match &ret {
@@ -432,7 +436,7 @@ impl SwapStep {
 
     }*/
 
-    pub fn profit(swap_step_0: &SwapStep, swap_step_1: &SwapStep) -> I256 {
+    pub fn profit(swap_step_0: &SwapStep<LDT>, swap_step_1: &SwapStep<LDT>) -> I256 {
         let in_amount: I256 = I256::try_from(swap_step_0.get_in_amount().unwrap_or(U256::MAX)).unwrap_or(I256::MAX);
         let out_amount: I256 = I256::try_from(swap_step_1.get_out_amount().unwrap_or(U256::ZERO)).unwrap_or(I256::ZERO);
         if in_amount.is_negative() {
@@ -442,7 +446,7 @@ impl SwapStep {
         }
     }
 
-    pub fn abs_profit(swap_step_0: &SwapStep, swap_step_1: &SwapStep) -> U256 {
+    pub fn abs_profit(swap_step_0: &SwapStep<LDT>, swap_step_1: &SwapStep<LDT>) -> U256 {
         let in_amount: U256 = swap_step_0.get_in_amount().unwrap_or(U256::MAX);
         let out_amount: U256 = swap_step_1.get_out_amount().unwrap_or(U256::ZERO);
         if in_amount >= out_amount {
@@ -452,7 +456,7 @@ impl SwapStep {
         }
     }
 
-    pub fn abs_profit_eth(swap_step_0: &SwapStep, swap_step_1: &SwapStep) -> U256 {
+    pub fn abs_profit_eth(swap_step_0: &SwapStep<LDT>, swap_step_1: &SwapStep<LDT>) -> U256 {
         match swap_step_0.get_first_token() {
             Some(t) => {
                 let profit = Self::abs_profit(swap_step_0, swap_step_1);
@@ -465,10 +469,10 @@ impl SwapStep {
     pub fn optimize_swap_steps<DB: DatabaseRef<Error = ErrReport>>(
         state: &DB,
         env: Env,
-        swap_step_0: &SwapStep,
-        swap_step_1: &SwapStep,
+        swap_step_0: &SwapStep<LDT>,
+        swap_step_1: &SwapStep<LDT>,
         middle_amount: Option<U256>,
-    ) -> Result<(SwapStep, SwapStep)> {
+    ) -> Result<(SwapStep<LDT>, SwapStep<LDT>)> {
         if swap_step_0.can_calculate_in_amount() {
             SwapStep::optimize_with_middle_amount(state, env, swap_step_0, swap_step_1, middle_amount)
         } else {
@@ -479,10 +483,10 @@ impl SwapStep {
     pub fn optimize_with_middle_amount<DB: DatabaseRef<Error = ErrReport>>(
         state: &DB,
         env: Env,
-        swap_step_0: &SwapStep,
-        swap_step_1: &SwapStep,
+        swap_step_0: &SwapStep<LDT>,
+        swap_step_1: &SwapStep<LDT>,
         middle_amount: Option<U256>,
-    ) -> Result<(SwapStep, SwapStep)> {
+    ) -> Result<(SwapStep<LDT>, SwapStep<LDT>)> {
         let mut step_0 = swap_step_0.clone();
         let mut step_1 = swap_step_1.clone();
         let mut best_profit: Option<I256> = None;
@@ -591,7 +595,7 @@ impl SwapStep {
                 }
             }
 
-            let mut best_merged_step_0: Option<SwapStep> = None;
+            let mut best_merged_step_0: Option<SwapStep<LDT>> = None;
 
             for i in 0..step_0.swap_line_vec.len() {
                 let mut merged_step_0 = SwapStep::new(step_0.swap_to);
@@ -603,7 +607,7 @@ impl SwapStep {
                 }
             }
 
-            let mut best_merged_step_1: Option<SwapStep> = None;
+            let mut best_merged_step_1: Option<SwapStep<LDT>> = None;
 
             for i in 0..step_1.swap_line_vec.len() {
                 let mut merged_step_1 = SwapStep::new(step_1.swap_to);
@@ -649,10 +653,10 @@ impl SwapStep {
     pub fn optimize_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
         state: &DB,
         env: Env,
-        swap_step_0: &SwapStep,
-        swap_step_1: &SwapStep,
+        swap_step_0: &SwapStep<LDT>,
+        swap_step_1: &SwapStep<LDT>,
         in_amount: Option<U256>,
-    ) -> Result<(SwapStep, SwapStep)> {
+    ) -> Result<(SwapStep<LDT>, SwapStep<LDT>)> {
         let mut step_0 = swap_step_0.clone();
         let mut step_1 = swap_step_1.clone();
         let mut best_profit: Option<I256> = None;
@@ -726,7 +730,7 @@ impl SwapStep {
                 }
             }
 
-            let mut best_merged_step_0: Option<SwapStep> = None;
+            let mut best_merged_step_0: Option<SwapStep<LDT>> = None;
 
             for i in 0..step_0.swap_line_vec.len() {
                 let mut merged_step_0 = SwapStep::new(step_0.swap_to);
@@ -764,7 +768,7 @@ impl SwapStep {
                 }
             }
 
-            let mut best_merged_step_1: Option<SwapStep> = None;
+            let mut best_merged_step_1: Option<SwapStep<LDT>> = None;
 
             for i in 0..step_1.swap_line_vec.len() {
                 let mut merged_step_1 = SwapStep::new(step_1.swap_to);

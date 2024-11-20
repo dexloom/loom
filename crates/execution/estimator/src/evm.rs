@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info, trace};
 
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, LoomDataTypesEthereum};
 use loom_evm_utils::NWETH;
 use loom_types_entities::{Swap, SwapEncoder};
 
@@ -20,14 +20,14 @@ use loom_core_actors_macros::{Consumer, Producer};
 use loom_evm_db::{AlloyDB, DatabaseLoomExt};
 use loom_evm_utils::evm::evm_access_list;
 use loom_evm_utils::evm_env::env_for_block;
-use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
+use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose, TxState};
 use revm::DatabaseRef;
 
 async fn estimator_task<T, N, DB>(
     client: Option<impl Provider<T, N> + 'static>,
     swap_encoder: impl SwapEncoder,
-    estimate_request: TxComposeData<DB>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    estimate_request: BackrunComposeData<DB>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>,
 ) -> Result<()>
 where
     T: Transport + Clone,
@@ -167,7 +167,7 @@ where
         None => profit_eth_f64,
     };
 
-    let sign_request = MessageTxCompose::sign(TxComposeData {
+    let sign_request = MessageBackrunTxCompose::sign(BackrunComposeData {
         tx_bundle: Some(tx_with_state),
         poststate: Some(db),
         tips: Some(total_tips + gas_cost),
@@ -200,8 +200,8 @@ where
 async fn estimator_worker<T, N, DB>(
     client: Option<impl Provider<T, N> + Clone + 'static>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -213,10 +213,10 @@ where
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let compose_request_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let compose_request_msg : Result<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>, RecvError> = msg;
                 match compose_request_msg {
                     Ok(compose_request) =>{
-                        if let TxCompose::Estimate(estimate_request) = compose_request.inner {
+                        if let BackrunComposeMessage::Estimate(estimate_request) = compose_request.inner {
                             let compose_channel_tx_cloned = compose_channel_tx.clone();
                             let encoder_cloned = encoder.clone();
                             let client_cloned = client.clone();
@@ -246,9 +246,9 @@ pub struct EvmEstimatorActor<P, T, N, E, DB: Clone + Send + Sync + 'static> {
     encoder: E,
     client: Option<P>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }

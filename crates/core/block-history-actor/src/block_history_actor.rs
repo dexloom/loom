@@ -126,7 +126,7 @@ where
                 let block_update : Result<MessageBlock, RecvError>  = msg;
                 match block_update {
                     Ok(block)=>{
-                        let block = block.inner;
+                        let block = block.inner.block;
                         let block_header : Header = block.header.clone();
                         let block_hash : BlockHash = block_header.hash;
                         let block_number : BlockNumber = block_header.number;

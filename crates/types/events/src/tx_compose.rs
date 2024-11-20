@@ -1,18 +1,18 @@
+use crate::Message;
 use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Address, BlockNumber, Bytes, TxHash, U256};
 use alloy_rpc_types::{Transaction, TransactionRequest};
 use eyre::{eyre, Result};
+use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_blockchain::GethStateUpdateVec;
 use loom_types_entities::{Swap, TxSigner};
 use revm::DatabaseRef;
 use std::ops::Deref;
 
-use crate::Message;
-
 #[derive(Clone, Debug)]
-pub enum TxState {
-    Stuffing(Transaction),
-    SignatureRequired(TransactionRequest),
+pub enum TxState<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    Stuffing(LDT::Transaction),
+    SignatureRequired(LDT::TransactionRequest),
     ReadyForBroadcast(Bytes),
     ReadyForBroadcastStuffing(Bytes),
 }
@@ -28,25 +28,28 @@ impl TxState {
 }
 
 #[derive(Clone, Debug)]
-pub enum TxCompose<DB> {
-    Route(TxComposeData<DB>),
-    Estimate(TxComposeData<DB>),
-    Sign(TxComposeData<DB>),
-    Broadcast(TxComposeData<DB>),
+pub enum BackrunComposeMessage<DB, LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    Route(BackrunComposeData<DB, LDT>),
+    Estimate(BackrunComposeData<DB, LDT>),
+    Sign(BackrunComposeData<DB, LDT>),
+    Broadcast(BackrunComposeData<DB, LDT>),
 }
 
-impl<DB> Deref for TxCompose<DB> {
-    type Target = TxComposeData<DB>;
+impl<DB, LDT: LoomDataTypes> Deref for BackrunComposeMessage<DB, LDT> {
+    type Target = BackrunComposeData<DB, LDT>;
 
     fn deref(&self) -> &Self::Target {
         self.data()
     }
 }
 
-impl<DB> TxCompose<DB> {
-    pub fn data(&self) -> &TxComposeData<DB> {
+impl<DB, LDT: LoomDataTypes> BackrunComposeMessage<DB, LDT> {
+    pub fn data(&self) -> &BackrunComposeData<DB, LDT> {
         match self {
-            TxCompose::Route(x) | TxCompose::Broadcast(x) | TxCompose::Sign(x) | TxCompose::Estimate(x) => x,
+            BackrunComposeMessage::Route(x)
+            | BackrunComposeMessage::Broadcast(x)
+            | BackrunComposeMessage::Sign(x)
+            | BackrunComposeMessage::Estimate(x) => x,
         }
     }
 }
@@ -72,34 +75,34 @@ impl RlpState {
 }
 
 #[derive(Clone, Debug)]
-pub struct TxComposeData<DB> {
+pub struct BackrunComposeData<DB, LDT: LoomDataTypes = LoomDataTypesEthereum> {
     /// The EOA address that will be used to sign the transaction.
     /// If this is None, the transaction will be signed by a random signer.
-    pub eoa: Option<Address>,
+    pub eoa: Option<LDT::Address>,
     pub signer: Option<TxSigner>,
     pub nonce: u64,
     pub eth_balance: U256,
     pub value: U256,
     pub gas: u64,
     pub priority_gas_fee: u64,
-    pub stuffing_txs_hashes: Vec<TxHash>,
-    pub stuffing_txs: Vec<Transaction>,
+    pub stuffing_txs_hashes: Vec<LDT::TxHash>,
+    pub stuffing_txs: Vec<LDT::Transaction>,
     pub next_block_number: BlockNumber,
     pub next_block_timestamp: u64,
     pub next_block_base_fee: u64,
-    pub swap: Swap,
-    pub tx_bundle: Option<Vec<TxState>>,
+    pub swap: Swap<LDT>,
+    pub tx_bundle: Option<Vec<TxState<LDT>>>,
     pub rlp_bundle: Option<Vec<RlpState>>,
     pub prestate: Option<DB>,
     pub poststate: Option<DB>,
-    pub poststate_update: Option<GethStateUpdateVec>,
+    pub poststate_update: Option<Vec<LDT::StateUpdate>>,
     pub origin: Option<String>,
     pub tips_pct: Option<u32>,
     pub tips: Option<U256>,
 }
 
-impl<DB: Clone + 'static> TxComposeData<DB> {
-    pub fn same_stuffing(&self, others_stuffing_txs_hashes: &[TxHash]) -> bool {
+impl<DB: Clone + 'static, LDT: LoomDataTypes> BackrunComposeData<DB, LDT> {
+    pub fn same_stuffing(&self, others_stuffing_txs_hashes: &[LDT::TxHash]) -> bool {
         let tx_len = self.stuffing_txs_hashes.len();
 
         if tx_len != others_stuffing_txs_hashes.len() {
@@ -111,12 +114,12 @@ impl<DB: Clone + 'static> TxComposeData<DB> {
         }
     }
 
-    pub fn cross_pools(&self, others_pools: &[Address]) -> bool {
+    pub fn cross_pools(&self, others_pools: &[LDT::Address]) -> bool {
         self.swap.get_pool_address_vec().iter().any(|x| others_pools.contains(x))
     }
 
-    pub fn first_stuffing_hash(&self) -> TxHash {
-        self.stuffing_txs_hashes.first().map_or(TxHash::default(), |x| *x)
+    pub fn first_stuffing_hash(&self) -> LDT::TxHash {
+        self.stuffing_txs_hashes.first().map_or(LDT::TxHash::default(), |x| *x)
     }
 
     pub fn tips_gas_ratio(&self) -> U256 {
@@ -144,7 +147,7 @@ impl<DB: Clone + 'static> TxComposeData<DB> {
     }
 }
 
-impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Default for TxComposeData<DB> {
+impl<DB: DatabaseRef + Send + Sync + Clone + 'static, LDT: LoomDataTypes> Default for BackrunComposeData<DB, LDT> {
     fn default() -> Self {
         Self {
             eoa: None,
@@ -172,23 +175,23 @@ impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Default for TxComposeData<
     }
 }
 
-pub type MessageTxCompose<DB> = Message<TxCompose<DB>>;
+pub type MessageBackrunTxCompose<DB, LDT = LoomDataTypesEthereum> = Message<BackrunComposeMessage<DB, LDT>>;
 
-impl<DB> MessageTxCompose<DB> {
-    pub fn route(data: TxComposeData<DB>) -> Self {
-        Message::new(TxCompose::Route(data))
+impl<DB, LDT: LoomDataTypes> MessageBackrunTxCompose<DB, LDT> {
+    pub fn route(data: BackrunComposeData<DB, LDT>) -> Self {
+        Message::new(BackrunComposeMessage::Route(data))
     }
 
-    pub fn sign(data: TxComposeData<DB>) -> Self {
-        Message::new(TxCompose::Sign(data))
+    pub fn sign(data: BackrunComposeData<DB, LDT>) -> Self {
+        Message::new(BackrunComposeMessage::Sign(data))
     }
 
-    pub fn estimate(data: TxComposeData<DB>) -> Self {
-        Message::new(TxCompose::Estimate(data))
+    pub fn estimate(data: BackrunComposeData<DB, LDT>) -> Self {
+        Message::new(BackrunComposeMessage::Estimate(data))
     }
 
-    pub fn broadcast(data: TxComposeData<DB>) -> Self {
-        Message::new(TxCompose::Broadcast(data))
+    pub fn broadcast(data: BackrunComposeData<DB, LDT>) -> Self {
+        Message::new(BackrunComposeMessage::Broadcast(data))
     }
 }
 

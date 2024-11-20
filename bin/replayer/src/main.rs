@@ -25,7 +25,7 @@ use loom_execution_multicaller::EncoderHelper;
 use loom_node_player::NodeBlockPlayerActor;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{PoolClass, Swap, SwapAmountType, SwapLine};
-use loom_types_events::{MessageTxCompose, TxComposeData};
+use loom_types_events::{BackrunComposeData, MessageBackrunTxCompose};
 use tracing::{debug, error, info};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -126,12 +126,12 @@ async fn main() -> Result<()> {
                             swap_line.amount_in = SwapAmountType::Set( NWETH::from_float(0.1));
                             swap_line.gas_used = Some(300000);
 
-                            let tx_compose_encode_msg = MessageTxCompose::route(
-                                TxComposeData{
+                            let tx_compose_encode_msg = MessageBackrunTxCompose::route(
+                                BackrunComposeData{
                                     next_block_base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
                                     poststate : Some(market_state.read().await.state_db.clone()),
                                     swap : Swap::ExchangeSwapLine(swap_line),
-                                    ..TxComposeData::default()
+                                    ..BackrunComposeData::default()
                                 });
 
                             if let Err(e) = compose_channel.send(tx_compose_encode_msg).await {
@@ -160,8 +160,8 @@ async fn main() -> Result<()> {
 
             block = block_sub.recv() => {
                 match block {
-                    Ok(block)=>{
-                        info!("Block with tx received : {} txs : {}", block.header.hash, block.transactions.len());
+                    Ok(block_msg)=>{
+                        info!("Block with tx received : {} txs : {}", block_msg.block.header.hash, block_msg.block.transactions.len());
                     }
                     Err(e)=>{
                         error!("Error receiving blocks: {e}");

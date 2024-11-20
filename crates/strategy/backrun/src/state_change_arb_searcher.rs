@@ -23,7 +23,8 @@ use loom_types_blockchain::SwapError;
 use loom_types_entities::config::StrategyConfig;
 use loom_types_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use loom_types_events::{
-    BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData,
+    BackrunComposeData, BackrunComposeMessage, BestTxCompose, HealthEvent, Message, MessageBackrunTxCompose, MessageHealthEvent,
+    StateUpdateEvent,
 };
 
 async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static>(
@@ -31,7 +32,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     backrun_config: BackrunConfig,
     state_update_event: StateUpdateEvent<DB>,
     market: SharedState<Market>,
-    swap_request_tx: Broadcaster<MessageTxCompose<DB>>,
+    swap_request_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> Result<()> {
     debug!("Message received {} stuffing : {:?}", state_update_event.origin, state_update_event.stuffing_tx_hash());
@@ -141,7 +142,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     while let Some(swap_line_result) = swap_line_rx.recv().await {
         match swap_line_result {
             Ok(swap_line) => {
-                let encode_request = TxCompose::Route(TxComposeData {
+                let encode_request = BackrunComposeMessage::Route(BackrunComposeData {
                     eoa: backrun_config.eoa(),
                     next_block_number: state_update_event.next_block_number,
                     next_block_timestamp: state_update_event.next_block_timestamp,
@@ -154,7 +155,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                     tips_pct: Some(state_update_event.tips_pct),
                     poststate: Some(db.clone()),
                     poststate_update: Some(state_update_event.state_update().clone()),
-                    ..TxComposeData::default()
+                    ..BackrunComposeData::default()
                 });
 
                 if !backrun_config.smart() || best_answers.check(&encode_request) {
@@ -192,7 +193,7 @@ pub async fn state_change_arb_searcher_worker<
     backrun_config: BackrunConfig,
     market: SharedState<Market>,
     search_request_rx: Broadcaster<StateUpdateEvent<DB>>,
-    swap_request_tx: Broadcaster<MessageTxCompose<DB>>,
+    swap_request_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> WorkerResult {
     subscribe!(search_request_rx);
@@ -230,7 +231,7 @@ pub struct StateChangeArbSearcherActor<DB: Clone + Send + Sync + 'static> {
     #[consumer]
     state_update_rx: Option<Broadcaster<StateUpdateEvent<DB>>>,
     #[producer]
-    compose_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     #[producer]
     pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
 }

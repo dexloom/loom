@@ -3,19 +3,27 @@ use std::hash::{Hash, Hasher};
 use std::ops::Deref;
 use std::sync::Arc;
 
+use crate::{PoolWrapper, Token};
 use alloy_primitives::Address;
 use eyre::Result;
+use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 
-use crate::{PoolWrapper, Token};
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct SwapPath {
-    pub tokens: Vec<Arc<Token>>,
-    pub pools: Vec<PoolWrapper>,
+#[derive(Clone, Debug, Default)]
+pub struct SwapPath<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub tokens: Vec<Arc<Token<LDT>>>,
+    pub pools: Vec<PoolWrapper<LDT>>,
 }
 
-impl SwapPath {
-    pub fn new<T: Into<Arc<Token>>, P: Into<PoolWrapper>>(tokens: Vec<T>, pools: Vec<P>) -> Self {
+impl<LDT: LoomDataTypes> PartialEq for SwapPath<LDT> {
+    fn eq(&self, other: &Self) -> bool {
+        self.tokens == other.tokens && self.pools == other.pools
+    }
+}
+
+impl<LDT: LoomDataTypes> Eq for SwapPath<LDT> {}
+
+impl<LDT: LoomDataTypes> SwapPath<LDT> {
+    pub fn new<T: Into<Arc<Token<LDT>>>, P: Into<PoolWrapper<LDT>>>(tokens: Vec<T>, pools: Vec<P>) -> Self {
         SwapPath { tokens: tokens.into_iter().map(|i| i.into()).collect(), pools: pools.into_iter().map(|i| i.into()).collect() }
     }
 
@@ -31,16 +39,16 @@ impl SwapPath {
         self.pools.len()
     }
 
-    pub fn new_swap(token_from: Arc<Token>, token_to: Arc<Token>, pool: PoolWrapper) -> Self {
+    pub fn new_swap(token_from: Arc<Token<LDT>>, token_to: Arc<Token<LDT>>, pool: PoolWrapper<LDT>) -> Self {
         SwapPath { tokens: vec![token_from, token_to], pools: vec![pool] }
     }
 
-    pub fn push_swap_hope(&mut self, token_from: Arc<Token>, token_to: Arc<Token>, pool: PoolWrapper) -> Result<&mut Self> {
+    pub fn push_swap_hope(&mut self, token_from: Arc<Token<LDT>>, token_to: Arc<Token<LDT>>, pool: PoolWrapper<LDT>) -> Result<&mut Self> {
         if self.is_emply() {
             self.tokens = vec![token_from, token_to];
             self.pools = vec![pool];
         } else {
-            if token_from.as_ref() != self.tokens.last().map_or(&Default::default(), |t| t.as_ref()) {
+            if token_from.as_ref() != self.tokens.last().map_or(&Token::<LDT>::zero(), |t| t.as_ref()) {
                 return Err(eyre::eyre!("NEW_SWAP_NOT_CONNECTED"));
             }
             self.tokens.push(token_to);
@@ -49,12 +57,17 @@ impl SwapPath {
         Ok(self)
     }
 
-    pub fn insert_swap_hope(&mut self, token_from: Arc<Token>, token_to: Arc<Token>, pool: PoolWrapper) -> Result<&mut Self> {
+    pub fn insert_swap_hope(
+        &mut self,
+        token_from: Arc<Token<LDT>>,
+        token_to: Arc<Token<LDT>>,
+        pool: PoolWrapper<LDT>,
+    ) -> Result<&mut Self> {
         if self.is_emply() {
             self.tokens = vec![token_from, token_to];
             self.pools = vec![pool];
         } else {
-            if token_to.as_ref() != self.tokens.first().map_or(&Default::default(), |t| t.as_ref()) {
+            if token_to.as_ref() != self.tokens.first().map_or(&Token::<LDT>::zero(), |t| t.as_ref()) {
                 return Err(eyre::eyre!("NEW_SWAP_NOT_CONNECTED"));
             }
             self.tokens.insert(0, token_from);
@@ -64,7 +77,7 @@ impl SwapPath {
         Ok(self)
     }
 
-    pub fn contains_pool(&self, pool: &PoolWrapper) -> bool {
+    pub fn contains_pool(&self, pool: &PoolWrapper<LDT>) -> bool {
         for p in self.pools.iter() {
             if p.get_address() == pool.get_address() {
                 return true;
@@ -74,7 +87,7 @@ impl SwapPath {
     }
 }
 
-impl Hash for SwapPath {
+impl<LDT: LoomDataTypes> Hash for SwapPath<LDT> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.tokens.hash(state);
         self.pools.hash(state);
@@ -82,24 +95,24 @@ impl Hash for SwapPath {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct SwapPaths {
-    paths: HashSet<Arc<SwapPath>>,
-    pool_paths: HashMap<Address, Arc<Vec<SwapPath>>>,
+pub struct SwapPaths<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    paths: HashSet<Arc<SwapPath<LDT>>>,
+    pool_paths: HashMap<LDT::Address, Arc<Vec<SwapPath<LDT>>>>,
 }
 
-impl SwapPaths {
-    pub fn new() -> SwapPaths {
+impl<LDT: LoomDataTypes> SwapPaths<LDT> {
+    pub fn new() -> SwapPaths<LDT> {
         SwapPaths { paths: HashSet::new(), pool_paths: HashMap::new() }
     }
-    pub fn from(paths: Vec<SwapPath>) -> Self {
-        let mut ret = Self::default();
+    pub fn from(paths: Vec<SwapPath<LDT>>) -> Self {
+        let mut ret = SwapPaths::<LDT>::new();
         for p in paths {
             ret.add(p);
         }
         ret
     }
 
-    pub fn add_mut(&mut self, path: SwapPath) -> bool {
+    pub fn add_mut(&mut self, path: SwapPath<LDT>) -> bool {
         let rc_path = Arc::new(path.clone());
 
         if self.paths.insert(rc_path.clone()) {
@@ -116,8 +129,8 @@ impl SwapPaths {
         }
     }
 
-    pub fn add<T: Into<SwapPath> + Clone>(&mut self, path: T) {
-        let rc_path: Arc<SwapPath> = Arc::new(path.clone().into());
+    pub fn add<T: Into<SwapPath<LDT>> + Clone>(&mut self, path: T) {
+        let rc_path: Arc<SwapPath<LDT>> = Arc::new(path.clone().into());
 
         if self.paths.insert(rc_path.clone()) {
             for pool in rc_path.pools.iter() {
@@ -130,11 +143,11 @@ impl SwapPaths {
         }
     }
 
-    pub fn get_pool_paths_hashset(&self, pool_address: &Address) -> Option<&Arc<Vec<SwapPath>>> {
+    pub fn get_pool_paths_hashset(&self, pool_address: &LDT::Address) -> Option<&Arc<Vec<SwapPath<LDT>>>> {
         self.pool_paths.get(pool_address)
     }
 
-    pub fn get_pool_paths_vec(&self, pool_address: &Address) -> Option<Vec<SwapPath>> {
+    pub fn get_pool_paths_vec(&self, pool_address: &LDT::Address) -> Option<Vec<SwapPath<LDT>>> {
         self.get_pool_paths_hashset(pool_address).map(|set| set.iter().cloned().collect())
     }
 }

@@ -9,37 +9,41 @@ use crate::build_swap_path_vec;
 use crate::{PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
 use loom_defi_address_book::TokenAddress;
+use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 
 /// The market struct contains all the pools and tokens.
 /// It keeps track if a pool is disabled or not and the swap paths.
 #[derive(Default, Clone)]
-pub struct Market {
+pub struct Market<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     // pool_address -> pool
-    pools: HashMap<Address, PoolWrapper>,
+    pools: HashMap<LDT::Address, PoolWrapper<LDT>>,
     // pool_address -> is_disabled
-    pools_disabled: HashMap<Address, bool>,
+    pools_disabled: HashMap<LDT::Address, bool>,
     // token_address -> token
-    tokens: HashMap<Address, Arc<Token>>,
+    tokens: HashMap<LDT::Address, Arc<Token<LDT>>>,
     // token_from -> token_to
-    token_tokens: HashMap<Address, Vec<Address>>,
+    token_tokens: HashMap<LDT::Address, Vec<LDT::Address>>,
     // token_from -> token_to -> pool_addresses
-    token_token_pools: HashMap<Address, HashMap<Address, Vec<Address>>>,
+    token_token_pools: HashMap<LDT::Address, HashMap<LDT::Address, Vec<LDT::Address>>>,
     // token -> pool
-    token_pools: HashMap<Address, Vec<Address>>,
+    token_pools: HashMap<LDT::Address, Vec<LDT::Address>>,
     // swap_paths
-    swap_paths: SwapPaths,
+    swap_paths: SwapPaths<LDT>,
 }
 
-impl Market {
+impl<LDT: LoomDataTypes> Market<LDT> {
+    pub fn is_weth(&self, &address: &LDT::Address) -> bool {
+        address.eq(&LDT::WETH)
+    }
     /// Add a [`Token`] reference to the market.
-    pub fn add_token<T: Into<Arc<Token>>>(&mut self, token: T) -> Result<()> {
-        let arc_token: Arc<Token> = token.into();
+    pub fn add_token<T: Into<Arc<Token<LDT>>>>(&mut self, token: T) -> Result<()> {
+        let arc_token: Arc<Token<LDT>> = token.into();
         self.tokens.insert(arc_token.get_address(), arc_token);
         Ok(())
     }
 
     /// Check if the token is a basic token.
-    pub fn is_basic_token(&self, address: &Address) -> bool {
+    pub fn is_basic_token(&self, address: &LDT::Address) -> bool {
         if let Some(token) = self.tokens.get(address) {
             token.is_basic()
         } else {
@@ -47,13 +51,8 @@ impl Market {
         }
     }
 
-    /// Check if the given address is the WETH address.
-    pub fn is_weth(address: &Address) -> bool {
-        address.eq(&TokenAddress::WETH)
-    }
-
     /// Add a new pool to the market if it does not exist or the class is unknown.
-    pub fn add_pool<T: Into<PoolWrapper>>(&mut self, pool: T) -> Result<()> {
+    pub fn add_pool<T: Into<PoolWrapper<LDT>>>(&mut self, pool: T) -> Result<()> {
         let pool_contract = pool.into();
         let pool_address = pool_contract.get_address();
 
@@ -76,34 +75,34 @@ impl Market {
     }
 
     /// Add a swap path to the market.
-    pub fn add_paths<T: Into<SwapPath> + Clone>(&mut self, paths: Vec<T>) {
+    pub fn add_paths<T: Into<SwapPath<LDT>> + Clone>(&mut self, paths: Vec<T>) {
         for path in paths.into_iter() {
             self.swap_paths.add(path);
         }
     }
 
     /// Get all swap paths from the market by the pool address.
-    pub fn get_pool_paths(&self, pool_address: &Address) -> Option<Vec<SwapPath>> {
+    pub fn get_pool_paths(&self, pool_address: &LDT::Address) -> Option<Vec<SwapPath<LDT>>> {
         self.swap_paths.get_pool_paths_vec(pool_address)
     }
 
     /// Get a pool reference by the pool address. If the pool exists but the class is unknown it returns None.
-    pub fn get_pool(&self, address: &Address) -> Option<&PoolWrapper> {
+    pub fn get_pool(&self, address: &LDT::Address) -> Option<&PoolWrapper<LDT>> {
         self.pools.get(address).filter(|&pool_wrapper| pool_wrapper.get_class() != PoolClass::Unknown)
     }
 
     /// Check if the pool exists in the market.
-    pub fn is_pool(&self, address: &Address) -> bool {
+    pub fn is_pool(&self, address: &LDT::Address) -> bool {
         self.pools.contains_key(address)
     }
 
     /// Get a reference to the pools map in the market.
-    pub fn pools(&self) -> &HashMap<Address, PoolWrapper> {
+    pub fn pools(&self) -> &HashMap<LDT::Address, PoolWrapper<LDT>> {
         &self.pools
     }
 
     /// Set the pool status to ok or not ok.
-    pub fn set_pool_ok(&mut self, address: Address, ok: bool) {
+    pub fn set_pool_ok(&mut self, address: LDT::Address, ok: bool) {
         *self.pools_disabled.entry(address).or_insert(false) = ok;
 
         let pool_contract = match self.pools.get(&address) {
@@ -132,22 +131,22 @@ impl Market {
     }
 
     /// Check if the pool is ok.
-    pub fn is_pool_ok(&self, address: &Address) -> bool {
+    pub fn is_pool_ok(&self, address: &LDT::Address) -> bool {
         self.pools_disabled.get(address).cloned().unwrap_or(true)
     }
 
     /// Get a [`Token`] reference from the market by the address of the token or create a new one.
-    pub fn get_token_or_default(&self, address: &Address) -> Arc<Token> {
+    pub fn get_token_or_default(&self, address: &LDT::Address) -> Arc<Token<LDT>> {
         self.tokens.get(address).map_or(Arc::new(Token::new(*address)), |t| t.clone())
     }
 
     /// Get a [`Token`] reference from the market by the address of the token.
-    pub fn get_token(&self, address: &Address) -> Option<Arc<Token>> {
+    pub fn get_token(&self, address: &LDT::Address) -> Option<Arc<Token<LDT>>> {
         self.tokens.get(address).cloned()
     }
 
     /// Get all pool addresses that allow to swap from `token_from_address` to `token_to_address`.
-    pub fn get_token_token_pools(&self, token_from_address: &Address, token_to_address: &Address) -> Option<Vec<Address>> {
+    pub fn get_token_token_pools(&self, token_from_address: &LDT::Address, token_to_address: &LDT::Address) -> Option<Vec<LDT::Address>> {
         if let Some(token_from_map) = self.token_token_pools.get(token_from_address) {
             if let Some(pool_address_vec) = token_from_map.get(token_to_address) {
                 return Some(pool_address_vec.clone());
@@ -157,7 +156,11 @@ impl Market {
     }
 
     /// Get all pool addresses as reference that allow to swap from `token_from_address` to `token_to_address`.
-    pub fn get_token_token_pools_ptr(&self, token_from_address: &Address, token_to_address: &Address) -> Option<&Vec<Address>> {
+    pub fn get_token_token_pools_ptr(
+        &self,
+        token_from_address: &LDT::Address,
+        token_to_address: &LDT::Address,
+    ) -> Option<&Vec<LDT::Address>> {
         if let Some(token_from_map) = self.token_token_pools.get(token_from_address) {
             if let Some(pool_address_vec) = token_from_map.get(token_to_address) {
                 return Some(pool_address_vec);
@@ -167,7 +170,7 @@ impl Market {
     }
 
     /// Get all token addresses that allow to swap from `token_from_address`.
-    pub fn get_token_tokens(&self, token_from_address: &Address) -> Option<Vec<Address>> {
+    pub fn get_token_tokens(&self, token_from_address: &LDT::Address) -> Option<Vec<LDT::Address>> {
         if let Some(token_vec) = self.token_tokens.get(token_from_address) {
             return Some(token_vec.clone());
         }
@@ -175,7 +178,7 @@ impl Market {
     }
 
     /// Get all token addresses as reference that allow to swap from `token_from_address`.
-    pub fn get_token_tokens_ptr(&self, token_from_address: &Address) -> Option<&Vec<Address>> {
+    pub fn get_token_tokens_ptr(&self, token_from_address: &LDT::Address) -> Option<&Vec<LDT::Address>> {
         if let Some(token_vec) = self.token_tokens.get(token_from_address) {
             return Some(token_vec);
         }
@@ -183,7 +186,7 @@ impl Market {
     }
 
     /// Get all pool addresses that allow to swap `token_address`.
-    pub fn get_token_pools(&self, token_from_address: &Address) -> Option<Vec<Address>> {
+    pub fn get_token_pools(&self, token_from_address: &LDT::Address) -> Option<Vec<LDT::Address>> {
         if let Some(token_vec) = self.token_pools.get(token_from_address) {
             return Some(token_vec.clone());
         }
@@ -191,7 +194,7 @@ impl Market {
     }
 
     /// Get all pool addresses as reference that allow to swap `token_address`.
-    pub fn get_token_pools_ptr(&self, token_address: &Address) -> Option<&Vec<Address>> {
+    pub fn get_token_pools_ptr(&self, token_address: &LDT::Address) -> Option<&Vec<LDT::Address>> {
         if let Some(token_vec) = self.token_pools.get(token_address) {
             return Some(token_vec);
         }
@@ -199,14 +202,17 @@ impl Market {
     }
 
     /// Build a list of swap paths from the given directions.
-    pub fn build_swap_path_vec(&self, directions: &BTreeMap<PoolWrapper, Vec<(Address, Address)>>) -> Result<Vec<SwapPath>> {
+    pub fn build_swap_path_vec(
+        &self,
+        directions: &BTreeMap<PoolWrapper<LDT>, Vec<(LDT::Address, LDT::Address)>>,
+    ) -> Result<Vec<SwapPath<LDT>>> {
         build_swap_path_vec(self, directions)
     }
 
     /// get a [`SwapPath`] from the given token and pool addresses.
-    pub fn swap_path(&self, token_address_vec: Vec<Address>, pool_address_vec: Vec<Address>) -> Result<SwapPath> {
-        let mut tokens: Vec<Arc<Token>> = Vec::new();
-        let mut pools: Vec<PoolWrapper> = Vec::new();
+    pub fn swap_path(&self, token_address_vec: Vec<LDT::Address>, pool_address_vec: Vec<LDT::Address>) -> Result<SwapPath<LDT>> {
+        let mut tokens: Vec<Arc<Token<LDT>>> = Vec::new();
+        let mut pools: Vec<PoolWrapper<LDT>> = Vec::new();
 
         for token_address in token_address_vec.iter() {
             tokens.push(self.get_token(token_address).ok_or_eyre("TOKEN_NOT_FOUND")?);
@@ -252,7 +258,7 @@ mod tests {
 
     #[test]
     fn test_add_token() {
-        let mut market = Market::default();
+        let mut market = Market::<LoomDataTypesEthereum>::default();
         let token_address = Address::random();
 
         let result = market.add_token(Arc::new(Token::new(token_address)));
@@ -263,7 +269,7 @@ mod tests {
 
     #[test]
     fn test_get_token_default() {
-        let market = Market::default();
+        let market = Market::<LoomDataTypesEthereum>::default();
         let token_address = Address::random();
 
         let token = market.get_token_or_default(&token_address);
@@ -297,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_is_pool_not_found() {
-        let market = Market::default();
+        let market = Market::<LoomDataTypesEthereum>::default();
         let pool_address = Address::random();
 
         let is_pool = market.is_pool(&pool_address);

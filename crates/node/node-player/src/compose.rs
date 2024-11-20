@@ -1,13 +1,13 @@
 use loom_core_actors::{Broadcaster, SharedState, WorkerResult};
 use loom_evm_utils::reth_types::decode_into_transaction;
 use loom_types_blockchain::Mempool;
-use loom_types_events::{MessageTxCompose, RlpState, TxCompose};
+use loom_types_events::{BackrunComposeMessage, MessageBackrunTxCompose, RlpState};
 use tokio::select;
 use tracing::{error, info};
 
 pub(crate) async fn replayer_compose_worker<DB: Clone + Send + Sync>(
     mempool: SharedState<Mempool>,
-    compose_channel: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> WorkerResult {
     let mut compose_channel_rx = compose_channel.subscribe().await;
 
@@ -15,7 +15,7 @@ pub(crate) async fn replayer_compose_worker<DB: Clone + Send + Sync>(
         select! {
             msg = compose_channel_rx.recv() => {
                 if let Ok(msg) = msg {
-                    if let TxCompose::Broadcast(broadcast_msg) = msg.inner {
+                    if let BackrunComposeMessage::Broadcast(broadcast_msg) = msg.inner {
                         info!("Broadcast compose message received. {:?}", broadcast_msg.tx_bundle);
                         for tx in broadcast_msg.rlp_bundle.unwrap_or_default() {
                             match tx {

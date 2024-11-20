@@ -1,9 +1,9 @@
 use eyre::{eyre, Result};
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, LoomDataTypesEthereum};
 use loom_types_entities::{AccountNonceAndBalanceState, TxSigners};
-use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData};
+use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose};
 use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
@@ -11,8 +11,8 @@ use tracing::{debug, error, info};
 
 /// encoder task performs encode for request
 async fn router_task<DB: DatabaseRef + Send + Sync + Clone + 'static>(
-    route_request: TxComposeData<DB>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    route_request: BackrunComposeData<DB>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>,
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
 ) -> Result<()> {
@@ -33,8 +33,8 @@ async fn router_task<DB: DatabaseRef + Send + Sync + Clone + 'static>(
 
     let gas = (route_request.swap.pre_estimate_gas()) * 2;
 
-    let estimate_request = TxComposeData { signer: Some(signer), nonce, eth_balance, gas, ..route_request };
-    let estimate_request = MessageTxCompose::estimate(estimate_request);
+    let estimate_request = BackrunComposeData { signer: Some(signer), nonce, eth_balance, gas, ..route_request };
+    let estimate_request = MessageBackrunTxCompose::estimate(estimate_request);
 
     match compose_channel_tx.send(estimate_request).await {
         Err(_) => {
@@ -48,20 +48,20 @@ async fn router_task<DB: DatabaseRef + Send + Sync + Clone + 'static>(
 async fn swap_router_worker<DB: DatabaseRef + Clone + Send + Sync + 'static>(
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> WorkerResult {
-    let mut compose_channel_rx: Receiver<MessageTxCompose<DB>> = compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageBackrunTxCompose<DB>> = compose_channel_rx.subscribe().await;
 
     info!("swap router worker started");
 
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(compose_request) => {
-                        if let TxCompose::Route(encode_request) = compose_request.inner {
+                        if let BackrunComposeMessage::Route(encode_request) = compose_request.inner {
                             debug!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", encode_request.stuffing_txs_hashes, encode_request.swap);
                             tokio::task::spawn(
                                 router_task(
@@ -87,9 +87,9 @@ pub struct SwapRouterActor<DB: Send + Sync + Clone + 'static> {
     #[accessor]
     account_nonce_balance: Option<SharedState<AccountNonceAndBalanceState>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
 }
 
 impl<DB> SwapRouterActor<DB>

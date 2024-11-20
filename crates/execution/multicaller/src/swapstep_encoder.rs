@@ -6,6 +6,7 @@ use tracing::{debug, trace};
 use crate::helpers::EncoderHelper;
 use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::SwapLineEncoder;
+use loom_types_blockchain::loom_data_types::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{SwapAmountType, SwapStep};
 
@@ -46,7 +47,7 @@ impl SwapStepEncoder {
         self.swap_line_encoder.encode_tips(swap_opcodes, token_address, min_balance, tips, funds_to)
     }
 
-    pub fn encode_balancer_flash_loan(&self, steps: Vec<SwapStep>) -> Result<MulticallerCalls> {
+    pub fn encode_balancer_flash_loan(&self, steps: Vec<SwapStep<LoomDataTypesEthereum>>) -> Result<MulticallerCalls> {
         let flash_funds_to = self.multicaller;
 
         let mut swap_opcodes = MulticallerCalls::new();
@@ -89,7 +90,11 @@ impl SwapStepEncoder {
         Ok(flash_opcodes)
     }
 
-    pub fn encode_in_amount(&self, step0: SwapStep, step1: SwapStep) -> Result<MulticallerCalls> {
+    pub fn encode_in_amount(
+        &self,
+        step0: SwapStep<LoomDataTypesEthereum>,
+        step1: SwapStep<LoomDataTypesEthereum>,
+    ) -> Result<MulticallerCalls> {
         let flash = step0.clone();
         let mut swap = step1.clone();
 
@@ -133,7 +138,11 @@ impl SwapStepEncoder {
         Ok(swap_opcodes)
     }
 
-    pub fn encode_out_amount(&self, step0: SwapStep, step1: SwapStep) -> Result<MulticallerCalls> {
+    pub fn encode_out_amount(
+        &self,
+        step0: SwapStep<LoomDataTypesEthereum>,
+        step1: SwapStep<LoomDataTypesEthereum>,
+    ) -> Result<MulticallerCalls> {
         let flash = step1.clone();
         let swap = step0.clone();
 
@@ -176,7 +185,11 @@ impl SwapStepEncoder {
         Ok((self.multicaller, call_data))
     }
 
-    pub fn encode_swap_steps(&self, sp0: &SwapStep, sp1: &SwapStep) -> Result<MulticallerCalls> {
+    pub fn encode_swap_steps(
+        &self,
+        sp0: &SwapStep<LoomDataTypesEthereum>,
+        sp1: &SwapStep<LoomDataTypesEthereum>,
+    ) -> Result<MulticallerCalls> {
         if sp0.can_flash_swap() {
             trace!("encode_swap_steps -> sp0.can_flash_swap()");
             self.encode_in_amount(sp0.clone(), sp1.clone())

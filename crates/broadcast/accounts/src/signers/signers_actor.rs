@@ -8,11 +8,11 @@ use tracing::{error, info};
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_types_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData, TxState};
+use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose, RlpState, TxState};
 
 async fn sign_task<DB: Send + Sync + Clone>(
-    sign_request: TxComposeData<DB>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    sign_request: BackrunComposeData<DB>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> Result<()> {
     let signer = match sign_request.signer.clone() {
         Some(signer) => signer,
@@ -44,9 +44,9 @@ async fn sign_task<DB: Send + Sync + Clone>(
         return Err(eyre!("CANNOT_SIGN_BUNDLE"));
     }
 
-    let broadcast_request = TxComposeData { rlp_bundle: Some(rlp_bundle), ..sign_request };
+    let broadcast_request = BackrunComposeData { rlp_bundle: Some(rlp_bundle), ..sign_request };
 
-    match compose_channel_tx.send(MessageTxCompose::broadcast(broadcast_request)).await {
+    match compose_channel_tx.send(MessageBackrunTxCompose::broadcast(broadcast_request)).await {
         Err(e) => {
             error!("{e}");
             Err(eyre!("BROADCAST_ERROR"))
@@ -56,19 +56,19 @@ async fn sign_task<DB: Send + Sync + Clone>(
 }
 
 async fn request_listener_worker<DB: Send + Sync + Clone>(
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> WorkerResult {
-    let mut compose_channel_rx: Receiver<MessageTxCompose<DB>> = compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageBackrunTxCompose<DB>> = compose_channel_rx.subscribe().await;
 
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let compose_request_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let compose_request_msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
                 match compose_request_msg {
                     Ok(compose_request) =>{
 
-                        if let TxCompose::Sign( sign_request)= compose_request.inner {
+                        if let BackrunComposeMessage::Sign( sign_request)= compose_request.inner {
                             tokio::task::spawn(
                                 sign_task(
                                     sign_request,
@@ -87,9 +87,9 @@ async fn request_listener_worker<DB: Send + Sync + Clone>(
 #[derive(Accessor, Consumer, Producer, Default)]
 pub struct TxSignersActor<DB: Send + Sync + Clone + 'static> {
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
 }
 
 impl<DB> TxSignersActor<DB>

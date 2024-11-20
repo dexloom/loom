@@ -2,6 +2,7 @@ use alloy_primitives::utils::parse_units;
 use alloy_primitives::U256;
 use eyre::ErrReport;
 use lazy_static::lazy_static;
+use loom_types_blockchain::loom_data_types::LoomDataTypes;
 use loom_types_blockchain::SwapError;
 use loom_types_entities::SwapLine;
 use revm::primitives::Env;
@@ -15,11 +16,11 @@ pub struct SwapCalculator {}
 
 impl SwapCalculator {
     #[inline]
-    pub fn calculate<'a, DB: DatabaseRef<Error = ErrReport>>(
-        path: &'a mut SwapLine,
+    pub fn calculate<'a, DB: DatabaseRef<Error = ErrReport>, LDT: LoomDataTypes>(
+        path: &'a mut SwapLine<LDT>,
         state: &DB,
         env: Env,
-    ) -> eyre::Result<&'a mut SwapLine, SwapError> {
+    ) -> eyre::Result<&'a mut SwapLine<LDT>, SwapError<LDT>> {
         let first_token = path.get_first_token().unwrap();
         if let Some(amount_in) = first_token.calc_token_value_from_eth(*START_OPTIMIZE_INPUT) {
             //trace!("calculate : {} amount in : {}",first_token.get_symbol(), first_token.to_float(amount_in) );

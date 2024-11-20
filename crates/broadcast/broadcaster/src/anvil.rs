@@ -16,9 +16,9 @@ use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_node_debug_provider::AnvilProviderExt;
-use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData};
+use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose};
 
-async fn broadcast_task<P, T, N, DB>(client: P, request: TxComposeData<DB>) -> Result<()>
+async fn broadcast_task<P, T, N, DB>(client: P, request: BackrunComposeData<DB>) -> Result<()>
 where
     N: Network,
     T: Transport + Clone,
@@ -45,21 +45,21 @@ where
     Ok(())
 }
 
-async fn anvil_broadcaster_worker<P, T, DB>(client: P, bundle_rx: Broadcaster<MessageTxCompose<DB>>) -> WorkerResult
+async fn anvil_broadcaster_worker<P, T, DB>(client: P, bundle_rx: Broadcaster<MessageBackrunTxCompose<DB>>) -> WorkerResult
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     DB: Clone + Send + Sync,
 {
-    let mut bundle_rx: Receiver<MessageTxCompose<DB>> = bundle_rx.subscribe().await;
+    let mut bundle_rx: Receiver<MessageBackrunTxCompose<DB>> = bundle_rx.subscribe().await;
 
     loop {
         tokio::select! {
             msg = bundle_rx.recv() => {
-                let broadcast_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let broadcast_msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
                 match broadcast_msg {
                     Ok(compose_request) => {
-                        if let TxCompose::Broadcast(broadcast_request) = compose_request.inner {
+                        if let BackrunComposeMessage::Broadcast(broadcast_request) = compose_request.inner {
                             info!("Broadcasting to hardhat:" );
                             let snap_shot = client.snapshot().await?;
                             client.set_automine(false).await?;
@@ -92,7 +92,7 @@ where
 pub struct AnvilBroadcastActor<P, T, DB: Clone + Send + Sync + 'static> {
     client: P,
     #[consumer]
-    tx_compose_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    tx_compose_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     _t: PhantomData<T>,
 }
 
