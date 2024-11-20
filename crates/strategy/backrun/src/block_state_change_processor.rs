@@ -3,6 +3,7 @@ use eyre::eyre;
 use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
+use loom_types_blockchain::loom_data_types::LoomDataTypesEthereum;
 use loom_types_blockchain::ChainParameters;
 use loom_types_entities::{BlockHistory, Market};
 use loom_types_events::{MarketEvents, StateUpdateEvent};
@@ -15,7 +16,7 @@ pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + '
     market: SharedState<Market>,
     block_history: SharedState<BlockHistory<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
-    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB>>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB, LoomDataTypesEthereum>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
 
@@ -92,7 +93,7 @@ pub struct BlockStateChangeProcessorActor<DB: Clone + Send + Sync + 'static> {
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     #[producer]
-    state_updates_tx: Option<Broadcaster<StateUpdateEvent<DB>>>,
+    state_updates_tx: Option<Broadcaster<StateUpdateEvent<DB, LoomDataTypesEthereum>>>,
 }
 
 impl<DB: DatabaseRef + Send + Sync + Clone + 'static> BlockStateChangeProcessorActor<DB> {

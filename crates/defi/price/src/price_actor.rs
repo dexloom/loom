@@ -9,7 +9,7 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::Accessor;
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, LoomDataTypesEthereum};
 use loom_defi_address_book::TokenAddress;
 use loom_defi_pools::protocols::CurveProtocol;
 use loom_defi_pools::CurvePool;
@@ -124,7 +124,7 @@ where
         Self { only_once: true, ..self }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB, LoomDataTypesEthereum>) -> Self {
         Self { market: Some(bc.market()), ..self }
     }
 }

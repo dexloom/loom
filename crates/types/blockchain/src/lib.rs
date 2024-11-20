@@ -13,6 +13,7 @@ pub use swap::SwapError;
 mod accountnoncetx;
 mod chain_parameters;
 mod fetchstate;
+pub mod loom_data_types;
 mod mempool;
 mod mempool_tx;
 mod new_block;

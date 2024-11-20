@@ -1,32 +1,32 @@
 use alloy_primitives::{BlockNumber, TxHash};
-use alloy_rpc_types::{Log, Transaction};
 use chrono::{DateTime, Utc};
 
-use crate::{FetchState, GethStateUpdate};
+use crate::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use crate::FetchState;
 
 #[derive(Clone, Debug)]
-pub struct MempoolTx {
+pub struct MempoolTx<D: LoomDataTypes> {
     pub source: String,
     pub tx_hash: TxHash,
     pub time: DateTime<Utc>,
-    pub tx: Option<Transaction>,
-    pub logs: Option<Vec<Log>>,
+    pub tx: Option<D::Transaction>,
+    pub logs: Option<Vec<D::Log>>,
     pub mined: Option<BlockNumber>,
     pub failed: Option<bool>,
-    pub state_update: Option<GethStateUpdate>,
-    pub pre_state: Option<FetchState<GethStateUpdate>>,
+    pub state_update: Option<D::StateUpdate>,
+    pub pre_state: Option<FetchState<D::StateUpdate>>,
 }
 
-impl MempoolTx {
-    pub fn new() -> MempoolTx {
+impl MempoolTx<LoomDataTypesEthereum> {
+    pub fn new() -> MempoolTx<LoomDataTypesEthereum> {
         MempoolTx { ..MempoolTx::default() }
     }
-    pub fn new_with_hash(tx_hash: TxHash) -> MempoolTx {
+    pub fn new_with_hash(tx_hash: TxHash) -> MempoolTx<LoomDataTypesEthereum> {
         MempoolTx { tx_hash, ..MempoolTx::default() }
     }
 }
 
-impl Default for MempoolTx {
+impl Default for MempoolTx<LoomDataTypesEthereum> {
     fn default() -> Self {
         MempoolTx {
             source: "unknown".to_string(),

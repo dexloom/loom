@@ -1,3 +1,4 @@
+use crate::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 use crate::{AccountNonceAndTransactions, FetchState, GethStateUpdate, MempoolTx};
 use alloy_consensus::Transaction as TransactionTrait;
 use alloy_primitives::{Address, BlockNumber, TxHash};
@@ -9,13 +10,13 @@ use std::collections::hash_map::Entry;
 use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default)]
-pub struct Mempool {
-    pub txs: HashMap<TxHash, MempoolTx>,
+pub struct Mempool<D: LoomDataTypes = LoomDataTypesEthereum> {
+    pub txs: HashMap<TxHash, MempoolTx<D>>,
     accounts: HashMap<Address, AccountNonceAndTransactions>,
 }
 
-impl Mempool {
-    pub fn new() -> Mempool {
+impl Mempool<LoomDataTypesEthereum> {
+    pub fn new() -> Mempool<LoomDataTypesEthereum> {
         Mempool { txs: HashMap::new(), accounts: HashMap::new() }
     }
 
@@ -50,7 +51,7 @@ impl Mempool {
         self
     }
 
-    pub fn filter_by_gas_price(&self, gas_price: u128) -> Vec<&MempoolTx> {
+    pub fn filter_by_gas_price(&self, gas_price: u128) -> Vec<&MempoolTx<LoomDataTypesEthereum>> {
         self.txs
             .values()
             .filter(|&item| {
@@ -59,7 +60,7 @@ impl Mempool {
             .collect()
     }
 
-    pub fn filter_ok_by_gas_price(&self, gas_price: u128) -> Vec<&MempoolTx> {
+    pub fn filter_ok_by_gas_price(&self, gas_price: u128) -> Vec<&MempoolTx<LoomDataTypesEthereum>> {
         self.txs
             .values()
             .filter(|&item| {
@@ -70,7 +71,7 @@ impl Mempool {
             .collect()
     }
 
-    pub fn filter_on_block(&self, block_number: BlockNumber) -> Vec<&MempoolTx> {
+    pub fn filter_on_block(&self, block_number: BlockNumber) -> Vec<&MempoolTx<LoomDataTypesEthereum>> {
         self.txs.values().filter(|&item| item.mined == Some(block_number)).collect()
     }
 
@@ -125,7 +126,7 @@ impl Mempool {
         self.accounts.get(&tx.from).map_or_else(|| true, |acc| acc.nonce.map_or_else(|| true, |nonce| tx.nonce() == nonce + 1))
     }
 
-    pub fn get_tx_by_hash(&self, tx_hash: &TxHash) -> Option<&MempoolTx> {
+    pub fn get_tx_by_hash(&self, tx_hash: &TxHash) -> Option<&MempoolTx<LoomDataTypesEthereum>> {
         self.txs.get(tx_hash)
     }
 
@@ -133,7 +134,7 @@ impl Mempool {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    pub fn remove_tx(&mut self, tx_hash: &TxHash) -> Option<MempoolTx> {
+    pub fn remove_tx(&mut self, tx_hash: &TxHash) -> Option<MempoolTx<LoomDataTypesEthereum>> {
         self.txs.remove(tx_hash)
     }
 }
