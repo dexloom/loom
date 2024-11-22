@@ -9,9 +9,10 @@ use loom_rpc_state::AppState;
 use loom_types_blockchain::ChainParameters;
 use revm::primitives::{BlockEnv, Env, CANCUN};
 use revm::{DatabaseCommit, DatabaseRef, Evm};
+use tower_http::compression::Predicate;
 use tracing::{error, info};
 
-pub async fn flashbots<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+pub async fn flashbots<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static>(
     State(app_state): State<AppState<DB>>,
     Json(bundle_request): Json<BundleRequest>,
 ) -> Result<Json<SendBundleResponse>, (StatusCode, String)> {
@@ -44,7 +45,7 @@ pub async fn flashbots<DB: DatabaseRef + Send + Sync + Clone + 'static>(
             },
             ..Env::default()
         };
-        let db = app_state.bc.market_state().read().await.state_db.clone();
+        let db = app_state.state.market_state().read().await.state_db.clone();
         let mut evm = Evm::builder().with_spec_id(CANCUN).with_ref_db(db).with_env(Box::new(evm_env)).build();
         for (tx_idx, tx) in bundle_param.transactions.iter().enumerate() {
             let tx_hash = keccak256(tx);

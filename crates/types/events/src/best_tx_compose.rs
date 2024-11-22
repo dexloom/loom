@@ -1,22 +1,22 @@
 use alloy_primitives::U256;
 
-use crate::BackrunComposeData;
+use crate::SwapComposeData;
 
 #[derive(Default)]
-pub struct BestTxCompose<DB> {
+pub struct BestTxSwapCompose<DB> {
     validity_pct: Option<U256>,
-    best_profit_swap: Option<BackrunComposeData<DB>>,
-    best_profit_gas_ratio_swap: Option<BackrunComposeData<DB>>,
-    best_tips_swap: Option<BackrunComposeData<DB>>,
-    best_tips_gas_ratio_swap: Option<BackrunComposeData<DB>>,
+    best_profit_swap: Option<SwapComposeData<DB>>,
+    best_profit_gas_ratio_swap: Option<SwapComposeData<DB>>,
+    best_tips_swap: Option<SwapComposeData<DB>>,
+    best_tips_gas_ratio_swap: Option<SwapComposeData<DB>>,
 }
 
-impl<DB: Clone + Default + 'static> BestTxCompose<DB> {
+impl<DB: Clone + Default + 'static> BestTxSwapCompose<DB> {
     pub fn new_with_pct<T: Into<U256>>(validity_pct: T) -> Self {
-        BestTxCompose { validity_pct: Some(validity_pct.into()), ..Default::default() }
+        BestTxSwapCompose { validity_pct: Some(validity_pct.into()), ..Default::default() }
     }
 
-    pub fn check(&mut self, request: &BackrunComposeData<DB>) -> bool {
+    pub fn check(&mut self, request: &SwapComposeData<DB>) -> bool {
         let mut is_ok = false;
 
         match &self.best_profit_swap {
@@ -55,7 +55,7 @@ impl<DB: Clone + Default + 'static> BestTxCompose<DB> {
             }
         }
 
-        if request.gas != 0 {
+        if request.tx_compose.gas != 0 {
             match &self.best_tips_gas_ratio_swap {
                 Some(best_swap) => {
                     if best_swap.tips_gas_ratio() < request.tips_gas_ratio() {

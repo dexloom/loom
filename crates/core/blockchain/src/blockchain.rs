@@ -8,8 +8,8 @@ use loom_types_blockchain::{ChainParameters, Mempool};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, BlockHistoryState, LatestBlock, Market, MarketState, Token};
 use loom_types_events::{
-    MarketEvents, MempoolEvents, MessageBackrunTxCompose, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
-    MessageHealthEvent, MessageMempoolDataUpdate, StateUpdateEvent, Task,
+    MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
+    MessageMempoolDataUpdate, MessageSwapCompose, MessageTxCompose, StateUpdateEvent, Task,
 };
 use revm::{Database, DatabaseCommit, DatabaseRef};
 
@@ -29,7 +29,7 @@ pub struct Blockchain<LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
     new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate<LDT>>,
     market_events_channel: Broadcaster<MarketEvents<LDT>>,
     mempool_events_channel: Broadcaster<MempoolEvents<LDT>>,
-    tx_broadcast_channel: Broadcaster<MessageTxBroadcast<LDT>>,
+    tx_compose_channel: Broadcaster<MessageTxCompose<LDT>>,
 
     pool_health_monitor_channel: Broadcaster<MessageHealthEvent<LDT>>,
     influxdb_write_channel: Broadcaster<WriteQuery>,
@@ -47,7 +47,7 @@ impl Blockchain<LoomDataTypesEthereum> {
 
         let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(100);
         let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(2000);
-        let tx_broadcast_channel: Broadcaster<MempoolEvents> = Broadcaster::new(2000);
+        let tx_compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(2000);
 
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
         let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
@@ -84,6 +84,7 @@ impl Blockchain<LoomDataTypesEthereum> {
             market_events_channel,
             mempool_events_channel,
             pool_health_monitor_channel,
+            tx_compose_channel,
             influxdb_write_channel: influx_write_channel,
             tasks_channel,
         }
@@ -142,6 +143,11 @@ impl<LDT: LoomDataTypes> Blockchain<LDT> {
     pub fn mempool_events_channel(&self) -> Broadcaster<MempoolEvents<LDT>> {
         self.mempool_events_channel.clone()
     }
+
+    pub fn tx_compose_channel(&self) -> Broadcaster<MessageTxCompose<LDT>> {
+        self.tx_compose_channel.clone()
+    }
+
     pub fn pool_health_monitor_channel(&self) -> Broadcaster<MessageHealthEvent<LDT>> {
         self.pool_health_monitor_channel.clone()
     }

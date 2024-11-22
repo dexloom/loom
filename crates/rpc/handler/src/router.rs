@@ -25,11 +25,11 @@ pub fn router<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Sync + Send 
         .with_state(app_state)
 }
 
-pub fn router_block<DB: DatabaseRef + Sync + Send + Clone + 'static>() -> Router<AppState<DB>> {
+pub fn router_block<DB: DatabaseRef + DatabaseCommit + Sync + Send + Clone + 'static>() -> Router<AppState<DB>> {
     Router::new().route("/latest_block", get(latest_block))
 }
 
-pub fn router_market<DB: DatabaseRef<Error = ErrReport> + Sync + Send + Clone + 'static>() -> Router<AppState<DB>> {
+pub fn router_market<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Sync + Send + Clone + 'static>() -> Router<AppState<DB>> {
     Router::new()
         .route("/pools/:address", get(pool))
         .route("/pools/:address/quote", post(pool_quote))

@@ -19,6 +19,12 @@ impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseL
     pub fn with_market_state(self, market_state: MarketState<DB>) -> BlockchainState<DB> {
         BlockchainState { market_state: SharedState::new(market_state), ..self.clone() }
     }
+}
+
+impl<DB: Clone + Send + Sync> BlockchainState<DB> {
+    pub fn market_state_commit(&self) -> SharedState<MarketState<DB>> {
+        self.market_state.clone()
+    }
 
     pub fn market_state(&self) -> SharedState<MarketState<DB>> {
         self.market_state.clone()
@@ -26,11 +32,5 @@ impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseL
 
     pub fn block_history(&self) -> SharedState<BlockHistory<DB>> {
         self.block_history_state.clone()
-    }
-}
-
-impl<DB: Clone + Send + Sync> BlockchainState<DB> {
-    pub fn market_state_commit(&self) -> SharedState<MarketState<DB>> {
-        self.market_state.clone()
     }
 }

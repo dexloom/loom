@@ -307,7 +307,7 @@ where
         }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain) -> Self {
         Self {
             block_header_channel: if self.config.block_header { Some(bc.new_block_headers_channel()) } else { None },
             block_with_tx_channel: if self.config.block_with_tx { Some(bc.new_block_with_tx_channel()) } else { None },

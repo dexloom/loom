@@ -16,7 +16,9 @@ use loom_node_debug_provider::{DebugProviderExt, HttpCachedTransport};
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::Mempool;
 use loom_types_entities::MarketState;
-use loom_types_events::{MessageBackrunTxCompose, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
+use loom_types_events::{
+    MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageSwapCompose, MessageTxCompose,
+};
 use tokio::task::JoinHandle;
 
 #[derive(Producer, Consumer, Accessor)]
@@ -29,7 +31,7 @@ pub struct NodeBlockPlayerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
-    compose_channel: Option<Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>>,
+    compose_channel: Option<Broadcaster<MessageTxCompose<LoomDataTypesEthereum>>>,
     #[producer]
     block_header_channel: Option<Broadcaster<MessageBlockHeader>>,
     #[producer]
@@ -66,23 +68,17 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
         Self {
             mempool: Some(bc.mempool()),
             block_header_channel: Some(bc.new_block_headers_channel()),
             block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
             block_logs_channel: Some(bc.new_block_logs_channel()),
             block_state_update_channel: Some(bc.new_block_state_update_channel()),
+            market_state: Some(state.market_state_commit()),
+            compose_channel: Some(bc.tx_compose_channel()),
             ..self
         }
-    }
-
-    pub fn on_state(self, state: &BlockchainState<DB>) -> Self {
-        Self { market_state: Some(state.market_state_commit()), ..self }
-    }
-
-    pub fn on_strategy(self, strategy: &Strategy<DB>) -> Self {
-        Self { compose_channel: Some(strategy.compose_channel()), ..self }
     }
 }
 

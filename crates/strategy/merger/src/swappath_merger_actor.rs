@@ -10,13 +10,13 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_execution_multicaller::SwapStepEncoder;
 use loom_types_entities::{LatestBlock, Swap, SwapStep};
-use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MarketEvents, MessageBackrunTxCompose};
+use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeData, SwapComposeMessage};
 
 async fn arb_swap_steps_optimizer_task<DB: DatabaseRef + Send + Sync + Clone>(
-    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
     state_db: &(dyn DatabaseRef<Error = ErrReport> + Send + Sync + 'static),
     evm_env: Env,
-    request: BackrunComposeData<DB>,
+    request: SwapComposeData<DB>,
 ) -> Result<()> {
     debug!("Step Simulation started");
 
@@ -24,7 +24,7 @@ async fn arb_swap_steps_optimizer_task<DB: DatabaseRef + Send + Sync + Clone>(
         let start_time = chrono::Local::now();
         match SwapStep::optimize_swap_steps(&state_db, evm_env, &sp0, &sp1, None) {
             Ok((s0, s1)) => {
-                let encode_request = MessageBackrunTxCompose::route(BackrunComposeData {
+                let encode_request = MessageSwapCompose::prepare(SwapComposeData {
                     origin: Some("merger_searcher".to_string()),
                     tips_pct: None,
                     swap: Swap::BackrunSwapSteps((s0, s1)),
@@ -50,13 +50,13 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
     encoder: SwapStepEncoder,
     latest_block: SharedState<LatestBlock>,
     market_events_rx: Broadcaster<MarketEvents>,
-    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
     subscribe!(compose_channel_rx);
 
-    let mut ready_requests: Vec<BackrunComposeData<DB>> = Vec::new();
+    let mut ready_requests: Vec<SwapComposeData<DB>> = Vec::new();
 
     loop {
         tokio::select! {
@@ -81,12 +81,12 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
 
             },
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
+                let msg : Result<MessageSwapCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(swap) => {
 
                         let compose_data = match swap.inner() {
-                            BackrunComposeMessage::Sign(data) => data,
+                            SwapComposeMessage::Sign(data) => data,
                             _=>continue,
                         };
 
@@ -117,7 +117,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                                     let block_header = latest_block_guard.block_header.clone().unwrap();
                                     drop(latest_block_guard);
 
-                                    let request = BackrunComposeData{
+                                    let request = SwapComposeData{
                                         swap : Swap::BackrunSwapSteps((sp0,sp1)),
                                         ..compose_data.clone()
                                     };
@@ -165,9 +165,9 @@ pub struct ArbSwapPathMergerActor<DB: Send + Sync + Clone + 'static> {
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
 }
 
 impl<DB> ArbSwapPathMergerActor<DB>
@@ -219,12 +219,12 @@ mod test {
     use alloy_primitives::{Address, U256};
     use loom_evm_db::LoomDB;
     use loom_types_entities::{Swap, SwapAmountType, SwapLine, SwapPath, Token};
-    use loom_types_events::BackrunComposeData;
+    use loom_types_events::SwapComposeData;
     use std::sync::Arc;
 
     #[test]
     pub fn test_sort() {
-        let mut ready_requests: Vec<BackrunComposeData<LoomDB>> = Vec::new();
+        let mut ready_requests: Vec<SwapComposeData<LoomDB>> = Vec::new();
         let token = Arc::new(Token::new(Address::random()));
 
         let sp0 = SwapLine {
@@ -233,7 +233,7 @@ mod test {
             amount_out: SwapAmountType::Set(U256::from(2)),
             ..Default::default()
         };
-        ready_requests.push(BackrunComposeData { swap: Swap::BackrunSwapLine(sp0), ..BackrunComposeData::default() });
+        ready_requests.push(SwapComposeData { swap: Swap::BackrunSwapLine(sp0), ..SwapComposeData::default() });
 
         let sp1 = SwapLine {
             path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![] },
@@ -241,7 +241,7 @@ mod test {
             amount_out: SwapAmountType::Set(U256::from(20)),
             ..Default::default()
         };
-        ready_requests.push(BackrunComposeData { swap: Swap::BackrunSwapLine(sp1), ..BackrunComposeData::default() });
+        ready_requests.push(SwapComposeData { swap: Swap::BackrunSwapLine(sp1), ..SwapComposeData::default() });
 
         let sp2 = SwapLine {
             path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![] },
@@ -249,7 +249,7 @@ mod test {
             amount_out: SwapAmountType::Set(U256::from(5)),
             ..Default::default()
         };
-        ready_requests.push(BackrunComposeData { swap: Swap::BackrunSwapLine(sp2), ..BackrunComposeData::default() });
+        ready_requests.push(SwapComposeData { swap: Swap::BackrunSwapLine(sp2), ..SwapComposeData::default() });
 
         ready_requests.sort_by(|a, b| a.swap.abs_profit().cmp(&b.swap.abs_profit()));
 

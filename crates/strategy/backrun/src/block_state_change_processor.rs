@@ -107,20 +107,15 @@ impl<DB: DatabaseRef + Send + Sync + Clone + 'static> BlockStateChangeProcessorA
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>, strategy: &Strategy<DB>) -> Self {
         Self {
             chain_parameters: bc.chain_parameters(),
             market: Some(bc.market()),
             market_events_rx: Some(bc.market_events_channel()),
+            state_updates_tx: Some(strategy.state_update_channel()),
+            block_history: Some(state.block_history()),
             ..self
         }
-    }
-    pub fn on_strategy(self, strategy: &Strategy<DB>) -> Self {
-        Self { state_updates_tx: Some(strategy.state_update_channel()), ..self }
-    }
-
-    pub fn on_state(self, state: &BlockchainState<DB>) -> Self {
-        Self { block_history: Some(state.block_history()), ..self }
     }
 }
 

@@ -21,23 +21,23 @@ use tracing::{debug, error, info, trace};
 
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_evm_db::DatabaseHelpers;
 use loom_evm_utils::evm::evm_transact;
 use loom_evm_utils::evm_tx_env::tx_to_evm_tx;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, TRACING_CALL_OPTS};
 use loom_types_entities::{DataFetcher, FetchState, LatestBlock, MarketState, Swap};
-use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MarketEvents, MessageBackrunTxCompose};
+use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeData, SwapComposeMessage, TxComposeData};
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
 
 fn get_merge_list<'a, DB: Clone + 'static>(
-    request: &BackrunComposeData<DB>,
-    swap_paths: &'a HashMap<TxHash, Vec<BackrunComposeData<DB>>>,
-) -> Vec<&'a BackrunComposeData<DB>> {
+    request: &SwapComposeData<DB>,
+    swap_paths: &'a HashMap<TxHash, Vec<SwapComposeData<DB>>>,
+) -> Vec<&'a SwapComposeData<DB>> {
     //let mut ret : Vec<&TxComposeData> = Vec::new();
     let swap_line = if let Swap::BackrunSwapLine(swap_line) = &request.swap {
         swap_line
@@ -47,7 +47,7 @@ fn get_merge_list<'a, DB: Clone + 'static>(
 
     let swap_stuffing_hash = request.first_stuffing_hash();
 
-    let mut ret: Vec<&BackrunComposeData<DB>> = swap_paths
+    let mut ret: Vec<&SwapComposeData<DB>> = swap_paths
         .iter()
         .filter_map(|(k, v)| {
             if *k != swap_stuffing_hash {
@@ -69,8 +69,8 @@ async fn same_path_merger_task<P, T, N, DB>(
     pre_states: Arc<RwLock<DataFetcher<TxHash, GethStateUpdate>>>,
     market_state: SharedState<MarketState<DB>>,
     call_opts: GethDebugTracingCallOptions,
-    request: BackrunComposeData<DB>,
-    swap_request_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    request: SwapComposeData<DB>,
+    swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> Result<()>
 where
     N: Network,
@@ -86,9 +86,9 @@ where
 
     let env = Env {
         block: BlockEnv {
-            number: U256::from(request.next_block_number),
-            timestamp: U256::from(request.next_block_timestamp),
-            basefee: U256::from(request.next_block_base_fee),
+            number: U256::from(request.tx_compose.next_block_number),
+            timestamp: U256::from(request.tx_compose.next_block_timestamp),
+            basefee: U256::from(request.tx_compose.next_block_base_fee),
             ..BlockEnv::default()
         },
         ..Env::default()
@@ -205,9 +205,12 @@ where
             let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
             match swap_line.optimize_with_in_amount(&db, env.clone(), amount_in) {
                 Ok(_r) => {
-                    let encode_request = MessageBackrunTxCompose::route(BackrunComposeData {
-                        stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.tx_hash()).collect(),
-                        stuffing_txs: tx_order.iter().map(|i| stuffing_states[*i].0.clone()).collect(),
+                    let encode_request = MessageSwapCompose::prepare(SwapComposeData {
+                        tx_compose: TxComposeData {
+                            stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.tx_hash()).collect(),
+                            stuffing_txs: tx_order.iter().map(|i| stuffing_states[*i].0.clone()).collect(),
+                            ..request.tx_compose
+                        },
                         swap: Swap::BackrunSwapLine(swap_line.clone()),
                         origin: Some("samepath_merger".to_string()),
                         tips_pct: None,
@@ -243,13 +246,13 @@ async fn same_path_merger_worker<
     latest_block: SharedState<LatestBlock>,
     market_state: SharedState<MarketState<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
-    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
     subscribe!(compose_channel_rx);
 
-    let mut swap_paths: HashMap<TxHash, Vec<BackrunComposeData<DB>>> = HashMap::new();
+    let mut swap_paths: HashMap<TxHash, Vec<SwapComposeData<DB>>> = HashMap::new();
 
     let prestate = Arc::new(RwLock::new(DataFetcher::<TxHash, GethStateUpdate>::new()));
 
@@ -291,20 +294,20 @@ async fn same_path_merger_worker<
 
 
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
+                let msg : Result<MessageSwapCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(compose_request)=>{
-                        if let BackrunComposeMessage::Sign(sign_request) = compose_request.inner() {
+                        if let SwapComposeMessage::Ready(sign_request) = compose_request.inner() {
 
-                            if sign_request.stuffing_txs_hashes.len() == 1 {
+                            if sign_request.tx_compose.stuffing_txs_hashes.len() == 1 {
                                 if let Swap::BackrunSwapLine( _swap_line ) = &sign_request.swap {
                                     let stuffing_tx_hash = sign_request.first_stuffing_hash();
 
                                     let requests_vec = get_merge_list(sign_request, &swap_paths);
                                     if !requests_vec.is_empty() {
 
-                                        let mut stuffing_txs : Vec<Transaction> = vec![sign_request.stuffing_txs[0].clone()];
-                                        stuffing_txs.extend( requests_vec.iter().map(|r| r.stuffing_txs[0].clone() ).collect::<Vec<Transaction>>());
+                                        let mut stuffing_txs : Vec<Transaction> = vec![sign_request.tx_compose.stuffing_txs[0].clone()];
+                                        stuffing_txs.extend( requests_vec.iter().map(|r| r.tx_compose.stuffing_txs[0].clone() ).collect::<Vec<Transaction>>());
                                         let client_clone = client.clone();
                                         let prestate_clone = prestate.clone();
 
@@ -360,9 +363,9 @@ pub struct SamePathMergerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -387,13 +390,13 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>, strategy: &Strategy<DB>) -> Self {
         Self {
-            market_state: Some(bc.market_state_commit()),
+            market_state: Some(state.market_state_commit()),
             latest_block: Some(bc.latest_block()),
             market_events: Some(bc.market_events_channel()),
-            compose_channel_tx: Some(bc.compose_channel()),
-            compose_channel_rx: Some(bc.compose_channel()),
+            compose_channel_tx: Some(strategy.compose_channel()),
+            compose_channel_rx: Some(strategy.compose_channel()),
             ..self
         }
     }

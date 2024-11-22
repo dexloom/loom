@@ -178,14 +178,20 @@ impl<LDT: LoomDataTypes> Token<LDT> {
 #[cfg(test)]
 mod test {
     use super::*;
+    use loom_defi_address_book::TokenAddress;
 
     #[test]
     fn test_to_float() {
-        let weth_token = Token::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false);
-        let usdc_token = Token::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), false, false);
-        let usdt_token = Token::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), false, false);
-        let dai_token = Token::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), false, false);
-        let wbtc_token = Token::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), false, false);
+        let weth_token =
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false);
+        let usdc_token =
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), false, false);
+        let usdt_token =
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), false, false);
+        let dai_token =
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), false, false);
+        let wbtc_token =
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), false, false);
 
         let one_ether = U256::from(10).pow(U256::from(15));
 

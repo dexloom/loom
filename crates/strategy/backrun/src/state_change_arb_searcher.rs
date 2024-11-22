@@ -24,8 +24,8 @@ use loom_types_blockchain::SwapError;
 use loom_types_entities::config::StrategyConfig;
 use loom_types_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use loom_types_events::{
-    BackrunComposeData, BackrunComposeMessage, BestTxCompose, HealthEvent, Message, MessageBackrunTxCompose, MessageHealthEvent,
-    StateUpdateEvent,
+    BestTxSwapCompose, HealthEvent, Message, MessageHealthEvent, MessageSwapCompose, StateUpdateEvent, SwapComposeData, SwapComposeMessage,
+    TxComposeData,
 };
 
 async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static>(
@@ -33,7 +33,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     backrun_config: BackrunConfig,
     state_update_event: StateUpdateEvent<DB>,
     market: SharedState<Market>,
-    swap_request_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> Result<()> {
     debug!("Message received {} stuffing : {:?}", state_update_event.origin, state_update_event.stuffing_tx_hash());
@@ -136,27 +136,30 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
 
     let mut answers = 0;
 
-    let mut best_answers = BestTxCompose::new_with_pct(U256::from(9000));
+    let mut best_answers = BestTxSwapCompose::new_with_pct(U256::from(9000));
 
     let mut failed_pools: HashSet<SwapError> = HashSet::new();
 
     while let Some(swap_line_result) = swap_line_rx.recv().await {
         match swap_line_result {
             Ok(swap_line) => {
-                let encode_request = BackrunComposeMessage::Route(BackrunComposeData {
-                    eoa: backrun_config.eoa(),
-                    next_block_number: state_update_event.next_block_number,
-                    next_block_timestamp: state_update_event.next_block_timestamp,
-                    next_block_base_fee: state_update_event.next_base_fee,
-                    gas: swap_line.gas_used.unwrap_or(300000),
-                    stuffing_txs: state_update_event.stuffing_txs.clone(),
-                    stuffing_txs_hashes: state_update_event.stuffing_txs_hashes.clone(),
+                let encode_request = SwapComposeMessage::Prepare(SwapComposeData {
+                    tx_compose: TxComposeData {
+                        eoa: backrun_config.eoa(),
+                        next_block_number: state_update_event.next_block_number,
+                        next_block_timestamp: state_update_event.next_block_timestamp,
+                        next_block_base_fee: state_update_event.next_base_fee,
+                        gas: swap_line.gas_used.unwrap_or(300000),
+                        stuffing_txs: state_update_event.stuffing_txs.clone(),
+                        stuffing_txs_hashes: state_update_event.stuffing_txs_hashes.clone(),
+                        ..TxComposeData::default()
+                    },
                     swap: Swap::BackrunSwapLine(swap_line),
                     origin: Some(state_update_event.origin.clone()),
                     tips_pct: Some(state_update_event.tips_pct),
                     poststate: Some(db.clone()),
                     poststate_update: Some(state_update_event.state_update().clone()),
-                    ..BackrunComposeData::default()
+                    ..SwapComposeData::default()
                 });
 
                 if !backrun_config.smart() || best_answers.check(&encode_request) {
@@ -194,7 +197,7 @@ pub async fn state_change_arb_searcher_worker<
     backrun_config: BackrunConfig,
     market: SharedState<Market>,
     search_request_rx: Broadcaster<StateUpdateEvent<DB>>,
-    swap_request_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> WorkerResult {
     subscribe!(search_request_rx);
@@ -232,7 +235,7 @@ pub struct StateChangeArbSearcherActor<DB: Clone + Send + Sync + 'static> {
     #[consumer]
     state_update_rx: Option<Broadcaster<StateUpdateEvent<DB>>>,
     #[producer]
-    compose_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
+    compose_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
     pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
 }

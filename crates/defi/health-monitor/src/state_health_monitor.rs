@@ -17,7 +17,7 @@ use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_evm_db::DatabaseLoomExt;
 use loom_types_entities::MarketState;
-use loom_types_events::{BackrunComposeMessage, MarketEvents, MessageBackrunTxCompose};
+use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeMessage};
 use revm::DatabaseRef;
 
 async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static, DB: DatabaseLoomExt>(
@@ -61,10 +61,10 @@ pub async fn state_health_monitor_worker<
 >(
     client: P,
     market_state: SharedState<MarketState<DB>>,
-    tx_compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    tx_compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    let mut tx_compose_channel_rx: Receiver<MessageBackrunTxCompose<DB>> = tx_compose_channel_rx.subscribe().await;
+    let mut tx_compose_channel_rx: Receiver<MessageSwapCompose<DB>> = tx_compose_channel_rx.subscribe().await;
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
     let mut check_time_map: HashMap<Address, DateTime<Local>> = HashMap::new();
@@ -94,10 +94,10 @@ pub async fn state_health_monitor_worker<
             },
 
             msg = tx_compose_channel_rx.recv() => {
-                let tx_compose_update : Result<MessageBackrunTxCompose<DB>, RecvError>  = msg;
+                let tx_compose_update : Result<MessageSwapCompose<DB>, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
-                        if let BackrunComposeMessage::Broadcast(broadcast_data)= tx_compose_msg.inner {
+                        if let SwapComposeMessage::Broadcast(broadcast_data)= tx_compose_msg.inner {
                             let pool_address_vec =  broadcast_data.swap.get_pool_address_vec();
                             let now = chrono::Local::now();
                             for pool_address in pool_address_vec {
@@ -128,7 +128,7 @@ pub struct StateHealthMonitorActor<P, T, DB: Clone + Send + Sync + 'static> {
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
-    tx_compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
+    tx_compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     _t: PhantomData<T>,

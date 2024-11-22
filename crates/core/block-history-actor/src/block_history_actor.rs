@@ -394,7 +394,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
         Self {
             chain_parameters: bc.chain_parameters(),
             latest_block: Some(bc.latest_block()),
@@ -403,12 +403,10 @@ where
             log_update_rx: Some(bc.new_block_logs_channel()),
             state_update_rx: Some(bc.new_block_state_update_channel()),
             market_events_tx: Some(bc.market_events_channel()),
+            market_state: Some(state.market_state()),
+            block_history: Some(state.block_history()),
             ..self
         }
-    }
-
-    pub fn on_state(self, state: &BlockchainState<DB>) -> Self {
-        Self { market_state: Some(state.market_state()), block_history: Some(state.block_history()), ..self }
     }
 }
 

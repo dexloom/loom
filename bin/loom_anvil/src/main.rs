@@ -43,8 +43,8 @@ use loom::types::entities::{
     AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners,
 };
 use loom::types::events::{
-    BackrunComposeMessage, MarketEvents, MempoolEvents, MessageBackrunTxCompose, MessageBlock, MessageBlockHeader, MessageBlockLogs,
-    MessageBlockStateUpdate, MessageHealthEvent,
+    MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
+    MessageSwapCompose, SwapComposeMessage,
 };
 use revm::db::EmptyDBTyped;
 use tracing::{debug, error, info};
@@ -351,7 +351,7 @@ async fn main() -> Result<()> {
         }
     }
 
-    let tx_compose_channel: Broadcaster<MessageBackrunTxCompose<LoomDBType>> = Broadcaster::new(100);
+    let tx_compose_channel: Broadcaster<MessageSwapCompose<LoomDBType>> = Broadcaster::new(100);
 
     let mut broadcast_actor = AnvilBroadcastActor::new(client.clone());
     match broadcast_actor.consume(tx_compose_channel.clone()).start() {
@@ -587,7 +587,7 @@ async fn main() -> Result<()> {
             msg = tx_compose_sub.recv() => {
                 match msg {
                     Ok(msg) => match msg.inner {
-                        BackrunComposeMessage::Sign(sign_message) => {
+                        SwapComposeMessage::Sign(sign_message) => {
                             debug!(swap=%sign_message.swap, "Sign message");
                             stat.sign_counter += 1;
 
@@ -602,7 +602,7 @@ async fn main() -> Result<()> {
                                 }
                             }
                         }
-                        BackrunComposeMessage::Route(encode_message) => {
+                        SwapComposeMessage::Prepare(encode_message) => {
                             debug!(swap=%encode_message.swap, "Route message");
                             stat.found_counter += 1;
                         }

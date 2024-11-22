@@ -20,14 +20,14 @@ use loom_core_actors_macros::{Consumer, Producer};
 use loom_evm_db::{AlloyDB, DatabaseLoomExt};
 use loom_evm_utils::evm::evm_access_list;
 use loom_evm_utils::evm_env::env_for_block;
-use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose, TxState};
+use loom_types_events::{MessageSwapCompose, SwapComposeData, SwapComposeMessage, TxComposeData, TxState};
 use revm::DatabaseRef;
 
 async fn estimator_task<T, N, DB>(
     client: Option<impl Provider<T, N> + 'static>,
     swap_encoder: impl SwapEncoder,
-    estimate_request: BackrunComposeData<DB>,
-    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    estimate_request: SwapComposeData<DB>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> Result<()>
 where
     T: Transport + Clone,
@@ -35,25 +35,25 @@ where
     DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     debug!(
-        gas_limit = estimate_request.gas,
-        base_fee = NWETH::to_float_gwei(estimate_request.next_block_base_fee as u128),
+        gas_limit = estimate_request.tx_compose.gas,
+        base_fee = NWETH::to_float_gwei(estimate_request.tx_compose.next_block_base_fee as u128),
         gas_cost = NWETH::to_float_wei(estimate_request.gas_cost()),
-        stuffing_txs_len = estimate_request.stuffing_txs_hashes.len(),
+        stuffing_txs_len = estimate_request.tx_compose.stuffing_txs_hashes.len(),
         "EVM estimation",
     );
 
     let start_time = chrono::Local::now();
 
-    let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
-    let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
+    let tx_signer = estimate_request.tx_compose.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
+    let gas_price = estimate_request.tx_compose.priority_gas_fee + estimate_request.tx_compose.next_block_base_fee;
 
     let (to, call_value, call_data, _) = swap_encoder.encode(
         estimate_request.swap.clone(),
         None,
-        Some(estimate_request.next_block_number),
+        Some(estimate_request.tx_compose.next_block_number),
         None,
         Some(tx_signer.address()),
-        Some(estimate_request.eth_balance),
+        Some(estimate_request.tx_compose.eth_balance),
     )?;
 
     let tx_request = TransactionRequest {
@@ -61,12 +61,14 @@ where
         chain_id: Some(1),
         from: Some(tx_signer.address()),
         to: Some(TxKind::Call(to)),
-        gas: Some(estimate_request.gas),
+        gas: Some(estimate_request.tx_compose.gas),
         value: call_value,
         input: TransactionInput::new(call_data.clone()),
-        nonce: Some(estimate_request.nonce),
-        max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-        max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128 + estimate_request.priority_gas_fee as u128),
+        nonce: Some(estimate_request.tx_compose.nonce),
+        max_priority_fee_per_gas: Some(estimate_request.tx_compose.priority_gas_fee as u128),
+        max_fee_per_gas: Some(
+            estimate_request.tx_compose.next_block_base_fee as u128 + estimate_request.tx_compose.priority_gas_fee as u128,
+        ),
         ..TransactionRequest::default()
     };
 
@@ -82,15 +84,15 @@ where
         }
     }
 
-    let evm_env = env_for_block(estimate_request.next_block_number, estimate_request.next_block_timestamp);
+    let evm_env = env_for_block(estimate_request.tx_compose.next_block_number, estimate_request.tx_compose.next_block_timestamp);
 
     let (gas_used, access_list) = match evm_access_list(&db, &evm_env, &tx_request) {
         Ok((gas_used, access_list)) => (gas_used, access_list),
         Err(e) => {
             trace!(
                 "evm_access_list error for block_number={}, block_timestamp={}, swap={}, err={e}",
-                estimate_request.next_block_number,
-                estimate_request.next_block_timestamp,
+                estimate_request.tx_compose.next_block_number,
+                estimate_request.tx_compose.next_block_timestamp,
                 estimate_request.swap
             );
             // simulation has failed but this could be caused by a token / pool with unsupported fee issue
@@ -113,17 +115,17 @@ where
                 "Swap encode swap={}, tips_pct={:?}, next_block_number={}, gas_cost={}, signer={}",
                 estimate_request.swap,
                 estimate_request.tips_pct,
-                estimate_request.next_block_number,
+                estimate_request.tx_compose.next_block_number,
                 gas_cost,
                 tx_signer.address()
             );
             match swap_encoder.encode(
                 estimate_request.swap.clone(),
                 estimate_request.tips_pct,
-                Some(estimate_request.next_block_number),
+                Some(estimate_request.tx_compose.next_block_number),
                 Some(gas_cost),
                 Some(tx_signer.address()),
-                Some(estimate_request.eth_balance),
+                Some(estimate_request.tx_compose.eth_balance),
             ) {
                 Ok((to, call_value, call_data, tips_vec)) => (to, call_value, call_data, tips_vec),
                 Err(error) => {
@@ -142,14 +144,17 @@ where
         gas: Some((gas_used * 1500) / 1000),
         value: call_value,
         input: TransactionInput::new(call_data),
-        nonce: Some(estimate_request.nonce),
+        nonce: Some(estimate_request.tx_compose.nonce),
         access_list: Some(access_list),
-        max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-        max_fee_per_gas: Some(estimate_request.priority_gas_fee as u128 + estimate_request.next_block_base_fee as u128),
+        max_priority_fee_per_gas: Some(estimate_request.tx_compose.priority_gas_fee as u128),
+        max_fee_per_gas: Some(
+            estimate_request.tx_compose.priority_gas_fee as u128 + estimate_request.tx_compose.next_block_base_fee as u128,
+        ),
         ..TransactionRequest::default()
     };
 
-    let encoded_txes: Vec<TxEnvelope> = estimate_request.stuffing_txs.iter().map(|item| TxEnvelope::from(item.clone())).collect();
+    let encoded_txes: Vec<TxEnvelope> =
+        estimate_request.tx_compose.stuffing_txs.iter().map(|item| TxEnvelope::from(item.clone())).collect();
 
     let stuffing_txs_rlp: Vec<Bytes> = encoded_txes.into_iter().map(|x| Bytes::from(x.encoded_2718())).collect();
 
@@ -167,8 +172,8 @@ where
         None => profit_eth_f64,
     };
 
-    let sign_request = MessageBackrunTxCompose::sign(BackrunComposeData {
-        tx_bundle: Some(tx_with_state),
+    let sign_request = MessageSwapCompose::ready(SwapComposeData {
+        tx_compose: TxComposeData { tx_bundle: Some(tx_with_state), ..estimate_request.tx_compose },
         poststate: Some(db),
         tips: Some(total_tips + gas_cost),
         ..estimate_request
@@ -200,8 +205,8 @@ where
 async fn estimator_worker<T, N, DB>(
     client: Option<impl Provider<T, N> + Clone + 'static>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
-    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -213,10 +218,10 @@ where
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let compose_request_msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
+                let compose_request_msg : Result<MessageSwapCompose<DB>, RecvError> = msg;
                 match compose_request_msg {
                     Ok(compose_request) =>{
-                        if let BackrunComposeMessage::Estimate(estimate_request) = compose_request.inner {
+                        if let SwapComposeMessage::Estimate(estimate_request) = compose_request.inner {
                             let compose_channel_tx_cloned = compose_channel_tx.clone();
                             let encoder_cloned = encoder.clone();
                             let client_cloned = client.clone();
@@ -246,9 +251,9 @@ pub struct EvmEstimatorActor<P, T, N, E, DB: Clone + Send + Sync + 'static> {
     encoder: E,
     client: Option<P>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
