@@ -2,10 +2,10 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use alloy_primitives::{Address, I256, U256};
+use alloy_primitives::{I256, U256};
 use eyre::{eyre, ErrReport, Result};
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_blockchain::SwapError;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::debug;
@@ -57,7 +57,14 @@ pub struct SwapLine<LDT: LoomDataTypes = LoomDataTypesEthereum> {
 
 impl<LDT: LoomDataTypes> Default for SwapLine<LDT> {
     fn default() -> Self {
-        SwapLine { ..Default::default() }
+        SwapLine {
+            path: SwapPath::<LDT>::default(),
+            amount_in: SwapAmountType::default(),
+            amount_out: SwapAmountType::default(),
+            calculation_results: Vec::default(),
+            swap_to: None,
+            gas_used: None,
+        }
     }
 }
 
@@ -503,6 +510,7 @@ mod tests {
     use super::*;
     use crate::mock_pool::MockPool;
     use alloy_primitives::utils::parse_units;
+    use alloy_primitives::Address;
     use loom_defi_address_book::{TokenAddress, UniswapV2PoolAddress, UniswapV3PoolAddress};
     use std::sync::Arc;
 

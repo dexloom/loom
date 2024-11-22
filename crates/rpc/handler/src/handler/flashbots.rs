@@ -11,7 +11,7 @@ use revm::primitives::{BlockEnv, Env, CANCUN};
 use revm::{DatabaseCommit, DatabaseRef, Evm};
 use tracing::{error, info};
 
-pub async fn flashbots<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static>(
+pub async fn flashbots<DB: DatabaseRef + Send + Sync + Clone + 'static>(
     State(app_state): State<AppState<DB>>,
     Json(bundle_request): Json<BundleRequest>,
 ) -> Result<Json<SendBundleResponse>, (StatusCode, String)> {

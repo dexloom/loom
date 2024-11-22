@@ -16,6 +16,7 @@ use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_node_debug_provider::AnvilProviderExt;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose};
 
 async fn broadcast_task<P, T, N, DB>(client: P, request: BackrunComposeData<DB>) -> Result<()>
@@ -106,7 +107,7 @@ where
         Self { client, tx_compose_rx: None, _t: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<LoomDataTypesEthereum>) -> Self {
         Self { tx_compose_rx: Some(bc.compose_channel()), ..self }
     }
 }

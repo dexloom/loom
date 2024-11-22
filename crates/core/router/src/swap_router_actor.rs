@@ -1,7 +1,7 @@
 use eyre::{eyre, Result};
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::{Blockchain, LoomDataTypesEthereum};
+use loom_core_blockchain::{Blockchain, Strategy};
 use loom_types_entities::{AccountNonceAndBalanceState, TxSigners};
 use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose};
 use revm::DatabaseRef;
@@ -12,7 +12,7 @@ use tracing::{debug, error, info};
 /// encoder task performs encode for request
 async fn router_task<DB: DatabaseRef + Send + Sync + Clone + 'static>(
     route_request: BackrunComposeData<DB>,
-    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
 ) -> Result<()> {
@@ -104,13 +104,11 @@ where
         Self { signers: Some(signers), ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self {
-            account_nonce_balance: Some(bc.nonce_and_balance()),
-            compose_channel_rx: Some(bc.compose_channel()),
-            compose_channel_tx: Some(bc.compose_channel()),
-            ..self
-        }
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self { account_nonce_balance: Some(bc.nonce_and_balance()), ..self }
+    }
+    pub fn on_strategy(self, strategy: &Strategy<DB>) -> Self {
+        Self { compose_channel_rx: Some(strategy.compose_channel()), compose_channel_tx: Some(strategy.compose_channel()), ..self }
     }
 }
 

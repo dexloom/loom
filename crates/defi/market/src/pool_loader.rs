@@ -14,7 +14,7 @@ use tracing::{debug, error};
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, SharedState, WorkerResult};
 use loom_core_actors::{Accessor, Consumer};
 use loom_core_actors_macros::{Accessor, Consumer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory, CurveProtocol};
 use loom_defi_pools::{CurvePool, MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use loom_node_debug_provider::DebugProviderExt;
@@ -231,8 +231,8 @@ where
         Self { client, market: None, market_state: None, tasks_rx: None, _t: PhantomData, _n: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self { market: Some(bc.market()), market_state: Some(bc.market_state_commit()), tasks_rx: Some(bc.tasks_channel()), ..self }
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+        Self { market: Some(bc.market()), market_state: Some(state.market_state_commit()), tasks_rx: Some(bc.tasks_channel()), ..self }
     }
 }
 

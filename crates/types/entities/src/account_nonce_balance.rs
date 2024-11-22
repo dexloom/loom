@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use alloy_primitives::{Address, U256};
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Debug, Clone, Default)]
 pub struct AccountNonceAndBalances<LDT: LoomDataTypes = LoomDataTypesEthereum> {

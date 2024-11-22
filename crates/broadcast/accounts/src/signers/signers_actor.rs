@@ -8,6 +8,7 @@ use tracing::{error, info};
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
+use loom_types_blockchain::LoomDataTypes;
 use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MessageBackrunTxCompose, RlpState, TxState};
 
 async fn sign_task<DB: Send + Sync + Clone>(
@@ -92,23 +93,17 @@ pub struct TxSignersActor<DB: Send + Sync + Clone + 'static> {
     compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
 }
 
-impl<DB> TxSignersActor<DB>
-where
-    DB: DatabaseRef + Clone + Send + Sync + Default,
-{
-    pub fn new() -> TxSignersActor<DB> {
+impl<LDT: LoomDataTypes> TxSignersActor<LDT> {
+    pub fn new() -> TxSignersActor<LDT> {
         TxSignersActor::default()
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self { compose_channel_rx: Some(bc.compose_channel()), compose_channel_tx: Some(bc.compose_channel()) }
     }
 }
 
-impl<DB> Actor for TxSignersActor<DB>
-where
-    DB: DatabaseRef + Clone + Send + Sync,
-{
+impl<LDT: LoomDataTypes> Actor for TxSignersActor<LDT> {
     fn start(&self) -> ActorResult {
         let task =
             tokio::task::spawn(request_listener_worker(self.compose_channel_rx.clone().unwrap(), self.compose_channel_tx.clone().unwrap()));

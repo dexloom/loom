@@ -1,4 +1,7 @@
 pub use blockchain::Blockchain;
-pub use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+pub use blockchain_state::BlockchainState;
 
+pub use strategy::Strategy;
 mod blockchain;
+mod blockchain_state;
+mod strategy;

@@ -4,7 +4,7 @@ use revm::primitives::Env;
 use revm::DatabaseRef;
 
 use loom_evm_utils::evm_env::env_for_block;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::PoolWrapper;
 
 #[derive(Clone)]

@@ -1,4 +1,3 @@
-use crate::{LoomDataTypes, LoomDataTypesEthereum};
 use alloy::primitives::BlockHash;
 use alloy::primitives::ChainId;
 use influxdb::WriteQuery;
@@ -6,6 +5,7 @@ use loom_core_actors::{Broadcaster, SharedState};
 use loom_defi_address_book::TokenAddress;
 use loom_evm_db::DatabaseLoomExt;
 use loom_types_blockchain::{ChainParameters, Mempool};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, BlockHistoryState, LatestBlock, Market, MarketState, Token};
 use loom_types_events::{
     MarketEvents, MempoolEvents, MessageBackrunTxCompose, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
@@ -14,13 +14,11 @@ use loom_types_events::{
 use revm::{Database, DatabaseCommit, DatabaseRef};
 
 #[derive(Clone)]
-pub struct Blockchain<DB: Clone + Send + Sync + 'static, LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
+pub struct Blockchain<LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
     chain_id: ChainId,
     chain_parameters: ChainParameters,
     market: SharedState<Market<LDT>>,
     latest_block: SharedState<LatestBlock<LDT>>,
-    market_state: SharedState<MarketState<DB>>,
-    block_history_state: SharedState<BlockHistory<DB>>,
     mempool: SharedState<Mempool<LDT>>,
     account_nonce_and_balance: SharedState<AccountNonceAndBalanceState<LDT>>,
 
@@ -28,20 +26,18 @@ pub struct Blockchain<DB: Clone + Send + Sync + 'static, LDT: LoomDataTypes + 's
     new_block_with_tx_channel: Broadcaster<MessageBlock<LDT>>,
     new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate<LDT>>,
     new_block_logs_channel: Broadcaster<MessageBlockLogs<LDT>>,
-    new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate>,
+    new_mempool_tx_channel: Broadcaster<MessageMempoolDataUpdate<LDT>>,
     market_events_channel: Broadcaster<MarketEvents<LDT>>,
     mempool_events_channel: Broadcaster<MempoolEvents<LDT>>,
+    tx_broadcast_channel: Broadcaster<MessageTxBroadcast<LDT>>,
+
     pool_health_monitor_channel: Broadcaster<MessageHealthEvent<LDT>>,
-    compose_channel: Broadcaster<MessageBackrunTxCompose<DB, LDT>>,
-    state_update_channel: Broadcaster<StateUpdateEvent<DB, LDT>>,
     influxdb_write_channel: Broadcaster<WriteQuery>,
     tasks_channel: Broadcaster<Task>,
 }
 
-impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseLoomExt + Send + Sync + Clone + Default + 'static>
-    Blockchain<DB, LoomDataTypesEthereum>
-{
-    pub fn new(chain_id: ChainId) -> Blockchain<DB, LoomDataTypesEthereum> {
+impl Blockchain<LoomDataTypesEthereum> {
+    pub fn new(chain_id: ChainId) -> Blockchain<LoomDataTypesEthereum> {
         let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
         let new_block_with_tx_channel: Broadcaster<MessageBlock> = Broadcaster::new(10);
         let new_block_state_update_channel: Broadcaster<MessageBlockStateUpdate> = Broadcaster::new(10);
@@ -51,9 +47,9 @@ impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseL
 
         let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(100);
         let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(2000);
+        let tx_broadcast_channel: Broadcaster<MempoolEvents> = Broadcaster::new(2000);
+
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
-        let compose_channel: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>> = Broadcaster::new(100);
-        let state_update_channel: Broadcaster<StateUpdateEvent<DB, LoomDataTypesEthereum>> = Broadcaster::new(100);
         let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
         let tasks_channel: Broadcaster<Task> = Broadcaster::new(1000);
 
@@ -77,10 +73,8 @@ impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseL
             chain_id,
             chain_parameters: ChainParameters::ethereum(),
             market: SharedState::new(market_instance),
-            market_state: SharedState::new(MarketState::new(Default::default())),
             mempool: SharedState::new(Mempool::<LoomDataTypesEthereum>::new()),
             latest_block: SharedState::new(LatestBlock::new(0, BlockHash::ZERO)),
-            block_history_state: SharedState::new(BlockHistory::new(10)),
             account_nonce_and_balance: SharedState::new(AccountNonceAndBalanceState::new()),
             new_block_headers_channel,
             new_block_with_tx_channel,
@@ -90,29 +84,13 @@ impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseL
             market_events_channel,
             mempool_events_channel,
             pool_health_monitor_channel,
-            compose_channel,
-            state_update_channel,
             influxdb_write_channel: influx_write_channel,
             tasks_channel,
         }
     }
-
-    pub fn with_market_state(self, market_state: MarketState<DB>) -> Blockchain<DB, LoomDataTypesEthereum> {
-        Blockchain { market_state: SharedState::new(market_state), ..self.clone() }
-    }
 }
 
-impl<DB: Clone + Send + Sync> Blockchain<DB, LoomDataTypesEthereum> {
-    pub fn market_state_commit(&self) -> SharedState<MarketState<DB>> {
-        self.market_state.clone()
-    }
-
-    pub fn compose_channel(&self) -> Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>> {
-        self.compose_channel.clone()
-    }
-}
-
-impl<DB: DatabaseRef + Clone + Send + Sync, LDT: LoomDataTypes> Blockchain<DB, LDT> {
+impl<LDT: LoomDataTypes> Blockchain<LDT> {
     pub fn chain_id(&self) -> u64 {
         self.chain_id
     }
@@ -127,14 +105,6 @@ impl<DB: DatabaseRef + Clone + Send + Sync, LDT: LoomDataTypes> Blockchain<DB, L
 
     pub fn latest_block(&self) -> SharedState<LatestBlock<LDT>> {
         self.latest_block.clone()
-    }
-
-    pub fn market_state(&self) -> SharedState<MarketState<DB>> {
-        self.market_state.clone()
-    }
-
-    pub fn block_history(&self) -> SharedState<BlockHistory<DB>> {
-        self.block_history_state.clone()
     }
 
     pub fn mempool(&self) -> SharedState<Mempool<LDT>> {
@@ -161,7 +131,7 @@ impl<DB: DatabaseRef + Clone + Send + Sync, LDT: LoomDataTypes> Blockchain<DB, L
         self.new_block_logs_channel.clone()
     }
 
-    pub fn new_mempool_tx_channel(&self) -> Broadcaster<MessageMempoolDataUpdate> {
+    pub fn new_mempool_tx_channel(&self) -> Broadcaster<MessageMempoolDataUpdate<LDT>> {
         self.new_mempool_tx_channel.clone()
     }
 
@@ -174,10 +144,6 @@ impl<DB: DatabaseRef + Clone + Send + Sync, LDT: LoomDataTypes> Blockchain<DB, L
     }
     pub fn pool_health_monitor_channel(&self) -> Broadcaster<MessageHealthEvent<LDT>> {
         self.pool_health_monitor_channel.clone()
-    }
-
-    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent<DB, LDT>> {
-        self.state_update_channel.clone()
     }
 
     pub fn influxdb_write_channel(&self) -> Broadcaster<WriteQuery> {

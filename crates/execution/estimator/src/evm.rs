@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info, trace};
 
-use loom_core_blockchain::{Blockchain, LoomDataTypesEthereum};
+use loom_core_blockchain::{Blockchain, Strategy};
 use loom_evm_utils::NWETH;
 use loom_types_entities::{Swap, SwapEncoder};
 
@@ -27,7 +27,7 @@ async fn estimator_task<T, N, DB>(
     client: Option<impl Provider<T, N> + 'static>,
     swap_encoder: impl SwapEncoder,
     estimate_request: BackrunComposeData<DB>,
-    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> Result<()>
 where
     T: Transport + Clone,
@@ -200,8 +200,8 @@ where
 async fn estimator_worker<T, N, DB>(
     client: Option<impl Provider<T, N> + Clone + 'static>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
-    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>,
-    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>,
+    compose_channel_rx: Broadcaster<MessageBackrunTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageBackrunTxCompose<DB>>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -213,7 +213,7 @@ where
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let compose_request_msg : Result<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>, RecvError> = msg;
+                let compose_request_msg : Result<MessageBackrunTxCompose<DB>, RecvError> = msg;
                 match compose_request_msg {
                     Ok(compose_request) =>{
                         if let BackrunComposeMessage::Estimate(estimate_request) = compose_request.inner {
@@ -246,9 +246,9 @@ pub struct EvmEstimatorActor<P, T, N, E, DB: Clone + Send + Sync + 'static> {
     encoder: E,
     client: Option<P>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>>,
+    compose_channel_rx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB, LoomDataTypesEthereum>>>,
+    compose_channel_tx: Option<Broadcaster<MessageBackrunTxCompose<DB>>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -269,8 +269,8 @@ where
         Self { encoder, client, compose_channel_tx: None, compose_channel_rx: None, _t: PhantomData::<T>, _n: PhantomData::<N> }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self { compose_channel_tx: Some(bc.compose_channel()), compose_channel_rx: Some(bc.compose_channel()), ..self }
+    pub fn on_strategy(self, strategy: &Strategy<DB>) -> Self {
+        Self { compose_channel_tx: Some(strategy.compose_channel()), compose_channel_rx: Some(strategy.compose_channel()), ..self }
     }
 }
 

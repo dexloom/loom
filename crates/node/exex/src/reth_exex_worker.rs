@@ -10,8 +10,8 @@ use loom_evm_utils::reth_types::append_all_matching_block_logs_sealed;
 use loom_node_actor_config::NodeBlockActorConfig;
 use loom_types_blockchain::{GethStateUpdate, MempoolTx};
 use loom_types_events::{
-    BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
-    MessageMempoolDataUpdate, NodeMempoolDataUpdate,
+    BlockHeader, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
+    MessageBlockStateUpdate, MessageMempoolDataUpdate, NodeMempoolDataUpdate,
 };
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
@@ -72,7 +72,7 @@ async fn process_chain(
                         withdrawals: block.withdrawals,
                     };
 
-                    if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block)).await {
+                    if let Err(e) = block_with_tx_channel.send(Message::new_with_time(BlockUpdate { block })).await {
                         error!(error=?e.to_string(), "block_with_tx_channel.send")
                     }
                 }
@@ -149,7 +149,7 @@ async fn process_chain(
 
 pub async fn loom_exex<Node: FullNodeComponents, DB: DatabaseRef + Send + Sync + Clone + 'static>(
     mut ctx: ExExContext<Node>,
-    bc: Blockchain<DB>,
+    bc: Blockchain,
     config: NodeBlockActorConfig,
 ) -> eyre::Result<()> {
     info!("Loom ExEx is started");
@@ -200,7 +200,7 @@ pub async fn loom_exex<Node: FullNodeComponents, DB: DatabaseRef + Send + Sync +
     Ok(())
 }
 
-pub async fn mempool_worker<Pool, DB>(mempool: Pool, bc: Blockchain<DB>) -> eyre::Result<()>
+pub async fn mempool_worker<Pool, DB>(mempool: Pool, bc: Blockchain) -> eyre::Result<()>
 where
     Pool: TransactionPool + Clone + 'static,
     DB: DatabaseRef + Send + Sync + Clone + 'static,

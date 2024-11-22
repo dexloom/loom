@@ -5,7 +5,7 @@ use eyre::{eyre, Result};
 use tracing::{trace, warn};
 
 use loom_defi_address_book::TokenAddress;
-use loom_types_blockchain::loom_data_types::LoomDataTypesEthereum;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 

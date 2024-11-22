@@ -10,7 +10,7 @@ use tracing::{debug, error};
 use crate::pool_loader::fetch_state_and_add_pool;
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_defi_pools::protocols::CurveProtocol;
 use loom_defi_pools::CurvePool;
 use loom_node_debug_provider::DebugProviderExt;
@@ -109,8 +109,8 @@ where
         Self { client, market: None, market_state: None, _n: PhantomData, _t: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self { market: Some(bc.market()), market_state: Some(bc.market_state_commit()), ..self }
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+        Self { market: Some(bc.market()), market_state: Some(state.market_state_commit()), ..self }
     }
 }
 

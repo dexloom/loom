@@ -17,8 +17,9 @@ use crate::BackrunConfig;
 use crate::SwapCalculator;
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_evm_db::DatabaseHelpers;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::SwapError;
 use loom_types_entities::config::StrategyConfig;
 use loom_types_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
@@ -241,12 +242,12 @@ impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateCh
         StateChangeArbSearcherActor { backrun_config, market: None, state_update_rx: None, compose_tx: None, pool_health_monitor_tx: None }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, strategy: Strategy<DB>) -> Self {
         Self {
             market: Some(bc.market()),
-            compose_tx: Some(bc.compose_channel()),
             pool_health_monitor_tx: Some(bc.pool_health_monitor_channel()),
-            state_update_rx: Some(bc.state_update_channel()),
+            compose_tx: Some(strategy.compose_channel()),
+            state_update_rx: Some(strategy.state_update_channel()),
             ..self
         }
     }

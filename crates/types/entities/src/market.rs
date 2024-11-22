@@ -1,15 +1,13 @@
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 
-use alloy_primitives::Address;
 use eyre::{eyre, OptionExt, Result};
 use tracing::debug;
 
 use crate::build_swap_path_vec;
 use crate::{PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
-use loom_defi_address_book::TokenAddress;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 /// The market struct contains all the pools and tokens.
 /// It keeps track if a pool is disabled or not and the swap paths.
@@ -231,6 +229,7 @@ mod tests {
     use crate::mock_pool::MockPool;
     use alloy_primitives::Address;
     use eyre::Result;
+    use loom_defi_address_book::TokenAddress;
 
     #[test]
     fn test_add_pool() {

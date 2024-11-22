@@ -29,7 +29,8 @@ use loom_evm_utils::reth_types::append_all_matching_block_logs;
 use loom_node_actor_config::NodeBlockActorConfig;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_events::{
-    BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
+    BlockHeader, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
+    MessageBlockStateUpdate,
 };
 
 pub async fn reth_node_worker<P, T>(
@@ -116,7 +117,7 @@ where
                                         };
 
                                         //broadcast
-                                        match block_with_tx_channel.send( Message::new_with_time(block_with_senders_rpc)).await {
+                                        match block_with_tx_channel.send( Message::new_with_time(BlockUpdate{ block : block_with_senders_rpc})).await {
                                              Err(e) => {error!("Block header broadcaster error {}", e)}
                                              _=>{
                                                 trace!("Block header sent");

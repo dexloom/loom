@@ -33,7 +33,7 @@ impl NodeExExGrpcActor {
         }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain) -> Self {
         Self {
             block_header_channel: Some(bc.new_block_headers_channel()),
             block_with_tx_channel: Some(bc.new_block_with_tx_channel()),

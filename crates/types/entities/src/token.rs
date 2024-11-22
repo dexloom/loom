@@ -5,9 +5,8 @@ use std::sync::Arc;
 use std::sync::RwLock;
 
 use alloy_primitives::utils::Unit;
-use alloy_primitives::{Address, I256, U256};
-use loom_defi_address_book::TokenAddress;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use alloy_primitives::{I256, U256};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 const ONE_ETHER: U256 = Unit::ETHER.wei_const();
 

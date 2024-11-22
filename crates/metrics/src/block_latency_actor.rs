@@ -72,7 +72,7 @@ impl BlockLatencyRecorderActor {
         Self { block_header_rx: None, influxdb_write_channel_tx: None }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self { block_header_rx: Some(bc.new_block_headers_channel()), influxdb_write_channel_tx: Some(bc.influxdb_write_channel()) }
     }
 }

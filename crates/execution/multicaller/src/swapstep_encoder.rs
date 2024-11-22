@@ -6,7 +6,7 @@ use tracing::{debug, trace};
 use crate::helpers::EncoderHelper;
 use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::SwapLineEncoder;
-use loom_types_blockchain::loom_data_types::LoomDataTypesEthereum;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{SwapAmountType, SwapStep};
 

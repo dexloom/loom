@@ -1,10 +1,8 @@
 use crate::Message;
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, BlockNumber, Bytes, TxHash, U256};
-use alloy_rpc_types::{Transaction, TransactionRequest};
+use alloy_primitives::{BlockNumber, Bytes, U256};
 use eyre::{eyre, Result};
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_blockchain::GethStateUpdateVec;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::{Swap, TxSigner};
 use revm::DatabaseRef;
 use std::ops::Deref;

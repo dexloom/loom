@@ -1,5 +1,5 @@
-use crate::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
-use alloy_primitives::{Address, U256};
+use crate::{LoomDataTypes, LoomDataTypesEthereum};
+use alloy_primitives::U256;
 use eyre::{eyre, Report};
 use std::hash::{Hash, Hasher};
 

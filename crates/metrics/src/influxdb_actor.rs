@@ -62,7 +62,7 @@ impl InfluxDbWriterActor {
         Self { url, database, tags, influxdb_write_channel_rx: None }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self { influxdb_write_channel_rx: Some(bc.influxdb_write_channel()), ..self }
     }
 }

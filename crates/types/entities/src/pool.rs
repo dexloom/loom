@@ -8,7 +8,7 @@ use crate::required_state::RequiredState;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use serde::{Deserialize, Serialize};

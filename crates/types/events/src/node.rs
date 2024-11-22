@@ -2,35 +2,35 @@ use alloy_primitives::TxHash;
 use alloy_rpc_types::Header;
 
 use crate::Message;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_blockchain::{GethStateUpdateVec, MempoolTx};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug)]
-pub struct NodeMempoolDataUpdate<D: LoomDataTypes = LoomDataTypesEthereum> {
-    pub tx_hash: TxHash,
-    pub mempool_tx: MempoolTx<D>,
+pub struct NodeMempoolDataUpdate<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub tx_hash: LDT::TxHash,
+    pub mempool_tx: MempoolTx<LDT>,
 }
 
 #[derive(Clone, Debug)]
-pub struct BlockUpdate<D: LoomDataTypes = LoomDataTypesEthereum> {
-    pub block: D::Block,
+pub struct BlockUpdate<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub block: LDT::Block,
 }
 
 #[derive(Clone, Debug)]
-pub struct BlockStateUpdate<D: LoomDataTypes = LoomDataTypesEthereum> {
-    pub block_header: D::Header,
+pub struct BlockStateUpdate<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub block_header: LDT::Header,
     pub state_update: GethStateUpdateVec,
 }
 
 #[derive(Clone, Debug)]
-pub struct BlockLogs<D: LoomDataTypes = LoomDataTypesEthereum> {
-    pub block_header: D::Header,
-    pub logs: Vec<D::Log>,
+pub struct BlockLogs<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub block_header: LDT::Header,
+    pub logs: Vec<LDT::Log>,
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct BlockHeader<D: LoomDataTypes = LoomDataTypesEthereum> {
-    pub header: D::Header,
+pub struct BlockHeader<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub header: LDT::Header,
     pub next_block_number: u64,
     pub next_block_timestamp: u64,
 }

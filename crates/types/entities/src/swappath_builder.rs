@@ -2,9 +2,8 @@ use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
 use crate::{Market, PoolWrapper, SwapPath};
-use alloy_primitives::Address;
 use eyre::Result;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::LoomDataTypes;
 
 struct SwapPathSet<LDT: LoomDataTypes> {
     set: HashSet<SwapPath<LDT>>,

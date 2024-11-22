@@ -10,7 +10,7 @@ use tracing::{debug, error, info};
 
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, Strategy};
 use loom_evm_utils::NWETH;
 use loom_types_entities::{MarketState, Swap};
 use loom_types_events::{BackrunComposeData, BackrunComposeMessage, MarketEvents, MessageBackrunTxCompose};
@@ -160,12 +160,12 @@ where
         Self::default()
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self {
-            market_events: Some(bc.market_events_channel()),
-            compose_channel_tx: Some(bc.compose_channel()),
-            compose_channel_rx: Some(bc.compose_channel()),
-        }
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self { market_events: Some(bc.market_events_channel()), ..self }
+    }
+
+    pub fn on_strategy(self, strategy: &Strategy<DB>) -> Self {
+        Self { compose_channel_tx: Some(strategy.compose_channel()), compose_channel_rx: Some(strategy.compose_channel()), ..self }
     }
 }
 

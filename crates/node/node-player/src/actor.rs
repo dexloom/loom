@@ -11,9 +11,9 @@ use alloy_transport::Transport;
 use eyre::ErrReport;
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_node_debug_provider::{DebugProviderExt, HttpCachedTransport};
-use loom_types_blockchain::loom_data_types::LoomDataTypesEthereum;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::Mempool;
 use loom_types_entities::MarketState;
 use loom_types_events::{MessageBackrunTxCompose, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
@@ -66,17 +66,23 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
             mempool: Some(bc.mempool()),
-            market_state: Some(bc.market_state_commit()),
-            compose_channel: Some(bc.compose_channel()),
             block_header_channel: Some(bc.new_block_headers_channel()),
             block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
             block_logs_channel: Some(bc.new_block_logs_channel()),
             block_state_update_channel: Some(bc.new_block_state_update_channel()),
             ..self
         }
+    }
+
+    pub fn on_state(self, state: &BlockchainState<DB>) -> Self {
+        Self { market_state: Some(state.market_state_commit()), ..self }
+    }
+
+    pub fn on_strategy(self, strategy: &Strategy<DB>) -> Self {
+        Self { compose_channel: Some(strategy.compose_channel()), ..self }
     }
 }
 

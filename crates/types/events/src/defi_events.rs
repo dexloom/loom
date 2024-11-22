@@ -1,5 +1,5 @@
 use alloy_primitives::BlockNumber;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug)]
 pub enum MarketEvents<LDT: LoomDataTypes = LoomDataTypesEthereum> {

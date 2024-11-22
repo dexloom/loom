@@ -11,7 +11,7 @@ use tracing::error;
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_core_actors_macros::*;
 use loom_core_blockchain::Blockchain;
-use loom_types_blockchain::loom_data_types::LoomDataTypesEthereum;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::MempoolTx;
 use loom_types_events::{MessageMempoolDataUpdate, NodeMempoolDataUpdate};
 
@@ -64,7 +64,7 @@ where
         self.name
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB, LoomDataTypesEthereum>) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + 'static>(self, bc: &Blockchain<LoomDataTypesEthereum>) -> Self {
         Self { mempool_tx: Some(bc.new_mempool_tx_channel()), ..self }
     }
 }

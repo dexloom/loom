@@ -2,8 +2,8 @@ use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
 use crate::{SwapAmountType, SwapLine, SwapStep, Token};
-use alloy_primitives::{Address, U256};
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use alloy_primitives::U256;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug)]
 pub enum Swap<LDT: LoomDataTypes = LoomDataTypesEthereum> {

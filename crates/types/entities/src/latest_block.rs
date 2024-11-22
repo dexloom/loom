@@ -4,8 +4,8 @@ use alloy_primitives::{Address, BlockHash, BlockNumber, B256};
 use alloy_rpc_types::state::{AccountOverride, StateOverride};
 use alloy_rpc_types::{Block, BlockTransactions, Header, Log, Transaction};
 
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_blockchain::GethStateUpdateVec;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 pub struct LatestBlock<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub block_number: BlockNumber,

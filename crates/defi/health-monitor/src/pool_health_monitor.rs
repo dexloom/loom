@@ -68,7 +68,7 @@ impl PoolHealthMonitorActor {
         PoolHealthMonitorActor::default()
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain) -> Self {
         Self { market: Some(bc.market()), pool_health_update_rx: Some(bc.pool_health_monitor_channel()) }
     }
 }

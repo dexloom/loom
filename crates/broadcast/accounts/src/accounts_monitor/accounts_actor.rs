@@ -181,10 +181,7 @@ where
         Self { with_fetcher: false, ..self }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(
-        self,
-        bc: &Blockchain<DB>,
-    ) -> NonceAndBalanceMonitorActor<P, T, N> {
+    pub fn on_bc(self, bc: &Blockchain) -> NonceAndBalanceMonitorActor<P, T, N> {
         NonceAndBalanceMonitorActor {
             accounts_nonce_and_balance: Some(bc.nonce_and_balance()),
             latest_block: Some(bc.latest_block().clone()),

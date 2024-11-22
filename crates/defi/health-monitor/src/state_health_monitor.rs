@@ -144,7 +144,7 @@ where
         StateHealthMonitorActor { client, market_state: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
             market_state: Some(bc.market_state()),
             tx_compose_channel_rx: Some(bc.compose_channel()),

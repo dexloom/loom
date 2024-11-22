@@ -1,13 +1,13 @@
 use alloy_primitives::{BlockNumber, TxHash};
 use chrono::{DateTime, Utc};
 
-use crate::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 use crate::FetchState;
+use crate::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug)]
 pub struct MempoolTx<D: LoomDataTypes> {
     pub source: String,
-    pub tx_hash: TxHash,
+    pub tx_hash: D::TxHash,
     pub time: DateTime<Utc>,
     pub tx: Option<D::Transaction>,
     pub logs: Option<Vec<D::Log>>,
@@ -26,11 +26,11 @@ impl MempoolTx<LoomDataTypesEthereum> {
     }
 }
 
-impl Default for MempoolTx<LoomDataTypesEthereum> {
+impl<LDT: LoomDataTypes> Default for MempoolTx<LDT> {
     fn default() -> Self {
         MempoolTx {
             source: "unknown".to_string(),
-            tx_hash: TxHash::repeat_byte(0),
+            tx_hash: LDT::TxHash::default(),
             time: Utc::now(),
             tx: None,
             state_update: None,

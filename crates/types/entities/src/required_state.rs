@@ -11,8 +11,8 @@ use eyre::{eyre, Result};
 use tracing::{error, trace};
 
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug, Default)]
 pub struct RequiredState<LDT: LoomDataTypes = LoomDataTypesEthereum> {

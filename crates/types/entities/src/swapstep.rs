@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use alloy_primitives::{Address, I256, U256};
+use alloy_primitives::{I256, U256};
 use eyre::{eyre, ErrReport, Result};
 use revm::primitives::Env;
 use revm::DatabaseRef;
@@ -9,7 +9,7 @@ use tracing::error;
 
 use crate::{PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
 use loom_evm_db::LoomDBType;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::LoomDataTypes;
 
 #[derive(Clone, Debug)]
 pub struct SwapStep<LDT: LoomDataTypes> {

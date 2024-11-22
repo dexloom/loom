@@ -1,7 +1,7 @@
 use crate::MulticallerSwapEncoder;
 use alloy_primitives::{Address, BlockNumber, Bytes, U256};
 use eyre::{eyre, OptionExt, Result};
-use loom_types_blockchain::loom_data_types::LoomDataTypesEthereum;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::MulticallerCalls;
 use loom_types_entities::tips::{tips_and_value_for_swap_type, Tips};
 use loom_types_entities::{Swap, SwapEncoder, SwapStep};

@@ -2,7 +2,7 @@ use alloy_primitives::utils::parse_units;
 use alloy_primitives::U256;
 use eyre::ErrReport;
 use lazy_static::lazy_static;
-use loom_types_blockchain::loom_data_types::LoomDataTypes;
+use loom_types_blockchain::LoomDataTypes;
 use loom_types_blockchain::SwapError;
 use loom_types_entities::SwapLine;
 use revm::primitives::Env;

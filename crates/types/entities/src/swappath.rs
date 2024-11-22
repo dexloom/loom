@@ -4,14 +4,19 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::{PoolWrapper, Token};
-use alloy_primitives::Address;
 use eyre::Result;
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug)]
 pub struct SwapPath<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub tokens: Vec<Arc<Token<LDT>>>,
     pub pools: Vec<PoolWrapper<LDT>>,
+}
+
+impl<LDT: LoomDataTypes> Default for SwapPath<LDT> {
+    fn default() -> Self {
+        SwapPath::<LDT> { tokens: Vec::new(), pools: Vec::new() }
+    }
 }
 
 impl<LDT: LoomDataTypes> PartialEq for SwapPath<LDT> {
@@ -158,7 +163,7 @@ mod test {
     use crate::pool::DefaultAbiSwapEncoder;
     use crate::required_state::RequiredState;
     use crate::{AbiSwapEncoder, Pool};
-    use alloy_primitives::U256;
+    use alloy_primitives::{Address, U256};
     use eyre::{eyre, ErrReport};
     use revm::primitives::Env;
     use revm::DatabaseRef;

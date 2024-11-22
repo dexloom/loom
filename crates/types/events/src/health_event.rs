@@ -1,5 +1,5 @@
-use loom_types_blockchain::loom_data_types::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_blockchain::SwapError;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 use crate::Message;
 

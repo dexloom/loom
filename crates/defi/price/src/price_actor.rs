@@ -9,7 +9,7 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::Accessor;
-use loom_core_blockchain::{Blockchain, LoomDataTypesEthereum};
+use loom_core_blockchain::Blockchain;
 use loom_defi_address_book::TokenAddress;
 use loom_defi_pools::protocols::CurveProtocol;
 use loom_defi_pools::CurvePool;
@@ -19,7 +19,7 @@ use tracing::{debug, error, info};
 
 async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clone + 'static>(
     client: P,
-    market: SharedState<Market<LoomDataTypesEthereum>>,
+    market: SharedState<Market>,
     once: bool,
 ) -> WorkerResult {
     let curve_tricrypto_usdc = CurveProtocol::new_u256_3_eth_to(client.clone(), address!("7F86Bf177Dd4F3494b841a37e810A34dD56c829B"));
@@ -124,7 +124,7 @@ where
         Self { only_once: true, ..self }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB, LoomDataTypesEthereum>) -> Self {
+    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain) -> Self {
         Self { market: Some(bc.market()), ..self }
     }
 }

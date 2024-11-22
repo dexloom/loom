@@ -6,13 +6,13 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_evm_db::DatabaseLoomExt;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::ChainParameters;
 use loom_types_entities::{BlockHistory, BlockHistoryManager, BlockHistoryState, LatestBlock, MarketState};
 use loom_types_events::{MarketEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::borrow::BorrowMut;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
@@ -376,7 +376,7 @@ impl<P, T, DB> BlockHistoryActor<P, T, DB>
 where
     T: Transport + Sync + Send + Clone + 'static,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Sync + Send + Clone + 'static,
-    DB: DatabaseRef + BlockHistoryState + DatabaseLoomExt + Send + Sync + Clone + Default + 'static,
+    DB: DatabaseRef + BlockHistoryState + DatabaseLoomExt + DatabaseCommit + Database + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -394,12 +394,10 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
             chain_parameters: bc.chain_parameters(),
             latest_block: Some(bc.latest_block()),
-            market_state: Some(bc.market_state()),
-            block_history: Some(bc.block_history()),
             block_header_update_rx: Some(bc.new_block_headers_channel()),
             block_update_rx: Some(bc.new_block_with_tx_channel()),
             log_update_rx: Some(bc.new_block_logs_channel()),
@@ -407,6 +405,10 @@ where
             market_events_tx: Some(bc.market_events_channel()),
             ..self
         }
+    }
+
+    pub fn on_state(self, state: &BlockchainState<DB>) -> Self {
+        Self { market_state: Some(state.market_state()), block_history: Some(state.block_history()), ..self }
     }
 }
 
