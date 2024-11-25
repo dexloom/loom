@@ -16,9 +16,9 @@ loom-core-blockchain.workspace = true
 loom-evm-db.workspace = true
 loom-evm-utils.workspace = true
 loom-node-debug-provider.workspace = true
+loom-types-blockchain.workspace = true
 loom-types-entities.workspace = true
 loom-types-events.workspace = true
-loom-types-blockchain.workspace = true
 
 
 chrono.workspace = true

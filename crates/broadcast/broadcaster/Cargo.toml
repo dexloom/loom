@@ -14,8 +14,8 @@ loom-core-actors.workspace = true
 loom-core-actors-macros.workspace = true
 loom-core-blockchain.workspace = true
 loom-node-debug-provider.workspace = true
-loom-types-events.workspace = true
 loom-types-blockchain.workspace = true
+loom-types-events.workspace = true
 
 
 eyre.workspace = true
