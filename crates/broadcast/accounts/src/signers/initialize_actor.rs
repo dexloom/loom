@@ -5,8 +5,7 @@ use tracing::{error, info};
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::Accessor;
 use loom_core_blockchain::Blockchain;
-use loom_types_entities::{AccountNonceAndBalanceState, KeyStore, TxSigners};
-use revm::DatabaseRef;
+use loom_types_entities::{AccountNonceAndBalanceState, KeyStore, LoomTxSigner, TxSigners};
 
 /// The one-shot actor adds a new signer to the signers and monitor list after and stops.
 #[derive(Accessor)]

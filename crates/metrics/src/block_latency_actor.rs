@@ -6,7 +6,6 @@ use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, WorkerResult}
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_types_events::MessageBlockHeader;
-use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{error, info};
 

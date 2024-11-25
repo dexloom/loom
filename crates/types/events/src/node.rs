@@ -1,4 +1,3 @@
-use alloy_primitives::TxHash;
 use alloy_rpc_types::Header;
 
 use crate::Message;

@@ -10,7 +10,6 @@ use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_types_entities::Market;
 use loom_types_events::{HealthEvent, MessageHealthEvent};
-use revm::DatabaseRef;
 
 pub async fn pool_health_monitor_worker(
     market: SharedState<Market>,
@@ -68,7 +67,7 @@ impl PoolHealthMonitorActor {
         PoolHealthMonitorActor::default()
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self { market: Some(bc.market()), pool_health_update_rx: Some(bc.pool_health_monitor_channel()) }
     }
 }

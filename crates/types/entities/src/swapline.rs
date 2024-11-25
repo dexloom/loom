@@ -13,7 +13,7 @@ use tracing::debug;
 use crate::swappath::SwapPath;
 use crate::{CalculationResult, PoolWrapper, SwapStep, Token};
 
-#[derive(Clone, Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub enum SwapAmountType<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     #[default]
     NotSet,
@@ -220,7 +220,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
     pub fn split(&self, pool_index: usize) -> Result<(SwapLine<LDT>, SwapLine<LDT>)> {
         let first = SwapLine::<LDT> {
             path: SwapPath::new(self.tokens()[0..pool_index + 1].to_vec(), self.pools()[0..pool_index].to_vec()),
-            amount_in: self.amount_in.clone(),
+            amount_in: self.amount_in,
             amount_out: SwapAmountType::NotSet,
             calculation_results: vec![],
             swap_to: None,
@@ -229,7 +229,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
         let second = SwapLine::<LDT> {
             path: SwapPath::new(self.tokens()[pool_index..].to_vec(), self.pools()[pool_index..].to_vec()),
             amount_in: SwapAmountType::NotSet,
-            amount_out: self.amount_out.clone(),
+            amount_out: self.amount_out,
             calculation_results: vec![],
             swap_to: None,
             gas_used: None,
@@ -545,7 +545,7 @@ mod tests {
         assert_eq!(
             formatted,
             "SwapLine [profit=0.02, tokens=[WETH, USDT, USDT, WETH], \
-            pools=[UniswapV2@0x4e68ccd3e89f51c3074ca5072bbac773960dfa36, UniswapV2@0x0d4a11d5eeaac28ec3f61d100daf4d40471f1852], \
+            pools=[UniswapV2@0x4e68Ccd3E89f51C3074ca5072bbAC773960dFa36, UniswapV2@0x0d4a11d5EEaaC28EC3F61d100daF4d40471f1852], \
             amount_in=0.01, amount_out=0.03, calculation_results=[], gas_used=Some(10000)]"
         )
     }

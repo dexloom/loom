@@ -1,10 +1,7 @@
 use crate::loom_data_types::LoomTx;
 use crate::{AccountNonceAndTransactions, FetchState, GethStateUpdate, MempoolTx};
 use crate::{LoomDataTypes, LoomDataTypesEthereum};
-use alloy_consensus::Transaction as TransactionTrait;
-use alloy_primitives::{Address, BlockNumber, TxHash};
-use alloy_provider::network::TransactionResponse;
-use alloy_rpc_types_eth::{Log, Transaction};
+use alloy_primitives::BlockNumber;
 use chrono::{DateTime, Utc};
 use eyre::{eyre, Result};
 use std::collections::hash_map::Entry;

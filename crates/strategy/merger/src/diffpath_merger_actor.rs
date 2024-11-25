@@ -166,7 +166,11 @@ where
     }
 
     pub fn on_strategy(self, strategy: &Strategy<DB>) -> Self {
-        Self { compose_channel_tx: Some(strategy.compose_channel()), compose_channel_rx: Some(strategy.compose_channel()), ..self }
+        Self {
+            compose_channel_tx: Some(strategy.swap_compose_channel()),
+            compose_channel_rx: Some(strategy.swap_compose_channel()),
+            ..self
+        }
     }
 }
 

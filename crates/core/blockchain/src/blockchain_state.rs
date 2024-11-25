@@ -9,9 +9,24 @@ pub struct BlockchainState<DB: Clone + Send + Sync + 'static> {
     block_history_state: SharedState<BlockHistory<DB>>,
 }
 
+impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseLoomExt + Send + Sync + Clone + Default + 'static> Default
+    for BlockchainState<DB>
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseLoomExt + Send + Sync + Clone + Default + 'static>
     BlockchainState<DB>
 {
+    pub fn new() -> Self {
+        BlockchainState {
+            market_state: SharedState::new(MarketState::new(DB::default())),
+            block_history_state: SharedState::new(BlockHistory::new(10)),
+        }
+    }
+
     pub fn new_with_market_state(market_state: MarketState<DB>) -> Self {
         Self { market_state: SharedState::new(market_state), block_history_state: SharedState::new(BlockHistory::new(10)) }
     }

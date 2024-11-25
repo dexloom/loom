@@ -1,7 +1,7 @@
 use loom_core_actors::{Broadcaster, SharedState, WorkerResult};
 use loom_evm_utils::reth_types::decode_into_transaction;
 use loom_types_blockchain::Mempool;
-use loom_types_events::{MessageSwapCompose, MessageTxCompose, RlpState, SwapComposeMessage, TxComposeMessageType};
+use loom_types_events::{MessageTxCompose, RlpState, TxComposeMessageType};
 use tokio::select;
 use tracing::{error, info};
 

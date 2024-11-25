@@ -11,14 +11,12 @@ use alloy_transport::Transport;
 use eyre::ErrReport;
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
+use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_node_debug_provider::{DebugProviderExt, HttpCachedTransport};
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::Mempool;
 use loom_types_entities::MarketState;
-use loom_types_events::{
-    MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageSwapCompose, MessageTxCompose,
-};
+use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageTxCompose};
 use tokio::task::JoinHandle;
 
 #[derive(Producer, Consumer, Accessor)]

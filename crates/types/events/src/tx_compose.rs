@@ -1,8 +1,8 @@
 use crate::{Message, TxState};
 use alloy_primitives::{BlockNumber, Bytes, U256};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::{Swap, TxSigner};
-use revm::DatabaseRef;
+use loom_types_entities::{LoomTxSigner, Swap};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum RlpState {
@@ -35,7 +35,7 @@ pub struct TxComposeData<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     /// The EOA address that will be used to sign the transaction.
     /// If this is None, the transaction will be signed by a random signer.
     pub eoa: Option<LDT::Address>,
-    pub signer: Option<TxSigner>,
+    pub signer: Option<Arc<dyn LoomTxSigner<LDT>>>,
     pub nonce: u64,
     pub eth_balance: U256,
     pub value: U256,
@@ -49,6 +49,8 @@ pub struct TxComposeData<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub tx_bundle: Option<Vec<TxState<LDT>>>,
     pub rlp_bundle: Option<Vec<RlpState>>,
     pub origin: Option<String>,
+    pub swap: Option<Swap>,
+    pub tips: Option<U256>,
 }
 
 impl<LDT: LoomDataTypes> Default for TxComposeData<LDT> {
@@ -69,6 +71,8 @@ impl<LDT: LoomDataTypes> Default for TxComposeData<LDT> {
             tx_bundle: None,
             rlp_bundle: None,
             origin: None,
+            swap: None,
+            tips: None,
         }
     }
 }

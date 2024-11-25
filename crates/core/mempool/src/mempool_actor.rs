@@ -1,6 +1,4 @@
-use alloy_consensus::Transaction as _;
 use alloy_primitives::BlockNumber;
-use alloy_rpc_types::BlockTransactions;
 use chrono::{Duration, Utc};
 use eyre::eyre;
 use tokio::sync::broadcast::error::RecvError;
@@ -12,7 +10,6 @@ use loom_core_blockchain::Blockchain;
 use loom_types_blockchain::{ChainParameters, Mempool, MempoolTx};
 use loom_types_blockchain::{LoomBlock, LoomDataTypes, LoomDataTypesEthereum, LoomHeader, LoomTx};
 use loom_types_events::{MempoolEvents, MessageBlock, MessageBlockHeader, MessageMempoolDataUpdate};
-use revm::DatabaseRef;
 
 pub async fn new_mempool_worker<LDT: LoomDataTypes>(
     chain_parameters: ChainParameters,
@@ -183,7 +180,14 @@ pub struct MempoolActor<LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
 
 impl<LDT: LoomDataTypes> Default for MempoolActor<LDT> {
     fn default() -> Self {
-        Self { ..Default::default() }
+        Self {
+            chain_parameters: ChainParameters::ethereum(),
+            mempool: None,
+            mempool_update_rx: None,
+            mempool_events_tx: None,
+            block_header_rx: None,
+            block_with_txs_rx: None,
+        }
     }
 }
 

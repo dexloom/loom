@@ -1,3 +1,5 @@
+#![allow(clippy::type_complexity)]
+
 use std::collections::BTreeMap;
 
 use revm::primitives::Env;

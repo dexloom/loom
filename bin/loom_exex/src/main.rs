@@ -3,7 +3,7 @@ use alloy::eips::BlockId;
 use alloy::providers::{ProviderBuilder, WsConnect};
 use alloy::rpc::client::ClientBuilder;
 use clap::{CommandFactory, FromArgMatches, Parser};
-use loom::core::blockchain::Blockchain;
+use loom::core::blockchain::{Blockchain, BlockchainState, Strategy};
 use loom::core::topology::TopologyConfig;
 use loom::evm::db::{AlloyDB, LoomDB};
 use loom::node::actor_config::NodeBlockActorConfig;
@@ -59,10 +59,23 @@ fn main() -> eyre::Result<()> {
             let alloy_db = AlloyDB::new(ipc_provider.clone(), BlockId::latest()).unwrap();
 
             let state_db = LoomDB::new().with_ext_db(alloy_db);
-            let bc = bc.with_market_state(MarketState::new(state_db));
+
+            let bc_state = BlockchainState::<LoomDB>::new_with_market_state(MarketState::new(state_db));
+
+            let strategy = Strategy::<LoomDB>::new();
+
             let bc_clone = bc.clone();
             tokio::task::spawn(async move {
-                if let Err(e) = loom_runtime::start_loom(ipc_provider, bc_clone, topology_config, loom_args.loom_config.clone(), true).await
+                if let Err(e) = loom_runtime::start_loom(
+                    ipc_provider,
+                    bc_clone,
+                    bc_state,
+                    strategy,
+                    topology_config,
+                    loom_args.loom_config.clone(),
+                    true,
+                )
+                .await
                 {
                     error!("Error starting loom: {:?}", e);
                 }
@@ -82,10 +95,17 @@ fn main() -> eyre::Result<()> {
                 let transport = WsConnect { url: client_config.url(), auth: None, config: None };
                 let client = ClientBuilder::default().ws(transport).await?;
                 let provider = ProviderBuilder::new().on_client(client).boxed();
-                let bc = Blockchain::<LoomDB>::new(Chain::mainnet().id());
+                let bc = Blockchain::new(Chain::mainnet().id());
                 let bc_clone = bc.clone();
 
-                if let Err(e) = loom_runtime::start_loom(provider, bc_clone, topology_config, loom_args.loom_config.clone(), false).await {
+                let bc_state = BlockchainState::<LoomDB>::new();
+
+                let strategy = Strategy::<LoomDB>::new();
+
+                if let Err(e) =
+                    loom_runtime::start_loom(provider, bc_clone, bc_state, strategy, topology_config, loom_args.loom_config.clone(), false)
+                        .await
+                {
                     error!("Error starting loom: {:#?}", e);
                     panic!("{}", e)
                 }

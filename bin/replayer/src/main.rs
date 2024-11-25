@@ -1,4 +1,4 @@
-use loom_evm_db::LoomDBType;
+use loom_evm_db::LoomDB;
 use std::env;
 use std::process::exit;
 use std::time::Duration;
@@ -14,7 +14,7 @@ use url::Url;
 
 use loom_node_debug_provider::HttpCachedTransport;
 
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_blockchain_actors::BlockchainActors;
 use loom_defi_address_book::{TokenAddress, UniswapV3PoolAddress};
 use loom_defi_pools::state_readers::ERC20StateReader;
@@ -24,8 +24,8 @@ use loom_evm_utils::NWETH;
 use loom_execution_multicaller::EncoderHelper;
 use loom_node_player::NodeBlockPlayerActor;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{PoolClass, Swap, SwapAmountType, SwapLine};
-use loom_types_events::{MessageSwapCompose, SwapComposeData};
+use loom_types_entities::{MarketState, PoolClass, Swap, SwapAmountType, SwapLine};
+use loom_types_events::{MessageSwapCompose, SwapComposeData, TxComposeData};
 use tracing::{debug, error, info};
 use tracing_subscriber::layer::SubscriberExt;
 use tracing_subscriber::util::SubscriberInitExt;
@@ -66,7 +66,13 @@ async fn main() -> Result<()> {
     //let tx_signers = SharedState::new(TxSigners::new());
 
     // new blockchain
-    let bc = Blockchain::<LoomDBType>::new(1);
+    let bc = Blockchain::new(1);
+
+    let bc_state = BlockchainState::new_with_market_state(MarketState::new(LoomDB::empty()));
+
+    let market_state = bc_state.market_state();
+
+    let strategy = Strategy::<LoomDB>::new();
 
     const TARGET_ADDRESS: Address = address!("A69babEF1cA67A37Ffaf7a485DfFF3382056e78C");
 
@@ -74,7 +80,7 @@ async fn main() -> Result<()> {
     required_state.add_call(TokenAddress::WETH, EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS));
 
     // instead fo code above
-    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), vec![]);
+    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), bc_state.clone(), strategy.clone(), vec![]);
     bc_actors
         .with_nonce_and_balance_monitor_only_events()?
         .initialize_signers_with_anvil()?
@@ -85,12 +91,14 @@ async fn main() -> Result<()> {
         .with_evm_estimator()?;
 
     //Start node block player actor
-    if let Err(e) = bc_actors.start(NodeBlockPlayerActor::new(provider.clone(), start_block_number, start_block_number + 200).on_bc(&bc)) {
+    if let Err(e) =
+        bc_actors.start(NodeBlockPlayerActor::new(provider.clone(), start_block_number, start_block_number + 200).on_bc(&bc, &bc_state))
+    {
         panic!("Cannot start block player : {}", e);
     }
 
     tokio::task::spawn(bc_actors.wait());
-    let compose_channel = bc.compose_channel();
+    let compose_channel = strategy.swap_compose_channel();
 
     let mut header_sub = bc.new_block_headers_channel().subscribe().await;
     let mut block_sub = bc.new_block_with_tx_channel().subscribe().await;
@@ -99,7 +107,6 @@ async fn main() -> Result<()> {
 
     //let memepool = bc.mempool();
     let market = bc.market();
-    let market_state = bc.market_state();
 
     let mut cur_header: Header = Header::default();
 
@@ -128,7 +135,10 @@ async fn main() -> Result<()> {
 
                             let tx_compose_encode_msg = MessageSwapCompose::prepare(
                                 SwapComposeData{
-                                    next_block_base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
+                                    tx_compose : TxComposeData {
+                                        next_block_base_fee : bc.chain_parameters().calc_next_block_base_fee_from_header(&header),
+                                        ..TxComposeData::default()
+                                    },
                                     poststate : Some(market_state.read().await.state_db.clone()),
                                     swap : Swap::ExchangeSwapLine(swap_line),
                                     ..SwapComposeData::default()

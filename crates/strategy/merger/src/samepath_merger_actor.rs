@@ -395,8 +395,8 @@ where
             market_state: Some(state.market_state_commit()),
             latest_block: Some(bc.latest_block()),
             market_events: Some(bc.market_events_channel()),
-            compose_channel_tx: Some(strategy.compose_channel()),
-            compose_channel_rx: Some(strategy.compose_channel()),
+            compose_channel_tx: Some(strategy.swap_compose_channel()),
+            compose_channel_rx: Some(strategy.swap_compose_channel()),
             ..self
         }
     }

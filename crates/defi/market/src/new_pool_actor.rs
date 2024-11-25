@@ -1,6 +1,4 @@
 use eyre::Result;
-use revm::DatabaseCommit;
-use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error};
 

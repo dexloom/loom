@@ -14,10 +14,10 @@ use tracing::{error, info, warn};
 
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_evm_db::DatabaseLoomExt;
 use loom_types_entities::MarketState;
-use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeMessage};
+use loom_types_events::{MarketEvents, MessageTxCompose, TxComposeMessageType};
 use revm::DatabaseRef;
 
 async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static, DB: DatabaseLoomExt>(
@@ -61,10 +61,10 @@ pub async fn state_health_monitor_worker<
 >(
     client: P,
     market_state: SharedState<MarketState<DB>>,
-    tx_compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
+    tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    let mut tx_compose_channel_rx: Receiver<MessageSwapCompose<DB>> = tx_compose_channel_rx.subscribe().await;
+    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
     let mut check_time_map: HashMap<Address, DateTime<Local>> = HashMap::new();
@@ -94,19 +94,22 @@ pub async fn state_health_monitor_worker<
             },
 
             msg = tx_compose_channel_rx.recv() => {
-                let tx_compose_update : Result<MessageSwapCompose<DB>, RecvError>  = msg;
+                let tx_compose_update : Result<MessageTxCompose, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
-                        if let SwapComposeMessage::Broadcast(broadcast_data)= tx_compose_msg.inner {
-                            let pool_address_vec =  broadcast_data.swap.get_pool_address_vec();
-                            let now = chrono::Local::now();
-                            for pool_address in pool_address_vec {
-                                if now - check_time_map.get(&pool_address).cloned().unwrap_or(DateTime::<Local>::MIN_UTC.into()) > Duration::seconds(60) {
-                                    check_time_map.insert(pool_address, Local::now());
-                                    if !pool_address_to_verify_vec.contains(&pool_address){
-                                        pool_address_to_verify_vec.push(pool_address)
+                        if let TxComposeMessageType::Sign(sign_request_data)= tx_compose_msg.inner {
+                            if let Some(swap) = sign_request_data.swap {
+                                let pool_address_vec =  swap.get_pool_address_vec();
+                                let now = chrono::Local::now();
+                                for pool_address in pool_address_vec {
+                                    if now - check_time_map.get(&pool_address).cloned().unwrap_or(DateTime::<Local>::MIN_UTC.into()) > Duration::seconds(60) {
+                                        check_time_map.insert(pool_address, Local::now());
+                                        if !pool_address_to_verify_vec.contains(&pool_address){
+                                            pool_address_to_verify_vec.push(pool_address)
+                                        }
                                     }
                                 }
+
                             }
                         }
 
@@ -128,7 +131,7 @@ pub struct StateHealthMonitorActor<P, T, DB: Clone + Send + Sync + 'static> {
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
-    tx_compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
+    tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     _t: PhantomData<T>,
@@ -144,10 +147,10 @@ where
         StateHealthMonitorActor { client, market_state: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
         Self {
-            market_state: Some(bc.market_state()),
-            tx_compose_channel_rx: Some(bc.compose_channel()),
+            market_state: Some(state.market_state()),
+            tx_compose_channel_rx: Some(bc.tx_compose_channel()),
             market_events_rx: Some(bc.market_events_channel()),
             ..self
         }

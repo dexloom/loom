@@ -3,7 +3,6 @@ use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer};
 use loom_core_actors_macros::Producer;
 use loom_core_blockchain::Blockchain;
 use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageMempoolDataUpdate};
-use revm::DatabaseRef;
 use std::any::type_name;
 
 #[derive(Producer)]
@@ -33,7 +32,7 @@ impl NodeExExGrpcActor {
         }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
             block_header_channel: Some(bc.new_block_headers_channel()),
             block_with_tx_channel: Some(bc.new_block_with_tx_channel()),

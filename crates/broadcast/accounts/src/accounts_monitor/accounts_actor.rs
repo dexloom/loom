@@ -12,7 +12,6 @@ use loom_core_blockchain::Blockchain;
 use loom_defi_abi::IERC20::IERC20Events;
 use loom_types_entities::{AccountNonceAndBalanceState, LatestBlock};
 use loom_types_events::MarketEvents;
-use revm::DatabaseRef;
 use std::marker::PhantomData;
 use std::time::Duration;
 use tokio::sync::broadcast::error::RecvError;

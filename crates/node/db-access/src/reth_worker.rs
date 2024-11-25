@@ -15,7 +15,6 @@ use reth_node_types::NodeTypesWithDBAdapter;
 use reth_primitives::BlockWithSenders;
 use reth_provider::providers::StaticFileProvider;
 use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider, StateProvider, StorageReader, TransactionVariant};
-use revm::primitives::db::DatabaseRef;
 use std::collections::{BTreeMap, HashMap};
 use std::marker::PhantomData;
 use std::path::Path;
@@ -307,7 +306,7 @@ where
         }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
             block_header_channel: if self.config.block_header { Some(bc.new_block_headers_channel()) } else { None },
             block_with_tx_channel: if self.config.block_with_tx { Some(bc.new_block_with_tx_channel()) } else { None },

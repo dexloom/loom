@@ -7,7 +7,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::BlockTransactions;
 use alloy_transport::Transport;
 use eyre::Result;
-use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{error, info};
@@ -17,7 +16,7 @@ use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_node_debug_provider::AnvilProviderExt;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_events::{MessageSwapCompose, MessageTxCompose, SwapComposeData, SwapComposeMessage, TxComposeData, TxComposeMessageType};
+use loom_types_events::{MessageTxCompose, TxComposeData, TxComposeMessageType};
 
 async fn broadcast_task<P, T, N>(client: P, request: TxComposeData) -> Result<()>
 where

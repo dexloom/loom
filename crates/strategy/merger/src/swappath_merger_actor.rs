@@ -7,7 +7,7 @@ use tracing::{debug, error, info};
 
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, Strategy};
 use loom_execution_multicaller::SwapStepEncoder;
 use loom_types_entities::{LatestBlock, Swap, SwapStep};
 use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeData, SwapComposeMessage};
@@ -86,7 +86,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                     Ok(swap) => {
 
                         let compose_data = match swap.inner() {
-                            SwapComposeMessage::Sign(data) => data,
+                            SwapComposeMessage::Ready(data) => data,
                             _=>continue,
                         };
 
@@ -96,7 +96,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                         };
 
 
-                        info!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", compose_data.stuffing_txs_hashes, compose_data.swap);
+                        info!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", compose_data.tx_compose.stuffing_txs_hashes, compose_data.swap);
 
                         for req in ready_requests.iter() {
 
@@ -106,7 +106,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                             };
 
                             // todo!() mega bundle merge
-                            if !compose_data.same_stuffing(&req.stuffing_txs_hashes) {
+                            if !compose_data.same_stuffing(&req.tx_compose.stuffing_txs_hashes) {
                                 continue
                             };
 
@@ -183,12 +183,12 @@ where
             compose_channel_tx: None,
         }
     }
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
         Self {
             latest_block: Some(bc.latest_block()),
             market_events: Some(bc.market_events_channel()),
-            compose_channel_tx: Some(bc.compose_channel()),
-            compose_channel_rx: Some(bc.compose_channel()),
+            compose_channel_tx: Some(strategy.swap_compose_channel()),
+            compose_channel_rx: Some(strategy.swap_compose_channel()),
             ..self
         }
     }

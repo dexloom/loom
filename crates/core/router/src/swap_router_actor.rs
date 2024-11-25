@@ -107,11 +107,13 @@ where
         Self { signers: Some(signers), ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> Self {
-        Self { account_nonce_balance: Some(bc.nonce_and_balance()), ..self }
-    }
-    pub fn on_strategy(self, strategy: &Strategy<DB>) -> Self {
-        Self { compose_channel_rx: Some(strategy.compose_channel()), compose_channel_tx: Some(strategy.compose_channel()), ..self }
+    pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
+        Self {
+            compose_channel_rx: Some(strategy.swap_compose_channel()),
+            compose_channel_tx: Some(strategy.swap_compose_channel()),
+            account_nonce_balance: Some(bc.nonce_and_balance()),
+            ..self
+        }
     }
 }
 

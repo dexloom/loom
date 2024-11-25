@@ -11,7 +11,7 @@ use std::marker::PhantomData;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info, trace};
 
-use loom_core_blockchain::{Blockchain, Strategy};
+use loom_core_blockchain::Strategy;
 use loom_evm_utils::NWETH;
 use loom_types_entities::{Swap, SwapEncoder};
 
@@ -274,8 +274,12 @@ where
         Self { encoder, client, compose_channel_tx: None, compose_channel_rx: None, _t: PhantomData::<T>, _n: PhantomData::<N> }
     }
 
-    pub fn on_strategy(self, strategy: &Strategy<DB>) -> Self {
-        Self { compose_channel_tx: Some(strategy.compose_channel()), compose_channel_rx: Some(strategy.compose_channel()), ..self }
+    pub fn on_bc(self, strategy: &Strategy<DB>) -> Self {
+        Self {
+            compose_channel_tx: Some(strategy.swap_compose_channel()),
+            compose_channel_rx: Some(strategy.swap_compose_channel()),
+            ..self
+        }
     }
 }
 

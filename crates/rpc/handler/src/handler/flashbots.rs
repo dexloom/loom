@@ -9,7 +9,6 @@ use loom_rpc_state::AppState;
 use loom_types_blockchain::ChainParameters;
 use revm::primitives::{BlockEnv, Env, CANCUN};
 use revm::{DatabaseCommit, DatabaseRef, Evm};
-use tower_http::compression::Predicate;
 use tracing::{error, info};
 
 pub async fn flashbots<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static>(

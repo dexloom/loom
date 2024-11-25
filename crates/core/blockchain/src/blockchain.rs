@@ -3,15 +3,13 @@ use alloy::primitives::ChainId;
 use influxdb::WriteQuery;
 use loom_core_actors::{Broadcaster, SharedState};
 use loom_defi_address_book::TokenAddress;
-use loom_evm_db::DatabaseLoomExt;
 use loom_types_blockchain::{ChainParameters, Mempool};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::{AccountNonceAndBalanceState, BlockHistory, BlockHistoryState, LatestBlock, Market, MarketState, Token};
+use loom_types_entities::{AccountNonceAndBalanceState, LatestBlock, Market, Token};
 use loom_types_events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
-    MessageMempoolDataUpdate, MessageSwapCompose, MessageTxCompose, StateUpdateEvent, Task,
+    MessageMempoolDataUpdate, MessageTxCompose, Task,
 };
-use revm::{Database, DatabaseCommit, DatabaseRef};
 
 #[derive(Clone)]
 pub struct Blockchain<LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {

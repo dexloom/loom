@@ -1,3 +1,4 @@
+#![allow(clippy::type_complexity)]
 use std::collections::{BTreeMap, HashMap};
 use std::sync::Arc;
 

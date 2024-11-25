@@ -11,7 +11,7 @@ pub use latest_block::LatestBlock;
 pub use market::Market;
 pub use market_state::MarketState;
 pub use pool::{get_protocol_by_factory, AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
-pub use signers::{TxSigner, TxSigners};
+pub use signers::{LoomTxSigner, TxSignerEth, TxSigners};
 pub use swap::Swap;
 pub use swap_encoder::SwapEncoder;
 pub use swapline::{SwapAmountType, SwapLine};

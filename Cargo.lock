@@ -5071,6 +5071,7 @@ dependencies = [
  "loom-evm-db",
  "loom-evm-utils",
  "loom-node-debug-provider",
+ "loom-types-blockchain",
  "loom-types-entities",
  "loom-types-events",
  "revm",

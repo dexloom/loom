@@ -1,22 +1,18 @@
 use std::sync::Arc;
 
 use alloy_network::Ethereum;
-use alloy_primitives::{Bytes, U256};
+use alloy_primitives::Bytes;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use tokio::sync::broadcast::error::RecvError;
-use tracing::{error, info};
+use tracing::error;
 
 use loom_broadcast_flashbots::Flashbots;
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
-use loom_types_events::{
-    BestTxSwapCompose, MessageSwapCompose, MessageTxCompose, RlpState, SwapComposeData, SwapComposeMessage, TxComposeData,
-    TxComposeMessageType,
-};
-use revm::DatabaseRef;
+use loom_types_events::{MessageTxCompose, RlpState, TxComposeData, TxComposeMessageType};
 
 async fn broadcast_task<P, T>(broadcast_request: TxComposeData, client: Arc<Flashbots<P, T>>) -> Result<()>
 where
@@ -46,7 +42,6 @@ where
 
 async fn flashbots_broadcaster_worker<P, T>(
     client: Arc<Flashbots<P, T>>,
-    smart_mode: bool,
     bundle_rx: Broadcaster<MessageTxCompose>,
     allow_broadcast: bool,
 ) -> WorkerResult
@@ -56,8 +51,7 @@ where
 {
     subscribe!(bundle_rx);
 
-    let mut current_block: u64 = 0;
-    //let mut best_request: BestTxSwapCompose<DB> = Default::default();
+    //let mut current_block: u64 = 0;
 
     loop {
         tokio::select! {
@@ -121,7 +115,6 @@ where
 #[derive(Accessor, Consumer)]
 pub struct FlashbotsBroadcastActor<P, T> {
     client: Arc<Flashbots<P, T>>,
-    smart: bool,
     #[consumer]
     tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     allow_broadcast: bool,
@@ -132,8 +125,8 @@ where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: Flashbots<P, T>, smart: bool, allow_broadcast: bool) -> FlashbotsBroadcastActor<P, T> {
-        FlashbotsBroadcastActor { client: Arc::new(client), smart, tx_compose_channel_rx: None, allow_broadcast }
+    pub fn new(client: Flashbots<P, T>, allow_broadcast: bool) -> FlashbotsBroadcastActor<P, T> {
+        FlashbotsBroadcastActor { client: Arc::new(client), tx_compose_channel_rx: None, allow_broadcast }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -149,7 +142,6 @@ where
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(flashbots_broadcaster_worker(
             self.client.clone(),
-            self.smart,
             self.tx_compose_channel_rx.clone().unwrap(),
             self.allow_broadcast,
         ));

@@ -10,7 +10,7 @@ use loom_broadcast_flashbots::client::RelayConfig;
 use loom_broadcast_flashbots::Flashbots;
 use loom_core_actors::{Actor, ActorsManager, SharedState};
 use loom_core_block_history::BlockHistoryActor;
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_mempool::MempoolActor;
 use loom_core_router::SwapRouterActor;
 use loom_defi_address_book::TokenAddress;
@@ -48,7 +48,9 @@ use tokio_util::sync::CancellationToken;
 
 pub struct BlockchainActors<P, T, DB: Clone + Send + Sync + 'static> {
     provider: P,
-    bc: Blockchain<DB>,
+    bc: Blockchain,
+    state: BlockchainState<DB>,
+    strategy: Strategy<DB>,
     pub signers: SharedState<TxSigners>,
     actor_manager: ActorsManager,
     encoder: Option<MulticallerSwapEncoder>,
@@ -75,10 +77,12 @@ where
         + Default
         + 'static,
 {
-    pub fn new(provider: P, bc: Blockchain<DB>, relays: Vec<RelayConfig>) -> Self {
+    pub fn new(provider: P, bc: Blockchain, state: BlockchainState<DB>, strategy: Strategy<DB>, relays: Vec<RelayConfig>) -> Self {
         Self {
             provider,
             bc,
+            state,
+            strategy,
             signers: SharedState::new(TxSigners::new()),
             actor_manager: ActorsManager::new(),
             encoder: None,
@@ -174,7 +178,7 @@ where
         };
 
         self.encoder = Some(MulticallerSwapEncoder::new(multicaller_address));
-        self.actor_manager.start(SwapRouterActor::new().with_signers(self.signers.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(SwapRouterActor::<DB>::new().with_signers(self.signers.clone()).on_bc(&self.bc, &self.strategy))?;
         Ok(self)
     }
 
@@ -187,7 +191,7 @@ where
         }
 
         self.actor_manager.start_and_wait(
-            MarketStatePreloadedOneShotActor::new(self.provider.clone()).with_copied_accounts(address_vec).on_bc(&self.bc),
+            MarketStatePreloadedOneShotActor::new(self.provider.clone()).with_copied_accounts(address_vec).on_bc(&self.bc, &self.state),
         )?;
         Ok(self)
     }
@@ -224,7 +228,7 @@ where
 
         self.mutlicaller_address = Some(loom_execution_multicaller::DEFAULT_VIRTUAL_ADDRESS);
 
-        self.actor_manager.start_and_wait(market_state_preloader.on_bc(&self.bc))?;
+        self.actor_manager.start_and_wait(market_state_preloader.on_bc(&self.bc, &self.state))?;
         Ok(self)
     }
 
@@ -241,7 +245,7 @@ where
 
     /// Starts block history actor
     pub fn with_block_history(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(BlockHistoryActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(BlockHistoryActor::new(self.provider.clone()).on_bc(&self.bc, &self.state))?;
         Ok(self)
     }
 
@@ -299,46 +303,20 @@ where
         Ok(self)
     }
 
-    //TODO : Refactor estimators actors encoder type to SwapEncoders
-    pub fn with_geth_estimator(&mut self) -> Result<&mut Self> {
-        let flashbots = Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays();
-
-        self.actor_manager.start(GethEstimatorActor::new(Arc::new(flashbots), self.encoder.clone().unwrap()).on_bc(&self.bc))?;
-        Ok(self)
-    }
-
-    /// Starts EVM gas estimator and tips filler
-    pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(
-            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, MulticallerSwapEncoder, DB>::new(
-                self.encoder.clone().unwrap(),
-            )
-            .on_bc(&self.bc),
-        )?;
-        Ok(self)
-    }
-
-    /// Starts EVM gas estimator and tips filler
-    pub fn with_evm_estimator_and_provider(&mut self) -> Result<&mut Self> {
-        self.actor_manager
-            .start(EvmEstimatorActor::new_with_provider(self.encoder.clone().unwrap(), Some(self.provider.clone())).on_bc(&self.bc))?;
-        Ok(self)
-    }
-
     /// Starts flashbots broadcaster
-    pub fn with_flashbots_broadcaster(&mut self, smart: bool, allow_broadcast: bool) -> Result<&mut Self> {
+    pub fn with_flashbots_broadcaster(&mut self, allow_broadcast: bool) -> Result<&mut Self> {
         let flashbots = match self.relays.is_empty() {
             true => Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays(),
             false => Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_relays(self.relays.clone()),
         };
 
-        self.actor_manager.start(FlashbotsBroadcastActor::new(flashbots, smart, allow_broadcast).on_bc(&self.bc))?;
+        self.actor_manager.start(FlashbotsBroadcastActor::new(flashbots, allow_broadcast).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start composer : estimator, signer and broadcaster
     pub fn with_composers(&mut self, allow_broadcast: bool) -> Result<&mut Self> {
-        self.with_evm_estimator()?.with_signers()?.with_flashbots_broadcaster(true, allow_broadcast)
+        self.with_evm_estimator()?.with_signers()?.with_flashbots_broadcaster(allow_broadcast)
     }
 
     /// Starts pool health monitor
@@ -375,13 +353,13 @@ where
 
     /// Start pool loader from new block events
     pub fn with_pool_loader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(PoolLoaderActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(PoolLoaderActor::new(self.provider.clone()).on_bc(&self.bc, &self.state))?;
         Ok(self)
     }
 
     /// Start pool loader for curve + steth + wsteth
     pub fn with_curve_pool_protocol_loader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(CurvePoolLoaderOneShotActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(CurvePoolLoaderOneShotActor::new(self.provider.clone()).on_bc(&self.bc, &self.state))?;
         Ok(self)
     }
 
@@ -397,6 +375,7 @@ where
         }
     }
 
+    //
     pub fn with_preloaded_state(&mut self, pools: Vec<(Address, PoolClass)>, state_required: Option<RequiredState>) -> Result<&mut Self> {
         let mut actor = RequiredPoolLoaderActor::new(self.provider.clone());
 
@@ -408,26 +387,54 @@ where
             actor = actor.with_required_state(state_required);
         }
 
-        self.actor_manager.start_and_wait(actor.on_bc(&self.bc))?;
+        self.actor_manager.start_and_wait(actor.on_bc(&self.bc, &self.state))?;
+        Ok(self)
+    }
+
+    pub fn with_geth_estimator(&mut self) -> Result<&mut Self> {
+        let flashbots = Flashbots::new(self.provider.clone(), "https://relay.flashbots.net", None).with_default_relays();
+
+        self.actor_manager.start(GethEstimatorActor::new(Arc::new(flashbots), self.encoder.clone().unwrap()).on_bc(&self.strategy))?;
+        Ok(self)
+    }
+
+    /// Strategy Part
+
+    /// Starts EVM gas estimator and tips filler
+    pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {
+        self.actor_manager.start(
+            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, MulticallerSwapEncoder, DB>::new(
+                self.encoder.clone().unwrap(),
+            )
+            .on_bc(&self.strategy),
+        )?;
+        Ok(self)
+    }
+
+    /// Starts EVM gas estimator and tips filler
+    pub fn with_evm_estimator_and_provider(&mut self) -> Result<&mut Self> {
+        self.actor_manager.start(
+            EvmEstimatorActor::new_with_provider(self.encoder.clone().unwrap(), Some(self.provider.clone())).on_bc(&self.strategy),
+        )?;
         Ok(self)
     }
 
     /// Start swap path merger
     pub fn with_swap_path_merger(&mut self) -> Result<&mut Self> {
         let mutlicaller_address = self.encoder.clone().ok_or(eyre!("NO_ENCODER"))?.multicaller_address;
-        self.actor_manager.start(ArbSwapPathMergerActor::new(mutlicaller_address).on_bc(&self.bc))?;
+        self.actor_manager.start(ArbSwapPathMergerActor::new(mutlicaller_address).on_bc(&self.bc, &self.strategy))?;
         Ok(self)
     }
 
     /// Start same path merger
     pub fn with_same_path_merger(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(SamePathMergerActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(SamePathMergerActor::new(self.provider.clone()).on_bc(&self.bc, &self.state, &self.strategy))?;
         Ok(self)
     }
 
     /// Start diff path merger
     pub fn with_diff_path_merger(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(DiffPathMergerActor::new().on_bc(&self.bc))?;
+        self.actor_manager.start(DiffPathMergerActor::<DB>::new().on_bc(&self.bc))?;
         Ok(self)
     }
 
@@ -439,20 +446,24 @@ where
     /// Start backrun on block
     pub fn with_backrun_block(&mut self, backrun_config: BackrunConfig) -> Result<&mut Self> {
         if !self.has_state_update {
-            self.actor_manager.start(StateChangeArbSearcherActor::new(backrun_config).on_bc(&self.bc))?;
+            self.actor_manager.start(StateChangeArbSearcherActor::new(backrun_config).on_bc(&self.bc, &self.strategy))?;
             self.has_state_update = true
         }
-        self.actor_manager.start(BlockStateChangeProcessorActor::new().on_bc(&self.bc))?;
+        self.actor_manager.start(BlockStateChangeProcessorActor::new().on_bc(&self.bc, &self.state, &self.strategy))?;
         Ok(self)
     }
 
     /// Start backrun for pending txs
     pub fn with_backrun_mempool(&mut self, backrun_config: BackrunConfig) -> Result<&mut Self> {
         if !self.has_state_update {
-            self.actor_manager.start(StateChangeArbSearcherActor::new(backrun_config).on_bc(&self.bc))?;
+            self.actor_manager.start(StateChangeArbSearcherActor::new(backrun_config).on_bc(&self.bc, &self.strategy))?;
             self.has_state_update = true
         }
-        self.actor_manager.start(PendingTxStateChangeProcessorActor::new(self.provider.clone()).on_bc(&self.bc))?;
+        self.actor_manager.start(PendingTxStateChangeProcessorActor::new(self.provider.clone()).on_bc(
+            &self.bc,
+            &self.state,
+            &self.strategy,
+        ))?;
         Ok(self)
     }
 
@@ -479,7 +490,7 @@ where
         S: Clone + Send + Sync + 'static,
         Router: From<Router<S>>,
     {
-        self.actor_manager.start(WebServerActor::new(host, router, db_pool, CancellationToken::new()).on_bc(&self.bc))?;
+        self.actor_manager.start(WebServerActor::new(host, router, db_pool, CancellationToken::new()).on_bc(&self.bc, &self.state))?;
         Ok(self)
     }
 

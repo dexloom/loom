@@ -114,7 +114,6 @@ impl<DB: DatabaseRef + Send + Sync + Clone + 'static> BlockStateChangeProcessorA
             market_events_rx: Some(bc.market_events_channel()),
             state_updates_tx: Some(strategy.state_update_channel()),
             block_history: Some(state.block_history()),
-            ..self
         }
     }
 }

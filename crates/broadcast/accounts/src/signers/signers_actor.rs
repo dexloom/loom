@@ -1,6 +1,5 @@
-use alloy_eips::eip2718::Encodable2718;
+use alloy_primitives::Bytes;
 use eyre::{eyre, Result};
-use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{error, info};
@@ -8,10 +7,8 @@ use tracing::{error, info};
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_events::{
-    MessageSwapCompose, MessageTxCompose, RlpState, SwapComposeData, SwapComposeMessage, TxComposeData, TxComposeMessageType, TxState,
-};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum, LoomTx};
+use loom_types_events::{MessageTxCompose, RlpState, TxComposeData, TxComposeMessageType, TxState};
 
 async fn sign_task<LDT: LoomDataTypes>(
     sign_request: TxComposeData<LDT>,
@@ -31,9 +28,12 @@ async fn sign_task<LDT: LoomDataTypes>(
         .unwrap()
         .iter()
         .map(|tx_request| match &tx_request {
-            TxState::Stuffing(t) => RlpState::Stuffing(t.inner.encoded_2718().into()),
+            TxState::Stuffing(t) => RlpState::Stuffing(t.encode().into()),
             TxState::SignatureRequired(t) => {
-                let (tx_hash, signed_tx_bytes) = signer.sign_sync(t.clone()).unwrap();
+                let tx = signer.sign_sync(t.clone()).unwrap();
+                let tx_hash = tx.tx_hash();
+                let signed_tx_bytes = Bytes::from(tx.encode());
+
                 info!("Tx signed {tx_hash:?}");
                 RlpState::Backrun(signed_tx_bytes)
             }

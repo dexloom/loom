@@ -4,7 +4,6 @@ use influxdb::{Client, ReadQuery, WriteQuery};
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_core_actors_macros::Consumer;
 use loom_core_blockchain::Blockchain;
-use revm::DatabaseRef;
 use std::collections::HashMap;
 use tracing::{error, info, warn};
 
