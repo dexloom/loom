@@ -12,7 +12,7 @@ use alloy::rpc::client::ClientBuilder;
 use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
 use alloy::transports::Transport;
 use eyre::{ErrReport, OptionExt, Result};
-use revm::db::AccountState as DBAccountState;
+use revm::db::{AccountState as DBAccountState, EmptyDBTyped};
 use revm::primitives::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::hash_map::Entry;
@@ -39,7 +39,7 @@ use tracing::{error, trace};
 // pub trait LoomDatabase: DatabaseRef<Error = ErrReport> + LoomDatabaseExt {}
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct LoomDB
 where
     Self: Sized + Send + Sync,
@@ -56,6 +56,12 @@ where
 impl Debug for LoomDB {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LoomDB").field("accounts", &self.accounts).finish()
+    }
+}
+
+impl Default for LoomDB {
+    fn default() -> Self {
+        LoomDB::new().with_ext_db(EmptyDBTyped::<ErrReport>::new())
     }
 }
 
@@ -129,6 +135,13 @@ impl LoomDB {
     {
         let ext_db = Arc::new(ext_db) as Arc<dyn DatabaseRef<Error = ErrReport> + Send + Sync>;
         Self { ext_db: Some(ext_db), ..self }
+    }
+
+    pub fn without_ext_db(self) -> Self
+    where
+        Self: Sized,
+    {
+        Self { ext_db: None, ..self }
     }
 
     pub fn with_ro_db(self, db: Option<LoomDB>) -> Self {

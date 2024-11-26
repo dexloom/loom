@@ -202,8 +202,8 @@ pub async fn state_change_arb_searcher_worker<
     subscribe!(search_request_rx);
 
     let cpus = num_cpus::get();
-    info!("Starting state arb searcher cpus={cpus}, tasks={}", cpus / 2);
-    let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(cpus / 2).build()?);
+    info!("Starting state arb searcher cpus={cpus}, tasks={}", cpus - 2);
+    let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(cpus - 2).build()?);
 
     loop {
         tokio::select! {

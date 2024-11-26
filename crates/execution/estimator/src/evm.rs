@@ -195,7 +195,7 @@ where
         tips=tips_f64,
         gas_used,
         %swap,
-        duration=sim_duration.num_milliseconds(),
+        duration=sim_duration.num_microseconds().unwrap_or_default(),
         " +++ Simulation successful",
     );
 

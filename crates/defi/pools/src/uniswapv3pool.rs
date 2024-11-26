@@ -1,7 +1,6 @@
 use std::fmt::Debug;
 use std::ops::Sub;
 
-#[cfg(feature = "debug-calculation")]
 use crate::state_readers::UniswapV3QuoterV2StateReader;
 use crate::state_readers::{UniswapV3QuoterV2Encoder, UniswapV3StateReader};
 use alloy_primitives::{Address, Bytes, I256, U160, U256};
@@ -247,13 +246,39 @@ impl Pool for UniswapV3Pool {
         _token_address_to: &Address,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let ret = UniswapV3PoolVirtual::simulate_swap_in_amount(&state_db, self, *token_address_from, in_amount)?;
+        let (ret, gas_used) = if self.get_protocol() == PoolProtocol::UniswapV3 {
+            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_in_amount(&state_db, self, *token_address_from, in_amount)?;
 
-        #[cfg(feature = "debug-calculation")]
-        {
+            #[cfg(feature = "debug-calculation")]
+            {
+                let mut env = _env;
+                env.tx.gas_limit = 1_000_000;
+                let (ret_evm, gas_used) = UniswapV3QuoterV2StateReader::quote_exact_input(
+                    &state_db,
+                    env,
+                    PeripheryAddress::UNISWAP_V3_QUOTER_V2,
+                    *token_address_from,
+                    *_token_address_to,
+                    self.fee.try_into()?,
+                    in_amount,
+                )?;
+                println!("calculate_out_amount ret_evm: {:?} ret: {:?}", ret_evm, ret_virtual);
+                if ret_virtual != ret_evm {
+                    error!(%ret_virtual, %ret_evm, "calculate_out_amount RETURN_RESULT_IS_INCORRECT");
+                };
+
+                return if ret_evm.is_zero() {
+                    Err(eyre!("RETURN_RESULT_IS_ZERO"))
+                } else {
+                    Ok((ret_evm, gas_used)) // value, gas_used
+                };
+            }
+
+            (ret_virtual, 150_000)
+        } else {
             let mut env = _env;
             env.tx.gas_limit = 1_000_000;
-            let (ret_evm, _gas_used) = UniswapV3QuoterV2StateReader::quote_exact_input(
+            let (ret_evm, gas_used) = UniswapV3QuoterV2StateReader::quote_exact_input(
                 &state_db,
                 env,
                 PeripheryAddress::UNISWAP_V3_QUOTER_V2,
@@ -262,17 +287,13 @@ impl Pool for UniswapV3Pool {
                 self.fee.try_into()?,
                 in_amount,
             )?;
-            println!("calculate_out_amount ret_evm: {:?} ret: {:?}", ret_evm, ret);
-            if ret != ret_evm {
-                error!("calculate_out_amount RETURN_RESULT_IS_INCORRECT : {ret} need {ret_evm}");
-                return Err(eyre!("RETURN_RESULT_IS_INCORRECT"));
-            }
-        }
+            (ret_evm, gas_used)
+        };
 
         if ret.is_zero() {
             Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
-            Ok((ret, 150000)) // value, gas_used
+            Ok((ret, gas_used)) // value, gas_used
         }
     }
 
@@ -284,13 +305,37 @@ impl Pool for UniswapV3Pool {
         _token_address_to: &Address,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let ret = UniswapV3PoolVirtual::simulate_swap_out_amount(&state_db, self, *token_address_from, out_amount)?;
+        let (ret, gas_used) = if self.get_protocol() == PoolProtocol::UniswapV3 {
+            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_out_amount(&state_db, self, *token_address_from, out_amount)?;
 
-        #[cfg(feature = "debug-calculation")]
-        {
+            #[cfg(feature = "debug-calculation")]
+            {
+                let mut env = _env;
+                env.tx.gas_limit = 1_000_000;
+                let (ret_evm, gas_used) = UniswapV3QuoterV2StateReader::quote_exact_output(
+                    &state_db,
+                    env,
+                    PeripheryAddress::UNISWAP_V3_QUOTER_V2,
+                    *token_address_from,
+                    *_token_address_to,
+                    self.fee.try_into()?,
+                    out_amount,
+                )?;
+
+                if ret_virtual != ret_evm {
+                    error!(%ret_virtual, %ret_evm,"calculate_in_amount RETURN_RESULT_IS_INCORRECT");
+                }
+                return if ret_evm.is_zero() {
+                    Err(eyre!("RETURN_RESULT_IS_ZERO"))
+                } else {
+                    Ok((ret_evm, gas_used)) // value, gas_used
+                };
+            }
+            (ret_virtual, 150000)
+        } else {
             let mut env = _env;
             env.tx.gas_limit = 1_000_000;
-            let (ret_evm, _gas_used) = UniswapV3QuoterV2StateReader::quote_exact_output(
+            let (ret_evm, gas_used) = UniswapV3QuoterV2StateReader::quote_exact_output(
                 &state_db,
                 env,
                 PeripheryAddress::UNISWAP_V3_QUOTER_V2,
@@ -299,17 +344,13 @@ impl Pool for UniswapV3Pool {
                 self.fee.try_into()?,
                 out_amount,
             )?;
-
-            if ret != ret_evm {
-                error!("calculate_in_amount RETURN_RESULT_IS_INCORRECT : {ret} need {ret_evm}");
-                return Err(eyre!("RETURN_RESULT_IS_INCORRECT"));
-            }
-        }
+            (ret_evm, gas_used)
+        };
 
         if ret.is_zero() {
             Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
-            Ok((ret, 150000)) // value, gas_used
+            Ok((ret, gas_used)) // value, gas_used
         }
     }
 
@@ -706,7 +747,7 @@ mod test {
                 amount_in,
                 contract_amount_in,
                 "{}",
-                format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token0, amount_out)
+                format!("Mismatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token0, amount_out)
             );
             assert_eq!(gas_used, 150_000);
 
@@ -727,7 +768,7 @@ mod test {
                 amount_in,
                 contract_amount_in,
                 "{}",
-                format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token1, amount_out)
+                format!("Mismatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token1, amount_out)
             );
             assert_eq!(gas_used, 150_000);
         }

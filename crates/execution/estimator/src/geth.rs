@@ -176,7 +176,6 @@ async fn estimator_task<
                         let tips_f64 = NWETH::to_float(total_tips);
                         let profit_eth_f64 = NWETH::to_float(profit_eth);
                         let profit_f64 = token_in.to_float(profit);
-                        //TODO add formated paths
                         info!(
                             " +++ Simulation successful. {:#32x} Cost {} Profit {} ProfitEth {} Tips {} {} {} {}",
                             tx_hash, gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, tx_sim_result, swap, sim_duration

@@ -1,15 +1,16 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 use std::hash::{DefaultHasher, Hash};
 
+use alloy::primitives::map::HashMap;
 use alloy::primitives::{Address, Bytes, U256};
 use criterion::{criterion_group, criterion_main, Criterion};
-use rand::{thread_rng, Rng};
+use rand::{thread_rng, Rng, RngCore};
 use revm::db::{AccountState as DbAccountState, CacheDB, DbAccount, EmptyDB};
-use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
-use revm::DatabaseRef;
+use revm::primitives::{Account, AccountInfo, Bytecode, KECCAK_EMPTY};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 
 use loom_evm_db::fast_hasher::{HashedAddress, HashedAddressCell, SimpleBuildHasher, SimpleHasher};
-use loom_evm_db::LoomDBType;
+use loom_evm_db::{DatabaseHelpers, LoomDB, LoomDBType};
 
 const N: usize = 100000;
 const N_ACC: usize = 10000;
@@ -17,16 +18,19 @@ const N_MEM: usize = 1000;
 
 fn generate_account(mem_size: usize) -> DbAccount {
     let mut rng = thread_rng();
-    let mut storage: HashMap<U256, U256> = HashMap::new();
+    let mut storage_map: HashMap<U256, U256> = HashMap::default();
     for _j in 0..mem_size {
-        storage.insert(rng.gen::<U256>(), rng.gen::<U256>());
+        storage_map.insert(rng.gen::<U256>(), rng.gen::<U256>());
     }
 
-    let code = rng.gen::<U256>();
+    //let mut code: [u8; 100] = [0; 100];
+    //rng.fill_bytes(code.as_mut());
 
-    let info = AccountInfo::new(U256::ZERO, 0, KECCAK_EMPTY, Bytecode::new_raw(Bytes::from(code.to_be_bytes_vec())));
+    //let code = rng.gen::<U256>();
 
-    DbAccount { info, account_state: DbAccountState::Touched, storage }
+    let info = AccountInfo::new(U256::ZERO, 0, KECCAK_EMPTY, Bytecode::new());
+
+    DbAccount { info, account_state: DbAccountState::Touched, storage: storage_map }
 }
 fn generate_accounts(acc_size: usize, mem_size: usize) -> Vec<DbAccount> {
     let mut ret: Vec<DbAccount> = Vec::new();
@@ -50,6 +54,30 @@ fn fill_loom_db(db: &mut LoomDBType, addr: &[Address], accs: &[DbAccount]) {
         db.insert_account_info(addr[a], accs[a].info.clone());
         for (k, v) in accs[a].storage.iter() {
             let _ = db.insert_account_storage(addr[a], *k, *v);
+        }
+    }
+}
+
+fn fill_trait<DB: DatabaseCommit>(db: &mut DB, addr: &[Address], accs: &[DbAccount]) {
+    let len = addr.len();
+    let mut update: HashMap<Address, Account> = HashMap::default();
+
+    for i in 0..len {
+        let acc = DatabaseHelpers::account_db_to_revm(accs[i].clone());
+        update.insert(addr[i].clone(), acc);
+    }
+    db.commit(update)
+}
+
+fn read_trait<DB: DatabaseRef>(db: &DB, addr: &[Address], accs: &[DbAccount]) {
+    let len = addr.len();
+    let mut update: HashMap<Address, Account> = HashMap::default();
+
+    for i in 0..len {
+        if let Ok(Some(acc)) = db.basic_ref(addr[i]) {
+            for (k, v) in accs[i].storage.iter() {
+                assert_eq!(db.storage_ref(addr[i], *k).unwrap_or_default(), *v)
+            }
         }
     }
 }
@@ -98,7 +126,7 @@ fn build_one(addr: &[Address], accs: &[DbAccount]) -> HashMap<HashedAddressCell,
 }
 
 fn build_many(addr: &[Address], accs: &[DbAccount]) -> HashMap<Address, HashMap<U256, U256>> {
-    let mut hm: HashMap<Address, HashMap<U256, U256>> = HashMap::new();
+    let mut hm: HashMap<Address, HashMap<U256, U256>> = HashMap::default();
 
     for (a, addr) in addr.iter().enumerate() {
         let acc = &accs[a];
@@ -263,6 +291,33 @@ fn benchmark_test_group_hasher(c: &mut Criterion) {
     group.bench_function("test_hashmap_speed", |b| b.iter(test_hashmap_speed));
     group.finish();
 }
+fn benchmark_test_group_trait(c: &mut Criterion) {
+    let mut group = c.benchmark_group("trait_speed");
+    group.sample_size(10);
+    let addr: Vec<Address> = (0..N_ACC).map(|_| Address::random()).collect();
+    let accs = generate_accounts(N_ACC, N_MEM);
 
-criterion_group!(benches, benchmark_test_group_hashmap, benchmark_test_group_hasher);
+    let mut cache_db = CacheDB::new(EmptyDB::new());
+    let mut loom_db = LoomDB::default();
+
+    //group.bench_function("test_hash_speed", |b| b.iter(|| fill_trait(&mut cache_db, &addr, &accs)));
+    group.bench_function("test_fill_trait_cache_db", |b| b.iter(|| fill_trait(&mut cache_db.clone(), &addr, &accs)));
+    group.bench_function("test_fill_trait_loom_db", |b| b.iter(|| fill_trait(&mut loom_db.clone(), &addr, &accs)));
+
+    let mut cache_db = CacheDB::new(EmptyDB::new());
+    let mut loom_db = LoomDB::default();
+
+    fill_trait(&mut loom_db, &addr, &accs);
+    fill_trait(&mut cache_db, &addr, &accs);
+
+    group.bench_function("test_read_trait_cache_db", |b| b.iter(|| read_trait(&cache_db, &addr, &accs)));
+    group.bench_function("test_read_trait_loom_db", |b| b.iter(|| read_trait(&loom_db, &addr, &accs)));
+
+    group.bench_function("test_fill_trait_cache_db_filled", |b| b.iter(|| fill_trait(&mut cache_db, &addr, &accs)));
+    group.bench_function("test_fill_trait_loom_db_filled", |b| b.iter(|| fill_trait(&mut loom_db, &addr, &accs)));
+
+    group.finish();
+}
+
+criterion_group!(benches, benchmark_test_group_hashmap, benchmark_test_group_hasher, benchmark_test_group_trait);
 criterion_main!(benches);
