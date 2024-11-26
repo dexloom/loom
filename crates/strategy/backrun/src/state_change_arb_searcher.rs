@@ -93,7 +93,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                     Ok(_) => {
                         #[cfg(not(debug_assertions))]
                         {
-                            if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                            if took_time > TimeDelta::new(0, 50 * 1000000).unwrap() {
                                 warn!("Took longer than expected {} {}", took_time, mut_item.clone())
                             }
                         }
@@ -112,7 +112,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                     Err(e) => {
                         #[cfg(not(debug_assertions))]
                         {
-                            if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                            if took_time > TimeDelta::new(0, 10 * 5000000).unwrap() {
                                 warn!("Took longer than expected {:?} {}", e, mut_item.clone())
                             }
                         }

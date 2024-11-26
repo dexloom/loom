@@ -147,9 +147,10 @@ where
             merged_state_update_vec.push(pre);
             merged_state_update_vec.push(post);
         }
-        Err(e) => {
-            mempool.write().await.set_failed(tx.tx_hash());
-            debug!("debug_trace_call error for cur_block_number={}, hash={:?}, err={}", cur_block_number, tx.tx_hash(), e);
+        Err(error) => {
+            let tx_hash = tx.tx_hash();
+            mempool.write().await.set_failed(tx_hash);
+            debug!(block=cur_block_number, %tx_hash, %error, "debug_trace_call error for");
         }
     }
 
