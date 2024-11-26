@@ -5311,6 +5311,7 @@ dependencies = [
  "loom-core-actors",
  "loom-core-actors-macros",
  "loom-core-blockchain",
+ "loom-evm-db",
  "loom-evm-utils",
  "loom-node-debug-provider",
  "loom-types-blockchain",

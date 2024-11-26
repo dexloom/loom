@@ -116,7 +116,7 @@ where
                                             },
                                             swap : Swap::Multiple( merge_list.iter().map(|i| i.swap.clone()  ).collect()) ,
                                             origin : Some("diffpath_merger".to_string()),
-                                            tips_pct : Some(5000),
+                                            tips_pct : Some(9000),
                                             poststate : Some(state.state_db),
                                             ..sign_request.clone()
                                         }

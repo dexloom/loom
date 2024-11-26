@@ -303,15 +303,13 @@ where
                     info!("market state updated ok records : update len: {} accounts: {} contracts: {} storage: {}", msg.state_update.len(),
                          updated_db.accounts_len(), updated_db.contracts_len() , updated_db.storage_len() );
 
-                    market_state_guard.state_db = updated_db;
+                    market_state_guard.state_db = updated_db.clone();
                     market_state_guard.block_hash = msg_block_hash;
                     market_state_guard.block_number = latest_block_number;
 
 
                     run_async!(market_events_tx.send(MarketEvents::BlockStateUpdate{ block_hash : msg_block_hash} ));
 
-                    // TODO LoomDB Merging
-                    /*
 
                     #[cfg(not(debug_assertions))]
                     {
@@ -319,7 +317,7 @@ where
                         let market_state_clone = market_state.clone();
 
                         tokio::task::spawn( async move{
-                            let merged_db = new_market_state_db.merge_all();
+                            let merged_db = updated_db.maintain();
                             let mut market_state_guard = market_state_clone.write().await;
                             market_state_guard.state_db = merged_db;
                             debug!("Merged DB stored in MarketState at block {}", msg_block_number)
@@ -329,18 +327,18 @@ where
                     #[cfg(debug_assertions)]
                     {
 
-                        market_state_guard.state_db = new_market_state_db.merge_all();
+                        market_state_guard.state_db = updated_db.maintain();
 
-                        let accounts_len = market_state_guard.state_db.accounts_len();
-                        let accounts_db_len = market_state_guard.state_db.ro_accounts_len();
+                        let accounts = market_state_guard.state_db.accounts_len();
 
-                        let storage_len = market_state_guard.state_db.storage_len();
-                        let storage_db_len = market_state_guard.state_db.ro_storage_len();
+                        let storage = market_state_guard.state_db.storage_len();
+                        let contracts = market_state_guard.state_db.contracts_len();
 
-                        trace!("Merging finished. Market state len accounts {}/{} storage {}/{}", accounts_len, accounts_db_len, storage_len, storage_db_len);
+                        trace!(accounts, storage, contracts, "Merging finished. Market state len" );
 
                     }
-                     */
+
+
 
                 }
 

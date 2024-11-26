@@ -14,7 +14,7 @@ pub enum Swap<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     Multiple(Vec<Swap<LDT>>),
 }
 
-impl Display for Swap {
+impl<LDT: LoomDataTypes> Display for Swap<LDT> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Swap::ExchangeSwapLine(path) => write!(f, "{path}"),

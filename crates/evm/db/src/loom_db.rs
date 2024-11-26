@@ -90,8 +90,10 @@ impl LoomDB {
     }
 
     pub fn is_rw_ro_slot(&self, address: &Address, slot: &U256) -> bool {
-        if let Some(account) = self.accounts.get(address) {
-            account.storage.contains_key(slot)
+        let is_rw_slot = if let Some(account) = self.accounts.get(address) { account.storage.contains_key(slot) } else { false };
+
+        if is_rw_slot {
+            true
         } else if let Some(read_only_db) = &self.read_only_db {
             if let Some(account) = read_only_db.accounts.get(address) {
                 account.storage.contains_key(slot)
@@ -520,6 +522,10 @@ impl DatabaseLoomExt for LoomDB {
     fn replace_account_storage(&mut self, address: Address, storage: HashMap<U256, U256>) -> Result<()> {
         self.replace_account_storage(address, storage)
     }
+
+    fn maintain(self) -> Self {
+        self.merge_all()
+    }
 }
 
 impl DatabaseRef for LoomDB {
@@ -689,7 +695,7 @@ impl DatabaseCommit for LoomDB {
 }
 
 #[cfg(test)]
-mod test1 {
+mod test {
     use super::GethAccountState;
     use crate::alloydb::AlloyDB;
     use crate::loom_db::LoomDB;

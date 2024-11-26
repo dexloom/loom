@@ -1,12 +1,18 @@
 use alloy::consensus::Transaction as TransactionTrait;
-use alloy::primitives::U256;
+use alloy::primitives::{Address, U256};
 use alloy::rpc::types::{Header, Transaction};
-use revm::primitives::{BlockEnv, Env, TransactTo, TxEnv};
+use lazy_static::lazy_static;
+use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, TransactTo, TxEnv};
+
+lazy_static! {
+    static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
+}
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();
     env.block.timestamp = U256::from(block_timestamp);
     env.block.number = U256::from(block_id);
+    env.block.coinbase = *COINBASE;
     env
 }
 
@@ -23,7 +29,7 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> En
             basefee: U256::from(block_header.base_fee_per_gas.unwrap_or_default()),
             difficulty: block_header.difficulty,
             prevrandao: Some(block_header.parent_hash),
-            blob_excess_gas_and_price: None,
+            blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(block_header.excess_blob_gas.unwrap())),
         },
         tx: TxEnv {
             caller: tx.from,

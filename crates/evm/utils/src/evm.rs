@@ -13,6 +13,7 @@ use loom_types_blockchain::GethStateUpdate;
 use revm::primitives::{Account, Env, ExecutionResult, HaltReason, Output, ResultAndState, TransactTo, CANCUN};
 use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
 use std::collections::BTreeMap;
+use std::fmt::Debug;
 use thiserror::Error;
 use tracing::{debug, error};
 
@@ -62,8 +63,12 @@ where
 pub fn evm_transact<DB>(evm: &mut Evm<(), DB>) -> eyre::Result<(Vec<u8>, u64)>
 where
     DB: Database + DatabaseCommit,
+    <DB as Database>::Error: Debug,
 {
-    let execution_result = evm.transact_commit().map_err(|_| EvmError::TransactCommitError("COMMIT_ERROR".to_string()))?;
+    let execution_result = evm.transact_commit().map_err(|error| {
+        error!(?error, "evm_transact evm.transact_commit()");
+        EvmError::TransactCommitError("COMMIT_ERROR".to_string())
+    })?;
     let gas_used = execution_result.gas_used();
 
     parse_execution_result(execution_result, gas_used)
@@ -72,10 +77,10 @@ where
 pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &TransactionRequest) -> eyre::Result<(u64, AccessList)> {
     let mut env = env.clone();
 
-    let txto = tx.to.unwrap_or_default().to().map_or(Address::ZERO, |x| *x);
+    let tx_to = tx.to.unwrap_or_default().to().map_or(Address::ZERO, |x| *x);
 
     env.tx.chain_id = tx.chain_id;
-    env.tx.transact_to = TransactTo::Call(txto);
+    env.tx.transact_to = TransactTo::Call(tx_to);
     env.tx.nonce = tx.nonce;
     env.tx.data = tx.input.clone().input.unwrap();
     env.tx.value = tx.value.unwrap_or_default();
@@ -110,12 +115,16 @@ pub fn evm_access_list<DB: DatabaseRef>(state_db: DB, env: &Env, tx: &Transactio
 pub fn evm_call_tx_in_block<DB, T: Into<Transaction>>(tx: T, state_db: DB, header: &Header) -> eyre::Result<ResultAndState>
 where
     DB: DatabaseRef,
+    <DB as DatabaseRef>::Error: Debug,
 {
     let env = evm_env_from_tx(tx, header);
 
     let mut evm = Evm::builder().with_spec_id(CANCUN).with_ref_db(state_db).with_env(Box::new(env)).build();
 
-    evm.transact().map_err(|_| eyre!("TRANSACT_ERROR"))
+    evm.transact().map_err(|error| {
+        error!(?error, "evm_call_tx_in_block evm.transact");
+        eyre!("TRANSACT_ERROR")
+    })
 }
 
 pub fn convert_evm_result_to_rpc(

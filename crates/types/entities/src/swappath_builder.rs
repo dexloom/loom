@@ -432,9 +432,10 @@ pub fn build_swap_path_vec<LDT: LoomDataTypes>(
                 ret_map.extend(build_swap_path_two_hopes_basic_in(market, pool, token_from_address, token_to_address)?);
                 ret_map.extend(build_swap_path_three_hopes_basic_in(market, pool, token_from_address, token_to_address)?);
 
-                if market.is_basic_token(&token_to_address) {
+                // TODO : Add this later
+                /*if market.is_basic_token(&token_to_address) {
                     ret_map.extend(build_swap_path_four_hopes_basic_in(market, pool, token_from_address, token_to_address)?);
-                }
+                }*/
             }
 
             if (!market.is_basic_token(&token_from_address) && !market.is_basic_token(&token_to_address))

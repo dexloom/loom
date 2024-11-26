@@ -6,13 +6,18 @@ use loom_evm_utils::evm::{convert_evm_result_to_rpc, evm_call_tx_in_block};
 use loom_types_blockchain::Mempool;
 use loom_types_entities::MarketState;
 use revm::DatabaseRef;
+use std::fmt::Debug;
 use tracing::{debug, info};
 
-pub(crate) async fn replayer_mempool_task<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+pub(crate) async fn replayer_mempool_task<DB>(
     mempool: SharedState<Mempool>,
     market_state: SharedState<MarketState<DB>>,
     header: Header,
-) -> Result<()> {
+) -> Result<()>
+where
+    DB: DatabaseRef + Send + Sync + Clone + 'static,
+    <DB as DatabaseRef>::Error: Debug,
+{
     let mut mempool_guard = mempool.write().await;
     debug!("process_mempool_task");
 

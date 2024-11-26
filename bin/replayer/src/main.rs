@@ -128,6 +128,8 @@ async fn main() -> Result<()> {
 
                         cur_header = header.clone();
                         if header.number % 10 == 0 {
+                            info!("Composing swap: block_number={}, block_hash={}", header.number, header.hash);
+
                             let swap_path = market.read().await.swap_path(vec![TokenAddress::WETH, TokenAddress::USDC], vec![UniswapV3PoolAddress::USDC_WETH_500])?;
                             let mut swap_line = SwapLine::from(swap_path);
                             swap_line.amount_in = SwapAmountType::Set( NWETH::from_float(0.1));

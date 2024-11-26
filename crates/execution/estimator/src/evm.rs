@@ -13,7 +13,7 @@ use tracing::{debug, error, info, trace};
 
 use loom_core_blockchain::Strategy;
 use loom_evm_utils::NWETH;
-use loom_types_entities::{Swap, SwapEncoder};
+use loom_types_entities::SwapEncoder;
 
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Consumer, Producer};
@@ -49,7 +49,7 @@ where
 
     let (to, call_value, call_data, _) = swap_encoder.encode(
         estimate_request.swap.clone(),
-        None,
+        estimate_request.tips_pct,
         Some(estimate_request.tx_compose.next_block_number),
         None,
         Some(tx_signer.address()),
@@ -81,6 +81,8 @@ where
         let ext_db = AlloyDB::new(client, BlockNumberOrTag::Latest.into());
         if let Some(ext_db) = ext_db {
             db.with_ext_db(ext_db)
+        } else {
+            error!("AlloyDB is None");
         }
     }
 
@@ -108,31 +110,27 @@ where
 
     let gas_cost = U256::from(gas_used as u128 * gas_price as u128);
 
-    let (to, call_value, call_data, tips_vec) = match &swap {
-        Swap::ExchangeSwapLine(_) => (to, None, call_data, vec![]),
-        _ => {
-            debug!(
-                "Swap encode swap={}, tips_pct={:?}, next_block_number={}, gas_cost={}, signer={}",
-                estimate_request.swap,
-                estimate_request.tips_pct,
-                estimate_request.tx_compose.next_block_number,
-                gas_cost,
-                tx_signer.address()
-            );
-            match swap_encoder.encode(
-                estimate_request.swap.clone(),
-                estimate_request.tips_pct,
-                Some(estimate_request.tx_compose.next_block_number),
-                Some(gas_cost),
-                Some(tx_signer.address()),
-                Some(estimate_request.tx_compose.eth_balance),
-            ) {
-                Ok((to, call_value, call_data, tips_vec)) => (to, call_value, call_data, tips_vec),
-                Err(error) => {
-                    error!(%error, %swap, "swap_encoder.encode");
-                    return Err(error);
-                }
-            }
+    debug!(
+        "Swap encode swap={}, tips_pct={:?}, next_block_number={}, gas_cost={}, signer={}",
+        estimate_request.swap,
+        estimate_request.tips_pct,
+        estimate_request.tx_compose.next_block_number,
+        gas_cost,
+        tx_signer.address()
+    );
+
+    let (to, call_value, call_data, tips_vec) = match swap_encoder.encode(
+        estimate_request.swap.clone(),
+        estimate_request.tips_pct,
+        Some(estimate_request.tx_compose.next_block_number),
+        Some(gas_cost),
+        Some(tx_signer.address()),
+        Some(estimate_request.tx_compose.eth_balance),
+    ) {
+        Ok((to, call_value, call_data, tips_vec)) => (to, call_value, call_data, tips_vec),
+        Err(error) => {
+            error!(%error, %swap, "swap_encoder.encode");
+            return Err(error);
         }
     };
 

@@ -73,6 +73,7 @@ async fn main() -> Result<()> {
         .access(blockchain.nonce_and_balance())
         .consume(strategy.swap_compose_channel())
         .produce(strategy.swap_compose_channel())
+        .produce(blockchain.tx_compose_channel())
         .start()
     {
         Ok(r) => {
