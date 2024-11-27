@@ -20,23 +20,6 @@ use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tracing::{error, trace};
-//
-// pub trait LoomDatabaseExt {
-//     fn accounts(&self) -> HashMap<Address, FastDbAccount>;
-//     fn contracts(&self) -> HashMap<B256, Bytecode, SimpleBuildHasher>;
-//     fn logs(&self) -> Vec<Log>;
-//     fn block_hashes(&self) -> HashMap<BlockNumber, B256>;
-//
-//     fn accounts_mut(&mut self) -> &mut HashMap<Address, FastDbAccount>;
-//     fn contracts_mut(&mut self) -> &mut HashMap<B256, Bytecode, SimpleBuildHasher>;
-//     fn logs_mut(&self) -> &mut Vec<Log>;
-//     fn block_hashes_mut(&self) -> &mut HashMap<BlockNumber, B256>;
-//
-//     fn read_only_db(&self) -> Option<Box<dyn LoomDatabase<Error = ErrReport>>>;
-//     fn ext_db(&self) -> Option<Box<dyn DatabaseRef<Error = TransportError>>>;
-// }
-//
-// pub trait LoomDatabase: DatabaseRef<Error = ErrReport> + LoomDatabaseExt {}
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone)]

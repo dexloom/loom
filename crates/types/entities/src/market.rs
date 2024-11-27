@@ -1,5 +1,6 @@
 #![allow(clippy::type_complexity)]
 use std::collections::{BTreeMap, HashMap};
+use std::fmt::Display;
 use std::sync::Arc;
 
 use eyre::{eyre, OptionExt, Result};
@@ -28,6 +29,31 @@ pub struct Market<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     token_pools: HashMap<LDT::Address, Vec<LDT::Address>>,
     // swap_paths
     swap_paths: SwapPaths<LDT>,
+}
+
+impl<LDT: LoomDataTypes> Display for Market<LDT> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let token_token_len = self.token_tokens.values().map(|inner| inner.len()).sum::<usize>();
+        let token_token_pools_len = self.token_token_pools.values().map(|inner_map| inner_map.len()).sum::<usize>();
+        let token_pool_len = self.token_pools.values().map(|inner| inner.len()).sum::<usize>();
+        let token_pool_len_max = self.token_pools.values().map(|inner| inner.len()).max().unwrap_or_default();
+        let swap_path_len = self.swap_paths.len();
+        let swap_path_len_max = self.swap_paths.len_max();
+
+        write!(
+            f,
+            "Pools: {} Disabled : {} Tokens : {} TT : {} TTP {} TP {}/{} SwapPaths: {}/{}",
+            self.pools.len(),
+            self.pools_disabled.len(),
+            self.tokens.len(),
+            token_token_len,
+            token_token_pools_len,
+            token_pool_len,
+            token_pool_len_max,
+            swap_path_len,
+            swap_path_len_max
+        )
+    }
 }
 
 impl<LDT: LoomDataTypes> Market<LDT> {
@@ -109,24 +135,28 @@ impl<LDT: LoomDataTypes> Market<LDT> {
             None => return,
         };
 
-        for (token_from_address, token_to_address) in pool_contract.get_swap_directions().into_iter() {
-            if !ok {
-                // remove pool from token_token_pools
-                let _ = self
-                    .token_token_pools
-                    .get_mut(&token_from_address)
-                    .and_then(|token_from_map| token_from_map.get_mut(&token_to_address))
-                    .map(|pool_addresses| pool_addresses.retain(|&x| x != address));
-            } else if self
-                .token_token_pools
-                .get(&token_from_address)
-                .and_then(|token_from_map| token_from_map.get(&token_to_address))
-                .map_or(false, |pool_addresses| !pool_addresses.contains(&address))
-            {
-                // add pool to token_token_pools if it does not exist
-                self.token_token_pools.entry(token_from_address).or_default().entry(token_to_address).or_default().push(address);
-            }
-        }
+        self.swap_paths.disable_pool(&address, ok);
+
+        /*        for (token_from_address, token_to_address) in pool_contract.get_swap_directions().into_iter() {
+                   if !ok {
+                       // remove pool from token_token_pools
+                       let _ = self
+                           .token_token_pools
+                           .get_mut(&token_from_address)
+                           .and_then(|token_from_map| token_from_map.get_mut(&token_to_address))
+                           .map(|pool_addresses| pool_addresses.retain(|&x| x != address));
+                   } else if self
+                       .token_token_pools
+                       .get(&token_from_address)
+                       .and_then(|token_from_map| token_from_map.get(&token_to_address))
+                       .map_or(false, |pool_addresses| !pool_addresses.contains(&address))
+                   {
+                       // add pool to token_token_pools if it does not exist
+                       self.token_token_pools.entry(token_from_address).or_default().entry(token_to_address).or_default().push(address);
+                   }
+               }
+
+        */
     }
 
     /// Check if the pool is ok.
@@ -220,7 +250,7 @@ impl<LDT: LoomDataTypes> Market<LDT> {
             pools.push(self.get_pool(pool_address).cloned().ok_or_eyre("TOKEN_NOT_FOUND")?);
         }
 
-        Ok(SwapPath { tokens, pools })
+        Ok(SwapPath { tokens, pools, ..Default::default() })
     }
 }
 

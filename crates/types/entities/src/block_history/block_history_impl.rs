@@ -105,6 +105,7 @@ impl<S> BlockHistory<S> {
             self.block_numbers.retain(|&key, _| key > (block_number - self.depth as u64));
             let actual_hashes: Vec<BlockHash> = self.block_numbers.values().cloned().collect();
             self.block_entries.retain(|key, _| actual_hashes.contains(key));
+            self.block_states.retain(|key, _| actual_hashes.contains(key));
         }
 
         self.block_entries.entry(block_hash).or_insert(BlockHistoryEntry::new(header, None, None, None))

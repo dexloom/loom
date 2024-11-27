@@ -37,13 +37,13 @@ impl<LDT: LoomDataTypes> PartialEq for Token<LDT> {
 
 impl<LDT: LoomDataTypes> Eq for Token<LDT> {}
 
-impl Ord for Token {
+impl<LDT: LoomDataTypes> Ord for Token<LDT> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.address.cmp(&other.get_address())
     }
 }
 
-impl PartialOrd for Token {
+impl<LDT: LoomDataTypes> PartialOrd for Token<LDT> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }

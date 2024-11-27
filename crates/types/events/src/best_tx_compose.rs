@@ -36,7 +36,7 @@ impl<DB: Clone + Default + 'static> BestTxSwapCompose<DB> {
             }
         }
 
-        if request.tips.is_some() {
+        if !is_ok && request.tips.is_some() {
             match &self.best_tips_swap {
                 Some(best_swap) => {
                     if best_swap.tips.unwrap_or_default() < request.tips.unwrap_or_default() {
@@ -55,7 +55,7 @@ impl<DB: Clone + Default + 'static> BestTxSwapCompose<DB> {
             }
         }
 
-        if request.tx_compose.gas != 0 {
+        if !is_ok && request.tx_compose.gas != 0 {
             match &self.best_tips_gas_ratio_swap {
                 Some(best_swap) => {
                     if best_swap.tips_gas_ratio() < request.tips_gas_ratio() {

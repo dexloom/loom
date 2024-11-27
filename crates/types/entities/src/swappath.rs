@@ -11,11 +11,12 @@ use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 pub struct SwapPath<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub tokens: Vec<Arc<Token<LDT>>>,
     pub pools: Vec<PoolWrapper<LDT>>,
+    pub disabled: bool,
 }
 
 impl<LDT: LoomDataTypes> Default for SwapPath<LDT> {
     fn default() -> Self {
-        SwapPath::<LDT> { tokens: Vec::new(), pools: Vec::new() }
+        SwapPath::<LDT> { tokens: Vec::new(), pools: Vec::new(), disabled: false }
     }
 }
 
@@ -29,7 +30,11 @@ impl<LDT: LoomDataTypes> Eq for SwapPath<LDT> {}
 
 impl<LDT: LoomDataTypes> SwapPath<LDT> {
     pub fn new<T: Into<Arc<Token<LDT>>>, P: Into<PoolWrapper<LDT>>>(tokens: Vec<T>, pools: Vec<P>) -> Self {
-        SwapPath { tokens: tokens.into_iter().map(|i| i.into()).collect(), pools: pools.into_iter().map(|i| i.into()).collect() }
+        SwapPath {
+            tokens: tokens.into_iter().map(|i| i.into()).collect(),
+            pools: pools.into_iter().map(|i| i.into()).collect(),
+            disabled: false,
+        }
     }
 
     pub fn is_emply(&self) -> bool {
@@ -45,7 +50,7 @@ impl<LDT: LoomDataTypes> SwapPath<LDT> {
     }
 
     pub fn new_swap(token_from: Arc<Token<LDT>>, token_to: Arc<Token<LDT>>, pool: PoolWrapper<LDT>) -> Self {
-        SwapPath { tokens: vec![token_from, token_to], pools: vec![pool] }
+        SwapPath { tokens: vec![token_from, token_to], pools: vec![pool], disabled: false }
     }
 
     pub fn push_swap_hope(&mut self, token_from: Arc<Token<LDT>>, token_to: Arc<Token<LDT>>, pool: PoolWrapper<LDT>) -> Result<&mut Self> {
@@ -102,7 +107,7 @@ impl<LDT: LoomDataTypes> Hash for SwapPath<LDT> {
 #[derive(Clone, Debug, Default)]
 pub struct SwapPaths<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     paths: HashSet<Arc<SwapPath<LDT>>>,
-    pool_paths: HashMap<LDT::Address, Arc<Vec<SwapPath<LDT>>>>,
+    pool_paths: HashMap<LDT::Address, Arc<Vec<Arc<SwapPath<LDT>>>>>,
 }
 
 impl<LDT: LoomDataTypes> SwapPaths<LDT> {
@@ -110,11 +115,18 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
         SwapPaths { paths: HashSet::new(), pool_paths: HashMap::new() }
     }
     pub fn from(paths: Vec<SwapPath<LDT>>) -> Self {
-        let mut ret = SwapPaths::<LDT>::new();
+        let mut swap_paths_ret = SwapPaths::<LDT>::new();
         for p in paths {
-            ret.add(p);
+            swap_paths_ret.add(p);
         }
-        ret
+        swap_paths_ret
+    }
+
+    pub fn len(&self) -> usize {
+        self.paths.len()
+    }
+    pub fn len_max(&self) -> usize {
+        self.pool_paths.values().map(|item| item.len()).max().unwrap_or_default()
     }
 
     pub fn add_mut(&mut self, path: SwapPath<LDT>) -> bool {
@@ -125,7 +137,7 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
                 let mut e = self.pool_paths.get(&pool.get_address()).cloned().unwrap_or(Arc::new(Vec::new()));
                 let e_mut = Arc::make_mut(&mut e);
 
-                e_mut.push(path.clone());
+                e_mut.push(rc_path.clone());
                 self.pool_paths.insert(pool.get_address(), e);
             }
             true
@@ -142,18 +154,28 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
                 let mut e = self.pool_paths.get(&pool.get_address()).cloned().map_or_else(Vec::new, |v| v.deref().clone());
                 //let e_mut = Arc::make_mut(&mut e);
 
-                e.push(path.clone().into());
+                e.push(rc_path.clone());
                 self.pool_paths.insert(pool.get_address(), Arc::new(e));
             }
         }
     }
 
-    pub fn get_pool_paths_hashset(&self, pool_address: &LDT::Address) -> Option<&Arc<Vec<SwapPath<LDT>>>> {
+    pub fn disable_pool(&mut self, pool_address: &LDT::Address, disabled: bool) {
+        //let Some(pool_paths) = self.pool_paths.get_mut(pool_address) else { return };
+        //pool_paths.iter_mut().for_each(|mut p| p.deref_mut().disabled = disabled);
+    }
+
+    pub fn get_pool_paths_hashset(&self, pool_address: &LDT::Address) -> Option<&Arc<Vec<Arc<SwapPath<LDT>>>>> {
         self.pool_paths.get(pool_address)
     }
 
     pub fn get_pool_paths_vec(&self, pool_address: &LDT::Address) -> Option<Vec<SwapPath<LDT>>> {
-        self.get_pool_paths_hashset(pool_address).map(|set| set.iter().cloned().collect())
+        let Some(paths) = self.get_pool_paths_hashset(pool_address) else { return None };
+
+        let paths_vec_ret: Vec<SwapPath<LDT>> =
+            paths.as_ref().iter().filter_map(|path| if !path.disabled { Some(path.as_ref().clone()) } else { None }).collect();
+
+        paths_vec_ret.is_empty().then(|| paths_vec_ret)
     }
 }
 

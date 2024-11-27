@@ -60,15 +60,21 @@ where
                 let market_state = market_state.clone();
 
                 tokio::task::spawn(async move {
-                    let permit = sema_clone.acquire().await;
-                    if let Err(error) =
-                        fetch_and_add_pool_by_address(client_clone, market_clone, market_state, pool_address, pool_class).await
-                    {
-                        error!(%error, "failed fetch_and_add_pool_by_address");
-                    } else {
-                        info!(%pool_address, %pool_class, "Pool loaded successfully");
+                    match sema_clone.acquire().await {
+                        Ok(permit) => {
+                            if let Err(error) =
+                                fetch_and_add_pool_by_address(client_clone, market_clone, market_state, pool_address, pool_class).await
+                            {
+                                error!(%error, "failed fetch_and_add_pool_by_address");
+                            } else {
+                                info!(%pool_address, %pool_class, "Pool loaded successfully");
+                            }
+                            drop(permit);
+                        }
+                        Err(error) => {
+                            error!(%error, "failed acquire semaphore");
+                        }
                     }
-                    drop(permit);
                 });
             }
         }
@@ -193,14 +199,18 @@ where
                 directions_tree.insert(pool_wrapped.clone(), directions_vec);
 
                 {
+                    let start_time = std::time::Instant::now();
                     let mut market_write_guard = market.write().await;
+                    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write acquired");
                     // Ignore error if pool already exists because it was maybe already added by e.g. db pool loader
                     let _ = market_write_guard.add_pool(pool_wrapped);
 
                     let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
                     market_write_guard.add_paths(swap_paths);
+                    debug!(elapsed = start_time.elapsed().as_micros(),  market = %market_write_guard, "market_guard path added");
 
-                    drop(market_write_guard)
+                    drop(market_write_guard);
+                    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write releases");
                 }
             }
             Err(e) => {

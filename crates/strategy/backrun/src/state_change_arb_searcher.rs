@@ -40,10 +40,12 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     let mut db = state_update_event.market_state().clone();
     DatabaseHelpers::apply_geth_state_update_vec(&mut db, state_update_event.state_update().clone());
 
-    let start_time = chrono::Local::now();
+    let start_time = std::time::Instant::now();
     let mut swap_path_vec: Vec<SwapPath> = Vec::new();
 
     let market_guard_read = market.read().await;
+    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.read acquired");
+
     for (pool, v) in state_update_event.directions().iter() {
         let pool_paths: Vec<SwapPath> = match market_guard_read.get_pool_paths(&pool.get_address()) {
             Some(paths) => paths
@@ -60,16 +62,18 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
         swap_path_vec.extend(pool_paths)
     }
     drop(market_guard_read);
+    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.read released");
 
     if swap_path_vec.is_empty() {
         debug!(
-            "No swap path built for request: {:?} {}",
-            state_update_event.stuffing_txs_hashes().first().unwrap_or_default(),
-            chrono::Local::now() - start_time
+            request=?state_update_event.stuffing_txs_hashes().first().unwrap_or_default(),
+            elapsed=start_time.elapsed().as_micros(),
+            "No swap path built",
+
         );
         return Err(eyre!("NO_SWAP_PATHS"));
     }
-    info!("Calculation started: swap_path_vec_len={} elapsed={}", swap_path_vec.len(), chrono::Local::now() - start_time);
+    info!("Calculation started: swap_path_vec_len={} elapsed={}", swap_path_vec.len(), start_time.elapsed().as_micros());
 
     let env = state_update_event.evm_env();
 
@@ -125,10 +129,10 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                 }
             });
         });
-        debug!(elapsed = %(chrono::Local::now() - start_time), "Calculation iteration finished");
+        debug!(elapsed = start_time.elapsed().as_micros(), "Calculation iteration finished");
     });
 
-    debug!(elapsed = %(chrono::Local::now() - start_time), "Calculation results receiver started" );
+    debug!(elapsed = start_time.elapsed().as_micros(), "Calculation results receiver started");
 
     let swap_request_tx_clone = swap_request_tx.clone();
     let pool_health_monitor_tx_clone = pool_health_monitor_tx.clone();
@@ -142,7 +146,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     while let Some(swap_line_result) = swap_line_rx.recv().await {
         match swap_line_result {
             Ok(swap_line) => {
-                let encode_request = SwapComposeMessage::Prepare(SwapComposeData {
+                let prepare_request = SwapComposeMessage::Prepare(SwapComposeData {
                     tx_compose: TxComposeData {
                         eoa: backrun_config.eoa(),
                         next_block_number: state_update_event.next_block_number,
@@ -161,8 +165,8 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                     ..SwapComposeData::default()
                 });
 
-                if !backrun_config.smart() || best_answers.check(&encode_request) {
-                    if let Err(e) = swap_request_tx_clone.send(Message::new(encode_request)).await {
+                if !backrun_config.smart() || best_answers.check(&prepare_request) {
+                    if let Err(e) = swap_request_tx_clone.send(Message::new(prepare_request)).await {
                         error!("swap_request_tx_clone.send {}", e)
                     }
                 }
@@ -182,7 +186,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
         origin = %state_update_event.origin,
         swap_path_vec_len,
         answers,
-        elapsed = %(chrono::Local::now() - start_time),
+        elapsed = start_time.elapsed().as_micros(),
         stuffing_hash = %state_update_event.stuffing_tx_hash(),
         "Calculation finished"
     );
@@ -202,8 +206,9 @@ pub async fn state_change_arb_searcher_worker<
     subscribe!(search_request_rx);
 
     let cpus = num_cpus::get();
-    info!("Starting state arb searcher cpus={cpus}, tasks={}", cpus - 2);
-    let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(cpus - 2).build()?);
+    let tasks = (cpus * 8) / 10;
+    info!("Starting state arb searcher cpus={cpus}, tasks={tasks}");
+    let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(tasks).build()?);
 
     loop {
         tokio::select! {

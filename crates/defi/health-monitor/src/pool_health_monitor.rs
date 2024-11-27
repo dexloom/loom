@@ -31,7 +31,10 @@ pub async fn pool_health_monitor_worker(
                             let entry = pool_errors_map.entry(swap_error.pool).or_insert(0);
                             *entry += 1;
                             if *entry >= 10 {
+                                let start_time=std::time::Instant::now();
                                 let mut market_guard = market.write().await;
+                                debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write acquired");
+
                                 market_guard.set_pool_ok(swap_error.pool, false);
                                 match market_guard.get_pool(&swap_error.pool) {
                                     Some(pool)=>{
@@ -41,6 +44,9 @@ pub async fn pool_health_monitor_worker(
                                         error!("Disabled pool missing in market: address={:?}, msg={} amount={}", swap_error.pool, swap_error.msg, swap_error.amount);
                                     }
                                 }
+                                drop(market_guard);
+                                debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write released");
+
                             }
                         }
                     }
