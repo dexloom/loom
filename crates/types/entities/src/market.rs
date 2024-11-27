@@ -129,21 +129,16 @@ impl<LDT: LoomDataTypes> Market<LDT> {
     }
 
     /// Set the pool status to ok or not ok.
-    pub fn set_pool_ok(&mut self, address: LDT::Address, ok: bool) {
-        *self.pools_disabled.entry(address).or_insert(false) = ok;
+    pub fn set_pool_disabled(&mut self, address: LDT::Address, disabled: bool) {
+        *self.pools_disabled.entry(address).or_insert(false) = disabled;
 
-        let pool_contract = match self.pools.get(&address) {
-            Some(pool) => pool.pool.clone(),
-            None => return,
-        };
-
-        self.swap_paths.disable_pool(&address, ok);
+        self.swap_paths.disable_pool(&address, disabled);
     }
 
     /// Check if the pool is ok.
     #[inline]
-    pub fn is_pool_ok(&self, address: &LDT::Address) -> bool {
-        self.pools_disabled.get(address).map_or(true, |&is_disabled| !is_disabled)
+    pub fn is_pool_disabled(&self, address: &LDT::Address) -> bool {
+        self.pools_disabled.get(address).map_or(false, |&is_disabled| is_disabled)
     }
 
     /// Get a [`Token`] reference from the market by the address of the token or create a new one.
@@ -321,17 +316,17 @@ mod tests {
         let mock_pool = MockPool { address: pool_address, token0, token1 };
         market.add_pool(mock_pool.clone());
 
-        assert!(market.is_pool_ok(&pool_address));
+        assert!(market.is_pool_disabled(&pool_address));
         assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 1);
 
         // toggle not ok
-        market.set_pool_ok(pool_address, false);
-        assert!(!market.is_pool_ok(&pool_address));
+        market.set_pool_disabled(pool_address, true);
+        assert!(market.is_pool_disabled(&pool_address));
         assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 0);
 
         // toggle back
-        market.set_pool_ok(pool_address, true);
-        assert!(market.is_pool_ok(&pool_address));
+        market.set_pool_disabled(pool_address, false);
+        assert!(!market.is_pool_disabled(&pool_address));
         assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 1);
     }
 

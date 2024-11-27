@@ -41,7 +41,7 @@ fn build_swap_path_two_hopes_basic_in<LDT: LoomDataTypes>(
         return Ok(ret);
     };
     for pool_address in token_token_pools.iter() {
-        if !market.is_pool_ok(pool_address) {
+        if market.is_pool_disabled(pool_address) {
             continue;
         }
 
@@ -81,12 +81,12 @@ fn build_swap_path_three_hopes_basic_in<LDT: LoomDataTypes>(
         let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) else { continue };
 
         for pool_address_1 in token_token_pools_1.iter() {
-            if !market.is_pool_ok(pool_address_1) {
+            if market.is_pool_disabled(pool_address_1) {
                 continue;
             }
 
             for pool_address_2 in token_token_pools_2.iter() {
-                if !market.is_pool_ok(pool_address_2) {
+                if market.is_pool_disabled(pool_address_2) {
                     continue;
                 }
 
@@ -141,15 +141,15 @@ fn build_swap_path_four_hopes_basic_in<LDT: LoomDataTypes>(
                         if let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, token_middle_address_0) {
                             if let Some(token_token_pools_3) = market.get_token_token_pools(token_middle_address_0, &token_from_address) {
                                 for pool_address_1 in token_token_pools_1.iter() {
-                                    if !market.is_pool_ok(pool_address_1) {
+                                    if market.is_pool_disabled(pool_address_1) {
                                         continue;
                                     }
                                     for pool_address_2 in token_token_pools_2.iter() {
-                                        if !market.is_pool_ok(pool_address_2) {
+                                        if market.is_pool_disabled(pool_address_2) {
                                             continue;
                                         }
                                         for pool_address_3 in token_token_pools_3.iter() {
-                                            if !market.is_pool_ok(pool_address_3) {
+                                            if market.is_pool_disabled(pool_address_3) {
                                                 continue;
                                             }
                                             if let Some(pool_1) = market.get_pool(pool_address_1) {
@@ -212,8 +212,7 @@ fn build_swap_path_two_hopes_basic_out<LDT: LoomDataTypes>(
 
     if let Some(token_token_pools) = market.get_token_token_pools(&token_to_address, &token_from_address) {
         for pool_address in token_token_pools.iter() {
-            if !market.is_pool_ok(pool_address) {
-                println!("NOTOK");
+            if market.is_pool_disabled(pool_address) {
                 continue;
             }
             if let Some(loop_pool) = market.get_pool(pool_address) {
@@ -253,12 +252,12 @@ fn build_swap_path_three_hopes_basic_out<LDT: LoomDataTypes>(
         let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) else { continue };
         let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) else { continue };
         for pool_address_1 in token_token_pools_1.iter() {
-            if !market.is_pool_ok(pool_address_1) {
+            if market.is_pool_disabled(pool_address_1) {
                 continue;
             }
 
             for pool_address_2 in token_token_pools_2.iter() {
-                if !market.is_pool_ok(pool_address_2) {
+                if market.is_pool_disabled(pool_address_2) {
                     continue;
                 }
                 let Some(pool_1) = market.get_pool(pool_address_1) else { continue };
@@ -310,17 +309,17 @@ fn build_swap_path_four_hopes_basic_out<LDT: LoomDataTypes>(
                         if let Some(token_token_pools_1) = market.get_token_token_pools(token_middle_address_0, token_middle_address) {
                             if let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) {
                                 for pool_address_0 in token_token_pools_0.iter() {
-                                    if !market.is_pool_ok(pool_address_0) {
+                                    if market.is_pool_disabled(pool_address_0) {
                                         continue;
                                     }
 
                                     for pool_address_1 in token_token_pools_1.iter() {
-                                        if !market.is_pool_ok(pool_address_1) {
+                                        if market.is_pool_disabled(pool_address_1) {
                                             continue;
                                         }
 
                                         for pool_address_2 in token_token_pools_2.iter() {
-                                            if !market.is_pool_ok(pool_address_2) {
+                                            if market.is_pool_disabled(pool_address_2) {
                                                 continue;
                                             }
 
@@ -394,12 +393,12 @@ fn build_swap_path_three_hopes_no_basic<LDT: LoomDataTypes>(
             if let Some(token_token_pools_1) = market.get_token_token_pools(token_basic_address, &token_from_address) {
                 if let Some(token_token_pools_2) = market.get_token_token_pools(&token_to_address, token_basic_address) {
                     for pool_address_1 in token_token_pools_1.iter() {
-                        if !market.is_pool_ok(pool_address_1) {
+                        if market.is_pool_disabled(pool_address_1) {
                             continue;
                         }
 
                         for pool_address_2 in token_token_pools_2.iter() {
-                            if !market.is_pool_ok(pool_address_2) {
+                            if market.is_pool_disabled(pool_address_2) {
                                 continue;
                             }
 

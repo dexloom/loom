@@ -35,7 +35,7 @@ pub async fn pool_health_monitor_worker(
                                 let mut market_guard = market.write().await;
                                 debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write acquired");
 
-                                market_guard.set_pool_ok(swap_error.pool, false);
+                                market_guard.set_pool_disabled(swap_error.pool, true);
                                 match market_guard.get_pool(&swap_error.pool) {
                                     Some(pool)=>{
                                         info!("Disabling pool: protocol={}, address={:?}, msg={} amount={}", pool.get_protocol(),swap_error.pool, swap_error.msg, swap_error.amount);

@@ -50,7 +50,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
         let pool_paths: Vec<SwapPath> = match market_guard_read.get_pool_paths(&pool.get_address()) {
             Some(paths) => paths
                 .into_iter()
-                .filter(|swap_path| !swap_path.pools.iter().any(|pool| !market_guard_read.is_pool_ok(&pool.get_address())))
+                .filter(|swap_path| !swap_path.pools.iter().any(|pool| !market_guard_read.is_pool_disabled(&pool.get_address())))
                 .collect(),
             None => {
                 let mut pool_direction: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
