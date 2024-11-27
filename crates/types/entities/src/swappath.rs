@@ -133,6 +133,11 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
     pub fn len(&self) -> usize {
         self.paths.len()
     }
+
+    pub fn is_empty(&self) -> bool {
+        self.paths.is_empty()
+    }
+
     pub fn len_max(&self) -> usize {
         self.pool_paths.values().map(|item| item.len()).max().unwrap_or_default()
     }
@@ -166,15 +171,15 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
     pub fn get_pool_paths_hashset(&self, pool_address: &LDT::Address) -> Option<&HashSet<SwapPath<LDT>>> {
         self.pool_paths.get(pool_address)
     }
-
+    #[allow(clippy::mutable_key_type)]
     #[inline]
     pub fn get_pool_paths_vec(&self, pool_address: &LDT::Address) -> Option<Vec<SwapPath<LDT>>> {
-        let Some(paths) = self.get_pool_paths_hashset(pool_address) else { return None };
+        let paths = self.pool_paths.get(pool_address)?;
 
         let paths_vec_ret: Vec<SwapPath<LDT>> =
             paths.iter().filter_map(|path| if !path.disabled { Some(path.clone()) } else { None }).collect();
 
-        paths_vec_ret.is_empty().then(|| paths_vec_ret)
+        paths_vec_ret.is_empty().then_some(paths_vec_ret)
     }
 }
 

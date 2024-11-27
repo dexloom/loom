@@ -157,7 +157,7 @@ impl<LDT: LoomDataTypes> Market<LDT> {
 
     #[inline]
     pub fn get_token_token_pools(&self, token_from_address: &LDT::Address, token_to_address: &LDT::Address) -> Option<Vec<LDT::Address>> {
-        self.token_token_pools.get(token_from_address)?.get(token_to_address).map(|pool| pool.clone())
+        self.token_token_pools.get(token_from_address)?.get(token_to_address).cloned()
     }
 
     /// Get all pool addresses as reference that allow to swap from `token_from_address` to `token_to_address`.
@@ -173,7 +173,7 @@ impl<LDT: LoomDataTypes> Market<LDT> {
     /// Get all token addresses that allow to swap from `token_from_address`.
     #[inline]
     pub fn get_token_tokens(&self, token_from_address: &LDT::Address) -> Option<Vec<LDT::Address>> {
-        self.token_tokens.get(token_from_address).map(|t| t.clone())
+        self.token_tokens.get(token_from_address).cloned()
     }
 
     /// Get all token addresses as reference that allow to swap from `token_from_address`.
@@ -184,7 +184,7 @@ impl<LDT: LoomDataTypes> Market<LDT> {
 
     /// Get all pool addresses that allow to swap `token_address`.
     pub fn get_token_pools(&self, token_from_address: &LDT::Address) -> Option<Vec<LDT::Address>> {
-        self.token_pools.get(token_from_address).map(|t| t.clone())
+        self.token_pools.get(token_from_address).cloned()
     }
 
     /// Get all pool addresses as reference that allow to swap `token_address`.

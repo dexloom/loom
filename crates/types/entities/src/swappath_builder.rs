@@ -73,7 +73,7 @@ fn build_swap_path_three_hopes_basic_in<LDT: LoomDataTypes>(
     };
 
     for token_middle_address in token_tokens.iter() {
-        if market.get_token_pools_len(&token_middle_address) < 2 {
+        if market.get_token_pools_len(token_middle_address) < 2 {
             continue;
         }
 
@@ -245,7 +245,7 @@ fn build_swap_path_three_hopes_basic_out<LDT: LoomDataTypes>(
     }
 
     for token_middle_address in token_tokens.iter() {
-        if market.get_token_pools_len(&token_middle_address) < 2 {
+        if market.get_token_pools_len(token_middle_address) < 2 {
             continue;
         }
 
