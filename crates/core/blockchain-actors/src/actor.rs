@@ -13,7 +13,7 @@ use loom_core_block_history::BlockHistoryActor;
 use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_mempool::MempoolActor;
 use loom_core_router::SwapRouterActor;
-use loom_defi_address_book::TokenAddress;
+use loom_defi_address_book::TokenAddressEth;
 use loom_defi_health_monitor::{PoolHealthMonitorActor, StuffingTxMonitorActor};
 use loom_defi_market::{
     CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, RequiredPoolLoaderActor,
@@ -205,7 +205,7 @@ where
         for address in address_vec {
             //            market_state_preloader = market_state_preloader.with_new_account(address, 0, NWETH::from_float(10.0), None);
             market_state_preloader = market_state_preloader.with_copied_account(address).with_token_balance(
-                TokenAddress::ETH_NATIVE,
+                TokenAddressEth::ETH_NATIVE,
                 address,
                 NWETH::from_float(10.0),
             );
@@ -221,7 +221,7 @@ where
         );
 
         market_state_preloader = market_state_preloader.with_token_balance(
-            TokenAddress::WETH,
+            TokenAddressEth::WETH,
             loom_execution_multicaller::DEFAULT_VIRTUAL_ADDRESS,
             NWETH::from_float(10.0),
         );

@@ -23,7 +23,7 @@ use loom::broadcast::flashbots::Flashbots;
 use loom::core::actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom::core::block_history::BlockHistoryActor;
 use loom::core::router::SwapRouterActor;
-use loom::defi::address_book::TokenAddress;
+use loom::defi::address_book::TokenAddressEth;
 use loom::defi::market::{fetch_and_add_pool_by_address, fetch_state_and_add_pool};
 use loom::defi::pools::protocols::CurveProtocol;
 use loom::defi::pools::CurvePool;
@@ -164,10 +164,10 @@ async fn main() -> Result<()> {
     let market_state_instance = MarketState::new(cache_db.clone());
 
     // Add default tokens for price actor
-    let usdc_token = Token::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), true, false);
-    let usdt_token = Token::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), true, false);
-    let wbtc_token = Token::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), true, false);
-    let dai_token = Token::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), true, false);
+    let usdc_token = Token::new_with_data(TokenAddressEth::USDC, Some("USDC".to_string()), None, Some(6), true, false);
+    let usdt_token = Token::new_with_data(TokenAddressEth::USDT, Some("USDT".to_string()), None, Some(6), true, false);
+    let wbtc_token = Token::new_with_data(TokenAddressEth::WBTC, Some("WBTC".to_string()), None, Some(8), true, false);
+    let dai_token = Token::new_with_data(TokenAddressEth::DAI, Some("DAI".to_string()), None, Some(18), true, false);
     market_instance.add_token(usdc_token)?;
     market_instance.add_token(usdt_token)?;
     market_instance.add_token(wbtc_token)?;

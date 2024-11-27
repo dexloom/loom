@@ -2,7 +2,7 @@ use alloy::primitives::BlockHash;
 use alloy::primitives::ChainId;
 use influxdb::WriteQuery;
 use loom_core_actors::{Broadcaster, SharedState};
-use loom_defi_address_book::TokenAddress;
+use loom_defi_address_book::TokenAddressEth;
 use loom_types_blockchain::{ChainParameters, Mempool};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::{AccountNonceAndBalanceState, LatestBlock, Market, Token};
@@ -53,12 +53,12 @@ impl Blockchain<LoomDataTypesEthereum> {
 
         let mut market_instance = Market::default();
 
-        let weth_token = Token::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false);
-        let usdc_token = Token::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), true, false);
-        let usdt_token = Token::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), true, false);
-        let dai_token = Token::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), true, false);
-        let wbtc_token = Token::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), true, false);
-        let threecrv_token = Token::new_with_data(TokenAddress::THREECRV, Some("3Crv".to_string()), None, Some(18), false, true);
+        let weth_token = Token::new_with_data(TokenAddressEth::WETH, Some("WETH".to_string()), None, Some(18), true, false);
+        let usdc_token = Token::new_with_data(TokenAddressEth::USDC, Some("USDC".to_string()), None, Some(6), true, false);
+        let usdt_token = Token::new_with_data(TokenAddressEth::USDT, Some("USDT".to_string()), None, Some(6), true, false);
+        let dai_token = Token::new_with_data(TokenAddressEth::DAI, Some("DAI".to_string()), None, Some(18), true, false);
+        let wbtc_token = Token::new_with_data(TokenAddressEth::WBTC, Some("WBTC".to_string()), None, Some(8), true, false);
+        let threecrv_token = Token::new_with_data(TokenAddressEth::THREECRV, Some("3Crv".to_string()), None, Some(18), false, true);
 
         market_instance.add_token(weth_token).unwrap();
         market_instance.add_token(usdc_token).unwrap();

@@ -4,7 +4,7 @@ use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, Result};
 use tracing::{trace, warn};
 
-use loom_defi_address_book::TokenAddress;
+use loom_defi_address_book::TokenAddressEth;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
@@ -779,7 +779,7 @@ impl SwapLineEncoder {
     ) -> Result<MulticallerCalls> {
         let mut tips_opcodes = swap_opcodes.clone();
 
-        let call_data = if token_address == TokenAddress::WETH {
+        let call_data = if token_address == TokenAddressEth::WETH {
             trace!("encode_multicaller_transfer_tips_weth");
             EncoderHelper::encode_multicaller_transfer_tips_weth(min_balance, tips, to)
         } else {

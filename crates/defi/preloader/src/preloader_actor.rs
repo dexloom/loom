@@ -12,7 +12,7 @@ use eyre::{eyre, Result};
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::Accessor;
 use loom_core_blockchain::{Blockchain, BlockchainState};
-use loom_defi_address_book::TokenAddress;
+use loom_defi_address_book::TokenAddressEth;
 use loom_evm_utils::{BalanceCheater, NWETH};
 use loom_types_blockchain::GethStateUpdate;
 use loom_types_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
@@ -101,7 +101,7 @@ where
     }
 
     for (token, owner, balance) in token_balances_vec {
-        if token == TokenAddress::ETH_NATIVE {
+        if token == TokenAddressEth::ETH_NATIVE {
             match state.entry(owner) {
                 Entry::Vacant(e) => {
                     e.insert(AccountState { balance: Some(balance), nonce: Some(0), code: None, storage: BTreeMap::new() });

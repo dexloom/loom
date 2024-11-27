@@ -203,8 +203,6 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
         PoolProtocol::Unknown
     }
 
-    //fn clone_box(&self) -> Box<dyn Pool>;
-
     fn get_address(&self) -> LDT::Address;
 
     fn get_fee(&self) -> U256 {

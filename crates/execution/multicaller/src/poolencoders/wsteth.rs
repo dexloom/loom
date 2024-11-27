@@ -1,6 +1,6 @@
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, Result};
-use loom_defi_address_book::TokenAddress;
+use loom_defi_address_book::TokenAddressEth;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{PoolWrapper, SwapAmountType};
 
@@ -21,7 +21,7 @@ impl WstEthSwapEncoder {
         let pool_encoder = cur_pool.get_encoder();
         let pool_address = cur_pool.get_address();
 
-        if token_from_address == TokenAddress::WETH && token_to_address == TokenAddress::WSTETH {
+        if token_from_address == TokenAddressEth::WETH && token_to_address == TokenAddressEth::WSTETH {
             match amount_in {
                 SwapAmountType::Set(amount) => {
                     let weth_withdraw_opcode = MulticallerCall::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
@@ -95,8 +95,8 @@ impl WstEthSwapEncoder {
             return Ok(());
         }
 
-        if token_from_address == TokenAddress::STETH && token_to_address == TokenAddress::WSTETH
-            || token_from_address == TokenAddress::WSTETH && token_to_address == TokenAddress::STETH
+        if token_from_address == TokenAddressEth::STETH && token_to_address == TokenAddressEth::WSTETH
+            || token_from_address == TokenAddressEth::WSTETH && token_to_address == TokenAddressEth::STETH
         {
             match amount_in {
                 SwapAmountType::Set(amount) => {

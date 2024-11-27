@@ -1,6 +1,7 @@
 use std::cmp::Ordering;
 use std::hash::{Hash, Hasher};
 use std::ops::{Add, Div, Mul, Neg};
+use std::string::ToString;
 use std::sync::Arc;
 use std::sync::RwLock;
 
@@ -24,12 +25,14 @@ pub struct Token<LDT: LoomDataTypes = LoomDataTypesEthereum> {
 pub type TokenWrapper<LDT> = Arc<Token<LDT>>;
 
 impl<LDT: LoomDataTypes> Hash for Token<LDT> {
+    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.address.hash(state)
     }
 }
 
 impl<LDT: LoomDataTypes> PartialEq for Token<LDT> {
+    #[inline]
     fn eq(&self, other: &Self) -> bool {
         self.address == other.get_address()
     }
@@ -38,6 +41,7 @@ impl<LDT: LoomDataTypes> PartialEq for Token<LDT> {
 impl<LDT: LoomDataTypes> Eq for Token<LDT> {}
 
 impl<LDT: LoomDataTypes> Ord for Token<LDT> {
+    #[inline]
     fn cmp(&self, other: &Self) -> Ordering {
         self.address.cmp(&other.get_address())
     }
@@ -50,9 +54,12 @@ impl<LDT: LoomDataTypes> PartialOrd for Token<LDT> {
 }
 
 impl<LDT: LoomDataTypes> Token<LDT> {
+    #[inline]
     pub fn new(address: LDT::Address) -> Token<LDT> {
         Self::new_with_data(address, None, None, Some(18), false, false)
     }
+
+    #[inline]
     pub fn zero() -> Token<LDT> {
         Self::new_with_data(LDT::Address::default(), None, None, Some(18), false, false)
     }
@@ -68,18 +75,22 @@ impl<LDT: LoomDataTypes> Token<LDT> {
         Token { address, symbol, name, decimals: decimals.unwrap_or(18), basic, middle, eth_price: Arc::new(RwLock::new(None)) }
     }
 
+    #[inline]
     pub fn get_symbol(&self) -> String {
         self.symbol.clone().unwrap_or(self.address.to_string())
     }
 
+    #[inline]
     pub fn get_name(&self) -> String {
         self.name.clone().unwrap_or(self.address.to_string())
     }
 
+    #[inline]
     pub fn get_decimals(&self) -> u8 {
         self.decimals
     }
 
+    #[inline]
     pub fn get_exp(&self) -> U256 {
         if self.decimals == 18 {
             ONE_ETHER
@@ -88,14 +99,17 @@ impl<LDT: LoomDataTypes> Token<LDT> {
         }
     }
 
+    #[inline]
     pub fn get_address(&self) -> LDT::Address {
         self.address
     }
 
+    #[inline]
     pub fn is_basic(&self) -> bool {
         self.basic
     }
 
+    #[inline]
     pub fn is_middle(&self) -> bool {
         self.middle
     }
@@ -144,6 +158,7 @@ impl<LDT: LoomDataTypes> Token<LDT> {
         multiplier.mul(U256::from(10).pow(U256::from(self.decimals))).add(modulus)
     }
 
+    #[inline]
     pub fn is_weth(&self) -> bool {
         self.address.eq(&LDT::WETH)
     }
@@ -178,20 +193,20 @@ impl<LDT: LoomDataTypes> Token<LDT> {
 #[cfg(test)]
 mod test {
     use super::*;
-    use loom_defi_address_book::TokenAddress;
+    use loom_defi_address_book::TokenAddressEth;
 
     #[test]
     fn test_to_float() {
         let weth_token =
-            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false);
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddressEth::WETH, Some("WETH".to_string()), None, Some(18), true, false);
         let usdc_token =
-            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), false, false);
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddressEth::USDC, Some("USDC".to_string()), None, Some(6), false, false);
         let usdt_token =
-            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), false, false);
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddressEth::USDT, Some("USDT".to_string()), None, Some(6), false, false);
         let dai_token =
-            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), false, false);
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddressEth::DAI, Some("DAI".to_string()), None, Some(18), false, false);
         let wbtc_token =
-            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), false, false);
+            Token::<LoomDataTypesEthereum>::new_with_data(TokenAddressEth::WBTC, Some("WBTC".to_string()), None, Some(8), false, false);
 
         let one_ether = U256::from(10).pow(U256::from(15));
 

@@ -1,9 +1,9 @@
 use alloy_primitives::{address, Address};
 
 #[non_exhaustive]
-pub struct TokenAddress;
+pub struct TokenAddressEth;
 
-impl TokenAddress {
+impl TokenAddressEth {
     pub const ETH_NATIVE: Address = Address::ZERO;
     pub const WETH: Address = address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2");
     pub const USDC: Address = address!("a0b86991c6218b36c1d19d4a2e9eb0ce3606eb48");
@@ -109,6 +109,6 @@ mod test {
 
     #[test]
     fn test_token() {
-        assert_eq!(TokenAddress::WETH, address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"));
+        assert_eq!(TokenAddressEth::WETH, address!("c02aaa39b223fe8d0a0e5c4f27ead9083c756cc2"));
     }
 }

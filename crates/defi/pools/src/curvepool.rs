@@ -6,7 +6,7 @@ use alloy_sol_types::SolCall;
 use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_abi::IERC20;
-use loom_defi_address_book::TokenAddress;
+use loom_defi_address_book::TokenAddressEth;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
@@ -102,7 +102,7 @@ where
         for tkn in tokens.iter_mut() {
             if *tkn == address!("EeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
                 //return Err(eyre!("ETH_CURVE_POOL_NOT_SUPPORTED"));
-                *tkn = TokenAddress::WETH;
+                *tkn = TokenAddressEth::WETH;
                 is_native = true;
             }
         }

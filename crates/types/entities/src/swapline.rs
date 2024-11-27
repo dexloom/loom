@@ -511,15 +511,16 @@ mod tests {
     use crate::mock_pool::MockPool;
     use alloy_primitives::utils::parse_units;
     use alloy_primitives::Address;
-    use loom_defi_address_book::{TokenAddress, UniswapV2PoolAddress, UniswapV3PoolAddress};
+    use loom_defi_address_book::{TokenAddressEth, UniswapV2PoolAddress, UniswapV3PoolAddress};
     use std::sync::Arc;
 
     fn default_swap_line() -> (MockPool, MockPool, SwapLine<LoomDataTypesEthereum>) {
-        let token0 = Arc::new(Token::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false));
-        let token1 = Arc::new(Token::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), true, false));
-        let pool1 = MockPool { token0: TokenAddress::WETH, token1: TokenAddress::USDT, address: UniswapV3PoolAddress::WETH_USDT_3000 };
+        let token0 = Arc::new(Token::new_with_data(TokenAddressEth::WETH, Some("WETH".to_string()), None, Some(18), true, false));
+        let token1 = Arc::new(Token::new_with_data(TokenAddressEth::USDT, Some("USDT".to_string()), None, Some(6), true, false));
+        let pool1 =
+            MockPool { token0: TokenAddressEth::WETH, token1: TokenAddressEth::USDT, address: UniswapV3PoolAddress::WETH_USDT_3000 };
         let pool2_address = Address::random();
-        let pool2 = MockPool { token0: TokenAddress::WETH, token1: TokenAddress::USDT, address: UniswapV2PoolAddress::WETH_USDT };
+        let pool2 = MockPool { token0: TokenAddressEth::WETH, token1: TokenAddressEth::USDT, address: UniswapV2PoolAddress::WETH_USDT };
 
         let swap_path =
             SwapPath::new(vec![token0.clone(), token1.clone(), token1.clone(), token0.clone()], vec![pool1.clone(), pool2.clone()]);
@@ -563,8 +564,8 @@ mod tests {
         let (_, _, swap_line) = default_swap_line();
 
         let tokens = swap_line.tokens();
-        assert_eq!(tokens.first().unwrap().get_address(), TokenAddress::WETH);
-        assert_eq!(tokens.get(1).unwrap().get_address(), TokenAddress::USDT);
+        assert_eq!(tokens.first().unwrap().get_address(), TokenAddressEth::WETH);
+        assert_eq!(tokens.get(1).unwrap().get_address(), TokenAddressEth::USDT);
     }
 
     #[test]
@@ -581,7 +582,7 @@ mod tests {
         let (_, _, swap_line) = default_swap_line();
 
         let token = swap_line.get_first_token();
-        assert_eq!(token.unwrap().get_address(), TokenAddress::WETH);
+        assert_eq!(token.unwrap().get_address(), TokenAddressEth::WETH);
     }
 
     #[test]
@@ -589,7 +590,7 @@ mod tests {
         let (_, _, swap_line) = default_swap_line();
 
         let token = swap_line.get_last_token();
-        assert_eq!(token.unwrap().get_address(), TokenAddress::WETH);
+        assert_eq!(token.unwrap().get_address(), TokenAddressEth::WETH);
     }
 
     #[test]

@@ -65,10 +65,18 @@ fn build_swap_path_three_hopes_basic_in<LDT: LoomDataTypes>(
     token_to_address: LDT::Address,
 ) -> Result<Vec<SwapPath<LDT>>> {
     let mut ret: Vec<SwapPath<LDT>> = Vec::new();
+    if market.get_token_pools_len(&token_to_address) < 2 {
+        return Ok(ret);
+    }
     let Some(token_tokens) = market.get_token_tokens(&token_to_address) else {
         return Ok(ret);
     };
+
     for token_middle_address in token_tokens.iter() {
+        if market.get_token_pools_len(&token_middle_address) < 2 {
+            continue;
+        }
+
         let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) else { continue };
         let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) else { continue };
 
@@ -197,12 +205,17 @@ fn build_swap_path_two_hopes_basic_out<LDT: LoomDataTypes>(
     token_to_address: LDT::Address,
 ) -> Result<Vec<SwapPath<LDT>>> {
     let mut ret: Vec<SwapPath<LDT>> = Vec::new();
+
+    if market.get_token_pools_len(&token_from_address) < 2 {
+        return Ok(ret);
+    }
+
     if let Some(token_token_pools) = market.get_token_token_pools(&token_to_address, &token_from_address) {
         for pool_address in token_token_pools.iter() {
             if !market.is_pool_ok(pool_address) {
+                println!("NOTOK");
                 continue;
             }
-
             if let Some(loop_pool) = market.get_pool(pool_address) {
                 let token_from = market.get_token_or_default(&token_from_address);
                 let token_to = market.get_token_or_default(&token_to_address);
@@ -228,7 +241,15 @@ fn build_swap_path_three_hopes_basic_out<LDT: LoomDataTypes>(
     let Some(token_tokens) = market.get_token_tokens(&token_from_address) else {
         return Ok(vec![]);
     };
+    if market.get_token_pools_len(&token_from_address) < 2 {
+        return Ok(ret);
+    }
+
     for token_middle_address in token_tokens.iter() {
+        if market.get_token_pools_len(&token_middle_address) < 2 {
+            continue;
+        }
+
         let Some(token_token_pools_1) = market.get_token_token_pools(&token_to_address, token_middle_address) else { continue };
         let Some(token_token_pools_2) = market.get_token_token_pools(token_middle_address, &token_from_address) else { continue };
         for pool_address_1 in token_token_pools_1.iter() {
@@ -362,6 +383,7 @@ fn build_swap_path_three_hopes_no_basic<LDT: LoomDataTypes>(
     token_to_address: LDT::Address,
 ) -> Result<Vec<SwapPath<LDT>>> {
     let mut ret: Vec<SwapPath<LDT>> = Vec::new();
+
     if let Some(token_tokens) = market.get_token_tokens(&token_from_address) {
         for token_basic_address in token_tokens.iter() {
             let token_basic = market.get_token_or_default(token_basic_address);
@@ -425,7 +447,8 @@ pub fn build_swap_path_vec<LDT: LoomDataTypes>(
             if market.is_basic_token(&token_to_address) {
                 ret_map.extend(build_swap_path_two_hopes_basic_out(market, pool, token_from_address, token_to_address)?);
                 ret_map.extend(build_swap_path_three_hopes_basic_out(market, pool, token_from_address, token_to_address)?);
-                ret_map.extend(build_swap_path_four_hopes_basic_out(market, pool, token_from_address, token_to_address)?);
+                // TODO : Add this later
+                //ret_map.extend(build_swap_path_four_hopes_basic_out(market, pool, token_from_address, token_to_address)?);
             }
 
             if market.is_basic_token(&token_from_address) {

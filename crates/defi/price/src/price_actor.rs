@@ -10,7 +10,7 @@ use alloy_transport::Transport;
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::Accessor;
 use loom_core_blockchain::Blockchain;
-use loom_defi_address_book::TokenAddress;
+use loom_defi_address_book::TokenAddressEth;
 use loom_defi_pools::protocols::CurveProtocol;
 use loom_defi_pools::CurvePool;
 use loom_types_entities::{Market, Pool};
@@ -30,14 +30,14 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
 
     let curve_tricrypto_usdt_pool = CurvePool::fetch_pool_data(client.clone(), curve_tricrypto_usdt).await?;
 
-    coins_hash_map.insert(TokenAddress::USDC, curve_tricrypto_usdc_pool.clone());
-    coins_hash_map.insert(TokenAddress::WBTC, curve_tricrypto_usdc_pool.clone());
-    coins_hash_map.insert(TokenAddress::USDT, curve_tricrypto_usdt_pool.clone());
+    coins_hash_map.insert(TokenAddressEth::USDC, curve_tricrypto_usdc_pool.clone());
+    coins_hash_map.insert(TokenAddressEth::WBTC, curve_tricrypto_usdc_pool.clone());
+    coins_hash_map.insert(TokenAddressEth::USDT, curve_tricrypto_usdt_pool.clone());
 
     let one_ether = U256::from(10).pow(U256::from(18));
     let weth_amount = one_ether.mul(U256::from(5));
 
-    match market.read().await.get_token(&TokenAddress::WETH) {
+    match market.read().await.get_token(&TokenAddressEth::WETH) {
         Some(token) => {
             token.set_eth_price(Some(one_ether));
         }
@@ -50,7 +50,7 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
         for (token_address, curve_pool) in coins_hash_map.iter() {
             debug!("Fetching price of {} at {}", token_address, curve_pool.get_address());
 
-            match curve_pool.fetch_out_amount(TokenAddress::WETH, *token_address, weth_amount).await {
+            match curve_pool.fetch_out_amount(TokenAddressEth::WETH, *token_address, weth_amount).await {
                 Ok(out_amount) => {
                     let price = out_amount.mul(one_ether).div(weth_amount);
                     info!("Price of ETH in {token_address:#20x} is {price}");
@@ -70,8 +70,8 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
             }
         }
 
-        let usdt_price = market.read().await.get_token_or_default(&TokenAddress::USDT).get_eth_price();
-        let usdc_price = market.read().await.get_token_or_default(&TokenAddress::USDC).get_eth_price();
+        let usdt_price = market.read().await.get_token_or_default(&TokenAddressEth::USDT).get_eth_price();
+        let usdc_price = market.read().await.get_token_or_default(&TokenAddressEth::USDC).get_eth_price();
 
         let mut usd_price: Option<U256> = None;
         if let Some(usdc_price) = usdc_price {
@@ -81,12 +81,12 @@ async fn price_worker<N: Network, T: Transport + Clone, P: Provider<T, N> + Clon
         }
 
         if let Some(usd_price) = usd_price {
-            match market.read().await.get_token(&TokenAddress::DAI) {
+            match market.read().await.get_token(&TokenAddressEth::DAI) {
                 Some(tkn) => {
                     tkn.set_eth_price(Some(U256::from(10).pow(U256::from(12)).mul(usd_price)));
                 }
                 _ => {
-                    error!("Token {:#20x} not found", TokenAddress::DAI);
+                    error!("Token {:#20x} not found", TokenAddressEth::DAI);
                 }
             }
         }

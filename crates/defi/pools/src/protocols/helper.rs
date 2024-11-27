@@ -85,13 +85,13 @@ pub fn match_abi(code: &Bytes, selectors: Vec<[u8; 4]>) -> bool {
 #[cfg(test)]
 mod test {
     use super::*;
-    use loom_defi_address_book::{FactoryAddress, TokenAddress};
+    use loom_defi_address_book::{FactoryAddress, TokenAddressEth};
 
     #[test]
     fn test_get_uniswapv2_address() {
         let init_code: B256 = "96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f".parse().unwrap();
 
-        let pair_address = get_uniswap2pool_address(TokenAddress::WETH, TokenAddress::USDC, FactoryAddress::UNISWAP_V2, init_code);
+        let pair_address = get_uniswap2pool_address(TokenAddressEth::WETH, TokenAddressEth::USDC, FactoryAddress::UNISWAP_V2, init_code);
         println!("{:?}", pair_address)
     }
 
@@ -99,7 +99,8 @@ mod test {
     fn test_get_uniswapv3_address() {
         let init_code: B256 = "e34f199b19b2b4f47f68442619d555527d244f78a3297ea89325f843f87b8b54".parse().unwrap();
 
-        let pair_address = get_uniswap3pool_address(TokenAddress::WETH, TokenAddress::USDC, 3000, FactoryAddress::UNISWAP_V3, init_code);
+        let pair_address =
+            get_uniswap3pool_address(TokenAddressEth::WETH, TokenAddressEth::USDC, 3000, FactoryAddress::UNISWAP_V3, init_code);
         println!("{:?}", pair_address)
     }
 }

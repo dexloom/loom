@@ -4,13 +4,13 @@ use alloy_sol_types::SolInterface;
 use loom_defi_abi::balancer::IVault;
 use loom_defi_abi::lido::{IStEth, IWStEth};
 use loom_defi_abi::{IMultiCaller, IERC20, IWETH};
-use loom_defi_address_book::TokenAddress;
+use loom_defi_address_book::TokenAddressEth;
 
 pub struct EncoderHelper;
 
 impl EncoderHelper {
     pub fn is_weth(address: Address) -> bool {
-        address == TokenAddress::WETH
+        address == TokenAddressEth::WETH
     }
 
     pub fn encode_weth_deposit() -> Bytes {

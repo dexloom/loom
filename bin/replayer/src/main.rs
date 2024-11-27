@@ -16,7 +16,7 @@ use loom_node_debug_provider::HttpCachedTransport;
 
 use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_blockchain_actors::BlockchainActors;
-use loom_defi_address_book::{TokenAddress, UniswapV3PoolAddress};
+use loom_defi_address_book::{TokenAddressEth, UniswapV3PoolAddress};
 use loom_defi_pools::state_readers::ERC20StateReader;
 use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::evm_env::env_for_block;
@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
     const TARGET_ADDRESS: Address = address!("A69babEF1cA67A37Ffaf7a485DfFF3382056e78C");
 
     let mut required_state = RequiredState::new();
-    required_state.add_call(TokenAddress::WETH, EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS));
+    required_state.add_call(TokenAddressEth::WETH, EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS));
 
     // instead fo code above
     let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), bc_state.clone(), strategy.clone(), vec![]);
@@ -130,7 +130,7 @@ async fn main() -> Result<()> {
                         if header.number % 10 == 0 {
                             info!("Composing swap: block_number={}, block_hash={}", header.number, header.hash);
 
-                            let swap_path = market.read().await.swap_path(vec![TokenAddress::WETH, TokenAddress::USDC], vec![UniswapV3PoolAddress::USDC_WETH_500])?;
+                            let swap_path = market.read().await.swap_path(vec![TokenAddressEth::WETH, TokenAddressEth::USDC], vec![UniswapV3PoolAddress::USDC_WETH_500])?;
                             let mut swap_line = SwapLine::from(swap_path);
                             swap_line.amount_in = SwapAmountType::Set( NWETH::from_float(0.1));
                             swap_line.gas_used = Some(300000);
@@ -189,9 +189,9 @@ async fn main() -> Result<()> {
                         let mut state_db = market_state.read().await.state_db.clone();
                         state_db.apply_geth_update_vec(state_update.state_update);
 
-                        if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddress::WETH, TARGET_ADDRESS ) {
+                        if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddressEth::WETH, TARGET_ADDRESS ) {
                             info!("------WETH Balance of {} : {}", TARGET_ADDRESS, balance);
-                            let fetched_balance = CallBuilder::new_raw(node_provider.clone(), EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS)).to(TokenAddress::WETH).block(cur_header.number.into()).call().await?;
+                            let fetched_balance = CallBuilder::new_raw(node_provider.clone(), EncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS)).to(TokenAddressEth::WETH).block(cur_header.number.into()).call().await?;
 
                             let fetched_balance = U256::from_be_slice(fetched_balance.to_vec().as_slice());
                             if fetched_balance != balance {
@@ -199,7 +199,7 @@ async fn main() -> Result<()> {
                                 exit(1);
                             }
                         }
-                        if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddress::WETH, UniswapV3PoolAddress::USDC_WETH_500 ) {
+                        if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddressEth::WETH, UniswapV3PoolAddress::USDC_WETH_500 ) {
                             info!("------WETH Balance of {} : {}/({:#x}) ", UniswapV3PoolAddress::USDC_WETH_500, balance, balance);
                         }
 
