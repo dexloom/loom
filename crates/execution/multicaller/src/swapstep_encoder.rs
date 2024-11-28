@@ -8,7 +8,7 @@ use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::SwapLineEncoder;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
-use loom_types_entities::{SwapAmountType, SwapStep, CallSequence};
+use loom_types_entities::{CallSequence, SwapAmountType, SwapStep};
 
 lazy_static! {
     static ref BALANCER_VAULT_ADDRESS: Address = "0xBA12222222228d8Ba445958a75a0704d566BF2C8".parse().unwrap();
@@ -220,15 +220,10 @@ impl SwapStepEncoder {
                 calls.merge(swap_opcodes);
                 self.add_calls_with_optional_value(&mut calls, post_calls);
                 Ok(calls)
-            },
-            CallSequence::FlashLoan { 
-                pre_flashloan, 
-                flashloan_params,
-                callback_sequence,
-                post_flashloan 
-            } => {
+            }
+            CallSequence::FlashLoan { pre_flashloan, flashloan_params, callback_sequence, post_flashloan } => {
                 let mut final_calls = MulticallerCalls::new();
-                
+
                 // Add pre-flashloan calls
                 self.add_calls_with_optional_value(&mut final_calls, pre_flashloan);
 
@@ -247,10 +242,10 @@ impl SwapStepEncoder {
                     flashloan_params.recipient,
                 );
                 final_calls.add(MulticallerCall::new_call(*BALANCER_VAULT_ADDRESS, &flash_call_data));
-                
+
                 // Add post-flashloan calls
                 self.add_calls_with_optional_value(&mut final_calls, post_flashloan);
-                
+
                 Ok(final_calls)
             }
         }

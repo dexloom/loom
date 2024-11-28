@@ -8,16 +8,16 @@ pub struct CallbackSequence {
 
 #[derive(Clone, Debug)]
 pub enum CallSequence {
-    Standard { 
+    Standard {
         pre_calls: Vec<(Address, Bytes, Option<U256>)>,
         post_calls: Vec<(Address, Bytes, Option<U256>)>,
     },
-    FlashLoan { 
+    FlashLoan {
         pre_flashloan: Vec<(Address, Bytes, Option<U256>)>,
         flashloan_params: FlashLoanParams,
         callback_sequence: CallbackSequence,
         post_flashloan: Vec<(Address, Bytes, Option<U256>)>,
-    }
+    },
 }
 
 #[derive(Clone, Debug)]

@@ -54,6 +54,7 @@ where
         None,
         Some(tx_signer.address()),
         Some(estimate_request.tx_compose.eth_balance),
+        estimate_request.call_sequence.clone(),
     )?;
 
     let tx_request = TransactionRequest {
@@ -126,6 +127,7 @@ where
         Some(gas_cost),
         Some(tx_signer.address()),
         Some(estimate_request.tx_compose.eth_balance),
+        estimate_request.call_sequence.clone(),
     ) {
         Ok((to, call_value, call_data, tips_vec)) => (to, call_value, call_data, tips_vec),
         Err(error) => {

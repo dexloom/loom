@@ -4,7 +4,7 @@ use eyre::{eyre, OptionExt, Result};
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::MulticallerCalls;
 use loom_types_entities::tips::{tips_and_value_for_swap_type, Tips};
-use loom_types_entities::{Swap, SwapEncoder, SwapStep, CallSequence};
+use loom_types_entities::{CallSequence, Swap, SwapEncoder, SwapStep};
 use tracing::{debug, error, trace};
 
 impl SwapEncoder for MulticallerSwapEncoder {

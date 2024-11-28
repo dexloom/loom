@@ -5,6 +5,7 @@ extern crate core;
 pub use account_nonce_balance::{AccountNonceAndBalanceState, AccountNonceAndBalances};
 pub use block_history::{BlockHistory, BlockHistoryEntry, BlockHistoryManager, BlockHistoryState};
 pub use calculation_result::CalculationResult;
+pub use call_sequence::{CallSequence, FlashLoanParams};
 pub use datafetcher::{DataFetcher, FetchState};
 pub use keystore::KeyStore;
 pub use latest_block::LatestBlock;
@@ -20,7 +21,6 @@ pub use swappath::{SwapPath, SwapPaths};
 pub use swappath_builder::build_swap_path_vec;
 pub use swapstep::SwapStep;
 pub use token::{Token, TokenWrapper};
-pub use call_sequence::{CallSequence, FlashLoanParams};
 
 mod block_history;
 mod latest_block;
@@ -47,8 +47,8 @@ pub mod config;
 mod datafetcher;
 mod mock_pool;
 
+pub mod call_sequence;
 mod mock_pool_generic;
 mod swap;
 mod swap_encoder;
 pub mod tips;
-pub mod call_sequence;

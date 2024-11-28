@@ -53,6 +53,7 @@ async fn estimator_task<
         Some(gas_cost),
         Some(tx_signer.address()),
         Some(estimate_request.tx_compose.eth_balance),
+        estimate_request.call_sequence.clone(),
     )?;
 
     let mut tx_request = TransactionRequest {
@@ -132,6 +133,7 @@ async fn estimator_task<
                                 Some(gas_cost),
                                 Some(tx_signer.address()),
                                 Some(estimate_request.tx_compose.eth_balance),
+                                estimate_request.call_sequence.clone(),
                             )?,
                         };
 
