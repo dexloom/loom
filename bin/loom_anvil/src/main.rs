@@ -382,6 +382,7 @@ async fn main() -> Result<()> {
             .access(accounts_state.clone())
             .consume(swap_compose_channel.clone())
             .produce(swap_compose_channel.clone())
+            .produce(tx_compose_channel.clone())
             .start()
         {
             Err(e) => {

@@ -1,11 +1,11 @@
 use crate::loom_data_types::LoomTx;
 use crate::{AccountNonceAndTransactions, FetchState, GethStateUpdate, MempoolTx};
 use crate::{LoomDataTypes, LoomDataTypesEthereum};
+use alloy_primitives::map::HashMap;
 use alloy_primitives::BlockNumber;
 use chrono::{DateTime, Utc};
 use eyre::{eyre, Result};
 use std::collections::hash_map::Entry;
-use std::collections::HashMap;
 
 #[derive(Clone, Debug, Default)]
 pub struct Mempool<LDT: LoomDataTypes = LoomDataTypesEthereum> {
@@ -15,7 +15,7 @@ pub struct Mempool<LDT: LoomDataTypes = LoomDataTypesEthereum> {
 
 impl<LDT: LoomDataTypes> Mempool<LDT> {
     pub fn new() -> Mempool<LoomDataTypesEthereum> {
-        Mempool { txs: HashMap::new(), accounts: HashMap::new() }
+        Mempool { txs: HashMap::default(), accounts: HashMap::default() }
     }
 
     pub fn len(&self) -> usize {

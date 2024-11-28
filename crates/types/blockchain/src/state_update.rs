@@ -1,5 +1,3 @@
-use std::collections::BTreeMap;
-
 use alloy_primitives::{Address, TxHash};
 use alloy_provider::ext::DebugApi;
 use alloy_provider::{Network, Provider};
@@ -14,6 +12,7 @@ use alloy_rpc_types_trace::geth::{
 use alloy_transport::Transport;
 use eyre::Result;
 use lazy_static::lazy_static;
+use std::collections::BTreeMap;
 use tracing::{debug, trace};
 
 use loom_node_debug_provider::DebugProviderExt;
@@ -58,8 +57,8 @@ pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, 
 
     trace!("block trace {}", trace_result_vec.len());
 
-    let mut pre: Vec<BTreeMap<Address, AccountState>> = Vec::new();
-    let mut post: Vec<BTreeMap<Address, AccountState>> = Vec::new();
+    let mut pre: GethStateUpdateVec = Default::default();
+    let mut post: GethStateUpdateVec = Default::default();
 
     for trace_result in trace_result_vec.into_iter() {
         if let TraceResult::Success { result, .. } = trace_result {
@@ -111,7 +110,7 @@ async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<
     match trace_result {
         GethTrace::PreStateTracer(geth_trace_frame) => match geth_trace_frame {
             PreStateFrame::Diff(diff_frame) => Ok((diff_frame.pre, diff_frame.post)),
-            PreStateFrame::Default(diff_frame) => Ok((diff_frame.0, BTreeMap::new())),
+            PreStateFrame::Default(diff_frame) => Ok((diff_frame.0, Default::default())),
         },
         _ => Err(eyre::eyre!("TRACE_RESULT_FAILED")),
     }
@@ -174,7 +173,7 @@ pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provid
     match trace_result {
         GethTrace::PreStateTracer(geth_trace_frame) => match geth_trace_frame {
             PreStateFrame::Diff(diff_frame) => Ok((diff_frame.pre.into_iter().collect(), diff_frame.post.into_iter().collect())),
-            PreStateFrame::Default(diff_frame) => Ok((diff_frame.0.into_iter().collect(), BTreeMap::new())),
+            PreStateFrame::Default(diff_frame) => Ok((diff_frame.0.into_iter().collect(), Default::default())),
         },
         _ => Err(eyre::eyre!("TRACE_RESULT_FAILED")),
     }

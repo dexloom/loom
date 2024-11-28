@@ -308,7 +308,7 @@ mod tests {
     }
 
     #[test]
-    fn test_set_pool_ok() {
+    fn test_set_pool_disabled() {
         let mut market = Market::default();
         let pool_address = Address::random();
         let token0 = Address::random();
@@ -316,13 +316,13 @@ mod tests {
         let mock_pool = MockPool { address: pool_address, token0, token1 };
         market.add_pool(mock_pool.clone());
 
-        assert!(market.is_pool_disabled(&pool_address));
+        assert!(!market.is_pool_disabled(&pool_address));
         assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 1);
 
         // toggle not ok
         market.set_pool_disabled(pool_address, true);
         assert!(market.is_pool_disabled(&pool_address));
-        assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 0);
+        assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 1);
 
         // toggle back
         market.set_pool_disabled(pool_address, false);

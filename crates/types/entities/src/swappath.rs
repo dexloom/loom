@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use alloy_primitives::map::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
@@ -104,7 +104,7 @@ impl<LDT: LoomDataTypes> SwapPath<LDT> {
     #[inline]
     pub fn contains_pool(&self, pool: &PoolWrapper<LDT>) -> bool {
         for p in self.pools.iter() {
-            if p.get_address() == pool.get_address() {
+            if p == pool {
                 return true;
             }
         }
@@ -120,7 +120,7 @@ pub struct SwapPaths<LDT: LoomDataTypes = LoomDataTypesEthereum> {
 
 impl<LDT: LoomDataTypes> SwapPaths<LDT> {
     pub fn new() -> SwapPaths<LDT> {
-        SwapPaths { paths: HashSet::new(), pool_paths: HashMap::new() }
+        SwapPaths { paths: HashSet::default(), pool_paths: HashMap::default() }
     }
     pub fn from(paths: Vec<SwapPath<LDT>>) -> Self {
         let mut swap_paths_ret = SwapPaths::<LDT>::new();

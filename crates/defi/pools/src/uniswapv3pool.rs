@@ -262,18 +262,11 @@ impl Pool for UniswapV3Pool {
                     self.fee.try_into()?,
                     in_amount,
                 )?;
-                println!("calculate_out_amount ret_evm: {:?} ret: {:?}", ret_evm, ret_virtual);
+                println!("calculate_out_amount ret_evm: {:?} ret: {:?} gas_used: {:?}", ret_evm, ret_virtual, gas_used);
                 if ret_virtual != ret_evm {
                     error!(%ret_virtual, %ret_evm, "calculate_out_amount RETURN_RESULT_IS_INCORRECT");
                 };
-
-                return if ret_evm.is_zero() {
-                    Err(eyre!("RETURN_RESULT_IS_ZERO"))
-                } else {
-                    Ok((ret_evm, gas_used)) // value, gas_used
-                };
             }
-
             (ret_virtual, 150_000)
         } else {
             let mut env = _env;
@@ -321,15 +314,11 @@ impl Pool for UniswapV3Pool {
                     self.fee.try_into()?,
                     out_amount,
                 )?;
+                println!("calculate_out_amount ret_evm: {:?} ret: {:?} gas_used: {:?}", ret_evm, ret_virtual, gas_used);
 
                 if ret_virtual != ret_evm {
                     error!(%ret_virtual, %ret_evm,"calculate_in_amount RETURN_RESULT_IS_INCORRECT");
                 }
-                return if ret_evm.is_zero() {
-                    Err(eyre!("RETURN_RESULT_IS_ZERO"))
-                } else {
-                    Ok((ret_evm, gas_used)) // value, gas_used
-                };
             }
             (ret_virtual, 150000)
         } else {
