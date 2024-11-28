@@ -11,8 +11,8 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::Accessor;
-use loom_core_blockchain::Blockchain;
-use loom_defi_address_book::TokenAddress;
+use loom_core_blockchain::{Blockchain, BlockchainState};
+use loom_defi_address_book::TokenAddressEth;
 use loom_evm_utils::{BalanceCheater, NWETH};
 use loom_types_blockchain::GethStateUpdate;
 use loom_types_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
@@ -101,7 +101,7 @@ where
     }
 
     for (token, owner, balance) in token_balances_vec {
-        if token == TokenAddress::ETH_NATIVE {
+        if token == TokenAddressEth::ETH_NATIVE {
             match state.entry(owner) {
                 Entry::Vacant(e) => {
                     e.insert(AccountState { balance: Some(balance), nonce: Some(0), code: None, storage: BTreeMap::new() });
@@ -176,8 +176,8 @@ where
         Self { name, ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self { market_state: Some(bc.market_state_commit()), account_nonce_balance_state: Some(bc.nonce_and_balance()), ..self }
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+        Self { account_nonce_balance_state: Some(bc.nonce_and_balance()), market_state: Some(state.market_state_commit()), ..self }
     }
 
     pub fn with_signers(self, tx_signers: SharedState<TxSigners>) -> Self {

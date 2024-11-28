@@ -10,7 +10,6 @@ use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_types_entities::Market;
 use loom_types_events::{HealthEvent, MessageHealthEvent};
-use revm::DatabaseRef;
 
 pub async fn pool_health_monitor_worker(
     market: SharedState<Market>,
@@ -32,8 +31,11 @@ pub async fn pool_health_monitor_worker(
                             let entry = pool_errors_map.entry(swap_error.pool).or_insert(0);
                             *entry += 1;
                             if *entry >= 10 {
+                                let start_time=std::time::Instant::now();
                                 let mut market_guard = market.write().await;
-                                market_guard.set_pool_ok(swap_error.pool, false);
+                                debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write acquired");
+
+                                market_guard.set_pool_disabled(swap_error.pool, true);
                                 match market_guard.get_pool(&swap_error.pool) {
                                     Some(pool)=>{
                                         info!("Disabling pool: protocol={}, address={:?}, msg={} amount={}", pool.get_protocol(),swap_error.pool, swap_error.msg, swap_error.amount);
@@ -42,6 +44,9 @@ pub async fn pool_health_monitor_worker(
                                         error!("Disabled pool missing in market: address={:?}, msg={} amount={}", swap_error.pool, swap_error.msg, swap_error.amount);
                                     }
                                 }
+                                drop(market_guard);
+                                debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write released");
+
                             }
                         }
                     }
@@ -68,7 +73,7 @@ impl PoolHealthMonitorActor {
         PoolHealthMonitorActor::default()
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self { market: Some(bc.market()), pool_health_update_rx: Some(bc.pool_health_monitor_channel()) }
     }
 }

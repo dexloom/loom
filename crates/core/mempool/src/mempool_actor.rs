@@ -1,6 +1,4 @@
-use alloy_consensus::Transaction as _;
 use alloy_primitives::BlockNumber;
-use alloy_rpc_types::BlockTransactions;
 use chrono::{Duration, Utc};
 use eyre::eyre;
 use tokio::sync::broadcast::error::RecvError;
@@ -10,16 +8,16 @@ use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broad
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_types_blockchain::{ChainParameters, Mempool, MempoolTx};
+use loom_types_blockchain::{LoomBlock, LoomDataTypes, LoomDataTypesEthereum, LoomHeader, LoomTx};
 use loom_types_events::{MempoolEvents, MessageBlock, MessageBlockHeader, MessageMempoolDataUpdate};
-use revm::DatabaseRef;
 
-pub async fn new_mempool_worker(
+pub async fn new_mempool_worker<LDT: LoomDataTypes>(
     chain_parameters: ChainParameters,
-    mempool: SharedState<Mempool>,
-    mempool_update_rx: Broadcaster<MessageMempoolDataUpdate>,
-    block_header_rx: Broadcaster<MessageBlockHeader>,
-    block_with_txs_rx: Broadcaster<MessageBlock>,
-    broadcaster: Broadcaster<MempoolEvents>,
+    mempool: SharedState<Mempool<LDT>>,
+    mempool_update_rx: Broadcaster<MessageMempoolDataUpdate<LDT>>,
+    block_header_rx: Broadcaster<MessageBlockHeader<LDT>>,
+    block_with_txs_rx: Broadcaster<MessageBlock<LDT>>,
+    broadcaster: Broadcaster<MempoolEvents<LDT>>,
 ) -> WorkerResult {
     subscribe!(mempool_update_rx);
     subscribe!(block_header_rx);
@@ -49,7 +47,7 @@ pub async fn new_mempool_worker(
 
                     let mut mempool_guard = mempool.write().await;
                     let tx_hash = mempool_update_msg.tx_hash;
-                    let mempool_entry = mempool_guard.txs.entry(tx_hash).or_insert( MempoolTx{ tx_hash,  source : mempool_update_msg.source(), ..MempoolTx::default()});
+                    let mempool_entry = mempool_guard.txs.entry(tx_hash).or_insert( MempoolTx::<LDT>{ tx_hash,  source : mempool_update_msg.source(), ..MempoolTx::default()});
                     if let Some(logs) = &mempool_update_msg.mempool_tx.logs {
                         if mempool_entry.logs.is_none() {
                             mempool_entry.logs = Some(logs.clone());
@@ -66,7 +64,7 @@ pub async fn new_mempool_worker(
                         if mempool_entry.tx.is_none() {
                             mempool_entry.tx = Some(tx.clone());
                             if let Some(cur_gas_price) = current_gas_price {
-                                if tx.gas_limit() > 30000 && tx.max_fee_per_gas() >= cur_gas_price && mempool_guard.is_valid_tx(tx) {
+                                if tx.gas_limit() > 30000 && tx.gas_price() >= cur_gas_price && mempool_guard.is_valid_tx(tx) {
                                     run_async!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate {tx_hash }));
                                 }
                             }
@@ -92,15 +90,15 @@ pub async fn new_mempool_worker(
                         }
                     };
 
-                    current_gas_price = block_header.header.base_fee_per_gas.map(|x| x as u128);
-                    let block_number = block_header.header.number;
+                    current_gas_price = block_header.header.base_fee();
+                    let block_number = block_header.header.number();
 
                     let mempool_len = mempool.read().await.len();
                     debug!("Mempool len {}", mempool_len);
 
 
                     let mempool_read_guard = mempool.read().await;
-                    let next_base_fee = chain_parameters.calc_next_block_base_fee_from_header(&block_header.header);
+                    let next_base_fee =  block_header.header.next_base_fee(&chain_parameters);
 
                     let ok_txes = mempool_read_guard.filter_ok_by_gas_price(next_base_fee as u128);
                     debug!("Mempool gas update {} {}", next_base_fee, ok_txes.len());
@@ -110,11 +108,11 @@ pub async fn new_mempool_worker(
                             continue
                         }
                         if mempool_read_guard.is_valid_tx(&tx) {
-                            let tx_hash = *tx.inner.tx_hash();
+                            let tx_hash = tx.tx_hash();
                             trace!("new tx ok {:?}", tx_hash);
                             run_async!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate { tx_hash }));
                         } else{
-                           trace!("new tx gas change tx not valid {:?}", tx.inner.tx_hash());
+                           trace!("new tx gas change tx not valid {:?}", tx.tx_hash());
                         }
                     }
                     drop(mempool_read_guard);
@@ -138,7 +136,7 @@ pub async fn new_mempool_worker(
                 },
                 msg = block_with_txs_rx.recv() => {
                     let block_with_txs = match msg {
-                        Ok(block_with_txs) => block_with_txs.inner,
+                        Ok(block_with_txs) => block_with_txs.inner.block,
                         Err(e) => {
                             match e {
                                 RecvError::Closed => {
@@ -153,41 +151,52 @@ pub async fn new_mempool_worker(
                         }
                     };
                     let mut mempool_write_guard = mempool.write().await;
-                    if let BlockTransactions::Full(txs) = block_with_txs.transactions {
-                        for tx in txs.iter() {
-                            mempool_write_guard
-                                .set_mined(*tx.inner.tx_hash(), block_with_txs.header.number)
-                                .set_nonce(tx.from, tx.nonce());
-                        }
-
+                    for tx in block_with_txs.transactions() {
+                        mempool_write_guard
+                            .set_mined(tx.tx_hash(), block_with_txs.number())
+                            .set_nonce(tx.from(), tx.nonce());
                     }
+
                     drop(mempool_write_guard);
             }
         }
     }
 }
 
-#[derive(Accessor, Consumer, Producer, Default)]
-pub struct MempoolActor {
+#[derive(Accessor, Consumer, Producer)]
+pub struct MempoolActor<LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
     chain_parameters: ChainParameters,
     #[accessor]
-    mempool: Option<SharedState<Mempool>>,
+    mempool: Option<SharedState<Mempool<LDT>>>,
     #[consumer]
-    mempool_update_rx: Option<Broadcaster<MessageMempoolDataUpdate>>,
+    mempool_update_rx: Option<Broadcaster<MessageMempoolDataUpdate<LDT>>>,
     #[consumer]
-    block_header_rx: Option<Broadcaster<MessageBlockHeader>>,
+    block_header_rx: Option<Broadcaster<MessageBlockHeader<LDT>>>,
     #[consumer]
-    block_with_txs_rx: Option<Broadcaster<MessageBlock>>,
+    block_with_txs_rx: Option<Broadcaster<MessageBlock<LDT>>>,
     #[producer]
-    mempool_events_tx: Option<Broadcaster<MempoolEvents>>,
+    mempool_events_tx: Option<Broadcaster<MempoolEvents<LDT>>>,
 }
 
-impl MempoolActor {
-    pub fn new() -> MempoolActor {
+impl<LDT: LoomDataTypes> Default for MempoolActor<LDT> {
+    fn default() -> Self {
+        Self {
+            chain_parameters: ChainParameters::ethereum(),
+            mempool: None,
+            mempool_update_rx: None,
+            mempool_events_tx: None,
+            block_header_rx: None,
+            block_with_txs_rx: None,
+        }
+    }
+}
+
+impl<LDT: LoomDataTypes> MempoolActor<LDT> {
+    pub fn new() -> MempoolActor<LDT> {
         MempoolActor::default()
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + Default + 'static>(self, bc: &Blockchain<DB>) -> MempoolActor {
+    pub fn on_bc(self, bc: &Blockchain<LDT>) -> MempoolActor<LDT> {
         Self {
             chain_parameters: bc.chain_parameters(),
             mempool: Some(bc.mempool()),
@@ -199,7 +208,7 @@ impl MempoolActor {
     }
 }
 
-impl Actor for MempoolActor {
+impl<LDT: LoomDataTypes> Actor for MempoolActor<LDT> {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_mempool_worker(
             self.chain_parameters.clone(),

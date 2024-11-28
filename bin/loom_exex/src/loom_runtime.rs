@@ -4,7 +4,7 @@ use alloy::providers::Provider;
 use alloy::transports::Transport;
 use axum::Router;
 use eyre::{ErrReport, OptionExt};
-use loom::core::blockchain::Blockchain;
+use loom::core::blockchain::{Blockchain, BlockchainState, Strategy};
 use loom::core::blockchain_actors::BlockchainActors;
 use loom::core::topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use loom::defi::pools::PoolsConfig;
@@ -23,21 +23,9 @@ use std::env;
 use std::future::Future;
 use tracing::info;
 
-pub async fn init<
-    Node: FullNodeComponents,
-    DB: Database<Error = ErrReport>
-        + DatabaseRef<Error = ErrReport>
-        + DatabaseCommit
-        + DatabaseLoomExt
-        + BlockHistoryState
-        + Send
-        + Sync
-        + Clone
-        + Default
-        + 'static,
->(
+pub async fn init<Node: FullNodeComponents>(
     ctx: ExExContext<Node>,
-    bc: Blockchain<DB>,
+    bc: Blockchain,
     config: NodeBlockActorConfig,
 ) -> eyre::Result<impl Future<Output = eyre::Result<()>>> {
     Ok(loom_exex(ctx, bc, config.clone()))
@@ -45,7 +33,9 @@ pub async fn init<
 
 pub async fn start_loom<P, T, DB>(
     provider: P,
-    bc: Blockchain<DB>,
+    bc: Blockchain,
+    bc_state: BlockchainState<DB>,
+    strategy: Strategy<DB>,
     topology_config: TopologyConfig,
     loom_config_filepath: String,
     is_exex: bool,
@@ -97,7 +87,7 @@ where
     let backrun_config: BackrunConfigSection = load_from_file::<BackrunConfigSection>(loom_config_filepath.into()).await?;
     let backrun_config: BackrunConfig = backrun_config.backrun_strategy;
 
-    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), relays);
+    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), bc_state, strategy, relays);
     bc_actors
         .mempool()?
         .with_wait_for_node_sync()? // wait for node to sync before
@@ -110,7 +100,7 @@ where
         .with_swap_encoder(Some(multicaller_address))? // convert swaps to opcodes and passes to estimator
         .with_evm_estimator()? // estimate gas, add tips
         .with_signers()? // start signer actor that signs transactions before broadcasting
-        .with_flashbots_broadcaster(false, true)? // broadcast signed txes to flashbots
+        .with_flashbots_broadcaster( true)? // broadcast signed txes to flashbots
         .with_market_state_preloader()? // preload contracts to market state
         .with_nonce_and_balance_monitor()? // start monitoring balances of
         .with_pool_history_loader(pools_config.clone())? // load pools used in latest 10000 blocks

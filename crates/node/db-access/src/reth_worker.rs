@@ -15,7 +15,6 @@ use reth_node_types::NodeTypesWithDBAdapter;
 use reth_primitives::BlockWithSenders;
 use reth_provider::providers::StaticFileProvider;
 use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider, StateProvider, StorageReader, TransactionVariant};
-use revm::primitives::db::DatabaseRef;
 use std::collections::{BTreeMap, HashMap};
 use std::marker::PhantomData;
 use std::path::Path;
@@ -29,7 +28,8 @@ use loom_evm_utils::reth_types::append_all_matching_block_logs;
 use loom_node_actor_config::NodeBlockActorConfig;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_events::{
-    BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
+    BlockHeader, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
+    MessageBlockStateUpdate,
 };
 
 pub async fn reth_node_worker<P, T>(
@@ -116,7 +116,7 @@ where
                                         };
 
                                         //broadcast
-                                        match block_with_tx_channel.send( Message::new_with_time(block_with_senders_rpc)).await {
+                                        match block_with_tx_channel.send( Message::new_with_time(BlockUpdate{ block : block_with_senders_rpc})).await {
                                              Err(e) => {error!("Block header broadcaster error {}", e)}
                                              _=>{
                                                 trace!("Block header sent");
@@ -306,7 +306,7 @@ where
         }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
             block_header_channel: if self.config.block_header { Some(bc.new_block_headers_channel()) } else { None },
             block_with_tx_channel: if self.config.block_with_tx { Some(bc.new_block_with_tx_channel()) } else { None },

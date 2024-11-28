@@ -2,8 +2,9 @@ use super::affected_pools::get_affected_pools;
 use eyre::eyre;
 use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_types_blockchain::ChainParameters;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::{BlockHistory, Market};
 use loom_types_events::{MarketEvents, StateUpdateEvent};
 use revm::DatabaseRef;
@@ -15,7 +16,7 @@ pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + '
     market: SharedState<Market>,
     block_history: SharedState<BlockHistory<DB>>,
     market_events_rx: Broadcaster<MarketEvents>,
-    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB>>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB, LoomDataTypesEthereum>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
 
@@ -106,13 +107,13 @@ impl<DB: DatabaseRef + Send + Sync + Clone + 'static> BlockStateChangeProcessorA
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>, strategy: &Strategy<DB>) -> Self {
         Self {
             chain_parameters: bc.chain_parameters(),
             market: Some(bc.market()),
-            block_history: Some(bc.block_history()),
             market_events_rx: Some(bc.market_events_channel()),
-            state_updates_tx: Some(bc.state_update_channel()),
+            state_updates_tx: Some(strategy.state_update_channel()),
+            block_history: Some(state.block_history()),
         }
     }
 }

@@ -4,8 +4,8 @@ mod test {
     use alloy_network::Ethereum;
     use alloy_provider::Provider;
     use alloy_transport::Transport;
-    use loom_core_blockchain::Blockchain;
-    use loom_types_events::{BlockLogs, BlockStateUpdate, MessageBlockHeader};
+    use loom_core_blockchain::{Blockchain, BlockchainState};
+    use loom_types_events::{BlockLogs, BlockStateUpdate, BlockUpdate, MessageBlockHeader};
     use revm::db::DatabaseRef;
     use tracing::error;
 
@@ -24,12 +24,13 @@ mod test {
         account_state_add_storage, account_state_with_nonce_and_balance, geth_state_update_add_account,
     };
     use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec};
+    use loom_types_entities::MarketState;
     use loom_types_events::{BlockHeader, Message};
     use std::time::Duration;
     use tracing::info;
 
     async fn broadcast_to_channels(
-        bc: &Blockchain<LoomDB>,
+        bc: &Blockchain,
         header: Header,
         block: Option<Block>,
         logs: Option<Vec<Log>>,
@@ -43,7 +44,7 @@ mod test {
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         if let Some(block) = block {
-            if let Err(e) = bc.new_block_with_tx_channel().send(Message::new(block)).await {
+            if let Err(e) = bc.new_block_with_tx_channel().send(Message::new(BlockUpdate { block })).await {
                 error!("bc.new_block_with_tx_channel().send : {}", e)
             }
         }
@@ -70,11 +71,7 @@ mod test {
         Ok(())
     }
 
-    async fn broadcast_latest_block<P, T>(
-        provider: P,
-        bc: &Blockchain<LoomDB>,
-        state_update: Option<GethStateUpdateVec>,
-    ) -> eyre::Result<()>
+    async fn broadcast_latest_block<P, T>(provider: P, bc: &Blockchain, state_update: Option<GethStateUpdateVec>) -> eyre::Result<()>
     where
         T: Transport + Send + Sync + Clone + 'static,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
@@ -89,7 +86,11 @@ mod test {
         broadcast_to_channels(bc, block.header.clone(), Some(block), Some(logs), Some(state_update)).await
     }
 
-    async fn test_actor_block_history_actor_chain_head_worker<P, T>(provider: P, bc: Blockchain<LoomDB>) -> eyre::Result<()>
+    async fn test_actor_block_history_actor_chain_head_worker<P, T>(
+        provider: P,
+        bc: Blockchain,
+        state: BlockchainState<LoomDB>,
+    ) -> eyre::Result<()>
     where
         T: Transport + Send + Sync + Clone + 'static,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
@@ -108,9 +109,9 @@ mod test {
         let mut db = LoomDBType::default();
         db.apply_geth_update_vec(state_update_0);
 
-        bc.market_state().write().await.state_db = db;
+        state.market_state().write().await.state_db = db;
 
-        let account_01 = bc.market_state().read().await.state_db.clone().load_account(ADDR_01).cloned()?;
+        let account_01 = state.market_state().read().await.state_db.clone().load_account(ADDR_01).cloned()?;
         assert_eq!(account_01.info.nonce, 1);
         assert_eq!(account_01.info.balance, U256::from(2));
         for (k, v) in account_01.storage.iter() {
@@ -124,9 +125,9 @@ mod test {
         // Check state after first block update
         tokio::time::sleep(Duration::from_millis(1000)).await;
         //let account_01 = bc.market_state().read().await.state_db.clone().load_account(ADDR_01).cloned()?;
-        assert_eq!(bc.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().nonce, 2);
-        assert_eq!(bc.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().balance, U256::from(3));
-        assert_eq!(bc.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(2));
+        assert_eq!(state.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().nonce, 2);
+        assert_eq!(state.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().balance, U256::from(3));
+        assert_eq!(state.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(2));
 
         let snap = provider.anvil_snapshot().await?;
         provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 1#0
@@ -147,9 +148,9 @@ mod test {
         let state_1_1 = geth_state_update_add_account(GethStateUpdate::default(), ADDR_01, account_1_1);
         broadcast_latest_block(provider.clone(), &bc, Some(vec![state_1_1])).await?; // broadcast 1#1
 
-        assert_eq!(bc.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().nonce, 2);
-        assert_eq!(bc.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().balance, U256::from(3));
-        assert_eq!(bc.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(2));
+        assert_eq!(state.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().nonce, 2);
+        assert_eq!(state.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().balance, U256::from(3));
+        assert_eq!(state.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(2));
 
         provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 2#1
         let block_2_1 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
@@ -158,34 +159,34 @@ mod test {
 
         tokio::time::sleep(Duration::from_millis(1000)).await;
 
-        assert_eq!(bc.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().nonce, 4);
-        assert_eq!(bc.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().balance, U256::from(5));
-        assert_eq!(bc.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(3));
+        assert_eq!(state.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().nonce, 4);
+        assert_eq!(state.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().balance, U256::from(5));
+        assert_eq!(state.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(3));
 
         assert_eq!(bc.latest_block().read().await.block_hash, block_2_1.header.hash);
-        assert_eq!(bc.block_history().read().await.latest_block_number, block_2_1.header.number);
+        assert_eq!(state.block_history().read().await.latest_block_number, block_2_1.header.number);
         assert_eq!(
-            bc.block_history().read().await.get_block_hash_for_block_number(block_2_1.header.number).unwrap(),
+            state.block_history().read().await.get_block_hash_for_block_number(block_2_1.header.number).unwrap(),
             block_2_1.header.hash
         );
 
         broadcast_to_channels(&bc, block_3_0.header.clone(), Some(block_3_0.clone()), Some(vec![]), Some(vec![])).await?; // broadcast 3#0, chain_head must change
 
         assert_eq!(bc.latest_block().read().await.block_hash, block_3_0.header.hash);
-        assert_eq!(bc.block_history().read().await.latest_block_number, block_3_0.header.number);
+        assert_eq!(state.block_history().read().await.latest_block_number, block_3_0.header.number);
         assert_eq!(
-            bc.block_history().read().await.get_block_hash_for_block_number(block_3_0.header.number).unwrap(),
+            state.block_history().read().await.get_block_hash_for_block_number(block_3_0.header.number).unwrap(),
             block_3_0.header.hash
         );
         assert_eq!(
-            bc.block_history().read().await.get_block_hash_for_block_number(block_2_0.header.number).unwrap(),
+            state.block_history().read().await.get_block_hash_for_block_number(block_2_0.header.number).unwrap(),
             block_2_0.header.hash
         );
         tokio::time::sleep(Duration::from_millis(1000)).await;
 
-        assert_eq!(bc.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().nonce, 2);
-        assert_eq!(bc.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().balance, U256::from(3));
-        assert_eq!(bc.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(2));
+        assert_eq!(state.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().nonce, 2);
+        assert_eq!(state.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().balance, U256::from(3));
+        assert_eq!(state.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(2));
 
         Ok(())
     }
@@ -201,10 +202,16 @@ mod test {
         let provider = ProviderBuilder::new().on_client(client_anvil);
 
         let blockchain = Blockchain::new(1);
-        BlockHistoryActor::new(provider.clone()).on_bc(&blockchain).start()?;
+
+        let market_state = MarketState::new(LoomDB::empty());
+
+        let bc_state = BlockchainState::<LoomDB>::new_with_market_state(market_state);
+
+        BlockHistoryActor::new(provider.clone()).on_bc(&blockchain, &bc_state).start()?;
+
         let bc = blockchain.clone();
         tokio::task::spawn(async move {
-            if let Err(e) = test_actor_block_history_actor_chain_head_worker(provider.clone(), bc).await {
+            if let Err(e) = test_actor_block_history_actor_chain_head_worker(provider.clone(), bc, bc_state).await {
                 error!("test_worker : {}", e);
             } else {
                 info!("test_worker finished");
@@ -234,7 +241,7 @@ mod test {
         Ok(())
     }
 
-    async fn test_actor_block_history_actor_reorg_worker<P, T>(provider: P, bc: Blockchain<LoomDB>) -> eyre::Result<()>
+    async fn test_actor_block_history_actor_reorg_worker<P, T>(provider: P, bc: Blockchain) -> eyre::Result<()>
     where
         T: Transport + Send + Sync + Clone + 'static,
         P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
@@ -268,7 +275,12 @@ mod test {
         let provider = ProviderBuilder::new().on_client(client_anvil);
 
         let blockchain = Blockchain::new(1);
-        BlockHistoryActor::new(provider.clone()).on_bc(&blockchain).start()?;
+
+        let market_state = MarketState::new(LoomDB::empty());
+
+        let bc_state = BlockchainState::<LoomDB>::new_with_market_state(market_state);
+
+        BlockHistoryActor::new(provider.clone()).on_bc(&blockchain, &bc_state).start()?;
 
         let bc = blockchain.clone();
         tokio::task::spawn(async move {
@@ -295,7 +307,7 @@ mod test {
             }
         }
 
-        let block_history = blockchain.block_history().clone();
+        let block_history = bc_state.block_history().clone();
         let block_history = block_history.read().await;
         assert_eq!(block_history.len(), 6);
 

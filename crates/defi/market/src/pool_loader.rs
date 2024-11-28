@@ -7,14 +7,12 @@ use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use futures::stream::FuturesUnordered;
-use futures::StreamExt;
-use tracing::{debug, error};
+use tracing::{debug, error, info};
 
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, SharedState, WorkerResult};
 use loom_core_actors::{Accessor, Consumer};
 use loom_core_actors_macros::{Accessor, Consumer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory, CurveProtocol};
 use loom_defi_pools::{CurvePool, MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use loom_node_debug_provider::DebugProviderExt;
@@ -23,6 +21,9 @@ use loom_types_entities::{get_protocol_by_factory, Market, MarketState, PoolClas
 use loom_types_events::Task;
 
 use revm::{Database, DatabaseCommit, DatabaseRef};
+use tokio::sync::Semaphore;
+
+const MAX_CONCURRENT_TASKS: usize = 20;
 
 pub async fn pool_loader_worker<P, T, N, DB>(
     client: P,
@@ -36,8 +37,8 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
-    let mut fetch_tasks = FuturesUnordered::new();
     let mut processed_pools = HashMap::new();
+    let semaphore = std::sync::Arc::new(Semaphore::new(MAX_CONCURRENT_TASKS));
 
     subscribe!(tasks_rx);
     loop {
@@ -52,19 +53,29 @@ where
                 if processed_pools.insert(pool_address, true).is_some() {
                     continue;
                 }
-                // Fetch and add pool
-                fetch_tasks.push(fetch_and_add_pool_by_address(
-                    client.clone(),
-                    market.clone(),
-                    market_state.clone(),
-                    pool_address,
-                    pool_class,
-                ));
 
-                // Limit the number of concurrent fetch tasks
-                if fetch_tasks.len() > 20 {
-                    fetch_tasks.next().await;
-                }
+                let sema_clone = semaphore.clone();
+                let client_clone = client.clone();
+                let market_clone = market.clone();
+                let market_state = market_state.clone();
+
+                tokio::task::spawn(async move {
+                    match sema_clone.acquire().await {
+                        Ok(permit) => {
+                            if let Err(error) =
+                                fetch_and_add_pool_by_address(client_clone, market_clone, market_state, pool_address, pool_class).await
+                            {
+                                error!(%error, "failed fetch_and_add_pool_by_address");
+                            } else {
+                                info!(%pool_address, %pool_class, "Pool loaded successfully");
+                            }
+                            drop(permit);
+                        }
+                        Err(error) => {
+                            error!(%error, "failed acquire semaphore");
+                        }
+                    }
+                });
             }
         }
     }
@@ -101,7 +112,8 @@ where
             };
 
             if let Err(e) = fetch_result {
-                error!("fetch_and_add_pool uni2 error {:#20x} : {}", pool_address, e)
+                error!("fetch_and_add_pool uni2 error {:#20x} : {}", pool_address, e);
+                return Err(e);
             }
         }
         PoolClass::UniswapV3 => {
@@ -119,7 +131,8 @@ where
                     };
 
                     if let Err(e) = fetch_state_and_add_pool(client, market, market_state, pool_wrapped).await {
-                        error!("fetch_and_add_pool uni3 error {:#20x} : {}", pool_address, e)
+                        error!("fetch_and_add_pool uni3 error {:#20x} : {}", pool_address, e);
+                        return Err(e);
                     }
                 }
                 Err(e) => {
@@ -136,6 +149,7 @@ where
                 match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
                     Err(e) => {
                         error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
+                        return Err(e);
                     }
                     Ok(_) => {
                         debug!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
@@ -143,7 +157,8 @@ where
                 }
             }
             Err(e) => {
-                error!("Error getting curve contract from code {} : {} ", pool_address, e)
+                error!("Error getting curve contract from code {} : {} ", pool_address, e);
+                return Err(e);
             }
         },
         _ => {
@@ -181,17 +196,22 @@ where
 
                 let directions_vec = pool_wrapped.get_swap_directions();
                 let mut directions_tree: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
-
                 directions_tree.insert(pool_wrapped.clone(), directions_vec);
 
-                let mut market_write_guard = market.write().await;
-                // Ignore error if pool already exists because it was maybe already added by e.g. db pool loader
-                let _ = market_write_guard.add_pool(pool_wrapped);
+                {
+                    let start_time = std::time::Instant::now();
+                    let mut market_write_guard = market.write().await;
+                    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write acquired");
+                    // Ignore error if pool already exists because it was maybe already added by e.g. db pool loader
+                    let _ = market_write_guard.add_pool(pool_wrapped);
 
-                let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
-                market_write_guard.add_paths(swap_paths);
+                    let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
+                    market_write_guard.add_paths(swap_paths);
+                    debug!(elapsed = start_time.elapsed().as_micros(),  market = %market_write_guard, "market_guard path added");
 
-                drop(market_write_guard)
+                    drop(market_write_guard);
+                    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write releases");
+                }
             }
             Err(e) => {
                 error!("{}", e);
@@ -231,8 +251,8 @@ where
         Self { client, market: None, market_state: None, tasks_rx: None, _t: PhantomData, _n: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self { market: Some(bc.market()), market_state: Some(bc.market_state_commit()), tasks_rx: Some(bc.tasks_channel()), ..self }
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+        Self { market: Some(bc.market()), market_state: Some(state.market_state_commit()), tasks_rx: Some(bc.tasks_channel()), ..self }
     }
 }
 

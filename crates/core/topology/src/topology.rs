@@ -15,7 +15,7 @@ use loom_broadcast_broadcaster::FlashbotsBroadcastActor;
 use loom_broadcast_flashbots::Flashbots;
 use loom_core_actors::{Accessor, Actor, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_block_history::BlockHistoryActor;
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_mempool::MempoolActor;
 use loom_defi_health_monitor::PoolHealthMonitorActor;
 use loom_defi_market::{CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor};
@@ -30,14 +30,16 @@ use loom_node_actor_config::NodeBlockActorConfig;
 use loom_node_db_access::RethDbAccessBlockActor;
 use loom_node_grpc::NodeExExGrpcActor;
 use loom_node_json_rpc::{NodeBlockActor, NodeMempoolActor};
-use loom_types_entities::{BlockHistoryState, TxSigners};
+use loom_types_entities::{BlockHistoryState, MarketState, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
 pub struct Topology<DB: Clone + Send + Sync + 'static> {
     clients: HashMap<String, ClientConfigParams>,
-    blockchains: HashMap<String, Blockchain<DB>>,
+    blockchains: HashMap<String, Blockchain>,
+    blockchain_states: HashMap<String, BlockchainState<DB>>,
+    strategies: HashMap<String, Strategy<DB>>,
     signers: HashMap<String, SharedState<TxSigners>>,
     multicaller_encoders: HashMap<String, MulticallerSwapEncoder>,
     default_blockchain_name: Option<String>,
@@ -62,6 +64,8 @@ impl<
         let mut topology = Topology::<DB> {
             clients: HashMap::new(),
             blockchains: HashMap::new(),
+            blockchain_states: HashMap::new(),
+            strategies: HashMap::new(),
             signers: HashMap::new(),
             multicaller_encoders: HashMap::new(),
             default_blockchain_name: None,
@@ -121,14 +125,17 @@ impl<
         }
 
         for (k, params) in config.blockchains.iter() {
-            let blockchain = Blockchain::<DB>::new(params.chain_id.unwrap_or(1) as u64);
+            let blockchain = Blockchain::new(params.chain_id.unwrap_or(1) as u64);
+            let market_state = MarketState::new(DB::default());
+            let blockchain_state = BlockchainState::<DB>::new_with_market_state(market_state);
+            let strategy = Strategy::<DB>::new();
 
             info!("Starting block history actor {k}");
             let mut block_history_actor = BlockHistoryActor::new(topology.get_client(None)?);
             match block_history_actor
                 .access(blockchain.latest_block())
-                .access(blockchain.market_state())
-                .access(blockchain.block_history())
+                .access(blockchain_state.market_state())
+                .access(blockchain_state.block_history())
                 .consume(blockchain.new_block_headers_channel())
                 .consume(blockchain.new_block_with_tx_channel())
                 .consume(blockchain.new_block_logs_channel())
@@ -177,6 +184,9 @@ impl<
             }
 
             topology.blockchains.insert(k.clone(), blockchain);
+            topology.blockchain_states.insert(k.clone(), blockchain_state);
+            topology.strategies.insert(k.clone(), strategy);
+
             topology.default_blockchain_name = Some(k.clone());
         }
 
@@ -198,7 +208,7 @@ impl<
                     }
 
                     let mut signers_actor = TxSignersActor::new();
-                    match signers_actor.consume(blockchain.compose_channel()).produce(blockchain.compose_channel()).start() {
+                    match signers_actor.consume(blockchain.tx_compose_channel()).produce(blockchain.tx_compose_channel()).start() {
                         Ok(r) => {
                             tasks.extend(r);
                             info!("Signers actor has been started")
@@ -217,14 +227,14 @@ impl<
             for (name, params) in preloader_actors {
                 info!("Starting market state preload actor {name}");
 
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                let blockchain_state = topology.get_blockchain_state(params.blockchain.as_ref())?;
                 let client = topology.get_client(params.client.as_ref())?;
                 let signers = topology.get_signers(params.signers.as_ref())?;
 
                 let mut market_state_preload_actor = MarketStatePreloadedOneShotActor::new(client)
                     .with_signers(signers.clone())
                     .with_copied_account(topology.get_multicaller_encoder(None)?.get_contract_address());
-                match market_state_preload_actor.access(blockchain.market_state()).start_and_wait() {
+                match market_state_preload_actor.access(blockchain_state.market_state()).start_and_wait() {
                     Ok(_) => {
                         info!("Market state preload actor executed successfully")
                     }
@@ -394,8 +404,8 @@ impl<
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
 
                         let flashbots_client = Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays();
-                        let mut flashbots_actor = FlashbotsBroadcastActor::new(flashbots_client, params.smart.unwrap_or(false), true);
-                        match flashbots_actor.consume(blockchain.compose_channel()).start() {
+                        let mut flashbots_actor = FlashbotsBroadcastActor::new(flashbots_client, true);
+                        match flashbots_actor.consume(blockchain.tx_compose_channel()).start() {
                             Ok(r) => {
                                 tasks.extend(r);
                                 info!("Flashbots broadcaster actor {name} started successfully for {}", blockchain.chain_id())
@@ -416,6 +426,7 @@ impl<
             for (name, params) in pool_actors {
                 let client = topology.get_client(params.client.as_ref())?;
                 let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                let blockchain_state = topology.get_blockchain_state(params.blockchain.as_ref())?;
                 blockchains.insert(blockchain.chain_id(), blockchain);
                 if params.history {
                     info!("Starting history pools loader {name}");
@@ -435,7 +446,7 @@ impl<
                     info!("Starting curve pools loader {name}");
 
                     let mut curve_pools_loader_actor = CurvePoolLoaderOneShotActor::new(client.clone());
-                    match curve_pools_loader_actor.access(blockchain.market()).access(blockchain.market_state()).start() {
+                    match curve_pools_loader_actor.access(blockchain.market()).access(blockchain_state.market_state()).start() {
                         Err(e) => {
                             panic!("CurvePoolLoaderOneShotActor : {}", e)
                         }
@@ -464,7 +475,7 @@ impl<
                 let mut pool_loader_actor = PoolLoaderActor::new(client.clone());
                 match pool_loader_actor
                     .access(blockchain.market())
-                    .access(blockchain.market_state())
+                    .access(blockchain_state.market_state())
                     .consume(blockchain.tasks_channel())
                     .start()
                 {
@@ -488,9 +499,12 @@ impl<
                         let client = params.client.as_ref().map(|x| topology.get_client(Some(x))).transpose()?; //   topology.get_client(params.client.as_ref())?;
 
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                        let strategy = topology.get_strategy(params.blockchain.as_ref())?;
                         let encoder = topology.get_multicaller_encoder(params.encoder.as_ref())?;
+
                         let mut evm_estimator_actor = EvmEstimatorActor::new_with_provider(encoder, client);
-                        match evm_estimator_actor.consume(blockchain.compose_channel()).produce(blockchain.compose_channel()).start() {
+                        match evm_estimator_actor.consume(strategy.swap_compose_channel()).produce(strategy.swap_compose_channel()).start()
+                        {
                             Ok(r) => {
                                 tasks.extend(r);
                                 info!("EVM estimator actor started successfully {name} @ {}", blockchain.chain_id())
@@ -503,12 +517,14 @@ impl<
                     EstimatorConfig::Geth(params) => {
                         let client = topology.get_client(params.client.as_ref())?;
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                        let strategy = topology.get_strategy(params.blockchain.as_ref())?;
                         let encoder = topology.get_multicaller_encoder(params.encoder.as_ref())?;
 
                         let flashbots_client = Arc::new(Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays());
 
                         let mut geth_estimator_actor = GethEstimatorActor::new(flashbots_client, encoder);
-                        match geth_estimator_actor.consume(blockchain.compose_channel()).produce(blockchain.compose_channel()).start() {
+                        match geth_estimator_actor.consume(strategy.swap_compose_channel()).produce(strategy.swap_compose_channel()).start()
+                        {
                             Ok(r) => {
                                 tasks.extend(r);
                                 info!("Geth estimator actor started successfully {name} @ {}", blockchain.chain_id())
@@ -541,8 +557,22 @@ impl<
         }
     }
 
-    pub fn get_blockchain(&self, name: Option<&String>) -> Result<&Blockchain<DB>> {
+    pub fn get_blockchain(&self, name: Option<&String>) -> Result<&Blockchain> {
         match self.blockchains.get(name.unwrap_or(&self.default_blockchain_name.clone().unwrap())) {
+            Some(a) => Ok(a),
+            None => Err(eyre!("BLOCKCHAIN_NOT_FOUND")),
+        }
+    }
+
+    pub fn get_blockchain_state(&self, name: Option<&String>) -> Result<&BlockchainState<DB>> {
+        match self.blockchain_states.get(name.unwrap_or(&self.default_blockchain_name.clone().unwrap())) {
+            Some(a) => Ok(a),
+            None => Err(eyre!("BLOCKCHAIN_NOT_FOUND")),
+        }
+    }
+
+    pub fn get_strategy(&self, name: Option<&String>) -> Result<&Strategy<DB>> {
+        match self.strategies.get(name.unwrap_or(&self.default_blockchain_name.clone().unwrap())) {
             Some(a) => Ok(a),
             None => Err(eyre!("BLOCKCHAIN_NOT_FOUND")),
         }
@@ -561,7 +591,7 @@ impl<
             None => Err(eyre!("SIGNERS_NOT_FOUND")),
         }
     }
-    pub fn get_blockchain_mut(&mut self, name: Option<&String>) -> Result<&mut Blockchain<DB>> {
+    pub fn get_blockchain_mut(&mut self, name: Option<&String>) -> Result<&mut Blockchain> {
         match self.blockchains.get_mut(name.unwrap_or(&self.default_blockchain_name.clone().unwrap())) {
             Some(a) => Ok(a),
             None => Err(eyre!("CLIENT_NOT_FOUND")),

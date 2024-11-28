@@ -12,7 +12,7 @@ use alloy::rpc::client::ClientBuilder;
 use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
 use alloy::transports::Transport;
 use eyre::{ErrReport, OptionExt, Result};
-use revm::db::AccountState as DBAccountState;
+use revm::db::{AccountState as DBAccountState, EmptyDBTyped};
 use revm::primitives::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::hash_map::Entry;
@@ -20,26 +20,9 @@ use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tracing::{error, trace};
-//
-// pub trait LoomDatabaseExt {
-//     fn accounts(&self) -> HashMap<Address, FastDbAccount>;
-//     fn contracts(&self) -> HashMap<B256, Bytecode, SimpleBuildHasher>;
-//     fn logs(&self) -> Vec<Log>;
-//     fn block_hashes(&self) -> HashMap<BlockNumber, B256>;
-//
-//     fn accounts_mut(&mut self) -> &mut HashMap<Address, FastDbAccount>;
-//     fn contracts_mut(&mut self) -> &mut HashMap<B256, Bytecode, SimpleBuildHasher>;
-//     fn logs_mut(&self) -> &mut Vec<Log>;
-//     fn block_hashes_mut(&self) -> &mut HashMap<BlockNumber, B256>;
-//
-//     fn read_only_db(&self) -> Option<Box<dyn LoomDatabase<Error = ErrReport>>>;
-//     fn ext_db(&self) -> Option<Box<dyn DatabaseRef<Error = TransportError>>>;
-// }
-//
-// pub trait LoomDatabase: DatabaseRef<Error = ErrReport> + LoomDatabaseExt {}
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct LoomDB
 where
     Self: Sized + Send + Sync,
@@ -56,6 +39,12 @@ where
 impl Debug for LoomDB {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("LoomDB").field("accounts", &self.accounts).finish()
+    }
+}
+
+impl Default for LoomDB {
+    fn default() -> Self {
+        LoomDB::new().with_ext_db(EmptyDBTyped::<ErrReport>::new())
     }
 }
 
@@ -84,8 +73,10 @@ impl LoomDB {
     }
 
     pub fn is_rw_ro_slot(&self, address: &Address, slot: &U256) -> bool {
-        if let Some(account) = self.accounts.get(address) {
-            account.storage.contains_key(slot)
+        let is_rw_slot = if let Some(account) = self.accounts.get(address) { account.storage.contains_key(slot) } else { false };
+
+        if is_rw_slot {
+            true
         } else if let Some(read_only_db) = &self.read_only_db {
             if let Some(account) = read_only_db.accounts.get(address) {
                 account.storage.contains_key(slot)
@@ -129,6 +120,13 @@ impl LoomDB {
     {
         let ext_db = Arc::new(ext_db) as Arc<dyn DatabaseRef<Error = ErrReport> + Send + Sync>;
         Self { ext_db: Some(ext_db), ..self }
+    }
+
+    pub fn without_ext_db(self) -> Self
+    where
+        Self: Sized,
+    {
+        Self { ext_db: None, ..self }
     }
 
     pub fn with_ro_db(self, db: Option<LoomDB>) -> Self {
@@ -507,6 +505,10 @@ impl DatabaseLoomExt for LoomDB {
     fn replace_account_storage(&mut self, address: Address, storage: HashMap<U256, U256>) -> Result<()> {
         self.replace_account_storage(address, storage)
     }
+
+    fn maintain(self) -> Self {
+        self.merge_all()
+    }
 }
 
 impl DatabaseRef for LoomDB {
@@ -676,7 +678,7 @@ impl DatabaseCommit for LoomDB {
 }
 
 #[cfg(test)]
-mod test1 {
+mod test {
     use super::GethAccountState;
     use crate::alloydb::AlloyDB;
     use crate::loom_db::LoomDB;

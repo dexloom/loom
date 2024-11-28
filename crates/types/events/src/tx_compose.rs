@@ -1,55 +1,8 @@
-use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, BlockNumber, Bytes, TxHash, U256};
-use alloy_rpc_types::{Transaction, TransactionRequest};
-use eyre::{eyre, Result};
-use loom_types_blockchain::GethStateUpdateVec;
-use loom_types_entities::{Swap, TxSigner, CallSequence};
-use revm::DatabaseRef;
-use std::ops::Deref;
-
-use crate::Message;
-
-#[derive(Clone, Debug)]
-pub enum TxState {
-    Stuffing(Transaction),
-    SignatureRequired(TransactionRequest),
-    ReadyForBroadcast(Bytes),
-    ReadyForBroadcastStuffing(Bytes),
-}
-
-impl TxState {
-    pub fn rlp(&self) -> Result<Bytes> {
-        match self {
-            TxState::Stuffing(t) => Ok(Bytes::from(t.clone().inner.encoded_2718())),
-            TxState::ReadyForBroadcast(t) | TxState::ReadyForBroadcastStuffing(t) => Ok(t.clone()),
-            _ => Err(eyre!("NOT_READY_FOR_BROADCAST")),
-        }
-    }
-}
-
-#[derive(Clone, Debug)]
-pub enum TxCompose<DB> {
-    Route(TxComposeData<DB>),
-    Estimate(TxComposeData<DB>),
-    Sign(TxComposeData<DB>),
-    Broadcast(TxComposeData<DB>),
-}
-
-impl<DB> Deref for TxCompose<DB> {
-    type Target = TxComposeData<DB>;
-
-    fn deref(&self) -> &Self::Target {
-        self.data()
-    }
-}
-
-impl<DB> TxCompose<DB> {
-    pub fn data(&self) -> &TxComposeData<DB> {
-        match self {
-            TxCompose::Route(x) | TxCompose::Broadcast(x) | TxCompose::Sign(x) | TxCompose::Estimate(x) => x,
-        }
-    }
-}
+use crate::{Message, TxState};
+use alloy_primitives::{BlockNumber, Bytes, U256};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_entities::{LoomTxSigner, Swap};
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
 pub enum RlpState {
@@ -72,80 +25,35 @@ impl RlpState {
 }
 
 #[derive(Clone, Debug)]
-pub struct TxComposeData<DB> {
+pub enum TxComposeMessageType<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    Sign(TxComposeData<LDT>),
+    Broadcast(TxComposeData<LDT>),
+}
+
+#[derive(Clone, Debug)]
+pub struct TxComposeData<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     /// The EOA address that will be used to sign the transaction.
     /// If this is None, the transaction will be signed by a random signer.
-    pub eoa: Option<Address>,
-    pub signer: Option<TxSigner>,
+    pub eoa: Option<LDT::Address>,
+    pub signer: Option<Arc<dyn LoomTxSigner<LDT>>>,
     pub nonce: u64,
     pub eth_balance: U256,
     pub value: U256,
     pub gas: u64,
     pub priority_gas_fee: u64,
-    pub stuffing_txs_hashes: Vec<TxHash>,
-    pub stuffing_txs: Vec<Transaction>,
+    pub stuffing_txs_hashes: Vec<LDT::TxHash>,
+    pub stuffing_txs: Vec<LDT::Transaction>,
     pub next_block_number: BlockNumber,
     pub next_block_timestamp: u64,
     pub next_block_base_fee: u64,
-    pub swap: Swap,
-    pub sequence: Option<CallSequence>,
-    pub tx_bundle: Option<Vec<TxState>>,
+    pub tx_bundle: Option<Vec<TxState<LDT>>>,
     pub rlp_bundle: Option<Vec<RlpState>>,
-    pub prestate: Option<DB>,
-    pub poststate: Option<DB>,
-    pub poststate_update: Option<GethStateUpdateVec>,
     pub origin: Option<String>,
-    pub tips_pct: Option<u32>,
+    pub swap: Option<Swap>,
     pub tips: Option<U256>,
 }
 
-impl<DB: Clone + 'static> TxComposeData<DB> {
-    pub fn same_stuffing(&self, others_stuffing_txs_hashes: &[TxHash]) -> bool {
-        let tx_len = self.stuffing_txs_hashes.len();
-
-        if tx_len != others_stuffing_txs_hashes.len() {
-            false
-        } else if tx_len == 0 {
-            true
-        } else {
-            others_stuffing_txs_hashes.iter().all(|x| self.stuffing_txs_hashes.contains(x))
-        }
-    }
-
-    pub fn cross_pools(&self, others_pools: &[Address]) -> bool {
-        self.swap.get_pool_address_vec().iter().any(|x| others_pools.contains(x))
-    }
-
-    pub fn first_stuffing_hash(&self) -> TxHash {
-        self.stuffing_txs_hashes.first().map_or(TxHash::default(), |x| *x)
-    }
-
-    pub fn tips_gas_ratio(&self) -> U256 {
-        if self.gas == 0 {
-            U256::ZERO
-        } else {
-            self.tips.unwrap_or_default() / U256::from(self.gas)
-        }
-    }
-
-    pub fn profit_eth_gas_ratio(&self) -> U256 {
-        if self.gas == 0 {
-            U256::ZERO
-        } else {
-            self.swap.abs_profit_eth() / U256::from(self.gas)
-        }
-    }
-
-    pub fn gas_price(&self) -> u128 {
-        self.next_block_base_fee as u128 + self.priority_gas_fee as u128
-    }
-
-    pub fn gas_cost(&self) -> u128 {
-        self.gas as u128 * (self.next_block_base_fee as u128 + self.priority_gas_fee as u128)
-    }
-}
-
-impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Default for TxComposeData<DB> {
+impl<LDT: LoomDataTypes> Default for TxComposeData<LDT> {
     fn default() -> Self {
         Self {
             eoa: None,
@@ -160,37 +68,24 @@ impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Default for TxComposeData<
             stuffing_txs: Vec::new(),
             next_block_number: Default::default(),
             next_block_timestamp: Default::default(),
-            swap: Swap::None,
-            sequence: None,
             tx_bundle: None,
             rlp_bundle: None,
-            prestate: None,
-            poststate: None,
-            poststate_update: None,
             origin: None,
-            tips_pct: None,
+            swap: None,
             tips: None,
         }
     }
 }
 
-pub type MessageTxCompose<DB> = Message<TxCompose<DB>>;
+pub type MessageTxCompose<LDT = LoomDataTypesEthereum> = Message<TxComposeMessageType<LDT>>;
 
-impl<DB> MessageTxCompose<DB> {
-    pub fn route(data: TxComposeData<DB>) -> Self {
-        Message::new(TxCompose::Route(data))
+impl<LDT: LoomDataTypes> MessageTxCompose<LDT> {
+    pub fn sign(data: TxComposeData<LDT>) -> Self {
+        Message::new(TxComposeMessageType::Sign(data))
     }
 
-    pub fn sign(data: TxComposeData<DB>) -> Self {
-        Message::new(TxCompose::Sign(data))
-    }
-
-    pub fn estimate(data: TxComposeData<DB>) -> Self {
-        Message::new(TxCompose::Estimate(data))
-    }
-
-    pub fn broadcast(data: TxComposeData<DB>) -> Self {
-        Message::new(TxCompose::Broadcast(data))
+    pub fn broadcast(data: TxComposeData<LDT>) -> Self {
+        Message::new(TxComposeMessageType::Broadcast(data))
     }
 }
 

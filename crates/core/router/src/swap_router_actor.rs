@@ -1,24 +1,24 @@
 use eyre::{eyre, Result};
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, Strategy};
 use loom_types_entities::{AccountNonceAndBalanceState, TxSigners};
-use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData};
+use loom_types_events::{MessageSwapCompose, MessageTxCompose, SwapComposeData, SwapComposeMessage, TxComposeData};
 use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error, info};
 
-/// encoder task performs encode for request
-async fn router_task<DB: DatabaseRef + Send + Sync + Clone + 'static>(
-    route_request: TxComposeData<DB>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+/// encoder task performs initial routing for swap request
+async fn router_task_prepare<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+    route_request: SwapComposeData<DB>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
 ) -> Result<()> {
-    debug!("Routing started {}", route_request.swap);
+    debug!("router_task_prepare started {}", route_request.swap);
 
-    let signer = match route_request.eoa {
+    let signer = match route_request.tx_compose.eoa {
         Some(eoa) => signers.read().await.get_signer_by_address(&eoa)?,
         None => signers.read().await.get_random_signer().ok_or(eyre!("NO_SIGNER"))?,
     };
@@ -26,17 +26,35 @@ async fn router_task<DB: DatabaseRef + Send + Sync + Clone + 'static>(
     let nonce = account_monitor.read().await.get_account(&signer.address()).unwrap().get_nonce();
     let eth_balance = account_monitor.read().await.get_account(&signer.address()).unwrap().get_eth_balance();
 
-    if route_request.next_block_base_fee == 0 {
+    if route_request.tx_compose.next_block_base_fee == 0 {
         error!("Block base fee is not set");
         return Err(eyre!("NO_BLOCK_GAS_FEE"));
     }
 
     let gas = (route_request.swap.pre_estimate_gas()) * 2;
 
-    let estimate_request = TxComposeData { signer: Some(signer), nonce, eth_balance, gas, ..route_request };
-    let estimate_request = MessageTxCompose::estimate(estimate_request);
+    let estimate_request = SwapComposeData {
+        tx_compose: TxComposeData { signer: Some(signer), nonce, eth_balance, gas, ..route_request.tx_compose },
+        ..route_request
+    };
+    let estimate_request = MessageSwapCompose::estimate(estimate_request);
 
     match compose_channel_tx.send(estimate_request).await {
+        Err(_) => {
+            error!("compose_channel_tx.send(estimate_request)");
+            Err(eyre!("ERROR_SENDING_REQUEST"))
+        }
+        Ok(_) => Ok(()),
+    }
+}
+
+async fn router_task_broadcast<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+    route_request: SwapComposeData<DB>,
+    tx_compose_channel_tx: Broadcaster<MessageTxCompose>,
+) -> Result<()> {
+    debug!("router_task_broadcast started {}", route_request.swap);
+
+    match tx_compose_channel_tx.send(MessageTxCompose::sign(route_request.tx_compose)).await {
         Err(_) => {
             error!("compose_channel_tx.send(estimate_request)");
             Err(eyre!("ERROR_SENDING_REQUEST"))
@@ -48,29 +66,43 @@ async fn router_task<DB: DatabaseRef + Send + Sync + Clone + 'static>(
 async fn swap_router_worker<DB: DatabaseRef + Clone + Send + Sync + 'static>(
     signers: SharedState<TxSigners>,
     account_monitor: SharedState<AccountNonceAndBalanceState>,
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    swap_compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
+    swap_compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
+    tx_compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
-    let mut compose_channel_rx: Receiver<MessageTxCompose<DB>> = compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageSwapCompose<DB>> = swap_compose_channel_rx.subscribe().await;
 
     info!("swap router worker started");
 
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let msg : Result<MessageSwapCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(compose_request) => {
-                        if let TxCompose::Route(encode_request) = compose_request.inner {
-                            debug!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", encode_request.stuffing_txs_hashes, encode_request.swap);
-                            tokio::task::spawn(
-                                router_task(
-                                    encode_request,
-                                    compose_channel_tx.clone(),
-                                    signers.clone(),
-                                    account_monitor.clone(),
-                                )
-                            );
+                        match compose_request.inner {
+                            SwapComposeMessage::Prepare(swap_compose_request)=>{
+                                debug!("MessageSwapComposeRequest::Prepare received. stuffing: {:?} swap: {}", swap_compose_request.tx_compose.stuffing_txs_hashes, swap_compose_request.swap);
+                                tokio::task::spawn(
+                                    router_task_prepare(
+                                        swap_compose_request,
+                                        swap_compose_channel_tx.clone(),
+                                        signers.clone(),
+                                        account_monitor.clone(),
+                                    )
+                                );
+                            }
+                            SwapComposeMessage::Ready(swap_compose_request)=>{
+                                debug!("MessageSwapComposeRequest::Ready received. stuffing: {:?} swap: {}", swap_compose_request.tx_compose.stuffing_txs_hashes, swap_compose_request.swap);
+                                tokio::task::spawn(
+                                    router_task_broadcast(
+                                        swap_compose_request,
+                                        tx_compose_channel_tx.clone(),
+                                    )
+                                );
+                            }
+                            _=>{}
+
                         }
                     }
                     Err(e)=>{error!("compose_channel_rx {}",e)}
@@ -87,9 +119,11 @@ pub struct SwapRouterActor<DB: Send + Sync + Clone + 'static> {
     #[accessor]
     account_nonce_balance: Option<SharedState<AccountNonceAndBalanceState>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    swap_compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    swap_compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
+    #[producer]
+    tx_compose_channel_tx: Option<Broadcaster<MessageTxCompose>>,
 }
 
 impl<DB> SwapRouterActor<DB>
@@ -97,18 +131,25 @@ where
     DB: DatabaseRef + Send + Sync + Clone + Default + 'static,
 {
     pub fn new() -> SwapRouterActor<DB> {
-        SwapRouterActor { signers: None, account_nonce_balance: None, compose_channel_rx: None, compose_channel_tx: None }
+        SwapRouterActor {
+            signers: None,
+            account_nonce_balance: None,
+            swap_compose_channel_rx: None,
+            swap_compose_channel_tx: None,
+            tx_compose_channel_tx: None,
+        }
     }
 
     pub fn with_signers(self, signers: SharedState<TxSigners>) -> Self {
         Self { signers: Some(signers), ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
         Self {
+            swap_compose_channel_rx: Some(strategy.swap_compose_channel()),
+            swap_compose_channel_tx: Some(strategy.swap_compose_channel()),
             account_nonce_balance: Some(bc.nonce_and_balance()),
-            compose_channel_rx: Some(bc.compose_channel()),
-            compose_channel_tx: Some(bc.compose_channel()),
+            tx_compose_channel_tx: Some(bc.tx_compose_channel()),
             ..self
         }
     }
@@ -122,8 +163,9 @@ where
         let task = tokio::task::spawn(swap_router_worker(
             self.signers.clone().unwrap(),
             self.account_nonce_balance.clone().unwrap(),
-            self.compose_channel_rx.clone().unwrap(),
-            self.compose_channel_tx.clone().unwrap(),
+            self.swap_compose_channel_rx.clone().unwrap(),
+            self.swap_compose_channel_tx.clone().unwrap(),
+            self.tx_compose_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])
     }

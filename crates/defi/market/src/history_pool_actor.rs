@@ -1,5 +1,3 @@
-use revm::DatabaseCommit;
-use revm::DatabaseRef;
 use std::marker::PhantomData;
 
 use alloy_network::Network;
@@ -67,7 +65,7 @@ where
         Self { client, pools_config, tasks_tx: None, _t: PhantomData, _n: PhantomData }
     }
 
-    pub fn on_bc<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self { tasks_tx: Some(bc.tasks_channel()), ..self }
     }
 }

@@ -3,7 +3,7 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{BlockTransactionsKind, Header};
 use alloy_transport::Transport;
 use loom_core_actors::{subscribe, Broadcaster, WorkerResult};
-use loom_types_events::{Message, MessageBlock};
+use loom_types_events::{BlockUpdate, Message, MessageBlock};
 use tracing::{debug, error};
 
 pub async fn new_block_with_tx_worker<P, T>(
@@ -28,7 +28,7 @@ where
                 match client.get_block_by_hash(block_header.hash(), BlockTransactionsKind::Full).await {
                     Ok(block_with_tx) => {
                         if let Some(block_with_txes) = block_with_tx {
-                            if let Err(e) = sender.send(Message::new_with_time(block_with_txes)).await {
+                            if let Err(e) = sender.send(Message::new_with_time(BlockUpdate { block: block_with_txes })).await {
                                 error!("Broadcaster error {}", e);
                             }
                         } else {

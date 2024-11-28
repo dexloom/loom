@@ -8,6 +8,7 @@ use crate::required_state::RequiredState;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use serde::{Deserialize, Serialize};
@@ -125,75 +126,75 @@ impl Display for PoolProtocol {
     }
 }
 
-pub struct PoolWrapper {
-    pub pool: Arc<dyn Pool>,
+pub struct PoolWrapper<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub pool: Arc<dyn Pool<LDT>>,
 }
 
-impl PartialOrd for PoolWrapper {
+impl<LDT: LoomDataTypes> PartialOrd for PoolWrapper<LDT> {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Eq for PoolWrapper {}
+impl<LDT: LoomDataTypes> Eq for PoolWrapper<LDT> {}
 
-impl Ord for PoolWrapper {
+impl<LDT: LoomDataTypes> Ord for PoolWrapper<LDT> {
     fn cmp(&self, other: &Self) -> Ordering {
         self.get_address().cmp(&other.get_address())
     }
 }
 
-impl Display for PoolWrapper {
+impl<LDT: LoomDataTypes> Display for PoolWrapper<LDT> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{:?}", self.get_protocol(), self.get_address())
     }
 }
 
-impl Debug for PoolWrapper {
+impl<LDT: LoomDataTypes> Debug for PoolWrapper<LDT> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{:?}", self.get_protocol(), self.get_address())
     }
 }
 
-impl Hash for PoolWrapper {
+impl<LDT: LoomDataTypes> Hash for PoolWrapper<LDT> {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.get_address().hash(state)
     }
 }
 
-impl PartialEq for PoolWrapper {
+impl<LDT: LoomDataTypes> PartialEq for PoolWrapper<LDT> {
     fn eq(&self, other: &Self) -> bool {
         self.pool.get_address() == other.pool.get_address()
     }
 }
 
-impl PoolWrapper {
-    pub fn new(pool: Arc<dyn Pool>) -> Self {
-        PoolWrapper { pool }
-    }
-}
-
-impl Clone for PoolWrapper {
+impl<LDT: LoomDataTypes> Clone for PoolWrapper<LDT> {
     fn clone(&self) -> Self {
         Self { pool: self.pool.clone() }
     }
 }
 
-impl Deref for PoolWrapper {
-    type Target = dyn Pool;
+impl<LDT: LoomDataTypes> Deref for PoolWrapper<LDT> {
+    type Target = dyn Pool<LDT>;
 
     fn deref(&self) -> &Self::Target {
         self.pool.deref()
     }
 }
 
-impl<T: 'static + Pool + Clone> From<T> for PoolWrapper {
+impl<LDT: LoomDataTypes> PoolWrapper<LDT> {
+    pub fn new(pool: Arc<dyn Pool<LDT>>) -> Self {
+        PoolWrapper { pool }
+    }
+}
+
+impl<T: 'static + Pool<LoomDataTypesEthereum>> From<T> for PoolWrapper<LoomDataTypesEthereum> {
     fn from(pool: T) -> Self {
         Self { pool: Arc::new(pool) }
     }
 }
 
-pub trait Pool: Sync + Send {
+pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
     fn get_class(&self) -> PoolClass {
         PoolClass::Unknown
     }
@@ -202,19 +203,17 @@ pub trait Pool: Sync + Send {
         PoolProtocol::Unknown
     }
 
-    //fn clone_box(&self) -> Box<dyn Pool>;
-
-    fn get_address(&self) -> Address;
+    fn get_address(&self) -> LDT::Address;
 
     fn get_fee(&self) -> U256 {
         U256::ZERO
     }
 
-    fn get_tokens(&self) -> Vec<Address> {
+    fn get_tokens(&self) -> Vec<LDT::Address> {
         Vec::new()
     }
 
-    fn get_swap_directions(&self) -> Vec<(Address, Address)> {
+    fn get_swap_directions(&self) -> Vec<(LDT::Address, LDT::Address)> {
         Vec::new()
     }
 
@@ -222,8 +221,8 @@ pub trait Pool: Sync + Send {
         &self,
         state: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &LDT::Address,
+        token_address_to: &LDT::Address,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport>;
 
@@ -232,8 +231,8 @@ pub trait Pool: Sync + Send {
         &self,
         state: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &LDT::Address,
+        token_address_to: &LDT::Address,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport>;
 

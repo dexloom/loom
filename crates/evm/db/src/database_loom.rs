@@ -24,4 +24,6 @@ pub trait DatabaseLoomExt {
     fn insert_account_storage(&mut self, address: Address, slot: U256, value: U256) -> eyre::Result<()>;
 
     fn replace_account_storage(&mut self, address: Address, storage: HashMap<U256, U256>) -> eyre::Result<()>;
+
+    fn maintain(self) -> Self;
 }

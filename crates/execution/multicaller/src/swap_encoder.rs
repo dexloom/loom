@@ -1,9 +1,10 @@
 use crate::MulticallerSwapEncoder;
 use alloy_primitives::{Address, BlockNumber, Bytes, U256};
 use eyre::{eyre, OptionExt, Result};
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::MulticallerCalls;
 use loom_types_entities::tips::{tips_and_value_for_swap_type, Tips};
-use loom_types_entities::{Swap, SwapEncoder, SwapStep, CallSequence};
+use loom_types_entities::{CallSequence, Swap, SwapEncoder, SwapStep};
 use tracing::{debug, error, trace};
 
 impl SwapEncoder for MulticallerSwapEncoder {
@@ -22,7 +23,7 @@ impl SwapEncoder for MulticallerSwapEncoder {
                 vec![swap.to_swap_steps(self.swap_step_encoder.get_contract_address()).ok_or_eyre("SWAP_TYPE_NOTE_COVERED")?]
             }
             Swap::Multiple(swap_vec) => {
-                let mut ret: Vec<(SwapStep, SwapStep)> = Vec::new();
+                let mut ret: Vec<(SwapStep<LoomDataTypesEthereum>, SwapStep<LoomDataTypesEthereum>)> = Vec::new();
                 for s in swap_vec.iter() {
                     ret.push(s.to_swap_steps(self.swap_step_encoder.get_contract_address()).ok_or_eyre("AA")?);
                 }

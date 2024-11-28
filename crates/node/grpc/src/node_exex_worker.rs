@@ -18,8 +18,8 @@ use loom_evm_utils::reth_types::append_all_matching_block_logs_sealed;
 use loom_node_grpc_exex_proto::ExExClient;
 use loom_types_blockchain::{GethStateUpdate, MempoolTx};
 use loom_types_events::{
-    BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
-    MessageMempoolDataUpdate, NodeMempoolDataUpdate,
+    BlockHeader, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
+    MessageBlockStateUpdate, MessageMempoolDataUpdate, NodeMempoolDataUpdate,
 };
 
 #[allow(dead_code)]
@@ -183,7 +183,7 @@ pub async fn node_exex_grpc_worker(
             block = stream_block.next() => {
                 if let Some(block) = block {
                     if let Err(e) = block_with_tx_channel.send(
-                        Message::new_with_time(block)
+                        Message::new_with_time( BlockUpdate{block})
                     ).await {
                         error!("block_with_tx_channel.send error : {}", e)
                     }

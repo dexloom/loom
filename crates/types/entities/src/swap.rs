@@ -1,20 +1,20 @@
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use alloy_primitives::{Address, U256};
-
 use crate::{SwapAmountType, SwapLine, SwapStep, Token};
+use alloy_primitives::U256;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug)]
-pub enum Swap {
+pub enum Swap<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     None,
-    ExchangeSwapLine(SwapLine),
-    BackrunSwapSteps((SwapStep, SwapStep)),
-    BackrunSwapLine(SwapLine),
-    Multiple(Vec<Swap>),
+    ExchangeSwapLine(SwapLine<LDT>),
+    BackrunSwapSteps((SwapStep<LDT>, SwapStep<LDT>)),
+    BackrunSwapLine(SwapLine<LDT>),
+    Multiple(Vec<Swap<LDT>>),
 }
 
-impl Display for Swap {
+impl<LDT: LoomDataTypes> Display for Swap<LDT> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Swap::ExchangeSwapLine(path) => write!(f, "{path}"),
@@ -26,12 +26,12 @@ impl Display for Swap {
     }
 }
 
-impl Swap {
-    pub fn to_swap_steps(self: &Swap, multicaller: Address) -> Option<(SwapStep, SwapStep)> {
+impl<LDT: LoomDataTypes> Swap<LDT> {
+    pub fn to_swap_steps(self: &Swap<LDT>, multicaller: LDT::Address) -> Option<(SwapStep<LDT>, SwapStep<LDT>)> {
         match self {
             Swap::BackrunSwapLine(swap_line) => {
-                let mut sp0: Option<SwapLine> = None;
-                let mut sp1: Option<SwapLine> = None;
+                let mut sp0: Option<SwapLine<LDT>> = None;
+                let mut sp1: Option<SwapLine<LDT>> = None;
 
                 for i in 1..swap_line.path.pool_count() {
                     let (flash_path, inside_path) = swap_line.split(i).unwrap();
@@ -96,7 +96,7 @@ impl Swap {
         }
     }
 
-    pub fn get_first_token(&self) -> Option<&Arc<Token>> {
+    pub fn get_first_token(&self) -> Option<&Arc<Token<LDT>>> {
         match self {
             Swap::ExchangeSwapLine(swap_path) => swap_path.get_first_token(),
             Swap::BackrunSwapLine(swap_path) => swap_path.get_first_token(),
@@ -106,7 +106,7 @@ impl Swap {
         }
     }
 
-    pub fn get_pool_address_vec(&self) -> Vec<Address> {
+    pub fn get_pool_address_vec(&self) -> Vec<LDT::Address> {
         match self {
             Swap::ExchangeSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_address()).collect(),
             Swap::BackrunSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_address()).collect(),

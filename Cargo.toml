@@ -68,7 +68,7 @@ homepage = "https://github.com/dexloom/loom"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/dexloom/loom"
 rust-version = "1.82"
-version = "0.3.0"
+version = "0.4.0"
 
 [workspace.dependencies]
 # broadcast
@@ -205,6 +205,7 @@ alloy = { version = "0.6.4", features = [
   "consensus",
   "full",
   "json-rpc",
+  "map-fxhash",
   "node-bindings",
   "rand",
   "rlp",
@@ -212,7 +213,7 @@ alloy = { version = "0.6.4", features = [
   "rpc-types-json",
   "rpc-types-trace",
   "serde",
-] }
+], default-features = false }
 alloy-consensus = "0.6.4"
 alloy-contract = "0.6.4"
 alloy-eips = "0.6.4"
@@ -238,7 +239,7 @@ alloy-transport-ws = "0.6.4"
 
 #alloy-core
 alloy-dyn-abi = { version = "0.8.12", features = ["json", "std"] }
-alloy-primitives = { version = "0.8.12", features = ["rand"] }
+alloy-primitives = { version = "0.8.12", features = ["map-fxhash", "rand"], default-features = false }
 alloy-sol-macro = { version = "0.8.12", features = ["json"] }
 alloy-sol-types = { version = "0.8.12", features = ["json"] }
 

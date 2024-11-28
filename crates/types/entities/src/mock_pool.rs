@@ -13,6 +13,12 @@ pub struct MockPool {
     pub(crate) address: Address,
 }
 
+impl MockPool {
+    pub fn new(token0: Address, token1: Address, address: Address) -> Self {
+        Self { token0, token1, address }
+    }
+}
+
 impl Pool for MockPool {
     fn get_class(&self) -> PoolClass {
         PoolClass::UniswapV2

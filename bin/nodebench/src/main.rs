@@ -12,7 +12,7 @@ use chrono::{DateTime, Duration, Local, TimeDelta};
 use clap::Parser;
 use eyre::{eyre, Result};
 use futures::future::join_all;
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_blockchain_actors::BlockchainActors;
 use loom_evm_db::LoomDB;
 use loom_node_actor_config::NodeBlockActorConfig;
@@ -229,9 +229,12 @@ async fn collect_stat_task(
     blocks_needed: usize,
     ping_time: TimeDelta,
 ) -> Result<()> {
-    let bc = Blockchain::<LoomDB>::new(1);
+    let bc = Blockchain::new(1);
 
-    let mut bc_actors = BlockchainActors::new(provider, bc.clone(), vec![]);
+    let bc_state = BlockchainState::<LoomDB>::new();
+    let strategy = Strategy::<LoomDB>::new();
+
+    let mut bc_actors = BlockchainActors::new(provider, bc.clone(), bc_state, strategy, vec![]);
     if grps {
         bc_actors.with_exex_events()?;
     } else {
@@ -274,11 +277,11 @@ async fn collect_stat_task(
                 }
 
             }
-            block = block_with_tx_subscription.recv() => {
-                match block {
-                    Ok(block)=>{
-                        let block_number = block.header.number;
-                        let block_hash = block.header.hash;
+            block_msg = block_with_tx_subscription.recv() => {
+                match block_msg {
+                    Ok(block_msg)=>{
+                        let block_number = block_msg.block.header.number;
+                        let block_hash = block_msg.block.header.hash;
                         if blocks_counter >= warn_up_blocks {
                             let recv_time = stat.write().await.block_with_tx.entry(block_number).or_default().add_now(id);
                             println!("{id} : {} block with tx received {} {}", block_number, block_hash, recv_time - ping_time);

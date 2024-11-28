@@ -7,16 +7,16 @@ use tracing::{debug, error, info};
 
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, Strategy};
 use loom_execution_multicaller::SwapStepEncoder;
 use loom_types_entities::{LatestBlock, Swap, SwapStep};
-use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose, TxComposeData};
+use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeData, SwapComposeMessage};
 
 async fn arb_swap_steps_optimizer_task<DB: DatabaseRef + Send + Sync + Clone>(
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
     state_db: &(dyn DatabaseRef<Error = ErrReport> + Send + Sync + 'static),
     evm_env: Env,
-    request: TxComposeData<DB>,
+    request: SwapComposeData<DB>,
 ) -> Result<()> {
     debug!("Step Simulation started");
 
@@ -24,7 +24,7 @@ async fn arb_swap_steps_optimizer_task<DB: DatabaseRef + Send + Sync + Clone>(
         let start_time = chrono::Local::now();
         match SwapStep::optimize_swap_steps(&state_db, evm_env, &sp0, &sp1, None) {
             Ok((s0, s1)) => {
-                let encode_request = MessageTxCompose::route(TxComposeData {
+                let encode_request = MessageSwapCompose::prepare(SwapComposeData {
                     origin: Some("merger_searcher".to_string()),
                     tips_pct: None,
                     swap: Swap::BackrunSwapSteps((s0, s1)),
@@ -50,13 +50,13 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
     encoder: SwapStepEncoder,
     latest_block: SharedState<LatestBlock>,
     market_events_rx: Broadcaster<MarketEvents>,
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
     subscribe!(compose_channel_rx);
 
-    let mut ready_requests: Vec<TxComposeData<DB>> = Vec::new();
+    let mut ready_requests: Vec<SwapComposeData<DB>> = Vec::new();
 
     loop {
         tokio::select! {
@@ -81,12 +81,12 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
 
             },
             msg = compose_channel_rx.recv() => {
-                let msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let msg : Result<MessageSwapCompose<DB>, RecvError> = msg;
                 match msg {
                     Ok(swap) => {
 
                         let compose_data = match swap.inner() {
-                            TxCompose::Sign(data) => data,
+                            SwapComposeMessage::Ready(data) => data,
                             _=>continue,
                         };
 
@@ -96,7 +96,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                         };
 
 
-                        info!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", compose_data.stuffing_txs_hashes, compose_data.swap);
+                        info!("MessageSwapPathEncodeRequest received. stuffing: {:?} swap: {}", compose_data.tx_compose.stuffing_txs_hashes, compose_data.swap);
 
                         for req in ready_requests.iter() {
 
@@ -106,7 +106,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                             };
 
                             // todo!() mega bundle merge
-                            if !compose_data.same_stuffing(&req.stuffing_txs_hashes) {
+                            if !compose_data.same_stuffing(&req.tx_compose.stuffing_txs_hashes) {
                                 continue
                             };
 
@@ -117,7 +117,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                                     let block_header = latest_block_guard.block_header.clone().unwrap();
                                     drop(latest_block_guard);
 
-                                    let request = TxComposeData{
+                                    let request = SwapComposeData{
                                         swap : Swap::BackrunSwapSteps((sp0,sp1)),
                                         ..compose_data.clone()
                                     };
@@ -165,9 +165,9 @@ pub struct ArbSwapPathMergerActor<DB: Send + Sync + Clone + 'static> {
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
 }
 
 impl<DB> ArbSwapPathMergerActor<DB>
@@ -183,12 +183,12 @@ where
             compose_channel_tx: None,
         }
     }
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
         Self {
             latest_block: Some(bc.latest_block()),
             market_events: Some(bc.market_events_channel()),
-            compose_channel_tx: Some(bc.compose_channel()),
-            compose_channel_rx: Some(bc.compose_channel()),
+            compose_channel_tx: Some(strategy.swap_compose_channel()),
+            compose_channel_rx: Some(strategy.swap_compose_channel()),
             ..self
         }
     }
@@ -219,37 +219,37 @@ mod test {
     use alloy_primitives::{Address, U256};
     use loom_evm_db::LoomDB;
     use loom_types_entities::{Swap, SwapAmountType, SwapLine, SwapPath, Token};
-    use loom_types_events::TxComposeData;
+    use loom_types_events::SwapComposeData;
     use std::sync::Arc;
 
     #[test]
     pub fn test_sort() {
-        let mut ready_requests: Vec<TxComposeData<LoomDB>> = Vec::new();
+        let mut ready_requests: Vec<SwapComposeData<LoomDB>> = Vec::new();
         let token = Arc::new(Token::new(Address::random()));
 
         let sp0 = SwapLine {
-            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![] },
+            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![], disabled: false },
             amount_in: SwapAmountType::Set(U256::from(1)),
             amount_out: SwapAmountType::Set(U256::from(2)),
             ..Default::default()
         };
-        ready_requests.push(TxComposeData { swap: Swap::BackrunSwapLine(sp0), ..TxComposeData::default() });
+        ready_requests.push(SwapComposeData { swap: Swap::BackrunSwapLine(sp0), ..SwapComposeData::default() });
 
         let sp1 = SwapLine {
-            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![] },
+            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![], disabled: false },
             amount_in: SwapAmountType::Set(U256::from(10)),
             amount_out: SwapAmountType::Set(U256::from(20)),
             ..Default::default()
         };
-        ready_requests.push(TxComposeData { swap: Swap::BackrunSwapLine(sp1), ..TxComposeData::default() });
+        ready_requests.push(SwapComposeData { swap: Swap::BackrunSwapLine(sp1), ..SwapComposeData::default() });
 
         let sp2 = SwapLine {
-            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![] },
+            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![], disabled: false },
             amount_in: SwapAmountType::Set(U256::from(3)),
             amount_out: SwapAmountType::Set(U256::from(5)),
             ..Default::default()
         };
-        ready_requests.push(TxComposeData { swap: Swap::BackrunSwapLine(sp2), ..TxComposeData::default() });
+        ready_requests.push(SwapComposeData { swap: Swap::BackrunSwapLine(sp2), ..SwapComposeData::default() });
 
         ready_requests.sort_by(|a, b| a.swap.abs_profit().cmp(&b.swap.abs_profit()));
 

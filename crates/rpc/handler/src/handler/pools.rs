@@ -10,7 +10,7 @@ use loom_evm_utils::error_handler::internal_error;
 use loom_rpc_state::AppState;
 use loom_types_entities::PoolWrapper;
 use revm::primitives::Env;
-use revm::DatabaseRef;
+use revm::{DatabaseCommit, DatabaseRef};
 use std::str::FromStr;
 
 /// Get latest block
@@ -28,7 +28,7 @@ use std::str::FromStr;
     (status = 200, description = "All available pools", body = PoolResponse),
     )
 )]
-pub async fn pools<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+pub async fn pools<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static>(
     State(app_state): State<AppState<DB>>,
     pagination: Query<Pagination>,
     filter: Query<Filter>,
@@ -90,7 +90,7 @@ pub async fn pools<DB: DatabaseRef + Send + Sync + Clone + 'static>(
     (status = 200, description = "Pool detail response", body = PoolDetailsResponse),
     )
 )]
-pub async fn pool<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+pub async fn pool<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static>(
     State(app_state): State<AppState<DB>>,
     Path(address): Path<String>,
 ) -> Result<Json<PoolDetailsResponse>, (StatusCode, String)> {
@@ -123,7 +123,7 @@ pub async fn pool<DB: DatabaseRef + Send + Sync + Clone + 'static>(
         (status = 200, description = "Market stats", body = MarketStats),
     )
 )]
-pub async fn market_stats<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+pub async fn market_stats<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static>(
     State(app_state): State<AppState<DB>>,
 ) -> Result<Json<MarketStats>, (StatusCode, String)> {
     let total_pools = app_state.bc.market().read().await.pools().len();
@@ -147,7 +147,7 @@ pub async fn market_stats<DB: DatabaseRef + Send + Sync + Clone + 'static>(
         (status = 200, description = "Market stats", body = QuoteResponse),
     )
 )]
-pub async fn pool_quote<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static>(
+pub async fn pool_quote<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static>(
     State(app_state): State<AppState<DB>>,
     Path(address): Path<String>,
     Json(quote_request): Json<QuoteRequest>,
@@ -158,7 +158,7 @@ pub async fn pool_quote<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone
         Some(pool) => {
             let evm_env = Env::default();
             let quote_result = pool.pool.calculate_out_amount(
-                &app_state.bc.market_state().read().await.state_db,
+                &app_state.state.market_state().read().await.state_db,
                 evm_env,
                 &quote_request.token_address_from,
                 &quote_request.token_address_to,

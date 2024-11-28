@@ -5,13 +5,16 @@ use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind, Filter};
 use loom_core_actors::{Broadcaster, SharedState, WorkerResult};
+use loom_evm_db::DatabaseLoomExt;
 use loom_node_debug_provider::{DebugProviderExt, HttpCachedTransport};
 use loom_types_blockchain::{debug_trace_block, Mempool};
 use loom_types_entities::MarketState;
 use loom_types_events::{
-    BlockHeader, BlockLogs, BlockStateUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate,
+    BlockHeader, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
+    MessageBlockStateUpdate,
 };
 use revm::{Database, DatabaseCommit, DatabaseRef};
+use std::fmt::Debug;
 use std::ops::RangeInclusive;
 use std::time::Duration;
 use tracing::{debug, error};
@@ -30,7 +33,8 @@ pub async fn node_player_worker<P, DB>(
 ) -> WorkerResult
 where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
-    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + DatabaseLoomExt + 'static,
+    <DB as DatabaseRef>::Error: Debug,
 {
     for _ in RangeInclusive::new(start_block, end_block) {
         let curblock_number = provider.client().transport().fetch_next_block().await?;
@@ -85,15 +89,17 @@ where
                             };
 
                             if txs.is_empty() {
-                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block)).await {
+                                let block_update = BlockUpdate { block };
+                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block_update)).await {
                                     error!("new_block_with_tx_channel.send error: {e}");
                                 }
                             } else if let Some(block_txs) = block.transactions.as_transactions() {
                                 txs.extend(block_txs.iter().cloned());
-                                let mut updated_block = block;
+                                let mut block = block;
 
-                                updated_block.transactions = BlockTransactions::Full(txs);
-                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(updated_block)).await {
+                                block.transactions = BlockTransactions::Full(txs);
+                                let block_update = BlockUpdate { block };
+                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block_update)).await {
                                     error!("new_block_with_tx_channel.send updated block error: {e}");
                                 }
                             }
@@ -150,9 +156,7 @@ where
                                     marker_state_guard.apply_geth_update(state_update.clone());
                                 }
                             }
-                            //panic!("NOT_IMPLEMENTED")
-                            // TODO : Fix
-                            //marker_state_guard.state_db = marker_state_guard.state_db.clone().merge_all();
+                            marker_state_guard.state_db = marker_state_guard.state_db.clone().maintain();
                         }
                     }
                 }

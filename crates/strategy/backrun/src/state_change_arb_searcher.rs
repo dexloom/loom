@@ -17,13 +17,14 @@ use crate::BackrunConfig;
 use crate::SwapCalculator;
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, Strategy};
 use loom_evm_db::DatabaseHelpers;
 use loom_types_blockchain::SwapError;
 use loom_types_entities::config::StrategyConfig;
 use loom_types_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
 use loom_types_events::{
-    BestTxCompose, HealthEvent, Message, MessageHealthEvent, MessageTxCompose, StateUpdateEvent, TxCompose, TxComposeData,
+    BestTxSwapCompose, HealthEvent, Message, MessageHealthEvent, MessageSwapCompose, StateUpdateEvent, SwapComposeData, SwapComposeMessage,
+    TxComposeData,
 };
 
 async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static>(
@@ -31,7 +32,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     backrun_config: BackrunConfig,
     state_update_event: StateUpdateEvent<DB>,
     market: SharedState<Market>,
-    swap_request_tx: Broadcaster<MessageTxCompose<DB>>,
+    swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> Result<()> {
     debug!("Message received {} stuffing : {:?}", state_update_event.origin, state_update_event.stuffing_tx_hash());
@@ -39,15 +40,17 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     let mut db = state_update_event.market_state().clone();
     DatabaseHelpers::apply_geth_state_update_vec(&mut db, state_update_event.state_update().clone());
 
-    let start_time = chrono::Local::now();
+    let start_time = std::time::Instant::now();
     let mut swap_path_vec: Vec<SwapPath> = Vec::new();
 
     let market_guard_read = market.read().await;
+    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.read acquired");
+
     for (pool, v) in state_update_event.directions().iter() {
         let pool_paths: Vec<SwapPath> = match market_guard_read.get_pool_paths(&pool.get_address()) {
             Some(paths) => paths
                 .into_iter()
-                .filter(|swap_path| !swap_path.pools.iter().any(|pool| !market_guard_read.is_pool_ok(&pool.get_address())))
+                .filter(|swap_path| !swap_path.pools.iter().any(|pool| !market_guard_read.is_pool_disabled(&pool.get_address())))
                 .collect(),
             None => {
                 let mut pool_direction: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
@@ -59,16 +62,18 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
         swap_path_vec.extend(pool_paths)
     }
     drop(market_guard_read);
+    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.read released");
 
     if swap_path_vec.is_empty() {
         debug!(
-            "No swap path built for request: {:?} {}",
-            state_update_event.stuffing_txs_hashes().first().unwrap_or_default(),
-            chrono::Local::now() - start_time
+            request=?state_update_event.stuffing_txs_hashes().first().unwrap_or_default(),
+            elapsed=start_time.elapsed().as_micros(),
+            "No swap path built",
+
         );
         return Err(eyre!("NO_SWAP_PATHS"));
     }
-    info!("Calculation started: swap_path_vec_len={} elapsed={}", swap_path_vec.len(), chrono::Local::now() - start_time);
+    info!("Calculation started: swap_path_vec_len={} elapsed={}", swap_path_vec.len(), start_time.elapsed().as_micros());
 
     let env = state_update_event.evm_env();
 
@@ -92,7 +97,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                     Ok(_) => {
                         #[cfg(not(debug_assertions))]
                         {
-                            if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                            if took_time > TimeDelta::new(0, 50 * 1000000).unwrap() {
                                 warn!("Took longer than expected {} {}", took_time, mut_item.clone())
                             }
                         }
@@ -111,7 +116,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                     Err(e) => {
                         #[cfg(not(debug_assertions))]
                         {
-                            if took_time > TimeDelta::new(0, 10 * 1000000).unwrap() {
+                            if took_time > TimeDelta::new(0, 10 * 5000000).unwrap() {
                                 warn!("Took longer than expected {:?} {}", e, mut_item.clone())
                             }
                         }
@@ -124,41 +129,44 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                 }
             });
         });
-        debug!(elapsed = %(chrono::Local::now() - start_time), "Calculation iteration finished");
+        debug!(elapsed = start_time.elapsed().as_micros(), "Calculation iteration finished");
     });
 
-    debug!(elapsed = %(chrono::Local::now() - start_time), "Calculation results receiver started" );
+    debug!(elapsed = start_time.elapsed().as_micros(), "Calculation results receiver started");
 
     let swap_request_tx_clone = swap_request_tx.clone();
     let pool_health_monitor_tx_clone = pool_health_monitor_tx.clone();
 
     let mut answers = 0;
 
-    let mut best_answers = BestTxCompose::new_with_pct(U256::from(9000));
+    let mut best_answers = BestTxSwapCompose::new_with_pct(U256::from(9000));
 
     let mut failed_pools: HashSet<SwapError> = HashSet::new();
 
     while let Some(swap_line_result) = swap_line_rx.recv().await {
         match swap_line_result {
             Ok(swap_line) => {
-                let encode_request = TxCompose::Route(TxComposeData {
-                    eoa: backrun_config.eoa(),
-                    next_block_number: state_update_event.next_block_number,
-                    next_block_timestamp: state_update_event.next_block_timestamp,
-                    next_block_base_fee: state_update_event.next_base_fee,
-                    gas: swap_line.gas_used.unwrap_or(300000),
-                    stuffing_txs: state_update_event.stuffing_txs.clone(),
-                    stuffing_txs_hashes: state_update_event.stuffing_txs_hashes.clone(),
+                let prepare_request = SwapComposeMessage::Prepare(SwapComposeData {
+                    tx_compose: TxComposeData {
+                        eoa: backrun_config.eoa(),
+                        next_block_number: state_update_event.next_block_number,
+                        next_block_timestamp: state_update_event.next_block_timestamp,
+                        next_block_base_fee: state_update_event.next_base_fee,
+                        gas: swap_line.gas_used.unwrap_or(300000),
+                        stuffing_txs: state_update_event.stuffing_txs.clone(),
+                        stuffing_txs_hashes: state_update_event.stuffing_txs_hashes.clone(),
+                        ..TxComposeData::default()
+                    },
                     swap: Swap::BackrunSwapLine(swap_line),
                     origin: Some(state_update_event.origin.clone()),
                     tips_pct: Some(state_update_event.tips_pct),
                     poststate: Some(db.clone()),
                     poststate_update: Some(state_update_event.state_update().clone()),
-                    ..TxComposeData::default()
+                    ..SwapComposeData::default()
                 });
 
-                if !backrun_config.smart() || best_answers.check(&encode_request) {
-                    if let Err(e) = swap_request_tx_clone.send(Message::new(encode_request)).await {
+                if !backrun_config.smart() || best_answers.check(&prepare_request) {
+                    if let Err(e) = swap_request_tx_clone.send(Message::new(prepare_request)).await {
                         error!("swap_request_tx_clone.send {}", e)
                     }
                 }
@@ -178,7 +186,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
         origin = %state_update_event.origin,
         swap_path_vec_len,
         answers,
-        elapsed = %(chrono::Local::now() - start_time),
+        elapsed = start_time.elapsed().as_micros(),
         stuffing_hash = %state_update_event.stuffing_tx_hash(),
         "Calculation finished"
     );
@@ -192,14 +200,15 @@ pub async fn state_change_arb_searcher_worker<
     backrun_config: BackrunConfig,
     market: SharedState<Market>,
     search_request_rx: Broadcaster<StateUpdateEvent<DB>>,
-    swap_request_tx: Broadcaster<MessageTxCompose<DB>>,
+    swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
 ) -> WorkerResult {
     subscribe!(search_request_rx);
 
     let cpus = num_cpus::get();
-    info!("Starting state arb searcher cpus={cpus}, tasks={}", cpus / 2);
-    let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(cpus / 2).build()?);
+    let tasks = (cpus * 8) / 10;
+    info!("Starting state arb searcher cpus={cpus}, tasks={tasks}");
+    let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(tasks).build()?);
 
     loop {
         tokio::select! {
@@ -230,7 +239,7 @@ pub struct StateChangeArbSearcherActor<DB: Clone + Send + Sync + 'static> {
     #[consumer]
     state_update_rx: Option<Broadcaster<StateUpdateEvent<DB>>>,
     #[producer]
-    compose_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
     pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
 }
@@ -240,12 +249,12 @@ impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateCh
         StateChangeArbSearcherActor { backrun_config, market: None, state_update_rx: None, compose_tx: None, pool_health_monitor_tx: None }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
         Self {
             market: Some(bc.market()),
-            compose_tx: Some(bc.compose_channel()),
             pool_health_monitor_tx: Some(bc.pool_health_monitor_channel()),
-            state_update_rx: Some(bc.state_update_channel()),
+            compose_tx: Some(strategy.swap_compose_channel()),
+            state_update_rx: Some(strategy.state_update_channel()),
             ..self
         }
     }

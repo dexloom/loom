@@ -20,7 +20,7 @@ use tracing::{debug, error, warn};
 
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::{debug_trace_call_diff, GethStateUpdateVec, Mempool, TRACING_CALL_OPTS};
 use loom_types_entities::required_state::{accounts_vec_len, storage_vec_len};
@@ -147,9 +147,10 @@ where
             merged_state_update_vec.push(pre);
             merged_state_update_vec.push(post);
         }
-        Err(e) => {
-            mempool.write().await.set_failed(tx.tx_hash());
-            debug!("debug_trace_call error for cur_block_number={}, hash={:?}, err={}", cur_block_number, tx.tx_hash(), e);
+        Err(error) => {
+            let tx_hash = tx.tx_hash();
+            mempool.write().await.set_failed(tx_hash);
+            debug!(block=cur_block_number, %tx_hash, %error, "debug_trace_call error for");
         }
     }
 
@@ -374,15 +375,15 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>, strategy: &Strategy<DB>) -> Self {
         Self {
             market: Some(bc.market()),
             mempool: Some(bc.mempool()),
-            market_state: Some(bc.market_state()),
+            market_state: Some(state.market_state()),
             latest_block: Some(bc.latest_block()),
             market_events_rx: Some(bc.market_events_channel()),
             mempool_events_rx: Some(bc.mempool_events_channel()),
-            state_updates_tx: Some(bc.state_update_channel()),
+            state_updates_tx: Some(strategy.state_update_channel()),
             ..self
         }
     }

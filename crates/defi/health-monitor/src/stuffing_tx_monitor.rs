@@ -17,8 +17,7 @@ use loom_types_entities::{LatestBlock, Swap, Token};
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_types_blockchain::debug_trace_transaction;
-use loom_types_events::{MarketEvents, MessageTxCompose, TxCompose};
-use revm::DatabaseRef;
+use loom_types_events::{MarketEvents, MessageTxCompose, TxComposeMessageType};
 
 #[derive(Clone, Debug)]
 struct TxToCheck {
@@ -45,17 +44,13 @@ async fn check_mf_tx<P: Provider<T, Ethereum> + 'static, T: Transport + Clone>(
     Ok(())
 }
 
-pub async fn stuffing_tx_monitor_worker<
-    P: Provider<T, Ethereum> + Clone + 'static,
-    T: Transport + Clone,
-    DB: DatabaseRef + Send + Sync + Clone + 'static,
->(
+pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'static, T: Transport + Clone>(
     client: P,
     latest_block: SharedState<LatestBlock>,
-    tx_compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
+    tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    let mut tx_compose_channel_rx: Receiver<MessageTxCompose<DB>> = tx_compose_channel_rx.subscribe().await;
+    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
 
     let mut txs_to_check: HashMap<TxHash, TxToCheck> = HashMap::new();
@@ -94,33 +89,35 @@ pub async fn stuffing_tx_monitor_worker<
             },
 
             msg = tx_compose_channel_rx.recv() => {
-                let tx_compose_update : Result<MessageTxCompose<DB>, RecvError>  = msg;
+
+                let tx_compose_update : Result<MessageTxCompose, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
-                        if let TxCompose::Broadcast(broadcast_data) = tx_compose_msg.inner {
-                            for stuffing_tx_hash in broadcast_data.stuffing_txs_hashes.iter() {
+                        if let TxComposeMessageType::Sign(tx_compose_data) = tx_compose_msg.inner {
+                            for stuffing_tx_hash in tx_compose_data.stuffing_txs_hashes.iter() {
+                                let Some(swap) = & tx_compose_data.swap else {continue};
 
-                                let token_in = broadcast_data.swap.get_first_token().map_or(
+                                let token_in = swap.get_first_token().map_or(
                                     Arc::new(Token::new(Address::repeat_byte(0x11))), |x| x.clone()
                                 );
 
                                 let entry = txs_to_check.entry(*stuffing_tx_hash).or_insert(
                                         TxToCheck{
-                                                block : broadcast_data.next_block_number,
+                                                block : tx_compose_data.next_block_number,
                                                 token_in : token_in.as_ref().clone(),
                                                 profit : U256::ZERO,
                                                 tips : U256::ZERO,
-                                                swap : broadcast_data.swap.clone(),
+                                                swap : swap.clone(),
                                         }
                                 );
-                                let profit = broadcast_data.swap.abs_profit();
+                                let profit = swap.abs_profit();
                                 let profit = token_in.calc_eth_value(profit).unwrap_or_default();
 
                                 if entry.profit < profit {
                                     entry.token_in = token_in.as_ref().clone();
                                     entry.profit = profit;
-                                    entry.tips = broadcast_data.tips.unwrap_or_default();
-                                    entry.swap = broadcast_data.swap.clone()
+                                    entry.tips = tx_compose_data.tips.unwrap_or_default();
+                                    entry.swap = swap.clone();
                                 }
                             }
                         }
@@ -129,49 +126,42 @@ pub async fn stuffing_tx_monitor_worker<
                         error!("tx_compose_channel_rx : {e}")
                     }
                 }
-
             }
         }
     }
 }
 
 #[derive(Accessor, Consumer)]
-pub struct StuffingTxMonitorActor<P, T, DB: Send + Sync + Clone + 'static> {
+pub struct StuffingTxMonitorActor<P, T> {
     client: P,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
-    tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     _t: PhantomData<T>,
 }
 
-impl<
-        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
-        T: Transport + Clone,
-        DB: DatabaseRef + Send + Sync + Clone + Default + 'static,
-    > StuffingTxMonitorActor<P, T, DB>
-{
+impl<P: Provider<T, Ethereum> + Send + Sync + Clone + 'static, T: Transport + Clone> StuffingTxMonitorActor<P, T> {
     pub fn new(client: P) -> Self {
         StuffingTxMonitorActor { client, latest_block: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
         Self {
             latest_block: Some(bc.latest_block()),
-            tx_compose_channel_rx: Some(bc.compose_channel()),
+            tx_compose_channel_rx: Some(bc.tx_compose_channel()),
             market_events_rx: Some(bc.market_events_channel()),
             ..self
         }
     }
 }
 
-impl<P, T, DB> Actor for StuffingTxMonitorActor<P, T, DB>
+impl<P, T> Actor for StuffingTxMonitorActor<P, T>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone + Default + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(stuffing_tx_monitor_worker(

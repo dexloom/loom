@@ -1,13 +1,12 @@
-use alloy_primitives::TxHash;
-
 use loom_types_blockchain::SwapError;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 use crate::Message;
 
 #[derive(Clone, Debug)]
-pub enum HealthEvent {
-    PoolSwapError(SwapError),
-    MonitorTx(TxHash),
+pub enum HealthEvent<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    PoolSwapError(SwapError<LDT>),
+    MonitorTx(LDT::TxHash),
 }
 
-pub type MessageHealthEvent = Message<HealthEvent>;
+pub type MessageHealthEvent<LDT = LoomDataTypesEthereum> = Message<HealthEvent<LDT>>;

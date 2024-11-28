@@ -1,6 +1,5 @@
-use alloy_eips::eip2718::Encodable2718;
+use alloy_primitives::Bytes;
 use eyre::{eyre, Result};
-use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
 use tracing::{error, info};
@@ -8,11 +7,12 @@ use tracing::{error, info};
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
-use loom_types_events::{MessageTxCompose, RlpState, TxCompose, TxComposeData, TxState};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum, LoomTx};
+use loom_types_events::{MessageTxCompose, RlpState, TxComposeData, TxComposeMessageType, TxState};
 
-async fn sign_task<DB: Send + Sync + Clone>(
-    sign_request: TxComposeData<DB>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+async fn sign_task<LDT: LoomDataTypes>(
+    sign_request: TxComposeData<LDT>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<LDT>>,
 ) -> Result<()> {
     let signer = match sign_request.signer.clone() {
         Some(signer) => signer,
@@ -28,9 +28,12 @@ async fn sign_task<DB: Send + Sync + Clone>(
         .unwrap()
         .iter()
         .map(|tx_request| match &tx_request {
-            TxState::Stuffing(t) => RlpState::Stuffing(t.inner.encoded_2718().into()),
+            TxState::Stuffing(t) => RlpState::Stuffing(t.encode().into()),
             TxState::SignatureRequired(t) => {
-                let (tx_hash, signed_tx_bytes) = signer.sign_sync(t.clone()).unwrap();
+                let tx = signer.sign_sync(t.clone()).unwrap();
+                let tx_hash = tx.tx_hash();
+                let signed_tx_bytes = Bytes::from(tx.encode());
+
                 info!("Tx signed {tx_hash:?}");
                 RlpState::Backrun(signed_tx_bytes)
             }
@@ -55,20 +58,20 @@ async fn sign_task<DB: Send + Sync + Clone>(
     }
 }
 
-async fn request_listener_worker<DB: Send + Sync + Clone>(
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+async fn request_listener_worker<LDT: LoomDataTypes>(
+    compose_channel_rx: Broadcaster<MessageTxCompose<LDT>>,
+    compose_channel_tx: Broadcaster<MessageTxCompose<LDT>>,
 ) -> WorkerResult {
-    let mut compose_channel_rx: Receiver<MessageTxCompose<DB>> = compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageTxCompose<LDT>> = compose_channel_rx.subscribe().await;
 
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let compose_request_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let compose_request_msg : Result<MessageTxCompose<LDT>, RecvError> = msg;
                 match compose_request_msg {
                     Ok(compose_request) =>{
 
-                        if let TxCompose::Sign( sign_request)= compose_request.inner {
+                        if let TxComposeMessageType::Sign( sign_request)= compose_request.inner {
                             tokio::task::spawn(
                                 sign_task(
                                     sign_request,
@@ -84,31 +87,31 @@ async fn request_listener_worker<DB: Send + Sync + Clone>(
     }
 }
 
-#[derive(Accessor, Consumer, Producer, Default)]
-pub struct TxSignersActor<DB: Send + Sync + Clone + 'static> {
+#[derive(Accessor, Consumer, Producer)]
+pub struct TxSignersActor<LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageTxCompose<LDT>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageTxCompose<LDT>>>,
 }
 
-impl<DB> TxSignersActor<DB>
-where
-    DB: DatabaseRef + Clone + Send + Sync + Default,
-{
-    pub fn new() -> TxSignersActor<DB> {
-        TxSignersActor::default()
-    }
-
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self { compose_channel_rx: Some(bc.compose_channel()), compose_channel_tx: Some(bc.compose_channel()) }
+impl<LDT: LoomDataTypes + 'static> Default for TxSignersActor<LDT> {
+    fn default() -> Self {
+        Self { compose_channel_rx: None, compose_channel_tx: None }
     }
 }
 
-impl<DB> Actor for TxSignersActor<DB>
-where
-    DB: DatabaseRef + Clone + Send + Sync,
-{
+impl<LDT: LoomDataTypes> TxSignersActor<LDT> {
+    pub fn new() -> TxSignersActor<LDT> {
+        TxSignersActor::<LDT>::default()
+    }
+
+    pub fn on_bc(self, bc: &Blockchain<LDT>) -> Self {
+        Self { compose_channel_rx: Some(bc.tx_compose_channel()), compose_channel_tx: Some(bc.tx_compose_channel()) }
+    }
+}
+
+impl<LDT: LoomDataTypes> Actor for TxSignersActor<LDT> {
     fn start(&self) -> ActorResult {
         let task =
             tokio::task::spawn(request_listener_worker(self.compose_channel_rx.clone().unwrap(), self.compose_channel_tx.clone().unwrap()));

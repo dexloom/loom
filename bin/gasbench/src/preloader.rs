@@ -3,7 +3,7 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use loom_core_actors::SharedState;
 use loom_defi_address_book::{
-    CurveMetapoolAddress, CurvePoolAddress, PancakeV2PoolAddress, PancakeV3PoolAddress, TokenAddress, UniswapV2PoolAddress,
+    CurveMetapoolAddress, CurvePoolAddress, PancakeV2PoolAddress, PancakeV3PoolAddress, TokenAddressEth, UniswapV2PoolAddress,
     UniswapV3PoolAddress,
 };
 use loom_defi_market::fetch_and_add_pool_by_address;
@@ -24,14 +24,14 @@ where
 {
     let mut market_instance = market.write().await;
 
-    market_instance.add_token(Token::new_with_data(TokenAddress::WETH, Some("WETH".to_string()), None, Some(18), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddress::THREECRV, Some("3Crv".to_string()), None, Some(18), false, true))?;
-    market_instance.add_token(Token::new_with_data(TokenAddress::CRV, Some("Crv".to_string()), None, Some(18), false, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddress::LUSD, Some("LUSD".to_string()), None, Some(18), false, false))?;
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::WETH, Some("WETH".to_string()), None, Some(18), true, false))?;
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::USDC, Some("USDC".to_string()), None, Some(6), true, false))?;
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::USDT, Some("USDT".to_string()), None, Some(6), true, false))?;
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::DAI, Some("DAI".to_string()), None, Some(18), true, false))?;
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::WBTC, Some("WBTC".to_string()), None, Some(8), true, false))?;
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::THREECRV, Some("3Crv".to_string()), None, Some(18), false, true))?;
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::CRV, Some("Crv".to_string()), None, Some(18), false, false))?;
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::LUSD, Some("LUSD".to_string()), None, Some(18), false, false))?;
 
     drop(market_instance);
 

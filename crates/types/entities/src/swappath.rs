@@ -1,46 +1,77 @@
-use std::collections::{HashMap, HashSet};
+use alloy_primitives::map::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
-use std::ops::Deref;
 use std::sync::Arc;
 
-use alloy_primitives::Address;
-use eyre::Result;
-
 use crate::{PoolWrapper, Token};
+use eyre::Result;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct SwapPath {
-    pub tokens: Vec<Arc<Token>>,
-    pub pools: Vec<PoolWrapper>,
+#[derive(Clone, Debug)]
+pub struct SwapPath<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub tokens: Vec<Arc<Token<LDT>>>,
+    pub pools: Vec<PoolWrapper<LDT>>,
+    pub disabled: bool,
 }
 
-impl SwapPath {
-    pub fn new<T: Into<Arc<Token>>, P: Into<PoolWrapper>>(tokens: Vec<T>, pools: Vec<P>) -> Self {
-        SwapPath { tokens: tokens.into_iter().map(|i| i.into()).collect(), pools: pools.into_iter().map(|i| i.into()).collect() }
+impl<LDT: LoomDataTypes> Default for SwapPath<LDT> {
+    #[inline]
+    fn default() -> Self {
+        SwapPath::<LDT> { tokens: Vec::new(), pools: Vec::new(), disabled: false }
+    }
+}
+
+impl<LDT: LoomDataTypes> PartialEq for SwapPath<LDT> {
+    fn eq(&self, other: &Self) -> bool {
+        self.tokens == other.tokens && self.pools == other.pools
+    }
+}
+
+impl<LDT: LoomDataTypes> Eq for SwapPath<LDT> {}
+
+impl<LDT: LoomDataTypes> Hash for SwapPath<LDT> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.tokens.hash(state);
+        self.pools.hash(state);
+    }
+}
+
+impl<LDT: LoomDataTypes> SwapPath<LDT> {
+    #[inline]
+    pub fn new<T: Into<Arc<Token<LDT>>>, P: Into<PoolWrapper<LDT>>>(tokens: Vec<T>, pools: Vec<P>) -> Self {
+        SwapPath {
+            tokens: tokens.into_iter().map(|i| i.into()).collect(),
+            pools: pools.into_iter().map(|i| i.into()).collect(),
+            disabled: false,
+        }
     }
 
+    #[inline]
     pub fn is_emply(&self) -> bool {
         self.tokens.is_empty() && self.pools.is_empty()
     }
 
+    #[inline]
     pub fn tokens_count(&self) -> usize {
         self.tokens.len()
     }
 
+    #[inline]
     pub fn pool_count(&self) -> usize {
         self.pools.len()
     }
 
-    pub fn new_swap(token_from: Arc<Token>, token_to: Arc<Token>, pool: PoolWrapper) -> Self {
-        SwapPath { tokens: vec![token_from, token_to], pools: vec![pool] }
+    #[inline]
+    pub fn new_swap(token_from: Arc<Token<LDT>>, token_to: Arc<Token<LDT>>, pool: PoolWrapper<LDT>) -> Self {
+        SwapPath { tokens: vec![token_from, token_to], pools: vec![pool], disabled: false }
     }
 
-    pub fn push_swap_hope(&mut self, token_from: Arc<Token>, token_to: Arc<Token>, pool: PoolWrapper) -> Result<&mut Self> {
+    #[inline]
+    pub fn push_swap_hope(&mut self, token_from: Arc<Token<LDT>>, token_to: Arc<Token<LDT>>, pool: PoolWrapper<LDT>) -> Result<&mut Self> {
         if self.is_emply() {
             self.tokens = vec![token_from, token_to];
             self.pools = vec![pool];
         } else {
-            if token_from.as_ref() != self.tokens.last().map_or(&Default::default(), |t| t.as_ref()) {
+            if token_from.as_ref() != self.tokens.last().map_or(&Token::<LDT>::zero(), |t| t.as_ref()) {
                 return Err(eyre::eyre!("NEW_SWAP_NOT_CONNECTED"));
             }
             self.tokens.push(token_to);
@@ -49,12 +80,18 @@ impl SwapPath {
         Ok(self)
     }
 
-    pub fn insert_swap_hope(&mut self, token_from: Arc<Token>, token_to: Arc<Token>, pool: PoolWrapper) -> Result<&mut Self> {
+    #[inline]
+    pub fn insert_swap_hope(
+        &mut self,
+        token_from: Arc<Token<LDT>>,
+        token_to: Arc<Token<LDT>>,
+        pool: PoolWrapper<LDT>,
+    ) -> Result<&mut Self> {
         if self.is_emply() {
             self.tokens = vec![token_from, token_to];
             self.pools = vec![pool];
         } else {
-            if token_to.as_ref() != self.tokens.first().map_or(&Default::default(), |t| t.as_ref()) {
+            if token_to.as_ref() != self.tokens.first().map_or(&Token::<LDT>::zero(), |t| t.as_ref()) {
                 return Err(eyre::eyre!("NEW_SWAP_NOT_CONNECTED"));
             }
             self.tokens.insert(0, token_from);
@@ -64,9 +101,10 @@ impl SwapPath {
         Ok(self)
     }
 
-    pub fn contains_pool(&self, pool: &PoolWrapper) -> bool {
+    #[inline]
+    pub fn contains_pool(&self, pool: &PoolWrapper<LDT>) -> bool {
         for p in self.pools.iter() {
-            if p.get_address() == pool.get_address() {
+            if p == pool {
                 return true;
             }
         }
@@ -74,68 +112,74 @@ impl SwapPath {
     }
 }
 
-impl Hash for SwapPath {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        self.tokens.hash(state);
-        self.pools.hash(state);
-    }
-}
-
 #[derive(Clone, Debug, Default)]
-pub struct SwapPaths {
-    paths: HashSet<Arc<SwapPath>>,
-    pool_paths: HashMap<Address, Arc<Vec<SwapPath>>>,
+pub struct SwapPaths<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    paths: HashSet<SwapPath<LDT>>,
+    pool_paths: HashMap<LDT::Address, HashSet<SwapPath<LDT>>>,
 }
 
-impl SwapPaths {
-    pub fn new() -> SwapPaths {
-        SwapPaths { paths: HashSet::new(), pool_paths: HashMap::new() }
+impl<LDT: LoomDataTypes> SwapPaths<LDT> {
+    pub fn new() -> SwapPaths<LDT> {
+        SwapPaths { paths: HashSet::default(), pool_paths: HashMap::default() }
     }
-    pub fn from(paths: Vec<SwapPath>) -> Self {
-        let mut ret = Self::default();
+    pub fn from(paths: Vec<SwapPath<LDT>>) -> Self {
+        let mut swap_paths_ret = SwapPaths::<LDT>::new();
         for p in paths {
-            ret.add(p);
+            swap_paths_ret.add(p);
         }
-        ret
+        swap_paths_ret
     }
 
-    pub fn add_mut(&mut self, path: SwapPath) -> bool {
-        let rc_path = Arc::new(path.clone());
-
-        if self.paths.insert(rc_path.clone()) {
-            for pool in rc_path.pools.iter() {
-                let mut e = self.pool_paths.get(&pool.get_address()).cloned().unwrap_or(Arc::new(Vec::new()));
-                let e_mut = Arc::make_mut(&mut e);
-
-                e_mut.push(path.clone());
-                self.pool_paths.insert(pool.get_address(), e);
-            }
-            true
-        } else {
-            false
-        }
+    pub fn len(&self) -> usize {
+        self.paths.len()
     }
 
-    pub fn add<T: Into<SwapPath> + Clone>(&mut self, path: T) {
-        let rc_path: Arc<SwapPath> = Arc::new(path.clone().into());
+    pub fn is_empty(&self) -> bool {
+        self.paths.is_empty()
+    }
 
-        if self.paths.insert(rc_path.clone()) {
-            for pool in rc_path.pools.iter() {
-                let mut e = self.pool_paths.get(&pool.get_address()).cloned().map_or_else(Vec::new, |v| v.deref().clone());
-                //let e_mut = Arc::make_mut(&mut e);
+    pub fn len_max(&self) -> usize {
+        self.pool_paths.values().map(|item| item.len()).max().unwrap_or_default()
+    }
 
-                e.push(path.clone().into());
-                self.pool_paths.insert(pool.get_address(), Arc::new(e));
+    #[inline]
+    pub fn add(&mut self, path: SwapPath<LDT>) {
+        if self.paths.insert(path.clone()) {
+            for pool in path.pools.iter() {
+                self.pool_paths.entry(pool.get_address()).or_default().insert(path.clone());
             }
         }
     }
 
-    pub fn get_pool_paths_hashset(&self, pool_address: &Address) -> Option<&Arc<Vec<SwapPath>>> {
+    #[inline]
+    pub fn replace(&mut self, path: SwapPath<LDT>) {
+        self.paths.replace(path.clone());
+        for pool in path.pools.iter() {
+            self.pool_paths.entry(pool.get_address()).or_default().replace(path.clone());
+        }
+    }
+
+    pub fn disable_pool(&mut self, pool_address: &LDT::Address, disabled: bool) {
+        let Some(pool_paths) = self.pool_paths.get(pool_address).cloned() else { return };
+
+        for path in pool_paths.into_iter() {
+            self.replace(SwapPath { disabled, ..path })
+        }
+    }
+
+    #[inline]
+    pub fn get_pool_paths_hashset(&self, pool_address: &LDT::Address) -> Option<&HashSet<SwapPath<LDT>>> {
         self.pool_paths.get(pool_address)
     }
+    #[allow(clippy::mutable_key_type)]
+    #[inline]
+    pub fn get_pool_paths_vec(&self, pool_address: &LDT::Address) -> Option<Vec<SwapPath<LDT>>> {
+        let paths = self.pool_paths.get(pool_address)?;
 
-    pub fn get_pool_paths_vec(&self, pool_address: &Address) -> Option<Vec<SwapPath>> {
-        self.get_pool_paths_hashset(pool_address).map(|set| set.iter().cloned().collect())
+        let paths_vec_ret: Vec<SwapPath<LDT>> =
+            paths.iter().filter_map(|path| if !path.disabled { Some(path.clone()) } else { None }).collect();
+
+        paths_vec_ret.is_empty().then_some(paths_vec_ret)
     }
 }
 
@@ -145,7 +189,7 @@ mod test {
     use crate::pool::DefaultAbiSwapEncoder;
     use crate::required_state::RequiredState;
     use crate::{AbiSwapEncoder, Pool};
-    use alloy_primitives::U256;
+    use alloy_primitives::{Address, U256};
     use eyre::{eyre, ErrReport};
     use revm::primitives::Env;
     use revm::DatabaseRef;
@@ -250,7 +294,7 @@ mod test {
 
         let mut paths = SwapPaths::from(paths_vec.clone());
         for path in paths_vec.clone() {
-            println!("{}", paths.add_mut(path));
+            paths.add(path);
         }
 
         let paths_shared = Arc::new(tokio::sync::RwLock::new(paths));

@@ -6,13 +6,13 @@ use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_evm_db::DatabaseLoomExt;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::ChainParameters;
 use loom_types_entities::{BlockHistory, BlockHistoryManager, BlockHistoryState, LatestBlock, MarketState};
 use loom_types_events::{MarketEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::borrow::BorrowMut;
 use std::marker::PhantomData;
 use std::ops::DerefMut;
@@ -126,7 +126,7 @@ where
                 let block_update : Result<MessageBlock, RecvError>  = msg;
                 match block_update {
                     Ok(block)=>{
-                        let block = block.inner;
+                        let block = block.inner.block;
                         let block_header : Header = block.header.clone();
                         let block_hash : BlockHash = block_header.hash;
                         let block_number : BlockNumber = block_header.number;
@@ -303,15 +303,13 @@ where
                     info!("market state updated ok records : update len: {} accounts: {} contracts: {} storage: {}", msg.state_update.len(),
                          updated_db.accounts_len(), updated_db.contracts_len() , updated_db.storage_len() );
 
-                    market_state_guard.state_db = updated_db;
+                    market_state_guard.state_db = updated_db.clone();
                     market_state_guard.block_hash = msg_block_hash;
                     market_state_guard.block_number = latest_block_number;
 
 
                     run_async!(market_events_tx.send(MarketEvents::BlockStateUpdate{ block_hash : msg_block_hash} ));
 
-                    // TODO LoomDB Merging
-                    /*
 
                     #[cfg(not(debug_assertions))]
                     {
@@ -319,7 +317,7 @@ where
                         let market_state_clone = market_state.clone();
 
                         tokio::task::spawn( async move{
-                            let merged_db = new_market_state_db.merge_all();
+                            let merged_db = updated_db.maintain();
                             let mut market_state_guard = market_state_clone.write().await;
                             market_state_guard.state_db = merged_db;
                             debug!("Merged DB stored in MarketState at block {}", msg_block_number)
@@ -329,18 +327,18 @@ where
                     #[cfg(debug_assertions)]
                     {
 
-                        market_state_guard.state_db = new_market_state_db.merge_all();
+                        market_state_guard.state_db = updated_db.maintain();
 
-                        let accounts_len = market_state_guard.state_db.accounts_len();
-                        let accounts_db_len = market_state_guard.state_db.ro_accounts_len();
+                        let accounts = market_state_guard.state_db.accounts_len();
 
-                        let storage_len = market_state_guard.state_db.storage_len();
-                        let storage_db_len = market_state_guard.state_db.ro_storage_len();
+                        let storage = market_state_guard.state_db.storage_len();
+                        let contracts = market_state_guard.state_db.contracts_len();
 
-                        trace!("Merging finished. Market state len accounts {}/{} storage {}/{}", accounts_len, accounts_db_len, storage_len, storage_db_len);
+                        trace!(accounts, storage, contracts, "Merging finished. Market state len" );
 
                     }
-                     */
+
+
 
                 }
 
@@ -376,7 +374,7 @@ impl<P, T, DB> BlockHistoryActor<P, T, DB>
 where
     T: Transport + Sync + Send + Clone + 'static,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Sync + Send + Clone + 'static,
-    DB: DatabaseRef + BlockHistoryState + DatabaseLoomExt + Send + Sync + Clone + Default + 'static,
+    DB: DatabaseRef + BlockHistoryState + DatabaseLoomExt + DatabaseCommit + Database + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -394,17 +392,17 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
         Self {
             chain_parameters: bc.chain_parameters(),
             latest_block: Some(bc.latest_block()),
-            market_state: Some(bc.market_state()),
-            block_history: Some(bc.block_history()),
             block_header_update_rx: Some(bc.new_block_headers_channel()),
             block_update_rx: Some(bc.new_block_with_tx_channel()),
             log_update_rx: Some(bc.new_block_logs_channel()),
             state_update_rx: Some(bc.new_block_state_update_channel()),
             market_events_tx: Some(bc.market_events_channel()),
+            market_state: Some(state.market_state()),
+            block_history: Some(state.block_history()),
             ..self
         }
     }

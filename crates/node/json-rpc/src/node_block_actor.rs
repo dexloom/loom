@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use revm::DatabaseRef;
 use tokio::task::JoinHandle;
 
 use crate::node_block_hash_worker::new_node_block_header_worker;
@@ -15,6 +14,7 @@ use loom_core_actors_macros::Producer;
 use loom_core_blockchain::Blockchain;
 use loom_node_actor_config::NodeBlockActorConfig;
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 
 pub fn new_node_block_workers_starter<P, T>(
@@ -86,7 +86,7 @@ where
         }
     }
 
-    pub fn on_bc<DB: DatabaseRef + Send + Sync + Clone + 'static>(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<LoomDataTypesEthereum>) -> Self {
         Self {
             block_header_channel: if self.config.block_header { Some(bc.new_block_headers_channel()) } else { None },
             block_with_tx_channel: if self.config.block_with_tx { Some(bc.new_block_with_tx_channel()) } else { None },

@@ -11,8 +11,10 @@ use alloy_transport::Transport;
 use eyre::ErrReport;
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::{Blockchain, BlockchainState};
+use loom_evm_db::DatabaseLoomExt;
 use loom_node_debug_provider::{DebugProviderExt, HttpCachedTransport};
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::Mempool;
 use loom_types_entities::MarketState;
 use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageTxCompose};
@@ -28,7 +30,7 @@ pub struct NodeBlockPlayerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
-    compose_channel: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel: Option<Broadcaster<MessageTxCompose<LoomDataTypesEthereum>>>,
     #[producer]
     block_header_channel: Option<Broadcaster<MessageBlockHeader>>,
     #[producer]
@@ -46,7 +48,7 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P, start_block: BlockNumber, end_block: BlockNumber) -> NodeBlockPlayerActor<P, T, N, DB> {
         NodeBlockPlayerActor {
@@ -65,15 +67,15 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
         Self {
             mempool: Some(bc.mempool()),
-            market_state: Some(bc.market_state_commit()),
-            compose_channel: Some(bc.compose_channel()),
             block_header_channel: Some(bc.new_block_headers_channel()),
             block_with_tx_channel: Some(bc.new_block_with_tx_channel()),
             block_logs_channel: Some(bc.new_block_logs_channel()),
             block_state_update_channel: Some(bc.new_block_state_update_channel()),
+            market_state: Some(state.market_state_commit()),
+            compose_channel: Some(bc.tx_compose_channel()),
             ..self
         }
     }
@@ -84,7 +86,7 @@ where
     P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
     T: Send + Sync,
     N: Send + Sync,
-    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let mut handles: Vec<JoinHandle<WorkerResult>> = Vec::new();

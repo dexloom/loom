@@ -13,7 +13,7 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::Mempool;
 use loom_types_entities::{BlockHistory, LatestBlock, Market, MarketState};
-use loom_types_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageTxCompose};
+use loom_types_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageSwapCompose};
 
 use super::{PendingTxStateChangeProcessorActor, StateChangeArbSearcherActor};
 use crate::block_state_change_processor::BlockStateChangeProcessorActor;
@@ -40,7 +40,7 @@ pub struct StateChangeArbActor<P, T, N, DB: Clone + Send + Sync + 'static> {
     #[consumer]
     market_events_tx: Option<Broadcaster<MarketEvents>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
     pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
     _t: PhantomData<T>,

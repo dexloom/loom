@@ -1,43 +1,47 @@
-use alloy_primitives::TxHash;
-use alloy_rpc_types::{Block, Header, Log};
-
-use loom_types_blockchain::{GethStateUpdateVec, MempoolTx};
+use alloy_rpc_types::Header;
 
 use crate::Message;
+use loom_types_blockchain::{GethStateUpdateVec, MempoolTx};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug)]
-pub struct NodeMempoolDataUpdate {
-    pub tx_hash: TxHash,
-    pub mempool_tx: MempoolTx,
+pub struct NodeMempoolDataUpdate<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub tx_hash: LDT::TxHash,
+    pub mempool_tx: MempoolTx<LDT>,
 }
 
-pub type MessageMempoolDataUpdate = Message<NodeMempoolDataUpdate>;
+#[derive(Clone, Debug)]
+pub struct BlockUpdate<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub block: LDT::Block,
+}
 
 #[derive(Clone, Debug)]
-pub struct BlockStateUpdate {
-    pub block_header: Header,
+pub struct BlockStateUpdate<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub block_header: LDT::Header,
     pub state_update: GethStateUpdateVec,
 }
 
 #[derive(Clone, Debug)]
-pub struct BlockLogs {
-    pub block_header: Header,
-    pub logs: Vec<Log>,
+pub struct BlockLogs<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub block_header: LDT::Header,
+    pub logs: Vec<LDT::Log>,
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct BlockHeader {
-    pub header: Header,
+pub struct BlockHeader<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub header: LDT::Header,
     pub next_block_number: u64,
     pub next_block_timestamp: u64,
 }
 
-pub type MessageBlockHeader = Message<BlockHeader>;
-pub type MessageBlock = Message<Block>;
-pub type MessageBlockLogs = Message<BlockLogs>;
-pub type MessageBlockStateUpdate = Message<BlockStateUpdate>;
+pub type MessageMempoolDataUpdate<LDT = LoomDataTypesEthereum> = Message<NodeMempoolDataUpdate<LDT>>;
 
-impl BlockHeader {
+pub type MessageBlockHeader<LDT = LoomDataTypesEthereum> = Message<BlockHeader<LDT>>;
+pub type MessageBlock<LDT = LoomDataTypesEthereum> = Message<BlockUpdate<LDT>>;
+pub type MessageBlockLogs<LDT = LoomDataTypesEthereum> = Message<BlockLogs<LDT>>;
+pub type MessageBlockStateUpdate<LDT = LoomDataTypesEthereum> = Message<BlockStateUpdate<LDT>>;
+
+impl BlockHeader<LoomDataTypesEthereum> {
     pub fn new(header: Header) -> Self {
         let next_block_number = header.number + 1;
         let next_block_timestamp = header.timestamp + 12;

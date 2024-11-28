@@ -1,6 +1,6 @@
+use crate::call_sequence::CallSequence;
 use crate::tips::Tips;
 use crate::Swap;
-use crate::call_sequence::CallSequence;
 use alloy_primitives::{Address, BlockNumber, Bytes, U256};
 use eyre::Result;
 use std::ops::Deref;
@@ -16,6 +16,7 @@ pub trait SwapEncoder {
     ///
     /// returns (to. value, call_data) for transaction
 
+    #[allow(clippy::too_many_arguments)]
     fn encode(
         &self,
         swap: Swap,

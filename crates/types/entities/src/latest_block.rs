@@ -5,17 +5,18 @@ use alloy_rpc_types::state::{AccountOverride, StateOverride};
 use alloy_rpc_types::{Block, BlockTransactions, Header, Log, Transaction};
 
 use loom_types_blockchain::GethStateUpdateVec;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
-pub struct LatestBlock {
+pub struct LatestBlock<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub block_number: BlockNumber,
-    pub block_hash: BlockHash,
-    pub block_header: Option<Header>,
-    pub block_with_txs: Option<Block>,
-    pub logs: Option<Vec<Log>>,
-    pub diff: Option<GethStateUpdateVec>,
+    pub block_hash: LDT::BlockHash,
+    pub block_header: Option<LDT::Header>,
+    pub block_with_txs: Option<LDT::Block>,
+    pub logs: Option<Vec<LDT::Log>>,
+    pub diff: Option<Vec<LDT::StateUpdate>>,
 }
 
-impl LatestBlock {
+impl LatestBlock<LoomDataTypesEthereum> {
     pub fn hash(&self) -> BlockHash {
         self.block_hash
     }

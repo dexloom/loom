@@ -12,28 +12,29 @@ use eyre::{eyre, Result};
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info};
 
-use loom_core_blockchain::Blockchain;
+use loom_core_blockchain::Strategy;
 use loom_evm_utils::NWETH;
 use loom_types_entities::{Swap, SwapEncoder};
 
 use loom_broadcast_flashbots::Flashbots;
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Consumer, Producer};
-use loom_types_events::{MessageTxCompose, TxCompose, TxComposeData, TxState};
+use loom_types_blockchain::LoomTx;
+use loom_types_events::{MessageSwapCompose, SwapComposeData, SwapComposeMessage, TxComposeData, TxState};
 
 async fn estimator_task<
     T: Transport + Clone,
     P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Send + Sync + Clone,
 >(
-    estimate_request: TxComposeData<DB>,
+    estimate_request: SwapComposeData<DB>,
     client: Arc<Flashbots<P, T>>,
     swap_encoder: impl SwapEncoder,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> Result<()> {
     let token_in = estimate_request.swap.get_first_token().cloned().ok_or(eyre!("NO_TOKEN"))?;
 
-    let tx_signer = estimate_request.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
+    let tx_signer = estimate_request.tx_compose.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
 
     let profit = estimate_request.swap.abs_profit();
     if profit.is_zero() {
@@ -42,17 +43,17 @@ async fn estimator_task<
 
     let profit_eth = token_in.calc_eth_value(profit).ok_or(eyre!("CALC_ETH_VALUE_FAILED"))?;
 
-    let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
+    let gas_price = estimate_request.tx_compose.priority_gas_fee + estimate_request.tx_compose.next_block_base_fee;
     let gas_cost = U256::from(100_000 * gas_price);
 
     let (to, _, call_data, _) = swap_encoder.encode(
         estimate_request.swap.clone(),
         estimate_request.tips_pct,
-        Some(estimate_request.next_block_number),
+        Some(estimate_request.tx_compose.next_block_number),
         Some(gas_cost),
         Some(tx_signer.address()),
-        Some(estimate_request.eth_balance),
-        estimate_request.sequence.clone(),
+        Some(estimate_request.tx_compose.eth_balance),
+        estimate_request.call_sequence.clone(),
     )?;
 
     let mut tx_request = TransactionRequest {
@@ -60,35 +61,39 @@ async fn estimator_task<
         chain_id: Some(1),
         from: Some(tx_signer.address()),
         to: Some(TxKind::Call(to)),
-        gas: Some(estimate_request.gas),
+        gas: Some(estimate_request.tx_compose.gas),
         value: Some(U256::from(1000)),
-        nonce: Some(estimate_request.nonce),
-        max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-        max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128),
+        nonce: Some(estimate_request.tx_compose.nonce),
+        max_priority_fee_per_gas: Some(estimate_request.tx_compose.priority_gas_fee as u128),
+        max_fee_per_gas: Some(estimate_request.tx_compose.next_block_base_fee as u128),
         input: TransactionInput::new(call_data.clone()),
         ..TransactionRequest::default()
     };
 
-    let gas_price = estimate_request.priority_gas_fee + estimate_request.next_block_base_fee;
+    let gas_price = estimate_request.tx_compose.priority_gas_fee + estimate_request.tx_compose.next_block_base_fee;
 
     if U256::from(200_000 * gas_price) > profit_eth {
         error!("Profit is too small");
         return Err(eyre!("TOO_SMALL_PROFIT"));
     }
 
-    let encoded_txes: Vec<TxEnvelope> = estimate_request.stuffing_txs.iter().map(|item| TxEnvelope::from(item.clone())).collect();
+    let encoded_txes: Vec<TxEnvelope> =
+        estimate_request.tx_compose.stuffing_txs.iter().map(|item| TxEnvelope::from(item.clone())).collect();
 
     let stuffing_txs_rlp: Vec<Bytes> = encoded_txes.into_iter().map(|x| Bytes::from(x.encoded_2718())).collect();
 
     let mut simulation_bundle = stuffing_txs_rlp.clone();
 
     //let typed_tx = tx_request.clone().into();
-    let (tx_hash, tx_rlp) = tx_signer.sign(tx_request.clone()).await?;
-    simulation_bundle.push(tx_rlp);
+    let tx = tx_signer.sign(tx_request.clone()).await?;
+    let tx_hash = LoomTx::tx_hash(&tx);
+    let tx_rlp = tx.encode();
+
+    simulation_bundle.push(Bytes::from(tx_rlp));
 
     let start_time = chrono::Local::now();
 
-    match client.simulate_txes(simulation_bundle, estimate_request.next_block_number, Some(vec![tx_hash])).await {
+    match client.simulate_txes(simulation_bundle, estimate_request.tx_compose.next_block_number, Some(vec![tx_hash])).await {
         Ok(sim_result) => {
             let sim_duration = chrono::Local::now() - start_time;
             debug!(
@@ -124,11 +129,11 @@ async fn estimator_task<
                             _ => swap_encoder.encode(
                                 estimate_request.swap.clone(),
                                 estimate_request.tips_pct,
-                                Some(estimate_request.next_block_number),
+                                Some(estimate_request.tx_compose.next_block_number),
                                 Some(gas_cost),
                                 Some(tx_signer.address()),
-                                Some(estimate_request.eth_balance),
-                                estimate_request.sequence.clone(),
+                                Some(estimate_request.tx_compose.eth_balance),
+                                estimate_request.call_sequence.clone(),
                             )?,
                         };
 
@@ -140,10 +145,10 @@ async fn estimator_task<
                             gas: Some((gas * 1500) / 1000),
                             value: call_value,
                             input: TransactionInput::new(call_data),
-                            nonce: Some(estimate_request.nonce),
+                            nonce: Some(estimate_request.tx_compose.nonce),
                             access_list: Some(access_list),
-                            max_priority_fee_per_gas: Some(estimate_request.priority_gas_fee as u128),
-                            max_fee_per_gas: Some(estimate_request.next_block_base_fee as u128), // TODO: Why not prio + base fee?
+                            max_priority_fee_per_gas: Some(estimate_request.tx_compose.priority_gas_fee as u128),
+                            max_fee_per_gas: Some(estimate_request.tx_compose.next_block_base_fee as u128), // TODO: Why not prio + base fee?
                             ..TransactionRequest::default()
                         };
 
@@ -154,10 +159,9 @@ async fn estimator_task<
 
                         let total_tips = tips_vec.into_iter().map(|v| v.tips).sum();
 
-                        let sign_request = MessageTxCompose::sign(TxComposeData {
-                            gas,
+                        let sign_request = MessageSwapCompose::ready(SwapComposeData {
+                            tx_compose: TxComposeData { gas, ..estimate_request.tx_compose },
                             tips: Some(total_tips + gas_cost),
-                            tx_bundle: Some(tx_with_state),
                             ..estimate_request
                         });
 
@@ -174,7 +178,6 @@ async fn estimator_task<
                         let tips_f64 = NWETH::to_float(total_tips);
                         let profit_eth_f64 = NWETH::to_float(profit_eth);
                         let profit_f64 = token_in.to_float(profit);
-                        //TODO add formated paths
                         info!(
                             " +++ Simulation successful. {:#32x} Cost {} Profit {} ProfitEth {} Tips {} {} {} {}",
                             tx_hash, gas_cost_f64, profit_f64, profit_eth_f64, tips_f64, tx_sim_result, swap, sim_duration
@@ -208,18 +211,18 @@ async fn estimator_worker<
 >(
     client: Arc<Flashbots<P, T>>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
-    compose_channel_rx: Broadcaster<MessageTxCompose<DB>>,
-    compose_channel_tx: Broadcaster<MessageTxCompose<DB>>,
+    compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
+    compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> WorkerResult {
     subscribe!(compose_channel_rx);
 
     loop {
         tokio::select! {
             msg = compose_channel_rx.recv() => {
-                let compose_request_msg : Result<MessageTxCompose<DB>, RecvError> = msg;
+                let compose_request_msg : Result<MessageSwapCompose<DB>, RecvError> = msg;
                 match compose_request_msg {
                     Ok(compose_request) =>{
-                        if let TxCompose::Estimate(estimate_request) = compose_request.inner {
+                        if let SwapComposeMessage::Estimate(estimate_request) = compose_request.inner {
                             let compose_channel_tx_cloned = compose_channel_tx.clone();
                             let client_cloned = client.clone();
                             let encoder_cloned = encoder.clone();
@@ -248,9 +251,9 @@ pub struct GethEstimatorActor<P, T, E, DB: Clone + Send + Sync + 'static> {
     client: Arc<Flashbots<P, T>>,
     encoder: E,
     #[consumer]
-    compose_channel_rx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageTxCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
 }
 
 impl<P, T, E, DB> GethEstimatorActor<P, T, E, DB>
@@ -264,8 +267,12 @@ where
         Self { client, encoder, compose_channel_tx: None, compose_channel_rx: None }
     }
 
-    pub fn on_bc(self, bc: &Blockchain<DB>) -> Self {
-        Self { compose_channel_tx: Some(bc.compose_channel()), compose_channel_rx: Some(bc.compose_channel()), ..self }
+    pub fn on_bc(self, strategy: &Strategy<DB>) -> Self {
+        Self {
+            compose_channel_tx: Some(strategy.swap_compose_channel()),
+            compose_channel_rx: Some(strategy.swap_compose_channel()),
+            ..self
+        }
     }
 }
 

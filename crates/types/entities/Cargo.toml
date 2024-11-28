@@ -57,3 +57,12 @@ rand.workspace = true
 [dev-dependencies]
 alloy-node-bindings.workspace = true
 alloy-rpc-client.workspace = true
+chrono.workspace = true
+criterion = { version = "0.5.1", features = ["async_tokio"] }
+futures.workspace = true
+num_cpus.workspace = true
+rayon.workspace = true
+
+[[bench]]
+harness = false
+name = "benchmark"

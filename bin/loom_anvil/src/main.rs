@@ -23,7 +23,7 @@ use loom::broadcast::flashbots::Flashbots;
 use loom::core::actors::{Accessor, Actor, Broadcaster, Consumer, Producer, SharedState};
 use loom::core::block_history::BlockHistoryActor;
 use loom::core::router::SwapRouterActor;
-use loom::defi::address_book::TokenAddress;
+use loom::defi::address_book::TokenAddressEth;
 use loom::defi::market::{fetch_and_add_pool_by_address, fetch_state_and_add_pool};
 use loom::defi::pools::protocols::CurveProtocol;
 use loom::defi::pools::CurvePool;
@@ -38,13 +38,13 @@ use loom::node::actor_config::NodeBlockActorConfig;
 use loom::node::json_rpc::NodeBlockActor;
 use loom::strategy::backrun::{BackrunConfig, StateChangeArbActor};
 use loom::strategy::merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
-use loom::types::blockchain::{debug_trace_block, ChainParameters, Mempool};
+use loom::types::blockchain::{debug_trace_block, ChainParameters, LoomDataTypesEthereum, Mempool};
 use loom::types::entities::{
     AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners,
 };
 use loom::types::events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
-    MessageTxCompose, TxCompose,
+    MessageSwapCompose, MessageTxCompose, SwapComposeMessage,
 };
 use revm::db::EmptyDBTyped;
 use tracing::{debug, error, info};
@@ -164,16 +164,16 @@ async fn main() -> Result<()> {
     let market_state_instance = MarketState::new(cache_db.clone());
 
     // Add default tokens for price actor
-    let usdc_token = Token::new_with_data(TokenAddress::USDC, Some("USDC".to_string()), None, Some(6), true, false);
-    let usdt_token = Token::new_with_data(TokenAddress::USDT, Some("USDT".to_string()), None, Some(6), true, false);
-    let wbtc_token = Token::new_with_data(TokenAddress::WBTC, Some("WBTC".to_string()), None, Some(8), true, false);
-    let dai_token = Token::new_with_data(TokenAddress::DAI, Some("DAI".to_string()), None, Some(18), true, false);
+    let usdc_token = Token::new_with_data(TokenAddressEth::USDC, Some("USDC".to_string()), None, Some(6), true, false);
+    let usdt_token = Token::new_with_data(TokenAddressEth::USDT, Some("USDT".to_string()), None, Some(6), true, false);
+    let wbtc_token = Token::new_with_data(TokenAddressEth::WBTC, Some("WBTC".to_string()), None, Some(8), true, false);
+    let dai_token = Token::new_with_data(TokenAddressEth::DAI, Some("DAI".to_string()), None, Some(18), true, false);
     market_instance.add_token(usdc_token)?;
     market_instance.add_token(usdt_token)?;
     market_instance.add_token(wbtc_token)?;
     market_instance.add_token(dai_token)?;
 
-    let mempool_instance = Mempool::new();
+    let mempool_instance = Mempool::<LoomDataTypesEthereum>::new();
 
     info!("Creating channels");
     let new_block_headers_channel: Broadcaster<MessageBlockHeader> = Broadcaster::new(10);
@@ -351,7 +351,8 @@ async fn main() -> Result<()> {
         }
     }
 
-    let tx_compose_channel: Broadcaster<MessageTxCompose<LoomDBType>> = Broadcaster::new(100);
+    let swap_compose_channel: Broadcaster<MessageSwapCompose<LoomDBType>> = Broadcaster::new(100);
+    let tx_compose_channel: Broadcaster<MessageTxCompose> = Broadcaster::new(100);
 
     let mut broadcast_actor = AnvilBroadcastActor::new(client.clone());
     match broadcast_actor.consume(tx_compose_channel.clone()).start() {
@@ -363,7 +364,7 @@ async fn main() -> Result<()> {
 
     // Start estimator actor
     let mut estimator_actor = EvmEstimatorActor::new_with_provider(encoder.clone(), Some(client.clone()));
-    match estimator_actor.consume(tx_compose_channel.clone()).produce(tx_compose_channel.clone()).start() {
+    match estimator_actor.consume(swap_compose_channel.clone()).produce(swap_compose_channel.clone()).start() {
         Err(e) => error!("{e}"),
         _ => {
             info!("Estimate actor started successfully")
@@ -379,7 +380,8 @@ async fn main() -> Result<()> {
         match swap_router_actor
             .access(tx_signers.clone())
             .access(accounts_state.clone())
-            .consume(tx_compose_channel.clone())
+            .consume(swap_compose_channel.clone())
+            .produce(swap_compose_channel.clone())
             .produce(tx_compose_channel.clone())
             .start()
         {
@@ -422,7 +424,7 @@ async fn main() -> Result<()> {
             .access(block_history_state.clone())
             .consume(market_events_channel.clone())
             .consume(mempool_events_channel.clone())
-            .produce(tx_compose_channel.clone())
+            .produce(swap_compose_channel.clone())
             .produce(pool_health_monitor_channel.clone())
             .start()
         {
@@ -441,9 +443,9 @@ async fn main() -> Result<()> {
         let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(multicaller_address);
         match swap_path_merger_actor
             .access(latest_block.clone())
-            .consume(tx_compose_channel.clone())
+            .consume(swap_compose_channel.clone())
             .consume(market_events_channel.clone())
-            .produce(tx_compose_channel.clone())
+            .produce(swap_compose_channel.clone())
             .start()
         {
             Err(e) => {
@@ -461,9 +463,9 @@ async fn main() -> Result<()> {
         match same_path_merger_actor
             .access(market_state.clone())
             .access(latest_block.clone())
-            .consume(tx_compose_channel.clone())
+            .consume(swap_compose_channel.clone())
             .consume(market_events_channel.clone())
-            .produce(tx_compose_channel.clone())
+            .produce(swap_compose_channel.clone())
             .start()
         {
             Err(e) => {
@@ -477,7 +479,7 @@ async fn main() -> Result<()> {
     if test_config.modules.flashbots {
         let relays = vec![RelayConfig { id: 1, url: mock_server.as_ref().unwrap().uri(), name: "relay".to_string(), no_sign: Some(false) }];
         let flashbots = Flashbots::new(client.clone(), "https://unused", None).with_relays(relays);
-        let mut flashbots_broadcast_actor = FlashbotsBroadcastActor::new(flashbots, false, true);
+        let mut flashbots_broadcast_actor = FlashbotsBroadcastActor::new(flashbots, true);
         match flashbots_broadcast_actor.consume(tx_compose_channel.clone()).start() {
             Err(e) => {
                 error!("{}", e)
@@ -491,9 +493,9 @@ async fn main() -> Result<()> {
     // Diff path merger tries to merge all found swaplines into one transaction s
     let mut diff_path_merger_actor = DiffPathMergerActor::new();
     match diff_path_merger_actor
-        .consume(tx_compose_channel.clone())
+        .consume(swap_compose_channel.clone())
         .consume(market_events_channel.clone())
-        .produce(tx_compose_channel.clone())
+        .produce(swap_compose_channel.clone())
         .start()
     {
         Err(e) => {
@@ -577,7 +579,7 @@ async fn main() -> Result<()> {
 
     println!("Test '{}' is started!", args.config);
 
-    let mut tx_compose_sub = tx_compose_channel.subscribe().await;
+    let mut tx_compose_sub = swap_compose_channel.subscribe().await;
 
     let mut stat = Stat::default();
     let timeout_duration = Duration::from_secs(args.timeout);
@@ -587,13 +589,13 @@ async fn main() -> Result<()> {
             msg = tx_compose_sub.recv() => {
                 match msg {
                     Ok(msg) => match msg.inner {
-                        TxCompose::Sign(sign_message) => {
-                            debug!(swap=%sign_message.swap, "Sign message");
+                        SwapComposeMessage::Ready(ready_message) => {
+                            debug!(swap=%ready_message.swap, "Sign message");
                             stat.sign_counter += 1;
 
-                            if stat.best_profit_eth < sign_message.swap.abs_profit_eth() {
-                                stat.best_profit_eth = sign_message.swap.abs_profit_eth();
-                                stat.best_swap = Some(sign_message.swap.clone());
+                            if stat.best_profit_eth < ready_message.swap.abs_profit_eth() {
+                                stat.best_profit_eth = ready_message.swap.abs_profit_eth();
+                                stat.best_swap = Some(ready_message.swap.clone());
                             }
 
                             if let Some(swaps_ok) = test_config.assertions.swaps_ok {
@@ -602,7 +604,7 @@ async fn main() -> Result<()> {
                                 }
                             }
                         }
-                        TxCompose::Route(encode_message) => {
+                        SwapComposeMessage::Prepare(encode_message) => {
                             debug!(swap=%encode_message.swap, "Route message");
                             stat.found_counter += 1;
                         }

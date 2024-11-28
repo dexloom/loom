@@ -27,6 +27,9 @@ async fn main() -> Result<()> {
 
     let client = topology.get_client(Some("local".to_string()).as_ref())?;
     let blockchain = topology.get_blockchain(Some("mainnet".to_string()).as_ref())?;
+    let blockchain_state = topology.get_blockchain_state(Some("mainnet".to_string()).as_ref())?;
+    let strategy = topology.get_strategy(Some("mainnet".to_string()).as_ref())?;
+
     let tx_signers = topology.get_signers(Some("env_signer".to_string()).as_ref())?;
 
     let backrun_config: BackrunConfigSection = load_from_file("./config.toml".to_string().into()).await?;
@@ -43,11 +46,11 @@ async fn main() -> Result<()> {
         .access(blockchain.mempool())
         .access(blockchain.latest_block())
         .access(blockchain.market())
-        .access(blockchain.market_state())
-        .access(blockchain.block_history())
+        .access(blockchain_state.market_state())
+        .access(blockchain_state.block_history())
         .consume(blockchain.market_events_channel())
         .consume(blockchain.mempool_events_channel())
-        .produce(blockchain.compose_channel())
+        .produce(strategy.swap_compose_channel())
         .produce(blockchain.pool_health_monitor_channel())
         .start()
     {
@@ -68,8 +71,9 @@ async fn main() -> Result<()> {
     match swap_path_encoder_actor
         .access(tx_signers.clone())
         .access(blockchain.nonce_and_balance())
-        .consume(blockchain.compose_channel())
-        .produce(blockchain.compose_channel())
+        .consume(strategy.swap_compose_channel())
+        .produce(strategy.swap_compose_channel())
+        .produce(blockchain.tx_compose_channel())
         .start()
     {
         Ok(r) => {
@@ -87,8 +91,8 @@ async fn main() -> Result<()> {
     match swap_path_merger_actor
         .access(blockchain.latest_block())
         .consume(blockchain.market_events_channel())
-        .consume(blockchain.compose_channel())
-        .produce(blockchain.compose_channel())
+        .consume(strategy.swap_compose_channel())
+        .produce(strategy.swap_compose_channel())
         .start()
     {
         Ok(r) => {
@@ -103,11 +107,11 @@ async fn main() -> Result<()> {
     let mut same_path_merger_actor = SamePathMergerActor::new(client.clone());
 
     match same_path_merger_actor
-        .access(blockchain.market_state())
+        .access(blockchain_state.market_state())
         .access(blockchain.latest_block())
         .consume(blockchain.market_events_channel())
-        .consume(blockchain.compose_channel())
-        .produce(blockchain.compose_channel())
+        .consume(strategy.swap_compose_channel())
+        .produce(strategy.swap_compose_channel())
         .start()
     {
         Ok(r) => {
@@ -124,8 +128,8 @@ async fn main() -> Result<()> {
 
     match diff_path_merger_actor
         .consume(blockchain.market_events_channel())
-        .consume(blockchain.compose_channel())
-        .produce(blockchain.compose_channel())
+        .consume(strategy.swap_compose_channel())
+        .produce(strategy.swap_compose_channel())
         .start()
     {
         Ok(r) => {
@@ -141,8 +145,8 @@ async fn main() -> Result<()> {
     let mut state_health_monitor_actor = StateHealthMonitorActor::new(client.clone());
 
     match state_health_monitor_actor
-        .access(blockchain.market_state())
-        .consume(blockchain.compose_channel())
+        .access(blockchain_state.market_state())
+        .consume(blockchain.tx_compose_channel())
         .consume(blockchain.market_events_channel())
         .start()
     {
@@ -159,7 +163,7 @@ async fn main() -> Result<()> {
     let mut stuffing_txs_monitor_actor = StuffingTxMonitorActor::new(client.clone());
     match stuffing_txs_monitor_actor
         .access(blockchain.latest_block())
-        .consume(blockchain.compose_channel())
+        .consume(blockchain.tx_compose_channel())
         .consume(blockchain.market_events_channel())
         .start()
     {
