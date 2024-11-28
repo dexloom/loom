@@ -8,7 +8,7 @@ use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::SwapLineEncoder;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
-use loom_types_entities::{SwapAmountType, SwapStep};
+use loom_types_entities::{SwapAmountType, SwapStep, CallSequence};
 
 lazy_static! {
     static ref BALANCER_VAULT_ADDRESS: Address = "0xBA12222222228d8Ba445958a75a0704d566BF2C8".parse().unwrap();
@@ -200,5 +200,68 @@ impl SwapStepEncoder {
             trace!("encode_swap_steps -> encode_balancer_flash_loan");
             self.encode_balancer_flash_loan(vec![sp0.clone(), sp1.clone()])
         }
+    }
+
+    fn add_calls_with_optional_value(&self, calls: &mut MulticallerCalls, call_list: Vec<(Address, Bytes, Option<U256>)>) {
+        for (to, data, value) in call_list {
+            if let Some(value) = value {
+                calls.add(MulticallerCall::new_call_with_value(to, &data, value));
+            } else {
+                calls.add(MulticallerCall::new_call(to, &data));
+            }
+        }
+    }
+
+    pub fn encode_sequence(&self, sequence: CallSequence, swap_opcodes: MulticallerCalls) -> Result<MulticallerCalls> {
+        match sequence {
+            CallSequence::Standard { pre_calls, post_calls } => {
+                let mut calls = MulticallerCalls::new();
+                self.add_calls_with_optional_value(&mut calls, pre_calls);
+                calls.merge(swap_opcodes);
+                self.add_calls_with_optional_value(&mut calls, post_calls);
+                Ok(calls)
+            },
+            CallSequence::FlashLoan { 
+                pre_flashloan, 
+                flashloan_params,
+                callback_sequence,
+                post_flashloan 
+            } => {
+                let mut final_calls = MulticallerCalls::new();
+                
+                // Add pre-flashloan calls
+                self.add_calls_with_optional_value(&mut final_calls, pre_flashloan);
+
+                // Build callback sequence
+                let mut callback_calls = MulticallerCalls::new();
+                self.add_calls_with_optional_value(&mut callback_calls, callback_sequence.pre_swap_calls);
+                callback_calls.merge(swap_opcodes);
+                self.add_calls_with_optional_value(&mut callback_calls, callback_sequence.post_swap_calls);
+
+                // Add flashloan with callback
+                let callback_data = OpcodesEncoderV2::pack_do_calls_data(&callback_calls)?;
+                let flash_call_data = EncoderHelper::encode_balancer_flashloan(
+                    flashloan_params.token,
+                    flashloan_params.amount,
+                    callback_data,
+                    flashloan_params.recipient,
+                );
+                final_calls.add(MulticallerCall::new_call(*BALANCER_VAULT_ADDRESS, &flash_call_data));
+                
+                // Add post-flashloan calls
+                self.add_calls_with_optional_value(&mut final_calls, post_flashloan);
+                
+                Ok(final_calls)
+            }
+        }
+    }
+
+    pub fn encode_sequence_to_calldata(&self, sequence: CallSequence, swap_opcodes: MulticallerCalls) -> Result<(Address, Bytes)> {
+        let calls = self.encode_sequence(sequence, swap_opcodes)?;
+        let call_data = OpcodesEncoderV2::pack_do_calls(&calls).map_err(|e| eyre::eyre!("Failed to encode final calldata: {}", e))?;
+
+        trace!("Encoded sequence to {} bytes of calldata", call_data.len());
+
+        Ok((self.get_contract_address(), call_data))
     }
 }

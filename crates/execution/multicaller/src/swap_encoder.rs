@@ -4,7 +4,7 @@ use eyre::{eyre, OptionExt, Result};
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::MulticallerCalls;
 use loom_types_entities::tips::{tips_and_value_for_swap_type, Tips};
-use loom_types_entities::{Swap, SwapEncoder, SwapStep};
+use loom_types_entities::{Swap, SwapEncoder, SwapStep, CallSequence};
 use tracing::{debug, error, trace};
 
 impl SwapEncoder for MulticallerSwapEncoder {
@@ -16,6 +16,7 @@ impl SwapEncoder for MulticallerSwapEncoder {
         gas_cost: Option<U256>,
         sender_address: Option<Address>,
         sender_eth_balance: Option<U256>,
+        sequence: Option<CallSequence>,
     ) -> Result<(Address, Option<U256>, Bytes, Vec<Tips>)> {
         let swap_vec = match &swap {
             Swap::BackrunSwapLine(_) | Swap::BackrunSwapSteps(_) => {
@@ -90,7 +91,10 @@ impl SwapEncoder for MulticallerSwapEncoder {
                 vec![]
             };
 
-        let (to, call_data) = self.swap_step_encoder.to_call_data(&swap_opcodes)?;
+        let (to, call_data) = match sequence {
+            Some(seq) => self.swap_step_encoder.encode_sequence_to_calldata(seq, swap_opcodes)?,
+            None => self.swap_step_encoder.to_call_data(&swap_opcodes)?,
+        };
 
         Ok((to, None, call_data, tips_vec))
     }
