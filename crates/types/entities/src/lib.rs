@@ -19,6 +19,7 @@ pub use swappath::{SwapPath, SwapPaths};
 pub use swappath_builder::build_swap_path_vec;
 pub use swapstep::SwapStep;
 pub use token::{Token, TokenWrapper};
+pub use call_sequence::{CallSequence, FlashLoanParams};
 
 mod block_history;
 mod latest_block;
@@ -49,3 +50,4 @@ mod mock_pool_generic;
 mod swap;
 mod swap_encoder;
 pub mod tips;
+pub mod call_sequence;

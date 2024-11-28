@@ -3,7 +3,7 @@ use alloy_primitives::{Address, BlockNumber, Bytes, TxHash, U256};
 use alloy_rpc_types::{Transaction, TransactionRequest};
 use eyre::{eyre, Result};
 use loom_types_blockchain::GethStateUpdateVec;
-use loom_types_entities::{Swap, TxSigner};
+use loom_types_entities::{Swap, TxSigner, CallSequence};
 use revm::DatabaseRef;
 use std::ops::Deref;
 
@@ -88,6 +88,7 @@ pub struct TxComposeData<DB> {
     pub next_block_timestamp: u64,
     pub next_block_base_fee: u64,
     pub swap: Swap,
+    pub sequence: Option<CallSequence>,
     pub tx_bundle: Option<Vec<TxState>>,
     pub rlp_bundle: Option<Vec<RlpState>>,
     pub prestate: Option<DB>,
@@ -160,6 +161,7 @@ impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Default for TxComposeData<
             next_block_number: Default::default(),
             next_block_timestamp: Default::default(),
             swap: Swap::None,
+            sequence: None,
             tx_bundle: None,
             rlp_bundle: None,
             prestate: None,
