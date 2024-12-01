@@ -33,7 +33,7 @@ use loom::evm::db::LoomDBType;
 use loom::evm::utils::evm_tx_env::env_from_signed_tx;
 use loom::evm::utils::NWETH;
 use loom::execution::estimator::EvmEstimatorActor;
-use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
+use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder, ProtocolABIEncoderV2};
 use loom::node::actor_config::NodeBlockActorConfig;
 use loom::node::json_rpc::NodeBlockActor;
 use loom::strategy::backrun::{BackrunConfig, StateChangeArbActor};
@@ -149,7 +149,9 @@ async fn main() -> Result<()> {
         .ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     info!("Multicaller deployed at {:?}", multicaller_address);
 
-    let encoder = MulticallerSwapEncoder::new(multicaller_address);
+    let abi_encoder = ProtocolABIEncoderV2::default();
+
+    let encoder = MulticallerSwapEncoder::new(multicaller_address, abi_encoder);
 
     let block_number = client.get_block_number().await?;
     info!("Current block_number={}", block_number);
@@ -312,7 +314,7 @@ async fn main() -> Result<()> {
             PoolClass::Curve => {
                 debug!("Loading curve pool");
                 if let Ok(curve_contract) = CurveProtocol::get_contract_from_code(client.clone(), pool_config.address).await {
-                    let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
+                    let curve_pool = CurvePool::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await?;
                     fetch_state_and_add_pool(client.clone(), market_instance.clone(), market_state.clone(), curve_pool.into()).await?
                 } else {
                     error!("CURVE_POOL_NOT_LOADED");

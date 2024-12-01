@@ -188,7 +188,7 @@ mod test {
     use super::*;
     use crate::pool::DefaultAbiSwapEncoder;
     use crate::required_state::RequiredState;
-    use crate::{AbiSwapEncoder, Pool};
+    use crate::{Pool, PoolAbiEncoder};
     use alloy_primitives::{Address, U256};
     use eyre::{eyre, ErrReport};
     use revm::primitives::Env;
@@ -238,7 +238,7 @@ mod test {
             false
         }
 
-        fn get_encoder(&self) -> &dyn AbiSwapEncoder {
+        fn get_encoder(&self) -> &dyn PoolAbiEncoder {
             &DefaultAbiSwapEncoder {}
         }
 

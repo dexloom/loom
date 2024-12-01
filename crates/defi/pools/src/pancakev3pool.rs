@@ -17,7 +17,7 @@ use loom_defi_abi::IERC20;
 use loom_defi_address_book::PeripheryAddress;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 
@@ -187,7 +187,7 @@ impl PancakeV3Pool {
 
 impl Pool for PancakeV3Pool {
     fn get_class(&self) -> PoolClass {
-        PoolClass::UniswapV3
+        PoolClass::PancakeV3
     }
 
     fn get_protocol(&self) -> PoolProtocol {
@@ -276,8 +276,8 @@ impl Pool for PancakeV3Pool {
         true
     }
 
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
-        &self.encoder
+    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+        Some(&self.encoder)
     }
 
     fn get_read_only_cell_vec(&self) -> Vec<U256> {
@@ -402,6 +402,10 @@ impl Pool for PancakeV3Pool {
         }
         Ok(state_required)
     }
+
+    fn is_native(&self) -> bool {
+        false
+    }
 }
 
 #[allow(dead_code)]
@@ -416,7 +420,7 @@ impl PancakeV3AbiSwapEncoder {
     }
 }
 
-impl AbiSwapEncoder for PancakeV3AbiSwapEncoder {
+impl PoolAbiEncoder for PancakeV3AbiSwapEncoder {
     fn encode_swap_in_amount_provided(
         &self,
         token_from_address: Address,

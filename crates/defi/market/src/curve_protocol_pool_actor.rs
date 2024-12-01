@@ -12,7 +12,7 @@ use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_defi_pools::protocols::CurveProtocol;
-use loom_defi_pools::CurvePool;
+use loom_defi_pools::{CurvePool, CurvePoolAbiEncoder};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::{Market, MarketState, PoolWrapper};
 use revm::DatabaseRef;
@@ -30,7 +30,9 @@ where
 {
     let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
     for curve_contract in curve_contracts.into_iter() {
-        if let Ok(curve_pool) = CurvePool::fetch_pool_data(client.clone(), curve_contract).await {
+        if let Ok(curve_pool) =
+            CurvePool::<P, T, N, CurvePoolAbiEncoder<P, T, N>>::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await
+        {
             let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
             match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
                 Err(e) => {
@@ -54,7 +56,9 @@ where
 
                         match CurveProtocol::get_contract_from_code(client.clone(), addr).await {
                             Ok(curve_contract) => {
-                                if let Ok(curve_pool) = CurvePool::fetch_pool_data(client.clone(), curve_contract).await {
+                                if let Ok(curve_pool) =
+                                    CurvePool::<P, T, N>::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await
+                                {
                                     let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
 
                                     match fetch_state_and_add_pool(

@@ -1,5 +1,5 @@
 use crate::required_state::RequiredState;
-use crate::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol};
+use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol};
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
@@ -75,11 +75,15 @@ where
         panic!("Not implemented")
     }
 
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
+    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
         panic!("Not implemented")
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
         panic!("Not implemented")
+    }
+
+    fn is_native(&self) -> bool {
+        false
     }
 }

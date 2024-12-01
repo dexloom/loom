@@ -27,7 +27,7 @@ use loom_core_actors::SharedState;
 use loom_defi_preloader::preload_market_state;
 use loom_evm_db::LoomDBType;
 use loom_evm_utils::{BalanceCheater, NWETH};
-use loom_execution_multicaller::{MulticallerDeployer, MulticallerEncoder, MulticallerSwapEncoder};
+use loom_execution_multicaller::{MulticallerDeployer, MulticallerEncoder, MulticallerSwapEncoder, ProtocolABIEncoderV2};
 
 mod cli;
 mod dto;
@@ -78,7 +78,9 @@ async fn main() -> Result<()> {
 
     let market_state_instance = SharedState::new(market_state_instance);
 
-    let encoder = Arc::new(MulticallerSwapEncoder::new(multicaller_address));
+    let abi_encoder = ProtocolABIEncoderV2::default();
+
+    let swap_encoder = Arc::new(MulticallerSwapEncoder::new(multicaller_address, abi_encoder));
 
     //preload state
     preload_market_state(client.clone(), vec![multicaller_address], vec![], vec![], market_state_instance.clone(), None).await?;
@@ -137,8 +139,8 @@ async fn main() -> Result<()> {
         }
         let swap = Swap::BackrunSwapLine(swapline);
 
-        let calls = encoder.make_calls(&swap)?;
-        let (to, payload) = encoder.encode_calls(calls)?;
+        let calls = swap_encoder.make_calls(&swap)?;
+        let (to, payload) = swap_encoder.encode_calls(calls)?;
 
         calldata_map.insert(swap_path.into(), payload.clone());
 

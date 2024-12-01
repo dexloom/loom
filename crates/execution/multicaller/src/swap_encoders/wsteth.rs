@@ -1,15 +1,17 @@
+use crate::abi_encoders::ProtocolAbiSwapEncoderTrait;
+use crate::helpers::EncoderHelper;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, Result};
 use loom_defi_address_book::TokenAddressEth;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{PoolWrapper, SwapAmountType};
 
-use crate::helpers::EncoderHelper;
-
 pub struct WstEthSwapEncoder {}
 
 impl WstEthSwapEncoder {
-    pub fn encode_swap_in_amount_provided(
+    #[allow(clippy::too_many_arguments)]
+    pub fn encode_swap_in_amount_provided<E: ProtocolAbiSwapEncoderTrait>(
+        abi_encoder: &E,
         token_from_address: Address,
         token_to_address: Address,
         amount_in: SwapAmountType,
@@ -18,7 +20,6 @@ impl WstEthSwapEncoder {
         next_pool: Option<&PoolWrapper>,
         multicaller: Address,
     ) -> Result<()> {
-        let pool_encoder = cur_pool.get_encoder();
         let pool_address = cur_pool.get_address();
 
         if token_from_address == TokenAddressEth::WETH && token_to_address == TokenAddressEth::WSTETH {
@@ -27,7 +28,8 @@ impl WstEthSwapEncoder {
                     let weth_withdraw_opcode = MulticallerCall::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
                     let mut swap_opcode = MulticallerCall::new_call_with_value(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            &**cur_pool,
                             token_from_address,
                             token_to_address,
                             amount,
@@ -104,7 +106,8 @@ impl WstEthSwapEncoder {
                         MulticallerCall::new_call(token_from_address, &EncoderHelper::encode_erc20_approve(token_to_address, amount));
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            &**cur_pool,
                             token_from_address,
                             token_to_address,
                             amount,
@@ -126,7 +129,8 @@ impl WstEthSwapEncoder {
 
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            &**cur_pool,
                             token_from_address,
                             token_to_address,
                             U256::ZERO,
@@ -150,7 +154,8 @@ impl WstEthSwapEncoder {
 
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            &**cur_pool,
                             token_from_address,
                             token_to_address,
                             U256::ZERO,
@@ -177,7 +182,8 @@ impl WstEthSwapEncoder {
 
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            &**cur_pool,
                             token_from_address,
                             token_to_address,
                             U256::ZERO,

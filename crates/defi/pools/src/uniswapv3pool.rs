@@ -14,7 +14,7 @@ use loom_defi_abi::uniswap_periphery::ITickLens;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::{FactoryAddress, PeripheryAddress};
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::debug;
@@ -347,8 +347,8 @@ impl Pool for UniswapV3Pool {
         true
     }
 
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
-        &self.encoder
+    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+        Some(&self.encoder)
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -410,6 +410,10 @@ impl Pool for UniswapV3Pool {
 
         Ok(state_required)
     }
+
+    fn is_native(&self) -> bool {
+        false
+    }
 }
 
 #[allow(dead_code)]
@@ -424,7 +428,7 @@ impl UniswapV3AbiSwapEncoder {
     }
 }
 
-impl AbiSwapEncoder for UniswapV3AbiSwapEncoder {
+impl PoolAbiEncoder for UniswapV3AbiSwapEncoder {
     fn encode_swap_in_amount_provided(
         &self,
         token_from_address: Address,

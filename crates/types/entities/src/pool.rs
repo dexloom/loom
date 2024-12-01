@@ -55,6 +55,12 @@ pub enum PoolClass {
     #[serde(rename = "uniswap3")]
     #[strum(serialize = "uniswap3")]
     UniswapV3,
+    #[serde(rename = "maverick")]
+    #[strum(serialize = "maverick")]
+    Maverick,
+    #[serde(rename = "pancake3")]
+    #[strum(serialize = "pancake3")]
+    PancakeV3,
     #[serde(rename = "curve")]
     #[strum(serialize = "curve")]
     Curve,
@@ -182,6 +188,12 @@ impl<LDT: LoomDataTypes> Deref for PoolWrapper<LDT> {
     }
 }
 
+impl<LDT: LoomDataTypes> AsRef<dyn Pool<LDT>> for PoolWrapper<LDT> {
+    fn as_ref(&self) -> &(dyn Pool<LDT> + 'static) {
+        self.pool.as_ref()
+    }
+}
+
 impl<LDT: LoomDataTypes> PoolWrapper<LDT> {
     pub fn new(pool: Arc<dyn Pool<LDT>>) -> Self {
         PoolWrapper { pool }
@@ -242,18 +254,20 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
         true
     }
 
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder;
+    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder>;
 
     fn get_read_only_cell_vec(&self) -> Vec<U256> {
         Vec::new()
     }
 
     fn get_state_required(&self) -> Result<RequiredState>;
+
+    fn is_native(&self) -> bool;
 }
 
 pub struct DefaultAbiSwapEncoder {}
 
-impl AbiSwapEncoder for DefaultAbiSwapEncoder {}
+impl PoolAbiEncoder for DefaultAbiSwapEncoder {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum PreswapRequirement {
@@ -264,7 +278,7 @@ pub enum PreswapRequirement {
     Base,
 }
 
-pub trait AbiSwapEncoder {
+pub trait PoolAbiEncoder: Send + Sync {
     fn encode_swap_in_amount_provided(
         &self,
         _token_from_address: Address,

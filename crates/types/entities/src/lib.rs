@@ -12,7 +12,7 @@ pub use latest_block::LatestBlock;
 pub use market::Market;
 pub use market_state::MarketState;
 pub use mock_pool::MockPool;
-pub use pool::{get_protocol_by_factory, AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
+pub use pool::{get_protocol_by_factory, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
 pub use signers::{LoomTxSigner, TxSignerEth, TxSigners};
 pub use swap::Swap;
 pub use swap_encoder::SwapEncoder;

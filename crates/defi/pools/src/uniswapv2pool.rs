@@ -9,7 +9,7 @@ use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::FactoryAddress;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::ops::Div;
@@ -29,7 +29,7 @@ pub struct UniswapV2Pool {
     factory: Address,
     protocol: PoolProtocol,
     fee: U256,
-    encoder: UniswapV2AbiSwapEncoder,
+    encoder: UniswapV2PoolAbiEncoder,
     reserves_cell: Option<U256>,
     liquidity0: U256,
     liquidity1: U256,
@@ -44,7 +44,7 @@ impl UniswapV2Pool {
             factory: Address::ZERO,
             protocol: PoolProtocol::UniswapV2Like,
             fee: U256::from(9970),
-            encoder: UniswapV2AbiSwapEncoder::new(address),
+            encoder: UniswapV2PoolAbiEncoder::new(address),
             reserves_cell: None,
             liquidity0: U256::ZERO,
             liquidity1: U256::ZERO,
@@ -66,7 +66,7 @@ impl UniswapV2Pool {
             factory,
             protocol: PoolProtocol::UniswapV2Like,
             fee: U256::from(9970),
-            encoder: UniswapV2AbiSwapEncoder::new(address),
+            encoder: UniswapV2PoolAbiEncoder::new(address),
             reserves_cell: None,
             liquidity0,
             liquidity1,
@@ -130,7 +130,7 @@ impl UniswapV2Pool {
             fee,
             factory,
             protocol,
-            encoder: UniswapV2AbiSwapEncoder { pool_address: address },
+            encoder: UniswapV2PoolAbiEncoder { pool_address: address },
             reserves_cell: None,
             liquidity0: Default::default(),
             liquidity1: Default::default(),
@@ -177,7 +177,7 @@ impl UniswapV2Pool {
             reserves_cell,
             liquidity0: U256::from(reserves.reserve0),
             liquidity1: U256::from(reserves.reserve1),
-            encoder: UniswapV2AbiSwapEncoder::new(address),
+            encoder: UniswapV2PoolAbiEncoder::new(address),
         };
         Ok(ret)
     }
@@ -291,8 +291,8 @@ impl Pool for UniswapV2Pool {
         true
     }
 
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
-        &self.encoder
+    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+        Some(&self.encoder)
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -311,20 +311,24 @@ impl Pool for UniswapV2Pool {
 
         Ok(state_required)
     }
+
+    fn is_native(&self) -> bool {
+        false
+    }
 }
 
 #[derive(Clone, Copy)]
-struct UniswapV2AbiSwapEncoder {
+struct UniswapV2PoolAbiEncoder {
     pool_address: Address,
 }
 
-impl UniswapV2AbiSwapEncoder {
+impl UniswapV2PoolAbiEncoder {
     pub fn new(pool_address: Address) -> Self {
         Self { pool_address }
     }
 }
 
-impl AbiSwapEncoder for UniswapV2AbiSwapEncoder {
+impl PoolAbiEncoder for UniswapV2PoolAbiEncoder {
     fn encode_swap_out_amount_provided(
         &self,
         token_from_address: Address,

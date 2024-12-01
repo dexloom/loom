@@ -5098,6 +5098,7 @@ dependencies = [
  "lazy_static",
  "loom-defi-abi",
  "loom-defi-address-book",
+ "loom-defi-pools",
  "loom-evm-utils",
  "loom-node-debug-provider",
  "loom-types-blockchain",

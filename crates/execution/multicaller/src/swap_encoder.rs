@@ -1,3 +1,4 @@
+use crate::abi_encoders::ProtocolAbiSwapEncoderTrait;
 use crate::MulticallerSwapEncoder;
 use alloy_primitives::{Address, BlockNumber, Bytes, U256};
 use eyre::{eyre, OptionExt, Result};
@@ -7,7 +8,7 @@ use loom_types_entities::tips::{tips_and_value_for_swap_type, Tips};
 use loom_types_entities::{CallSequence, Swap, SwapEncoder, SwapStep};
 use tracing::{debug, error, trace};
 
-impl SwapEncoder for MulticallerSwapEncoder {
+impl<E: ProtocolAbiSwapEncoderTrait> SwapEncoder for MulticallerSwapEncoder<E> {
     fn encode(
         &self,
         swap: Swap,

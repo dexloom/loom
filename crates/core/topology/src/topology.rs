@@ -24,7 +24,7 @@ use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
 use loom_evm_db::DatabaseLoomExt;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
-use loom_execution_multicaller::MulticallerSwapEncoder;
+use loom_execution_multicaller::{MulticallerSwapEncoder, ProtocolABIEncoderV2};
 use loom_node_actor_config::NodeBlockActorConfig;
 #[cfg(feature = "db-access")]
 use loom_node_db_access::RethDbAccessBlockActor;
@@ -41,7 +41,7 @@ pub struct Topology<DB: Clone + Send + Sync + 'static> {
     blockchain_states: HashMap<String, BlockchainState<DB>>,
     strategies: HashMap<String, Strategy<DB>>,
     signers: HashMap<String, SharedState<TxSigners>>,
-    multicaller_encoders: HashMap<String, MulticallerSwapEncoder>,
+    multicaller_encoders: HashMap<String, MulticallerSwapEncoder<ProtocolABIEncoderV2>>,
     default_blockchain_name: Option<String>,
     default_multicaller_encoder_name: Option<String>,
     default_signer_name: Option<String>,
@@ -117,7 +117,8 @@ impl<
             match v {
                 EncoderConfig::SwapStep(c) => {
                     let address: Address = c.address.parse()?;
-                    let encoder = MulticallerSwapEncoder::new(address);
+                    let abi_encoder = ProtocolABIEncoderV2::default();
+                    let encoder = MulticallerSwapEncoder::new(address, abi_encoder);
                     topology.multicaller_encoders.insert(k.clone(), encoder);
                     topology.default_multicaller_encoder_name = Some(k.clone());
                 }
@@ -578,7 +579,7 @@ impl<
         }
     }
 
-    pub fn get_multicaller_encoder(&self, name: Option<&String>) -> Result<MulticallerSwapEncoder> {
+    pub fn get_multicaller_encoder(&self, name: Option<&String>) -> Result<MulticallerSwapEncoder<ProtocolABIEncoderV2>> {
         match self.multicaller_encoders.get(name.unwrap_or(&self.default_multicaller_encoder_name.clone().unwrap())) {
             Some(encoder) => Ok(encoder.clone()),
             None => Err(eyre!("ENCODER_NOT_FOUND")),

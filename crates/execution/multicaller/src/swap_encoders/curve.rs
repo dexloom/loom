@@ -1,16 +1,15 @@
 use std::collections::HashMap;
 
 use alloy_primitives::{Address, Bytes, U256};
-use eyre::Result;
+use eyre::{OptionExt, Result};
 use lazy_static::lazy_static;
 use tracing::error;
 
+use crate::abi_encoders::ProtocolAbiSwapEncoderTrait;
+use crate::helpers::EncoderHelper;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::PoolWrapper;
 use loom_types_entities::{PreswapRequirement, SwapAmountType};
-
-use crate::helpers::EncoderHelper;
-
 pub struct CurveSwapEncoder {}
 
 lazy_static! {
@@ -28,7 +27,9 @@ impl CurveSwapEncoder {
         *NEED_BALANCE_MAP.get(&address).unwrap_or(&false)
     }
 
-    pub fn encode_swap_in_amount_provided(
+    #[allow(clippy::too_many_arguments)]
+    pub fn encode_swap_in_amount_provided<E: ProtocolAbiSwapEncoderTrait>(
+        abi_encoder: &E,
         token_from_address: Address,
         token_to_address: Address,
         amount_in: SwapAmountType,
@@ -37,7 +38,7 @@ impl CurveSwapEncoder {
         next_pool: Option<&PoolWrapper>,
         multicaller: Address,
     ) -> Result<()> {
-        let pool_encoder = cur_pool.get_encoder();
+        let pool_encoder = cur_pool.get_encoder().ok_or_eyre("NO_POOL_ENCODER")?;
         let pool_address = cur_pool.get_address();
 
         let in_native = if pool_encoder.is_native() { EncoderHelper::is_weth(token_from_address) } else { false };
@@ -279,7 +280,7 @@ impl CurveSwapEncoder {
                 swap_opcodes.add(balance_opcode);
             }
 
-            if let PreswapRequirement::Transfer(addr) = next_pool.get_encoder().preswap_requirement() {
+            if let PreswapRequirement::Transfer(addr) = abi_encoder.preswap_requirement(&**next_pool) {
                 let mut transfer_opcode =
                     MulticallerCall::new_call(token_to_address, &EncoderHelper::encode_erc20_transfer(addr, U256::ZERO));
                 transfer_opcode.set_call_stack(true, 0, 0x24, 0x20);
