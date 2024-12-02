@@ -15,7 +15,7 @@ use loom_defi_pools::state_readers::UniswapV3StateReader;
 use loom_defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use loom_evm_db::{AlloyDB, LoomDB};
 use loom_types_blockchain::GethStateUpdateVec;
-use loom_types_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolProtocol, PoolWrapper};
+use loom_types_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolId, PoolProtocol, PoolWrapper};
 
 pub async fn get_affected_pools_from_code<P, T, N>(
     client: P,
@@ -37,7 +37,7 @@ where
         for (address, state_update_entry) in state_update_record.iter() {
             if let Some(code) = &state_update_entry.code {
                 if UniswapV2Protocol::is_code(code) {
-                    match market.read().await.get_pool(address) {
+                    match market.read().await.get_pool(&PoolId::Address(*address)) {
                         None => {
                             debug!(?address, "Loading UniswapV2 class pool");
                             let env = Env::default();
@@ -77,7 +77,7 @@ where
                 }
 
                 if UniswapV3Protocol::is_code(code) {
-                    match market.read().await.get_pool(address) {
+                    match market.read().await.get_pool(&PoolId::Address(*address)) {
                         None => {
                             debug!(%address, "Loading UniswapV3 class pool");
                             let env = Env::default();

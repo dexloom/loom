@@ -1,3 +1,4 @@
+use crate::pool::PoolId;
 use crate::required_state::RequiredState;
 use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol};
 use alloy_network::Ethereum;
@@ -36,6 +37,9 @@ where
 
     fn get_address(&self) -> Address {
         self.address
+    }
+    fn get_pool_id(&self) -> PoolId {
+        PoolId::Address(self.address)
     }
 
     fn get_tokens(&self) -> Vec<Address> {

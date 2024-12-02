@@ -1,3 +1,4 @@
+use crate::pool::PoolId;
 use crate::required_state::RequiredState;
 use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol};
 use alloy_primitives::{Address, U256};
@@ -30,6 +31,10 @@ impl Pool for MockPool {
 
     fn get_address(&self) -> Address {
         self.address
+    }
+
+    fn get_pool_id(&self) -> PoolId {
+        PoolId::Address(self.address)
     }
 
     fn get_tokens(&self) -> Vec<Address> {

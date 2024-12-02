@@ -14,7 +14,7 @@ use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_defi_pools::protocols::CurveProtocol;
 use loom_defi_pools::{CurvePool, CurvePoolAbiEncoder};
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_entities::{Market, MarketState, PoolWrapper};
+use loom_types_entities::{Market, MarketState, PoolId, PoolWrapper};
 use revm::DatabaseRef;
 
 async fn curve_pool_loader_worker<P, T, N, DB>(
@@ -50,7 +50,7 @@ where
             if let Ok(pool_count) = CurveProtocol::get_pool_count(client.clone(), factory_address).await {
                 for pool_id in 0..pool_count {
                     if let Ok(addr) = CurveProtocol::get_pool_address(client.clone(), factory_address, pool_id).await {
-                        if market.read().await.get_pool(&addr).is_some() {
+                        if market.read().await.get_pool(&PoolId::Address(addr)).is_some() {
                             continue;
                         }
 

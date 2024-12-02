@@ -2,6 +2,7 @@ use alloy_primitives::map::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
+use crate::pool::PoolId;
 use crate::{PoolWrapper, Token};
 use eyre::Result;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
@@ -115,7 +116,7 @@ impl<LDT: LoomDataTypes> SwapPath<LDT> {
 #[derive(Clone, Debug, Default)]
 pub struct SwapPaths<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     paths: HashSet<SwapPath<LDT>>,
-    pool_paths: HashMap<LDT::Address, HashSet<SwapPath<LDT>>>,
+    pool_paths: HashMap<PoolId<LDT>, HashSet<SwapPath<LDT>>>,
 }
 
 impl<LDT: LoomDataTypes> SwapPaths<LDT> {
@@ -146,7 +147,7 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
     pub fn add(&mut self, path: SwapPath<LDT>) {
         if self.paths.insert(path.clone()) {
             for pool in path.pools.iter() {
-                self.pool_paths.entry(pool.get_address()).or_default().insert(path.clone());
+                self.pool_paths.entry(pool.get_pool_id()).or_default().insert(path.clone());
             }
         }
     }
@@ -155,12 +156,12 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
     pub fn replace(&mut self, path: SwapPath<LDT>) {
         self.paths.replace(path.clone());
         for pool in path.pools.iter() {
-            self.pool_paths.entry(pool.get_address()).or_default().replace(path.clone());
+            self.pool_paths.entry(pool.get_pool_id()).or_default().replace(path.clone());
         }
     }
 
-    pub fn disable_pool(&mut self, pool_address: &LDT::Address, disabled: bool) {
-        let Some(pool_paths) = self.pool_paths.get(pool_address).cloned() else { return };
+    pub fn disable_pool(&mut self, pool_id: &PoolId<LDT>, disabled: bool) {
+        let Some(pool_paths) = self.pool_paths.get(pool_id).cloned() else { return };
 
         for path in pool_paths.into_iter() {
             self.replace(SwapPath { disabled, ..path })
@@ -168,12 +169,12 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
     }
 
     #[inline]
-    pub fn get_pool_paths_hashset(&self, pool_address: &LDT::Address) -> Option<&HashSet<SwapPath<LDT>>> {
+    pub fn get_pool_paths_hashset(&self, pool_address: &PoolId<LDT>) -> Option<&HashSet<SwapPath<LDT>>> {
         self.pool_paths.get(pool_address)
     }
     #[allow(clippy::mutable_key_type)]
     #[inline]
-    pub fn get_pool_paths_vec(&self, pool_address: &LDT::Address) -> Option<Vec<SwapPath<LDT>>> {
+    pub fn get_pool_paths_vec(&self, pool_address: &PoolId<LDT>) -> Option<Vec<SwapPath<LDT>>> {
         let paths = self.pool_paths.get(pool_address)?;
 
         let paths_vec_ret: Vec<SwapPath<LDT>> =
@@ -208,8 +209,15 @@ mod test {
     }
 
     impl Pool for EmptyPool {
+        fn is_native(&self) -> bool {
+            false
+        }
         fn get_address(&self) -> Address {
             self.address
+        }
+
+        fn get_pool_id(&self) -> PoolId<LoomDataTypesEthereum> {
+            PoolId::Address(self.address)
         }
 
         fn calculate_out_amount(
@@ -238,8 +246,8 @@ mod test {
             false
         }
 
-        fn get_encoder(&self) -> &dyn PoolAbiEncoder {
-            &DefaultAbiSwapEncoder {}
+        fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+            Some(&DefaultAbiSwapEncoder {})
         }
 
         fn get_state_required(&self) -> Result<RequiredState> {
@@ -307,7 +315,7 @@ mod test {
             tasks.push(tokio::task::spawn(async move {
                 let pool = PoolWrapper::new(Arc::new(EmptyPool::new(pool_address)));
                 let path_guard = paths_shared_clone.read().await;
-                let pool_paths = path_guard.get_pool_paths_hashset(&pool.get_address());
+                let pool_paths = path_guard.get_pool_paths_hashset(&PoolId::Address(pool.get_address()));
                 println!("{i} {pool_address}: {pool_paths:?}");
             }));
         }

@@ -40,7 +40,7 @@ use loom::strategy::backrun::{BackrunConfig, StateChangeArbActor};
 use loom::strategy::merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 use loom::types::blockchain::{debug_trace_block, ChainParameters, LoomDataTypesEthereum, Mempool};
 use loom::types::entities::{
-    AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners,
+    AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, PoolId, Swap, Token, TxSigners,
 };
 use loom::types::events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
@@ -325,7 +325,7 @@ async fn main() -> Result<()> {
                 error!("Unknown pool class")
             }
         }
-        let swap_path_len = market_instance.read().await.get_pool_paths(&pool_config.address).unwrap_or_default().len();
+        let swap_path_len = market_instance.read().await.get_pool_paths(&PoolId::Address(pool_config.address)).unwrap_or_default().len();
         info!(
             "Loaded pool '{}' with address={}, pool_class={}, swap_paths={}",
             pool_name, pool_config.address, pool_config.class, swap_path_len

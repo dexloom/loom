@@ -9,7 +9,7 @@ use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::FactoryAddress;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::ops::Div;
@@ -208,6 +208,9 @@ impl Pool for UniswapV2Pool {
 
     fn get_address(&self) -> Address {
         self.address
+    }
+    fn get_pool_id(&self) -> PoolId {
+        PoolId::Address(self.address)
     }
 
     fn get_fee(&self) -> U256 {

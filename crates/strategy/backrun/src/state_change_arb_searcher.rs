@@ -19,9 +19,8 @@ use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Con
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, Strategy};
 use loom_evm_db::DatabaseHelpers;
-use loom_types_blockchain::SwapError;
 use loom_types_entities::config::StrategyConfig;
-use loom_types_entities::{Market, PoolWrapper, Swap, SwapLine, SwapPath};
+use loom_types_entities::{Market, PoolWrapper, Swap, SwapError, SwapLine, SwapPath};
 use loom_types_events::{
     BestTxSwapCompose, HealthEvent, Message, MessageHealthEvent, MessageSwapCompose, StateUpdateEvent, SwapComposeData, SwapComposeMessage,
     TxComposeData,
@@ -47,10 +46,10 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.read acquired");
 
     for (pool, v) in state_update_event.directions().iter() {
-        let pool_paths: Vec<SwapPath> = match market_guard_read.get_pool_paths(&pool.get_address()) {
+        let pool_paths: Vec<SwapPath> = match market_guard_read.get_pool_paths(&pool.get_pool_id()) {
             Some(paths) => paths
                 .into_iter()
-                .filter(|swap_path| !swap_path.pools.iter().any(|pool| !market_guard_read.is_pool_disabled(&pool.get_address())))
+                .filter(|swap_path| !swap_path.pools.iter().any(|pool| !market_guard_read.is_pool_disabled(&pool.get_pool_id())))
                 .collect(),
             None => {
                 let mut pool_direction: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();

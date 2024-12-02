@@ -5,7 +5,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::required_state::RequiredState;
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, Bytes, B256, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
@@ -132,6 +132,88 @@ impl Display for PoolProtocol {
     }
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub enum PoolId<LDT: LoomDataTypes = LoomDataTypesEthereum>
+where
+    LDT::Address: Eq + Hash,
+{
+    Address(LDT::Address),
+    Bytes32(B256),
+}
+
+impl<LDT: LoomDataTypes> PoolId<LDT> {
+    pub fn address_or_zero(&self) -> LDT::Address {
+        if let Self::Address(addr) = self {
+            *addr
+        } else {
+            LDT::Address::default()
+        }
+    }
+
+    pub fn bytes_or_zero(&self) -> B256 {
+        if let Self::Bytes32(addr) = self {
+            *addr
+        } else {
+            B256::ZERO
+        }
+    }
+}
+
+impl<LDT: LoomDataTypes> Copy for PoolId<LDT> {}
+
+impl<LDT: LoomDataTypes> Hash for PoolId<LDT> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        match self {
+            Self::Address(addr) => addr.hash(state),
+            Self::Bytes32(addr) => addr.hash(state),
+        }
+    }
+}
+
+impl<LDT: LoomDataTypes> PartialEq<Self> for PoolId<LDT> {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::Address(a), Self::Address(b)) => a == b,
+            (Self::Bytes32(a), Self::Bytes32(b)) => a == b,
+            _ => false,
+        }
+    }
+}
+
+impl<LDT: LoomDataTypes> PartialOrd for PoolId<LDT> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl<LDT: LoomDataTypes> Ord for PoolId<LDT> {
+    fn cmp(&self, other: &Self) -> Ordering {
+        match (self, other) {
+            (PoolId::Address(a), PoolId::Address(b)) => a.cmp(b),
+            (PoolId::Bytes32(a), PoolId::Bytes32(b)) => a.cmp(b),
+            (PoolId::Address(a), PoolId::Bytes32(b)) => Ordering::Less,
+            (PoolId::Bytes32(a), PoolId::Address(b)) => Ordering::Greater,
+        }
+    }
+}
+
+impl<LDT: LoomDataTypes> Display for PoolId<LDT> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Address(a) => write!(f, "{}", a),
+            Self::Bytes32(a) => write!(f, "{}", a),
+        }
+    }
+}
+
+impl<LDT: LoomDataTypes> Eq for PoolId<LDT> {}
+
+impl<LDT: LoomDataTypes> Default for PoolId<LDT> {
+    fn default() -> Self {
+        Self::Address(Default::default())
+    }
+}
+
 pub struct PoolWrapper<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub pool: Arc<dyn Pool<LDT>>,
 }
@@ -216,6 +298,8 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
     }
 
     fn get_address(&self) -> LDT::Address;
+
+    fn get_pool_id(&self) -> PoolId<LDT>;
 
     fn get_fee(&self) -> U256 {
         U256::ZERO
