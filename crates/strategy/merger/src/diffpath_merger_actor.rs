@@ -24,10 +24,10 @@ fn get_merge_list<'a, DB: Clone + Send + Sync + 'static>(
     swap_paths: &'a [SwapComposeData<DB>],
 ) -> Vec<&'a SwapComposeData<DB>> {
     let mut ret: Vec<&SwapComposeData<DB>> = Vec::new();
-    let mut pools = request.swap.get_pool_address_vec();
+    let mut pools = request.swap.get_pool_id_vec();
     for p in swap_paths.iter() {
         if !p.cross_pools(&pools) {
-            pools.extend(p.swap.get_pool_address_vec());
+            pools.extend(p.swap.get_pool_id_vec());
             ret.push(p);
         }
     }

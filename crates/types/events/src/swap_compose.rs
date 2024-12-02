@@ -4,7 +4,7 @@ use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Bytes, U256};
 use eyre::{eyre, Result};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::{CallSequence, Swap};
+use loom_types_entities::{CallSequence, PoolId, Swap};
 use revm::DatabaseRef;
 use std::ops::Deref;
 
@@ -75,8 +75,8 @@ impl<DB: Clone + 'static, LDT: LoomDataTypes> SwapComposeData<DB, LDT> {
         }
     }
 
-    pub fn cross_pools(&self, others_pools: &[LDT::Address]) -> bool {
-        self.swap.get_pool_address_vec().iter().any(|x| others_pools.contains(x))
+    pub fn cross_pools(&self, others_pools: &[PoolId<LDT>]) -> bool {
+        self.swap.get_pool_id_vec().iter().any(|x| others_pools.contains(x))
     }
 
     pub fn first_stuffing_hash(&self) -> LDT::TxHash {

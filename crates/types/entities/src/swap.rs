@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use crate::{SwapAmountType, SwapLine, SwapStep, Token};
+use crate::{PoolId, SwapAmountType, SwapLine, SwapStep, Token};
 use alloy_primitives::U256;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
@@ -103,6 +103,18 @@ impl<LDT: LoomDataTypes> Swap<LDT> {
             Swap::BackrunSwapSteps((sp0, _sp1)) => sp0.get_first_token(),
             Swap::Multiple(_) => None,
             Swap::None => None,
+        }
+    }
+
+    pub fn get_pool_id_vec(&self) -> Vec<PoolId<LDT>> {
+        match self {
+            Swap::ExchangeSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_pool_id()).collect(),
+            Swap::BackrunSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_pool_id()).collect(),
+            Swap::BackrunSwapSteps((sp0, _sp1)) => {
+                sp0.swap_line_vec().iter().flat_map(|item| item.pools().iter().map(|p| p.get_pool_id()).collect::<Vec<_>>()).collect()
+            }
+            Swap::Multiple(swap_vec) => swap_vec.iter().flat_map(|x| x.get_pool_id_vec()).collect(),
+            Swap::None => Vec::new(),
         }
     }
 

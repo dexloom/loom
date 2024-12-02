@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use alloy_primitives::Address;
 use eyre::Result;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info};
@@ -8,7 +7,7 @@ use tracing::{debug, error, info};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
-use loom_types_entities::Market;
+use loom_types_entities::{Market, PoolId};
 use loom_types_events::{HealthEvent, MessageHealthEvent};
 
 pub async fn pool_health_monitor_worker(
@@ -17,7 +16,7 @@ pub async fn pool_health_monitor_worker(
 ) -> WorkerResult {
     subscribe!(pool_health_monitor_rx);
 
-    let mut pool_errors_map: HashMap<Address, u32> = HashMap::new();
+    let mut pool_errors_map: HashMap<PoolId, u32> = HashMap::new();
 
     loop {
         tokio::select! {

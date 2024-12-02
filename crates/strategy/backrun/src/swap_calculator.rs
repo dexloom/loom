@@ -3,8 +3,7 @@ use alloy_primitives::U256;
 use eyre::ErrReport;
 use lazy_static::lazy_static;
 use loom_types_blockchain::LoomDataTypes;
-use loom_types_blockchain::SwapError;
-use loom_types_entities::SwapLine;
+use loom_types_entities::{SwapError, SwapLine};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 

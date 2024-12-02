@@ -3,6 +3,7 @@ use eyre::Result;
 use lazy_static::lazy_static;
 use tracing::{debug, trace};
 
+use crate::abi_encoders::ProtocolAbiSwapEncoderTrait;
 use crate::helpers::EncoderHelper;
 use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::SwapLineEncoder;
@@ -15,14 +16,14 @@ lazy_static! {
 }
 
 #[derive(Clone)]
-pub struct SwapStepEncoder {
+pub struct SwapStepEncoder<E> {
     pub multicaller: Address,
-    pub swap_line_encoder: SwapLineEncoder,
+    pub swap_line_encoder: SwapLineEncoder<E>,
 }
 
-impl SwapStepEncoder {
-    pub fn new(multicaller: Address) -> Self {
-        Self { multicaller, swap_line_encoder: SwapLineEncoder::new(multicaller) }
+impl<E: ProtocolAbiSwapEncoderTrait> SwapStepEncoder<E> {
+    pub fn new(multicaller: Address, abi_encoder: E) -> Self {
+        Self { multicaller, swap_line_encoder: SwapLineEncoder::new(multicaller, abi_encoder) }
     }
 
     pub fn get_contract_address(&self) -> Address {

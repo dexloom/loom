@@ -8,7 +8,7 @@ use tracing::{debug, error, info};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, Strategy};
-use loom_execution_multicaller::SwapStepEncoder;
+use loom_execution_multicaller::{ProtocolABIEncoderV2, SwapStepEncoder};
 use loom_types_entities::{LatestBlock, Swap, SwapStep};
 use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeData, SwapComposeMessage};
 
@@ -47,7 +47,7 @@ async fn arb_swap_steps_optimizer_task<DB: DatabaseRef + Send + Sync + Clone>(
 }
 
 async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static>(
-    encoder: SwapStepEncoder,
+    encoder: SwapStepEncoder<ProtocolABIEncoderV2>,
     latest_block: SharedState<LatestBlock>,
     market_events_rx: Broadcaster<MarketEvents>,
     compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
@@ -159,7 +159,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
 
 #[derive(Consumer, Producer, Accessor)]
 pub struct ArbSwapPathMergerActor<DB: Send + Sync + Clone + 'static> {
-    encoder: SwapStepEncoder,
+    encoder: SwapStepEncoder<ProtocolABIEncoderV2>,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
@@ -175,8 +175,9 @@ where
     DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
     pub fn new(multicaller: Address) -> ArbSwapPathMergerActor<DB> {
+        let abi_encoder = ProtocolABIEncoderV2::default();
         ArbSwapPathMergerActor {
-            encoder: SwapStepEncoder::new(multicaller),
+            encoder: SwapStepEncoder::new(multicaller, abi_encoder),
             latest_block: None,
             market_events: None,
             compose_channel_rx: None,

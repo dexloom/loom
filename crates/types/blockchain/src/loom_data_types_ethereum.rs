@@ -1,7 +1,7 @@
 use crate::{ChainParameters, GethStateUpdate, LoomBlock, LoomDataTypes, LoomHeader, LoomTx};
 use alloy_consensus::{BlockHeader, Transaction as TransactionTrait};
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, BlockHash, TxHash};
+use alloy_primitives::{hex, Address, BlockHash, TxHash};
 use alloy_provider::network::TransactionResponse;
 use alloy_rpc_types_eth::{Block as EthBlock, Header, Log, Transaction, TransactionReceipt, TransactionRequest};
 
@@ -24,7 +24,7 @@ impl LoomDataTypes for LoomDataTypesEthereum {
 
     type Address = Address;
 
-    const WETH: Self::Address = Address::ZERO;
+    const WETH: Self::Address = Address::new(hex!("C02aaA39b223FE8D0A0e5C4F27eAD9083C756Cc2"));
 
     fn is_weth(address: &Self::Address) -> bool {
         address.eq(&Self::WETH)

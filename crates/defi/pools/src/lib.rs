@@ -1,7 +1,7 @@
 extern crate core;
 
 pub use config::PoolsConfig;
-pub use curvepool::CurvePool;
+pub use curvepool::{CurvePool, CurvePoolAbiEncoder};
 pub use maverickpool::MaverickPool;
 pub use pancakev3pool::PancakeV3Pool;
 pub use uniswapv2pool::UniswapV2Pool;

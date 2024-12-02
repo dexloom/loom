@@ -4,14 +4,13 @@ use std::sync::Arc;
 
 use alloy_primitives::{I256, U256};
 use eyre::{eyre, ErrReport, Result};
-use loom_types_blockchain::SwapError;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::debug;
 
 use crate::swappath::SwapPath;
-use crate::{CalculationResult, PoolWrapper, SwapStep, Token};
+use crate::{CalculationResult, PoolId, PoolWrapper, SwapError, SwapStep, Token};
 
 #[derive(Debug, Clone, Default)]
 pub enum SwapAmountType<LDT: LoomDataTypes = LoomDataTypesEthereum> {
@@ -138,7 +137,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
     pub fn to_error(&self, msg: String) -> SwapError<LDT> {
         SwapError {
             msg,
-            pool: self.get_first_pool().map_or(LDT::Address::default(), |x| x.get_address()),
+            pool: self.get_first_pool().map_or(PoolId::<LDT>::default(), |x| x.get_pool_id()),
             token_from: self.get_first_token().map_or(LDT::Address::default(), |x| x.get_address()),
             token_to: self.get_last_token().map_or(LDT::Address::default(), |x| x.get_address()),
             is_in_amount: true,
@@ -321,7 +320,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
                     if out_amount_result.is_zero() {
                         return Err(SwapError::<LDT> {
                             msg: "ZERO_AMOUNT".to_string(),
-                            pool: pool.get_address(),
+                            pool: pool.get_pool_id(),
                             token_from: token_from.get_address(),
                             token_to: token_to.get_address(),
                             is_in_amount: true,
@@ -337,7 +336,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
                     //error!("calculate_with_in_amount calculate_out_amount error {} amount {} : {}", self, in_amount, e);
                     return Err(SwapError {
                         msg: e.to_string(),
-                        pool: pool.get_address(),
+                        pool: pool.get_pool_id(),
                         token_from: token_from.get_address(),
                         token_to: token_to.get_address(),
                         is_in_amount: true,
@@ -375,7 +374,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
                     if in_amount_result == U256::MAX || in_amount_result == U256::ZERO {
                         return Err(SwapError::<LDT> {
                             msg: "ZERO_AMOUNT".to_string(),
-                            pool: pool.get_address(),
+                            pool: pool.get_pool_id(),
                             token_from: token_from.get_address(),
                             token_to: token_to.get_address(),
                             is_in_amount: false,
@@ -392,7 +391,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
 
                     return Err(SwapError {
                         msg: e.to_string(),
-                        pool: pool.get_address(),
+                        pool: pool.get_pool_id(),
                         token_from: token_from.get_address(),
                         token_to: token_to.get_address(),
                         is_in_amount: false,

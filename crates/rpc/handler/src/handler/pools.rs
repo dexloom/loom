@@ -8,7 +8,7 @@ use axum::Json;
 use eyre::ErrReport;
 use loom_evm_utils::error_handler::internal_error;
 use loom_rpc_state::AppState;
-use loom_types_entities::PoolWrapper;
+use loom_types_entities::{PoolId, PoolWrapper};
 use revm::primitives::Env;
 use revm::{DatabaseCommit, DatabaseRef};
 use std::str::FromStr;
@@ -46,7 +46,7 @@ pub async fn pools<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'sta
         })
         .skip(pagination.start())
         .take(pagination.limit)
-        .map(|(address, pool)| (*address, pool.clone()))
+        .map(|(address, pool)| (address.address_or_zero(), pool.clone()))
         .collect();
 
     let mut ret = vec![];
@@ -96,7 +96,7 @@ pub async fn pool<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'stat
 ) -> Result<Json<PoolDetailsResponse>, (StatusCode, String)> {
     let address = Address::from_str(&address).map_err(internal_error)?;
 
-    match app_state.bc.market().read().await.pools().get(&address) {
+    match app_state.bc.market().read().await.pools().get(&PoolId::Address(address)) {
         None => Err((StatusCode::NOT_FOUND, "Pool not found".to_string())),
         Some(pool) => Ok(Json(PoolDetailsResponse {
             address: pool.get_address(),
@@ -153,7 +153,7 @@ pub async fn pool_quote<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Se
     Json(quote_request): Json<QuoteRequest>,
 ) -> Result<Json<QuoteResponse>, (StatusCode, String)> {
     let address = Address::from_str(&address).map_err(internal_error)?;
-    match app_state.bc.market().read().await.pools().get(&address) {
+    match app_state.bc.market().read().await.pools().get(&PoolId::Address(address)) {
         None => Err((StatusCode::NOT_FOUND, "Pool not found".to_string())),
         Some(pool) => {
             let evm_env = Env::default();

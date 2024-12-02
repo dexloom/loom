@@ -143,7 +143,8 @@ where
         }
         PoolClass::Curve => match CurveProtocol::get_contract_from_code(client.clone(), pool_address).await {
             Ok(curve_contract) => {
-                let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
+                let curve_pool = CurvePool::<P, T, N>::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await?;
+
                 let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
 
                 match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {

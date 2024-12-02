@@ -36,4 +36,5 @@ alloy-transport.workspace = true
 
 [dev-dependencies]
 env_logger.workspace = true
+loom-defi-pools.workspace = true
 tokio.workspace = true

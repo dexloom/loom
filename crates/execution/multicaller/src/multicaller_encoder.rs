@@ -2,10 +2,10 @@ use alloy_primitives::{Address, Bytes};
 use eyre::{eyre, OptionExt, Result};
 use tracing::error;
 
+use crate::abi_encoders::{ProtocolABIEncoderV2, ProtocolAbiSwapEncoderTrait};
+use crate::SwapStepEncoder;
 use loom_types_blockchain::MulticallerCalls;
 use loom_types_entities::Swap;
-
-use crate::SwapStepEncoder;
 
 pub trait MulticallerEncoder {
     fn encode_calls(&self, calls: MulticallerCalls) -> Result<(Address, Bytes)>;
@@ -14,14 +14,14 @@ pub trait MulticallerEncoder {
 }
 
 #[derive(Clone)]
-pub struct MulticallerSwapEncoder {
+pub struct MulticallerSwapEncoder<E: ProtocolAbiSwapEncoderTrait = ProtocolABIEncoderV2> {
     pub multicaller_address: Address,
-    pub swap_step_encoder: SwapStepEncoder,
+    pub swap_step_encoder: SwapStepEncoder<E>,
 }
 
-impl MulticallerSwapEncoder {
-    pub fn new(multicaller_address: Address) -> Self {
-        Self { multicaller_address, swap_step_encoder: SwapStepEncoder::new(multicaller_address) }
+impl<E: ProtocolAbiSwapEncoderTrait> MulticallerSwapEncoder<E> {
+    pub fn new(multicaller_address: Address, abi_encoder: E) -> Self {
+        Self { multicaller_address, swap_step_encoder: SwapStepEncoder::new(multicaller_address, abi_encoder) }
     }
 
     pub fn get_contract_address(&self) -> Address {
@@ -29,7 +29,7 @@ impl MulticallerSwapEncoder {
     }
 }
 
-impl MulticallerEncoder for MulticallerSwapEncoder {
+impl<E: ProtocolAbiSwapEncoderTrait> MulticallerEncoder for MulticallerSwapEncoder<E> {
     fn encode_calls(&self, calls: MulticallerCalls) -> Result<(Address, Bytes)> {
         self.swap_step_encoder.to_call_data(&calls)
     }
