@@ -38,7 +38,7 @@ pub struct FastCacheDB<ExtDB> {
     pub db: ExtDB,
 }
 
-impl<ExtDB: Default + DatabaseRef<Error = Infallible>> Default for FastCacheDB<ExtDB> {
+impl<ExtDB: Default + DatabaseRef> Default for FastCacheDB<ExtDB> {
     fn default() -> Self {
         Self::new(ExtDB::default())
     }
@@ -47,7 +47,7 @@ impl<ExtDB: Default + DatabaseRef<Error = Infallible>> Default for FastCacheDB<E
 impl<ExtDB> FastCacheDB<ExtDB> {
     pub fn new(db: ExtDB) -> Self
     where
-        ExtDB: DatabaseRef<Error = Infallible>,
+        ExtDB: DatabaseRef,
     {
         let mut contracts = HashMap::with_hasher(SimpleBuildHasher::default());
         contracts.insert(KECCAK_EMPTY, Bytecode::default());

@@ -1,5 +1,6 @@
 use alloy::consensus::Transaction as TransactionTrait;
 use alloy::primitives::{Address, U256};
+use alloy::providers::Provider;
 use alloy::rpc::types::{Header, Transaction};
 use lazy_static::lazy_static;
 use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, TransactTo, TxEnv};
@@ -7,6 +8,12 @@ use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, TransactTo, TxEnv};
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
 }
+/*
+pub async fn env_fetch_for_block<P: Provider<T, N>, T: Transport + Clone, N: Network>(provider: P, BlockID: BlockId) -> Result<Env> {
+    let block = provider.get_block_by_number()
+}
+
+ */
 
 pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
     let mut env = Env::default();

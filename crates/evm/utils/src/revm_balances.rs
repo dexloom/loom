@@ -1,10 +1,12 @@
 use crate::remv_db_direct_access::calc_hashmap_cell;
 use crate::{nweth, NWETH};
+use alloy::providers::ext::AnvilApi;
 use alloy::{network::Network, primitives::Address, providers::Provider, sol_types::private::U256, transports::Transport};
 use eyre::{eyre, Result};
 use loom_defi_abi::IERC20::IERC20Instance;
+use loom_defi_address_book::TokenAddressEth;
 use loom_evm_db::LoomDBType;
-use loom_node_debug_provider::{AnvilProviderExt, DebugProviderExt};
+use loom_node_debug_provider::DebugProviderExt;
 use tracing::error;
 
 pub struct BalanceCheater {}
@@ -13,7 +15,11 @@ pub struct BalanceCheater {}
 impl BalanceCheater {
     pub fn get_balance_cell(token: Address, owner: Address) -> Result<U256> {
         match token {
-            NWETH::ADDRESS => Ok(calc_hashmap_cell(U256::from(3u32), U256::from_be_slice(owner.as_slice()))),
+            TokenAddressEth::WETH => Ok(calc_hashmap_cell(U256::from(3u32), U256::from_be_slice(owner.as_slice()))),
+            TokenAddressEth::USDT => Ok(calc_hashmap_cell(U256::from(2u32), U256::from_be_slice(owner.as_slice()))),
+            TokenAddressEth::USDC => Ok(calc_hashmap_cell(U256::from(3u32), U256::from_be_slice(owner.as_slice()))),
+            TokenAddressEth::WSTETH => Ok(calc_hashmap_cell(U256::from(0u32), U256::from_be_slice(owner.as_slice()))),
+            TokenAddressEth::STETH => Ok(calc_hashmap_cell(U256::from(3u32), U256::from_be_slice(owner.as_slice()))),
             _ => Err(eyre!("ADDRESS_CELL_UNKNOWN")),
         }
     }
@@ -33,11 +39,11 @@ impl BalanceCheater {
     where
         T: Transport + Clone,
         N: Network,
-        P: Provider<T, N> + AnvilProviderExt<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
     {
         let balance_cell = Self::get_balance_cell(token, owner)?;
 
-        if let Err(e) = client.set_storage(token, balance_cell.into(), balance.into()).await {
+        if let Err(e) = client.anvil_set_storage_at(token, balance_cell.into(), balance.into()).await {
             error!("{e}");
             return Err(eyre!(e));
         }
@@ -49,10 +55,11 @@ impl BalanceCheater {
             return Err(eyre!("STORAGE_NOT_SET"));
         }
 
-        let weth_instance = IERC20Instance::new(token, client.clone());
+        let token_instance = IERC20Instance::new(token, client.clone());
 
-        let balance = weth_instance.balanceOf(owner).call().await?;
-        if balance._0 != nweth::NWETH::from_float(1.0) {
+        let new_balance = token_instance.balanceOf(owner).call_raw().await?;
+        println!("new_balance : {:?}", new_balance);
+        if U256::from_be_slice(new_balance.as_ref()) != balance {
             return Err(eyre!("BALANCE_NOT_SET"));
         }
         Ok(())
@@ -61,7 +68,7 @@ impl BalanceCheater {
     where
         T: Transport + Clone,
         N: Network,
-        P: Provider<T, N> + AnvilProviderExt<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<T, N> + Send + Sync + Clone + 'static,
     {
         let balance = nweth::NWETH::from_float(balance);
         Self::set_anvil_token_balance(client, token, owner, balance).await

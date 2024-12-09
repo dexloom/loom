@@ -13,6 +13,7 @@ pub use market::Market;
 pub use market_state::MarketState;
 pub use mock_pool::MockPool;
 pub use pool::{get_protocol_by_factory, Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PoolWrapper, PreswapRequirement};
+pub use pool_loader::{PoolLoader, PoolLoaders};
 pub use signers::{LoomTxSigner, TxSignerEth, TxSigners};
 pub use swap::Swap;
 pub use swap_encoder::SwapEncoder;
@@ -50,6 +51,7 @@ mod mock_pool;
 
 pub mod call_sequence;
 mod mock_pool_generic;
+mod pool_loader;
 mod swap;
 mod swap_encoder;
 mod swap_error;

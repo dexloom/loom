@@ -4,6 +4,7 @@ pub use deploy::{MulticallerDeployer, DEFAULT_VIRTUAL_ADDRESS};
 pub use helpers::EncoderHelper;
 pub use multicaller_encoder::MulticallerEncoder;
 pub use multicaller_encoder::MulticallerSwapEncoder;
+pub use opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 pub use swapline_encoder::SwapLineEncoder;
 pub use swapstep_encoder::SwapStepEncoder;
 

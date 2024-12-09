@@ -6,6 +6,7 @@ pub use required_pools_actor::RequiredPoolLoaderActor;
 
 mod curve_protocol_pool_actor;
 mod history_pool_actor;
+mod loaders;
 mod logs_parser;
 mod new_pool_actor;
 mod pool_loader;

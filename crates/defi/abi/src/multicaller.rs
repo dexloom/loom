@@ -8,7 +8,7 @@ sol! {
     }
 
 
-    #[sol(abi=true)]
+    #[sol(abi=true, rpc)]
     #[derive(Debug, PartialEq, Eq)]
     interface IMultiCaller {
         function doCalls(bytes calldata data) external payable returns(uint256);
@@ -30,5 +30,10 @@ sol! {
         function uni2GetInAmountFrom1Comms(address pool,uint256 amount, uint256 fee) external;
         function uni2GetOutAmountFrom0Comms(address pool,uint256 amount, uint256 fee) external;
         function uni2GetOutAmountFrom1Comms(address pool,uint256 amount, uint256 fee) external;
+        function revertArg(uint256 value) external;
+        function logArg(uint256 value) external;
+        function logStackOffset(uint256 offset) external;
+        function logStack() external;
+
     }
 }

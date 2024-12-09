@@ -1,5 +1,5 @@
 use alloy_primitives::{Address, Bytes, U256};
-use alloy_sol_types::SolInterface;
+use alloy_sol_types::{SolCall, SolInterface};
 
 use loom_defi_abi::balancer::IVault;
 use loom_defi_abi::lido::{IStEth, IWStEth};
@@ -83,6 +83,22 @@ impl EncoderHelper {
         };
 
         call.abi_encode().into()
+    }
+
+    pub fn encode_multicaller_log_arg(value: U256) -> Bytes {
+        IMultiCaller::logArgCall { value }.abi_encode().into()
+    }
+
+    pub fn encode_multicaller_revert_arg(value: U256) -> Bytes {
+        IMultiCaller::revertArgCall { value }.abi_encode().into()
+    }
+
+    pub fn encode_multicaller_revert_stack() -> Bytes {
+        IMultiCaller::logStackCall {}.abi_encode().into()
+    }
+
+    pub fn encode_multicaller_revert_stack_offset(offset: U256) -> Bytes {
+        IMultiCaller::logStackOffsetCall { offset }.abi_encode().into()
     }
 
     pub fn encode_balancer_flashloan(token: Address, amount: U256, user_data: Bytes, recipient: Address) -> Bytes {
