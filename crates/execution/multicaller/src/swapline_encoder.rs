@@ -292,7 +292,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                     match amount_out {
                         SwapAmountType::Set(_) => {}
                         _ => {
-                            get_in_amount_opcode.set_call_stack(false, 0, 0x24, 20);
+                            get_in_amount_opcode.set_call_stack(false, 0, 0x24, 0x20);
                         }
                     }
                     inside_opcodes.insert(get_in_amount_opcode);
