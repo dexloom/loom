@@ -9,6 +9,7 @@ use loom_types_entities::{Pool, PreswapRequirement};
 pub struct UniswapV2ProtocolAbiEncoder;
 
 impl UniswapV2ProtocolAbiEncoder {
+    #[inline]
     pub fn get_zero_for_one(token_address_from: &Address, token_address_to: &Address) -> bool {
         token_address_from < token_address_to
     }
@@ -36,7 +37,7 @@ impl ProtocolAbiSwapEncoderTrait for UniswapV2ProtocolAbiEncoder {
         recipient: Address,
         payload: Bytes,
     ) -> eyre::Result<Bytes> {
-        let swap_call = if token_from_address < token_to_address {
+        let swap_call = if UniswapV2ProtocolAbiEncoder::get_zero_for_one(&token_from_address, &token_to_address) {
             IUniswapV2Pair::swapCall { amount0Out: U256::ZERO, amount1Out: amount, to: recipient, data: payload }
         } else {
             IUniswapV2Pair::swapCall { amount0Out: amount, amount1Out: U256::ZERO, to: recipient, data: payload }
@@ -53,10 +54,6 @@ impl ProtocolAbiSwapEncoderTrait for UniswapV2ProtocolAbiEncoder {
         false
     }
 
-    fn swap_in_amount_offset(&self, _pool: &dyn Pool, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
-        None
-    }
-
     fn swap_out_amount_offset(&self, _pool: &dyn Pool, token_from_address: Address, token_to_address: Address) -> Option<u32> {
         if UniswapV2ProtocolAbiEncoder::get_zero_for_one(&token_from_address, &token_to_address) {
             Some(0x24)
@@ -66,13 +63,16 @@ impl ProtocolAbiSwapEncoderTrait for UniswapV2ProtocolAbiEncoder {
     }
 
     fn swap_out_amount_return_offset(&self, _pool: &dyn Pool, token_from_address: Address, token_to_address: Address) -> Option<u32> {
-        if token_from_address < token_to_address {
+        if UniswapV2ProtocolAbiEncoder::get_zero_for_one(&token_from_address, &token_to_address) {
             Some(0x20)
         } else {
             Some(0x00)
         }
     }
 
+    fn swap_in_amount_offset(&self, _pool: &dyn Pool, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
+        None
+    }
     fn swap_in_amount_return_offset(&self, _pool: &dyn Pool, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         None
     }

@@ -623,7 +623,7 @@ mod tests {
 
         for curve_contract in curve_contracts.into_iter() {
             debug!("Loading Pool : {} {:?}", curve_contract.get_address(), curve_contract);
-            let pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await.unwrap();
+            let pool = CurvePool::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await.unwrap();
             let state_required = pool.get_state_required().unwrap();
 
             let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await.unwrap();

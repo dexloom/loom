@@ -1,4 +1,3 @@
-use std::convert::Infallible;
 use std::vec::Vec;
 
 use alloy::primitives::map::{Entry, HashMap};

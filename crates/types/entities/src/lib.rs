@@ -12,7 +12,8 @@ pub use latest_block::LatestBlock;
 pub use market::Market;
 pub use market_state::MarketState;
 pub use mock_pool::MockPool;
-pub use pool::{get_protocol_by_factory, Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PoolWrapper, PreswapRequirement};
+pub use pool::{get_protocol_by_factory, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
+pub use pool_id::PoolId;
 pub use pool_loader::{PoolLoader, PoolLoaders};
 pub use signers::{LoomTxSigner, TxSignerEth, TxSigners};
 pub use swap::Swap;
@@ -45,12 +46,14 @@ mod keystore;
 pub mod private;
 
 mod calculation_result;
-pub mod config;
 mod datafetcher;
 mod mock_pool;
+pub mod strategy_config;
 
 pub mod call_sequence;
 mod mock_pool_generic;
+pub mod pool_config;
+mod pool_id;
 mod pool_loader;
 mod swap;
 mod swap_encoder;

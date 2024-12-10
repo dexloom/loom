@@ -1,4 +1,3 @@
-use std::ops::Deref;
 use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes, U256};
@@ -50,7 +49,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
 
             let swap_to = match prev_pool {
                 Some(prev_pool) => match flash_pool.get_class() {
-                    PoolClass::UniswapV2 => match self.abi_encoder.preswap_requirement(prev_pool.deref()) {
+                    PoolClass::UniswapV2 => match self.abi_encoder.preswap_requirement(prev_pool.as_ref()) {
                         PreswapRequirement::Transfer(transfer_to) => {
                             trace!(
                                 "uniswap v2 transfer to previous pool: token={:?}, to={:?}, prev_pool={:?}",
@@ -66,7 +65,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                         }
                         _ => self.multicaller,
                     },
-                    _ => match self.abi_encoder.preswap_requirement(prev_pool.deref()) {
+                    _ => match self.abi_encoder.preswap_requirement(prev_pool.as_ref()) {
                         PreswapRequirement::Transfer(funds_to) => {
                             trace!("other transfer to previous pool: funds_to={:?}, prev_pool={:?}", funds_to, prev_pool);
                             funds_to
@@ -177,7 +176,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                     let mut swap_opcode = MulticallerCall::new_call(
                         flash_pool.get_address(),
                         &self.abi_encoder.encode_swap_out_amount_provided(
-                            flash_pool.deref(),
+                            flash_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             U256::ZERO,
@@ -188,7 +187,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                     swap_opcode.set_call_stack(
                         true,
                         0,
-                        self.abi_encoder.swap_out_amount_offset(flash_pool.deref(), token_from_address, token_to_address).unwrap(),
+                        self.abi_encoder.swap_out_amount_offset(flash_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                         0x20,
                     );
 
@@ -204,7 +203,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                             MulticallerCall::new_call(
                                 flash_pool.get_address(),
                                 &self.abi_encoder.encode_swap_in_amount_provided(
-                                    flash_pool.deref(),
+                                    flash_pool.as_ref(),
                                     token_from_address,
                                     token_to_address,
                                     amount,
@@ -218,7 +217,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                             MulticallerCall::new_call(
                                 flash_pool.get_address(),
                                 &self.abi_encoder.encode_swap_in_amount_provided(
-                                    flash_pool.deref(),
+                                    flash_pool.as_ref(),
                                     token_from_address,
                                     token_to_address,
                                     U256::ZERO,
@@ -230,7 +229,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                                 false,
                                 0,
                                 self.abi_encoder
-                                    .swap_in_amount_offset(flash_pool.deref(), token_from_address, token_to_address)
+                                    .swap_in_amount_offset(flash_pool.as_ref(), token_from_address, token_to_address)
                                     .ok_or_eyre("NO_OFFSET")?,
                                 0x20,
                             )
@@ -392,7 +391,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                     let mut swap_opcode = MulticallerCall::new_call(
                         flash_pool.get_address(),
                         &self.abi_encoder.encode_swap_out_amount_provided(
-                            flash_pool.deref(),
+                            flash_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             amount_out.unwrap_or_zero(),
@@ -410,7 +409,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                             swap_opcode.set_call_stack(
                                 true,
                                 0,
-                                self.abi_encoder.swap_out_amount_offset(flash_pool.deref(), token_from_address, token_to_address).unwrap(),
+                                self.abi_encoder.swap_out_amount_offset(flash_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                                 0x20,
                             );
                         }
@@ -431,7 +430,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                             MulticallerCall::new_call(
                                 flash_pool.get_address(),
                                 &self.abi_encoder.encode_swap_out_amount_provided(
-                                    flash_pool.deref(),
+                                    flash_pool.as_ref(),
                                     token_from_address,
                                     token_to_address,
                                     amount,
@@ -447,7 +446,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                             MulticallerCall::new_call(
                                 flash_pool.get_address(),
                                 &self.abi_encoder.encode_swap_out_amount_provided(
-                                    flash_pool.deref(),
+                                    flash_pool.as_ref(),
                                     token_from_address,
                                     token_to_address,
                                     U256::ZERO,
@@ -458,7 +457,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                             .set_call_stack(
                                 true,
                                 0,
-                                self.abi_encoder.swap_out_amount_offset(flash_pool.deref(), token_from_address, token_to_address).unwrap(),
+                                self.abi_encoder.swap_out_amount_offset(flash_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                                 0x20,
                             )
                             .clone()
@@ -506,7 +505,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
             );
 
             let swap_to: Address = if let Some(next_pool) = next_pool {
-                match &self.abi_encoder.preswap_requirement(next_pool.deref()) {
+                match &self.abi_encoder.preswap_requirement(next_pool.as_ref()) {
                     PreswapRequirement::Transfer(next_funds_to) => *next_funds_to,
                     _ => self.multicaller,
                 }
@@ -615,7 +614,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                     let mut swap_opcode = MulticallerCall::new_call(
                         cur_pool.get_address(),
                         &self.abi_encoder.encode_swap_out_amount_provided(
-                            cur_pool.deref(),
+                            cur_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             U256::from(1),
@@ -626,7 +625,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                     swap_opcode.set_call_stack(
                         true,
                         0,
-                        self.abi_encoder.swap_out_amount_offset(cur_pool.deref(), token_from_address, token_to_address).unwrap(),
+                        self.abi_encoder.swap_out_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                         0x20,
                     );
 
@@ -642,7 +641,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                                 MulticallerCall::new_call(
                                     cur_pool.get_address(),
                                     &self.abi_encoder.encode_swap_in_amount_provided(
-                                        cur_pool.deref(),
+                                        cur_pool.as_ref(),
                                         token_from_address,
                                         token_to_address,
                                         amount,
@@ -662,7 +661,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                                 let mut swap_opcode = MulticallerCall::new_call(
                                     cur_pool.get_address(),
                                     &self.abi_encoder.encode_swap_in_amount_provided(
-                                        cur_pool.deref(),
+                                        cur_pool.as_ref(),
                                         token_from_address,
                                         token_to_address,
                                         U256::ZERO,
@@ -674,7 +673,9 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                                 swap_opcode.set_call_stack(
                                     true,
                                     0,
-                                    self.abi_encoder.swap_in_amount_offset(cur_pool.deref(), token_from_address, token_to_address).unwrap(),
+                                    self.abi_encoder
+                                        .swap_in_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address)
+                                        .unwrap(),
                                     0x20,
                                 );
                                 swap_opcode
@@ -684,7 +685,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                                 let mut swap_opcode = MulticallerCall::new_call(
                                     cur_pool.get_address(),
                                     &self.abi_encoder.encode_swap_in_amount_provided(
-                                        &**cur_pool,
+                                        cur_pool.as_ref(),
                                         token_from_address,
                                         token_to_address,
                                         U256::ZERO,
@@ -696,7 +697,9 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                                 swap_opcode.set_call_stack(
                                     false,
                                     0,
-                                    self.abi_encoder.swap_in_amount_offset(cur_pool.deref(), token_from_address, token_to_address).unwrap(),
+                                    self.abi_encoder
+                                        .swap_in_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address)
+                                        .unwrap(),
                                     0x20,
                                 );
                                 swap_opcode
@@ -707,7 +710,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                         let mut swap_opcode = MulticallerCall::new_call(
                             cur_pool.get_address(),
                             &self.abi_encoder.encode_swap_in_amount_provided(
-                                &**cur_pool,
+                                cur_pool.as_ref(),
                                 token_from_address,
                                 token_to_address,
                                 U256::ZERO,
@@ -719,7 +722,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                         swap_opcode.set_call_stack(
                             true,
                             0,
-                            self.abi_encoder.swap_in_amount_offset(cur_pool.deref(), token_from_address, token_to_address).unwrap(),
+                            self.abi_encoder.swap_in_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                             0x20,
                         );
                         swap_opcode
@@ -728,7 +731,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                     swap_opcode.set_return_stack(
                         true,
                         0,
-                        self.abi_encoder.swap_in_amount_return_offset(cur_pool.deref(), token_from_address, token_to_address).unwrap(),
+                        self.abi_encoder.swap_in_amount_return_offset(cur_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                         0x20,
                     );
 
@@ -737,7 +740,7 @@ impl<E: ProtocolAbiSwapEncoderTrait> SwapLineEncoder<E> {
                     if next_pool.is_some() {
                         trace!("has next pool");
                         if let Some(x) =
-                            self.abi_encoder.swap_in_amount_return_script(cur_pool.deref(), token_from_address, token_to_address)
+                            self.abi_encoder.swap_in_amount_return_script(cur_pool.as_ref(), token_from_address, token_to_address)
                         {
                             let calc_opcode = MulticallerCall::new_calculation_call(&x);
                             swap_opcodes.add(calc_opcode);

@@ -1,4 +1,4 @@
-use crate::evm::{revert_bytes_to_string, EvmError};
+use crate::evm::revert_bytes_to_string;
 use alloy::primitives::map::HashSet;
 use alloy::primitives::{Address, Bytes};
 use alloy::rpc::types::trace::geth::{CallConfig, CallFrame};

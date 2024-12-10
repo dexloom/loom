@@ -10,7 +10,7 @@ use loom::evm::db::LoomDBType;
 use loom::metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom::strategy::backrun::{BackrunConfig, BackrunConfigSection, StateChangeArbActor};
 use loom::strategy::merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
-use loom::types::entities::config::load_from_file;
+use loom::types::entities::strategy_config::load_from_file;
 use loom::types::events::MarketEvents;
 
 #[tokio::main]

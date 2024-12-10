@@ -7,7 +7,7 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use tracing::{debug, error};
 
-use crate::pool_loader::fetch_state_and_add_pool;
+use crate::pool_loader_actor::fetch_state_and_add_pool;
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::{Blockchain, BlockchainState};

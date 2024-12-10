@@ -1,6 +1,7 @@
 use std::env;
 use std::fmt::{Display, Formatter};
 use std::process::exit;
+use std::sync::Arc;
 use std::time::Duration;
 
 use alloy_provider::network::TransactionResponse;
@@ -24,9 +25,9 @@ use loom::core::actors::{Accessor, Actor, Broadcaster, Consumer, Producer, Share
 use loom::core::block_history::BlockHistoryActor;
 use loom::core::router::SwapRouterActor;
 use loom::defi::address_book::TokenAddressEth;
-use loom::defi::market::{fetch_and_add_pool_by_address, fetch_state_and_add_pool};
+use loom::defi::market::{fetch_and_add_pool_by_pool_id, fetch_state_and_add_pool};
 use loom::defi::pools::protocols::CurveProtocol;
-use loom::defi::pools::CurvePool;
+use loom::defi::pools::{CurvePool, PoolLoadersBuilder, PoolsConfig};
 use loom::defi::preloader::MarketStatePreloadedOneShotActor;
 use loom::defi::price::PriceActor;
 use loom::evm::db::LoomDBType;
@@ -297,15 +298,18 @@ async fn main() -> Result<()> {
         _ => info!("Price actor has been initialized"),
     }
 
+    let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(client.clone(), PoolsConfig::default()));
+
     for (pool_name, pool_config) in test_config.pools {
         match pool_config.class {
             PoolClass::UniswapV2 | PoolClass::UniswapV3 => {
                 debug!(address=%pool_config.address, class=%pool_config.class, "Loading pool");
-                fetch_and_add_pool_by_address(
+                fetch_and_add_pool_by_pool_id(
                     client.clone(),
                     market_instance.clone(),
                     market_state.clone(),
-                    pool_config.address,
+                    pool_loaders.clone(),
+                    PoolId::Address(pool_config.address),
                     pool_config.class,
                 )
                 .await?;

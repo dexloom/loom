@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::required_state::RequiredState;
+use crate::PoolId;
 use alloy_primitives::{Address, Bytes, B256, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
@@ -55,6 +56,9 @@ pub enum PoolClass {
     #[serde(rename = "uniswap3")]
     #[strum(serialize = "uniswap3")]
     UniswapV3,
+    #[serde(rename = "uniswap4")]
+    #[strum(serialize = "uniswap4")]
+    UniswapV4,
     #[serde(rename = "maverick")]
     #[strum(serialize = "maverick")]
     Maverick,
@@ -73,6 +77,12 @@ pub enum PoolClass {
     #[serde(rename = "rocketpool")]
     #[strum(serialize = "rocketpool")]
     RocketPool,
+    #[serde(rename = "balancer1")]
+    #[strum(serialize = "balancer1")]
+    BalancerV1,
+    #[serde(rename = "balancer2")]
+    #[strum(serialize = "balancer2")]
+    BalancerV2,
     #[serde(rename = "custom")]
     #[strum(serialize = "custom")]
     Custom(u64),
@@ -93,6 +103,7 @@ pub enum PoolProtocol {
     Shibaswap,
     UniswapV3,
     UniswapV3Like,
+    UniswapV4,
     PancakeV3,
     Integral,
     Maverick,
@@ -100,6 +111,8 @@ pub enum PoolProtocol {
     LidoStEth,
     LidoWstEth,
     RocketEth,
+    BalancerV1,
+    BalancerV2,
     Custom(u64),
 }
 
@@ -111,6 +124,7 @@ impl Display for PoolProtocol {
             Self::UniswapV2Like => "UniswapV2Like",
             Self::UniswapV3 => "UniswapV3",
             Self::PancakeV3 => "PancakeV3",
+            Self::UniswapV4 => "UniswapV4",
             Self::UniswapV3Like => "UniswapV3Like",
             Self::NomiswapStable => "NomiswapStable",
             Self::Sushiswap => "Sushiswap",
@@ -126,91 +140,11 @@ impl Display for PoolProtocol {
             Self::LidoWstEth => "WstEth",
             Self::LidoStEth => "StEth",
             Self::RocketEth => "RocketEth",
+            Self::BalancerV1 => "BalancerV1",
+            Self::BalancerV2 => "BalancerV2",
             Self::Custom(x) => "Custom",
         };
         write!(f, "{}", protocol_name)
-    }
-}
-
-#[derive(Clone, Debug, Serialize, Deserialize)]
-pub enum PoolId<LDT: LoomDataTypes = LoomDataTypesEthereum>
-where
-    LDT::Address: Eq + Hash,
-{
-    Address(LDT::Address),
-    Bytes32(B256),
-}
-
-impl<LDT: LoomDataTypes> PoolId<LDT> {
-    pub fn address_or_zero(&self) -> LDT::Address {
-        if let Self::Address(addr) = self {
-            *addr
-        } else {
-            LDT::Address::default()
-        }
-    }
-
-    pub fn bytes_or_zero(&self) -> B256 {
-        if let Self::Bytes32(addr) = self {
-            *addr
-        } else {
-            B256::ZERO
-        }
-    }
-}
-
-impl<LDT: LoomDataTypes> Copy for PoolId<LDT> {}
-
-impl<LDT: LoomDataTypes> Hash for PoolId<LDT> {
-    fn hash<H: Hasher>(&self, state: &mut H) {
-        match self {
-            Self::Address(addr) => addr.hash(state),
-            Self::Bytes32(addr) => addr.hash(state),
-        }
-    }
-}
-
-impl<LDT: LoomDataTypes> PartialEq<Self> for PoolId<LDT> {
-    fn eq(&self, other: &Self) -> bool {
-        match (self, other) {
-            (Self::Address(a), Self::Address(b)) => a == b,
-            (Self::Bytes32(a), Self::Bytes32(b)) => a == b,
-            _ => false,
-        }
-    }
-}
-
-impl<LDT: LoomDataTypes> PartialOrd for PoolId<LDT> {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
-}
-
-impl<LDT: LoomDataTypes> Ord for PoolId<LDT> {
-    fn cmp(&self, other: &Self) -> Ordering {
-        match (self, other) {
-            (PoolId::Address(a), PoolId::Address(b)) => a.cmp(b),
-            (PoolId::Bytes32(a), PoolId::Bytes32(b)) => a.cmp(b),
-            (PoolId::Address(a), PoolId::Bytes32(b)) => Ordering::Less,
-            (PoolId::Bytes32(a), PoolId::Address(b)) => Ordering::Greater,
-        }
-    }
-}
-
-impl<LDT: LoomDataTypes> Display for PoolId<LDT> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        match self {
-            Self::Address(a) => write!(f, "{}", a),
-            Self::Bytes32(a) => write!(f, "{}", a),
-        }
-    }
-}
-
-impl<LDT: LoomDataTypes> Eq for PoolId<LDT> {}
-
-impl<LDT: LoomDataTypes> Default for PoolId<LDT> {
-    fn default() -> Self {
-        Self::Address(Default::default())
     }
 }
 

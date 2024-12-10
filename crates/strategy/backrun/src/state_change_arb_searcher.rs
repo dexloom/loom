@@ -19,7 +19,7 @@ use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Con
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, Strategy};
 use loom_evm_db::DatabaseHelpers;
-use loom_types_entities::config::StrategyConfig;
+use loom_types_entities::strategy_config::StrategyConfig;
 use loom_types_entities::{Market, PoolWrapper, Swap, SwapError, SwapLine, SwapPath};
 use loom_types_events::{
     BestTxSwapCompose, HealthEvent, Message, MessageHealthEvent, MessageSwapCompose, StateUpdateEvent, SwapComposeData, SwapComposeMessage,

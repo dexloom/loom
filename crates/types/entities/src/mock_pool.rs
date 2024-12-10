@@ -1,4 +1,4 @@
-use crate::pool::PoolId;
+use crate::pool_id::PoolId;
 use crate::required_state::RequiredState;
 use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol};
 use alloy_primitives::{Address, U256};

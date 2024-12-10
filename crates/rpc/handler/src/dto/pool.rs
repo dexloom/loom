@@ -46,12 +46,15 @@ pub enum PoolClass {
     Unknown,
     UniswapV2,
     UniswapV3,
+    UniswapV4,
     PancakeV3,
     Maverick,
     Curve,
     LidoStEth,
     LidoWstEth,
     RocketPool,
+    BalancerV1,
+    BalancerV2,
     Custom(u64),
 }
 impl From<loom_types_entities::PoolClass> for PoolClass {
@@ -60,12 +63,15 @@ impl From<loom_types_entities::PoolClass> for PoolClass {
             loom_types_entities::PoolClass::Unknown => PoolClass::Unknown,
             loom_types_entities::PoolClass::UniswapV2 => PoolClass::UniswapV2,
             loom_types_entities::PoolClass::UniswapV3 => PoolClass::UniswapV3,
+            loom_types_entities::PoolClass::UniswapV4 => PoolClass::UniswapV4,
             loom_types_entities::PoolClass::PancakeV3 => PoolClass::PancakeV3,
             loom_types_entities::PoolClass::Maverick => PoolClass::Maverick,
             loom_types_entities::PoolClass::Curve => PoolClass::Curve,
             loom_types_entities::PoolClass::LidoStEth => PoolClass::LidoStEth,
             loom_types_entities::PoolClass::LidoWstEth => PoolClass::LidoWstEth,
             loom_types_entities::PoolClass::RocketPool => PoolClass::RocketPool,
+            loom_types_entities::PoolClass::BalancerV1 => PoolClass::BalancerV1,
+            loom_types_entities::PoolClass::BalancerV2 => PoolClass::BalancerV2,
             loom_types_entities::PoolClass::Custom(id) => PoolClass::Custom(id),
         }
     }
@@ -86,6 +92,7 @@ pub enum PoolProtocol {
     Shibaswap,
     UniswapV3,
     UniswapV3Like,
+    UniswapV4,
     PancakeV3,
     Integral,
     Maverick,
@@ -94,6 +101,8 @@ pub enum PoolProtocol {
     LidoWstEth,
     RocketEth,
     OgPepe,
+    BalancerV1,
+    BalancerV2,
     Custom(u64),
 }
 impl From<loom_types_entities::PoolProtocol> for PoolProtocol {
@@ -111,6 +120,7 @@ impl From<loom_types_entities::PoolProtocol> for PoolProtocol {
             loom_types_entities::PoolProtocol::Shibaswap => PoolProtocol::Shibaswap,
             loom_types_entities::PoolProtocol::UniswapV3 => PoolProtocol::UniswapV3,
             loom_types_entities::PoolProtocol::UniswapV3Like => PoolProtocol::UniswapV3Like,
+            loom_types_entities::PoolProtocol::UniswapV4 => PoolProtocol::UniswapV4,
             loom_types_entities::PoolProtocol::PancakeV3 => PoolProtocol::PancakeV3,
             loom_types_entities::PoolProtocol::Integral => PoolProtocol::Integral,
             loom_types_entities::PoolProtocol::Maverick => PoolProtocol::Maverick,
@@ -119,6 +129,8 @@ impl From<loom_types_entities::PoolProtocol> for PoolProtocol {
             loom_types_entities::PoolProtocol::LidoWstEth => PoolProtocol::LidoWstEth,
             loom_types_entities::PoolProtocol::RocketEth => PoolProtocol::RocketEth,
             loom_types_entities::PoolProtocol::OgPepe => PoolProtocol::OgPepe,
+            loom_types_entities::PoolProtocol::BalancerV1 => PoolProtocol::BalancerV1,
+            loom_types_entities::PoolProtocol::BalancerV2 => PoolProtocol::BalancerV2,
             loom_types_entities::PoolProtocol::Custom(id) => PoolProtocol::Custom(id),
         }
     }
@@ -139,6 +151,7 @@ impl From<&PoolProtocol> for loom_types_entities::PoolProtocol {
             PoolProtocol::Shibaswap => loom_types_entities::PoolProtocol::Shibaswap,
             PoolProtocol::UniswapV3 => loom_types_entities::PoolProtocol::UniswapV3,
             PoolProtocol::UniswapV3Like => loom_types_entities::PoolProtocol::UniswapV3Like,
+            PoolProtocol::UniswapV4 => loom_types_entities::PoolProtocol::UniswapV4,
             PoolProtocol::PancakeV3 => loom_types_entities::PoolProtocol::PancakeV3,
             PoolProtocol::Integral => loom_types_entities::PoolProtocol::Integral,
             PoolProtocol::Maverick => loom_types_entities::PoolProtocol::Maverick,
@@ -147,6 +160,8 @@ impl From<&PoolProtocol> for loom_types_entities::PoolProtocol {
             PoolProtocol::LidoWstEth => loom_types_entities::PoolProtocol::LidoWstEth,
             PoolProtocol::RocketEth => loom_types_entities::PoolProtocol::RocketEth,
             PoolProtocol::OgPepe => loom_types_entities::PoolProtocol::OgPepe,
+            PoolProtocol::BalancerV1 => loom_types_entities::PoolProtocol::BalancerV1,
+            PoolProtocol::BalancerV2 => loom_types_entities::PoolProtocol::BalancerV2,
             PoolProtocol::Custom(id) => loom_types_entities::PoolProtocol::Custom(*id),
         }
     }

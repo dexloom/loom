@@ -1,6 +1,5 @@
 use alloy::consensus::Transaction as TransactionTrait;
 use alloy::primitives::{Address, U256};
-use alloy::providers::Provider;
 use alloy::rpc::types::{Header, Transaction};
 use lazy_static::lazy_static;
 use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, TransactTo, TxEnv};

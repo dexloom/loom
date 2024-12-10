@@ -1,8 +1,8 @@
-use alloy_primitives::Address;
-use loom_types_entities::PoolClass;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_entities::{PoolClass, PoolId};
 
 #[derive(Clone, Debug)]
-pub enum Task {
-    FetchAndAddPools(Vec<(Address, PoolClass)>),
-    FetchStateAndAddPools(Vec<(Address, PoolClass)>),
+pub enum Task<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    FetchAndAddPools(Vec<(PoolId<LDT>, PoolClass)>),
+    FetchStateAndAddPools(Vec<(PoolId<LDT>, PoolClass)>),
 }

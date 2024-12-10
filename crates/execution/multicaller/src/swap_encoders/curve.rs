@@ -38,11 +38,11 @@ impl CurveSwapEncoder {
         next_pool: Option<&PoolWrapper>,
         multicaller: Address,
     ) -> Result<()> {
-        let pool_encoder = cur_pool.get_encoder().ok_or_eyre("NO_POOL_ENCODER")?;
+        //let pool_encoder = abi_encoder.cur_pool.get_encoder().ok_or_eyre("NO_POOL_ENCODER")?;
         let pool_address = cur_pool.get_address();
 
-        let in_native = if pool_encoder.is_native() { EncoderHelper::is_weth(token_from_address) } else { false };
-        let out_native = if pool_encoder.is_native() { EncoderHelper::is_weth(token_to_address) } else { false };
+        let in_native = if abi_encoder.is_native(cur_pool.as_ref()) { EncoderHelper::is_weth(token_from_address) } else { false };
+        let out_native = if abi_encoder.is_native(cur_pool.as_ref()) { EncoderHelper::is_weth(token_to_address) } else { false };
 
         match amount_in {
             SwapAmountType::Set(amount) => {
@@ -50,7 +50,8 @@ impl CurveSwapEncoder {
                     let weth_withdraw_opcode = MulticallerCall::new_call(token_from_address, &EncoderHelper::encode_weth_withdraw(amount));
                     let mut swap_opcode = MulticallerCall::new_call_with_value(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            cur_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             amount,
@@ -68,7 +69,8 @@ impl CurveSwapEncoder {
                         MulticallerCall::new_call(token_from_address, &EncoderHelper::encode_erc20_approve(cur_pool.get_address(), amount));
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            cur_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             amount,
@@ -92,7 +94,8 @@ impl CurveSwapEncoder {
 
                     let mut swap_opcode = MulticallerCall::new_call_with_value(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            cur_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             U256::ZERO,
@@ -104,7 +107,7 @@ impl CurveSwapEncoder {
                     swap_opcode.set_call_stack(
                         false,
                         0,
-                        pool_encoder.swap_in_amount_offset(token_from_address, token_to_address).unwrap(),
+                        abi_encoder.swap_in_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                         0x20,
                     );
                     if !Self::need_balance(cur_pool.get_address()) {
@@ -120,7 +123,8 @@ impl CurveSwapEncoder {
 
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            cur_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             U256::ZERO,
@@ -131,7 +135,7 @@ impl CurveSwapEncoder {
                     swap_opcode.set_call_stack(
                         false,
                         0,
-                        pool_encoder.swap_in_amount_offset(token_from_address, token_to_address).unwrap(),
+                        abi_encoder.swap_in_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                         0x20,
                     );
                     if !Self::need_balance(cur_pool.get_address()) {
@@ -149,7 +153,8 @@ impl CurveSwapEncoder {
 
                     let mut swap_opcode = MulticallerCall::new_call_with_value(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            cur_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             U256::ZERO,
@@ -161,7 +166,7 @@ impl CurveSwapEncoder {
                     swap_opcode.set_call_stack(
                         true,
                         stack_offset,
-                        pool_encoder.swap_in_amount_offset(token_from_address, token_to_address).unwrap(),
+                        abi_encoder.swap_in_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                         0x20,
                     );
                     if !Self::need_balance(cur_pool.get_address()) {
@@ -177,7 +182,8 @@ impl CurveSwapEncoder {
 
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            cur_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             U256::ZERO,
@@ -188,7 +194,7 @@ impl CurveSwapEncoder {
                     swap_opcode.set_call_stack(
                         true,
                         stack_offset,
-                        pool_encoder.swap_in_amount_offset(token_from_address, token_to_address).unwrap(),
+                        abi_encoder.swap_in_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                         0x20,
                     );
                     if !Self::need_balance(cur_pool.get_address()) {
@@ -210,7 +216,8 @@ impl CurveSwapEncoder {
 
                     let mut swap_opcode = MulticallerCall::new_call_with_value(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            cur_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             U256::ZERO,
@@ -222,7 +229,7 @@ impl CurveSwapEncoder {
                     swap_opcode.set_call_stack(
                         true,
                         0,
-                        pool_encoder.swap_in_amount_offset(token_from_address, token_to_address).unwrap(),
+                        abi_encoder.swap_in_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                         0x20,
                     );
                     if !Self::need_balance(cur_pool.get_address()) {
@@ -238,7 +245,8 @@ impl CurveSwapEncoder {
 
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
-                        &pool_encoder.encode_swap_in_amount_provided(
+                        &abi_encoder.encode_swap_in_amount_provided(
+                            cur_pool.as_ref(),
                             token_from_address,
                             token_to_address,
                             U256::ZERO,
@@ -249,7 +257,7 @@ impl CurveSwapEncoder {
                     swap_opcode.set_call_stack(
                         true,
                         0,
-                        pool_encoder.swap_in_amount_offset(token_from_address, token_to_address).unwrap(),
+                        abi_encoder.swap_in_amount_offset(cur_pool.as_ref(), token_from_address, token_to_address).unwrap(),
                         0x20,
                     );
 

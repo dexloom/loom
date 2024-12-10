@@ -2,7 +2,7 @@ use alloy_primitives::map::{HashMap, HashSet};
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use crate::pool::PoolId;
+use crate::pool_id::PoolId;
 use crate::{PoolWrapper, Token};
 use eyre::Result;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};

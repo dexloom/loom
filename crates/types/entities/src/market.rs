@@ -6,8 +6,7 @@ use std::fmt::Display;
 use std::sync::Arc;
 use tracing::debug;
 
-use crate::build_swap_path_vec;
-use crate::pool::PoolId;
+use crate::{build_swap_path_vec, PoolId};
 use crate::{PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
