@@ -6,9 +6,9 @@ use loom_defi_abi::lido::{IStEth, IWStEth};
 use loom_defi_abi::{IMultiCaller, IERC20, IWETH};
 use loom_defi_address_book::TokenAddressEth;
 
-pub struct EncoderHelper;
+pub struct AbiEncoderHelper;
 
-impl EncoderHelper {
+impl AbiEncoderHelper {
     pub fn is_weth(address: Address) -> bool {
         address == TokenAddressEth::WETH
     }

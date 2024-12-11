@@ -42,9 +42,10 @@ macro_rules! pool_loader {
                 Self { provider: None, phantom_data: PhantomData }
             }
 
-            pub fn new_with_provider(provider: P) -> Self {
-                Self { provider: Some(provider), phantom_data: PhantomData }
-            }
+            // #[allow(unused_variables)]
+            // pub fn new_with_provider(provider: P) -> Self {
+            //     Self { provider: Some(provider), phantom_data: PhantomData }
+            // }
         }
     };
 }

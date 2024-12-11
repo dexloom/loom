@@ -24,7 +24,7 @@ use loom_defi_price::PriceActor;
 use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::NWETH;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
-use loom_execution_multicaller::{MulticallerSwapEncoder, ProtocolABIEncoderV2};
+use loom_execution_multicaller::{MulticallerSwapEncoder, SwapStepEncoder};
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_node_actor_config::NodeBlockActorConfig;
 #[cfg(feature = "db-access")]
@@ -53,7 +53,7 @@ pub struct BlockchainActors<P, T, DB: Clone + Send + Sync + 'static> {
     strategy: Strategy<DB>,
     pub signers: SharedState<TxSigners>,
     actor_manager: ActorsManager,
-    encoder: Option<MulticallerSwapEncoder<ProtocolABIEncoderV2>>,
+    encoder: Option<MulticallerSwapEncoder>,
     has_mempool: bool,
     has_state_update: bool,
     has_signers: bool,
@@ -177,9 +177,7 @@ where
             },
         };
 
-        let abi_encoder = ProtocolABIEncoderV2::default();
-
-        self.encoder = Some(MulticallerSwapEncoder::new(multicaller_address, abi_encoder));
+        self.encoder = Some(MulticallerSwapEncoder::default_with_address(multicaller_address));
         self.actor_manager.start(SwapRouterActor::<DB>::new().with_signers(self.signers.clone()).on_bc(&self.bc, &self.strategy))?;
         Ok(self)
     }
@@ -428,7 +426,10 @@ where
     /// Start swap path merger
     pub fn with_swap_path_merger(&mut self) -> Result<&mut Self> {
         let mutlicaller_address = self.encoder.clone().ok_or(eyre!("NO_ENCODER"))?.multicaller_address;
-        self.actor_manager.start(ArbSwapPathMergerActor::new(mutlicaller_address).on_bc(&self.bc, &self.strategy))?;
+
+        let swap_step_encoder = SwapStepEncoder::default_wuth_address(mutlicaller_address);
+
+        self.actor_manager.start(ArbSwapPathMergerActor::new(swap_step_encoder).on_bc(&self.bc, &self.strategy))?;
         Ok(self)
     }
 

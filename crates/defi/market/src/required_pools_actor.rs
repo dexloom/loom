@@ -8,13 +8,10 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 use tracing::{debug, error, info};
 
-use crate::pool_loader_actor;
-use crate::pool_loader_actor::{fetch_and_add_pool_by_pool_id, fetch_state_and_add_pool};
+use crate::pool_loader_actor::fetch_and_add_pool_by_pool_id;
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
-use loom_defi_pools::protocols::CurveProtocol;
-use loom_defi_pools::CurvePool;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::required_state::{RequiredState, RequiredStateReader};
 use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders};
@@ -38,7 +35,7 @@ where
         match fetch_and_add_pool_by_pool_id(client.clone(), market.clone(), market_state.clone(), pool_loaders.clone(), pool_id, pool_class)
             .await
         {
-            Ok(pool) => {
+            Ok(_) => {
                 info!(class=%pool_class, %pool_id, "pool loaded")
             }
             Err(error) => {

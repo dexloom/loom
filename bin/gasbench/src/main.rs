@@ -9,6 +9,7 @@ use revm::primitives::Env;
 use serde::{Deserialize, Serialize};
 use std::collections::{BTreeMap, HashMap};
 use std::env;
+use std::rc::Rc;
 use std::sync::Arc;
 use tokio::fs::File;
 use tokio::io::{AsyncReadExt, AsyncWriteExt};
@@ -27,7 +28,10 @@ use loom_core_actors::SharedState;
 use loom_defi_preloader::preload_market_state;
 use loom_evm_db::LoomDBType;
 use loom_evm_utils::{BalanceCheater, NWETH};
-use loom_execution_multicaller::{MulticallerDeployer, MulticallerEncoder, MulticallerSwapEncoder, ProtocolABIEncoderV2};
+use loom_execution_multicaller::pool_opcodes_encoder::ProtocolSwapOpcodesEncoderV2;
+use loom_execution_multicaller::{
+    MulticallerDeployer, MulticallerEncoder, MulticallerSwapEncoder, ProtocolABIEncoderV2, SwapLineEncoder, SwapStepEncoder,
+};
 
 mod cli;
 mod dto;
@@ -80,7 +84,13 @@ async fn main() -> Result<()> {
 
     let abi_encoder = ProtocolABIEncoderV2::default();
 
-    let swap_encoder = Arc::new(MulticallerSwapEncoder::new(multicaller_address, abi_encoder));
+    let swap_opcodes_encoder = ProtocolSwapOpcodesEncoderV2::default();
+
+    let swap_line_encoder = SwapLineEncoder::new(multicaller_address, Arc::new(abi_encoder), Arc::new(swap_opcodes_encoder));
+
+    let swap_step_encoder = SwapStepEncoder::new(multicaller_address, swap_line_encoder);
+
+    let swap_encoder = Arc::new(MulticallerSwapEncoder::new(multicaller_address, swap_step_encoder));
 
     //preload state
     preload_market_state(client.clone(), vec![multicaller_address], vec![], vec![], market_state_instance.clone(), None).await?;

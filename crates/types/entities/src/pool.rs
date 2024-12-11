@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use crate::required_state::RequiredState;
 use crate::PoolId;
-use alloy_primitives::{Address, Bytes, B256, U256};
+use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};

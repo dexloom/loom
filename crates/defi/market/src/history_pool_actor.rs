@@ -10,9 +10,8 @@ use crate::logs_parser::process_log_entries;
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_core_actors_macros::Producer;
 use loom_core_blockchain::Blockchain;
-use loom_defi_pools::PoolsConfig;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::PoolLoaders;
 use loom_types_events::Task;
 

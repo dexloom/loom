@@ -1,8 +1,8 @@
-use crate::abi_encoders::pools::{
+use crate::pool_abi_encoder::pools::{
     CurveProtocolAbiEncoder, MaverickProtocolAbiEncoder, PancakeV3ProtocolAbiEncoder, UniswapV2ProtocolAbiEncoder,
     UniswapV3ProtocolAbiEncoder,
 };
-use crate::abi_encoders::ProtocolAbiSwapEncoderTrait;
+use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::OptionExt;
 use loom_types_entities::{Pool, PoolClass, PreswapRequirement};

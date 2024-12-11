@@ -34,7 +34,7 @@ use loom::evm::db::LoomDBType;
 use loom::evm::utils::evm_tx_env::env_from_signed_tx;
 use loom::evm::utils::NWETH;
 use loom::execution::estimator::EvmEstimatorActor;
-use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder, ProtocolABIEncoderV2};
+use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder, ProtocolABIEncoderV2, SwapStepEncoder};
 use loom::node::actor_config::NodeBlockActorConfig;
 use loom::node::json_rpc::NodeBlockActor;
 use loom::strategy::backrun::{BackrunConfig, StateChangeArbActor};
@@ -150,9 +150,7 @@ async fn main() -> Result<()> {
         .ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     info!("Multicaller deployed at {:?}", multicaller_address);
 
-    let abi_encoder = ProtocolABIEncoderV2::default();
-
-    let encoder = MulticallerSwapEncoder::new(multicaller_address, abi_encoder);
+    let multicaller_encoder = MulticallerSwapEncoder::default_with_address(multicaller_address);
 
     let block_number = client.get_block_number().await?;
     info!("Current block_number={}", block_number);
@@ -245,7 +243,7 @@ async fn main() -> Result<()> {
 
     info!("Starting market state preload actor");
     let mut market_state_preload_actor = MarketStatePreloadedOneShotActor::new(client.clone())
-        .with_copied_account(encoder.get_contract_address())
+        .with_copied_account(multicaller_encoder.get_contract_address())
         .with_signers(tx_signers.clone());
     match market_state_preload_actor.access(market_state.clone()).start_and_wait() {
         Err(e) => {
@@ -369,7 +367,7 @@ async fn main() -> Result<()> {
     }
 
     // Start estimator actor
-    let mut estimator_actor = EvmEstimatorActor::new_with_provider(encoder.clone(), Some(client.clone()));
+    let mut estimator_actor = EvmEstimatorActor::new_with_provider(multicaller_encoder.clone(), Some(client.clone()));
     match estimator_actor.consume(swap_compose_channel.clone()).produce(swap_compose_channel.clone()).start() {
         Err(e) => error!("{e}"),
         _ => {
@@ -446,7 +444,9 @@ async fn main() -> Result<()> {
     // Swap path merger tries to build swap steps from swap lines
     if test_config.modules.arb_path_merger {
         info!("Starting swap path merger actor");
-        let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(multicaller_address);
+        let swap_step_encoder = SwapStepEncoder::default_wuth_address(multicaller_address);
+
+        let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(swap_step_encoder);
         match swap_path_merger_actor
             .access(latest_block.clone())
             .consume(swap_compose_channel.clone())

@@ -6,23 +6,18 @@ use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use eyre::{eyre, Result};
+use eyre::Result;
 use tracing::{debug, error, info};
 
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, SharedState, WorkerResult};
 use loom_core_actors::{Accessor, Consumer};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
-use loom_defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory, CurveProtocol};
-use loom_defi_pools::{CurvePool, MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::required_state::RequiredStateReader;
-use loom_types_entities::{
-    get_protocol_by_factory, Market, MarketState, PoolClass, PoolId, PoolLoader, PoolLoaders, PoolProtocol, PoolWrapper,
-};
+use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders, PoolWrapper};
 use loom_types_events::Task;
 
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::sync::Semaphore;
 

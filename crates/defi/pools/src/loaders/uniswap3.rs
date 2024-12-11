@@ -1,4 +1,4 @@
-use crate::protocols::{fetch_uni3_factory, UniswapV2Protocol, UniswapV3Protocol};
+use crate::protocols::{fetch_uni3_factory, UniswapV3Protocol};
 use crate::{pool_loader, MaverickPool, PancakeV3Pool, UniswapV3Pool};
 use alloy_primitives::Bytes;
 use alloy_primitives::Log as EVMLog;

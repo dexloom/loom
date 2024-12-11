@@ -1,4 +1,4 @@
-use crate::abi_encoders::ProtocolAbiSwapEncoderTrait;
+use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_sol_types::SolInterface;
 use lazy_static::lazy_static;

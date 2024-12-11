@@ -5,7 +5,7 @@ use alloy_provider::network::Ethereum;
 use alloy_provider::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use eyre::{eyre, ErrReport, Report};
+use eyre::{eyre, ErrReport};
 use loom_types_blockchain::LoomDataTypes;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::{PoolClass, PoolId, PoolLoader, PoolWrapper};
@@ -75,7 +75,7 @@ where
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    fn is_code(&self, code: &Bytes) -> bool {
+    fn is_code(&self, _code: &Bytes) -> bool {
         false
     }
 }

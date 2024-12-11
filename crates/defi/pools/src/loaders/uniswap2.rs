@@ -16,7 +16,6 @@ use std::future::Future;
 use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
-use tracing::error;
 
 pool_loader!(UniswapV2PoolLoader);
 
