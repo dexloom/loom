@@ -48,6 +48,8 @@ async fn process_chain_task(
         }
     }
 
+    let eth_tx_builder = EthTxBuilder::default();
+
     for (sealed_block, receipts) in chain.blocks_and_receipts() {
         let number = sealed_block.number;
         let hash = sealed_block.hash();
@@ -56,12 +58,12 @@ async fn process_chain_task(
         let block_consensus_header = sealed_block.header().clone();
 
         info!("Processing block block_number={} block_hash={}", block_hash_num.number, block_hash_num.hash);
-        match reth_rpc_types_compat::block::from_block::<EthTxBuilder>(
+        match reth_rpc_types_compat::block::from_block(
             sealed_block.clone().unseal(),
             sealed_block.difficulty,
             BlockTransactionsKind::Full,
             Some(sealed_block.hash()),
-            &EthTxBuilder,
+            &eth_tx_builder,
         ) {
             Ok(block) => {
                 if let Err(e) = block_with_tx_channel.send(block).await {
