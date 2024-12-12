@@ -6,5 +6,4 @@ mod anvilprovider;
 mod archiveprovider;
 mod cachefolder;
 mod debugprovider;
-mod dynprovider;
 mod httpcached;
