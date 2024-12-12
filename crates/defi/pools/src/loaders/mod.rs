@@ -39,13 +39,20 @@ macro_rules! pool_loader {
             LDT: LoomDataTypes,
         {
             pub fn new() -> Self {
+                Self::default()
+            }
+        }
+
+        impl<P, T, N, LDT> Default for $name<P, T, N, LDT>
+        where
+            T: Transport + Clone,
+            N: Network,
+            P: Provider<T, N> + Clone,
+            LDT: LoomDataTypes,
+        {
+            fn default() -> Self {
                 Self { provider: None, phantom_data: PhantomData }
             }
-
-            // #[allow(unused_variables)]
-            // pub fn new_with_provider(provider: P) -> Self {
-            //     Self { provider: Some(provider), phantom_data: PhantomData }
-            // }
         }
     };
 }
@@ -68,7 +75,7 @@ where
     LDT: LoomDataTypes,
 {
     pub fn new() -> Self {
-        Self { inner: PoolLoaders::new() }
+        Self::default()
     }
 
     pub fn with_provider(self, provider: P) -> Self {
@@ -85,6 +92,18 @@ where
 
     pub fn build(self) -> PoolLoaders<P, T, N, LDT> {
         self.inner
+    }
+}
+
+impl<P, T, N, LDT> Default for PoolLoadersBuilder<P, T, N, LDT>
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + 'static,
+    LDT: LoomDataTypes,
+{
+    fn default() -> Self {
+        Self { inner: PoolLoaders::new() }
     }
 }
 

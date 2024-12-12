@@ -56,7 +56,7 @@ where
     LDT: LoomDataTypes,
 {
     pub fn new() -> Self {
-        Self { provider: None, map: Default::default(), config: None }
+        Self::default()
     }
 
     pub fn with_config(self, config: PoolsConfig) -> Self {
@@ -71,6 +71,18 @@ where
         let mut map = self.map;
         map.insert(pool_class, loader);
         Self { map, ..self }
+    }
+}
+
+impl<P, T, N, LDT> Default for PoolLoaders<P, T, N, LDT>
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + 'static,
+    LDT: LoomDataTypes,
+{
+    fn default() -> Self {
+        Self { provider: None, map: Default::default(), config: None }
     }
 }
 

@@ -34,7 +34,7 @@ use loom::evm::db::LoomDBType;
 use loom::evm::utils::evm_tx_env::env_from_signed_tx;
 use loom::evm::utils::NWETH;
 use loom::execution::estimator::EvmEstimatorActor;
-use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder, ProtocolABIEncoderV2, SwapStepEncoder};
+use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapStepEncoder};
 use loom::node::actor_config::NodeBlockActorConfig;
 use loom::node::json_rpc::NodeBlockActor;
 use loom::strategy::backrun::{BackrunConfig, StateChangeArbActor};

@@ -13,13 +13,11 @@ clap.workspace = true
 colored.workspace = true
 env_logger.workspace = true
 eyre.workspace = true
-lazy_static.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
-alloy-consensus.workspace = true
 alloy-network.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
@@ -28,16 +26,13 @@ alloy-transport.workspace = true
 revm.workspace = true
 
 loom-core-actors.workspace = true
-loom-core-actors-macros.workspace = true
-loom-defi-abi.workspace = true
 loom-defi-address-book.workspace = true
 loom-defi-market.workspace = true
+loom-defi-pools.workspace = true
 loom-defi-preloader.workspace = true
 loom-evm-db.workspace = true
 loom-evm-utils.workspace = true
 loom-execution-multicaller.workspace = true
 loom-node-debug-provider.workspace = true
-loom-types-blockchain.workspace = true
 loom-types-entities.workspace = true
-loom-types-events.workspace = true
-loom-defi-pools.workspace = true
+

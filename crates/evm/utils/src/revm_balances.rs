@@ -43,7 +43,7 @@ impl BalanceCheater {
     {
         let balance_cell = Self::get_balance_cell(token, owner)?;
 
-        if let Err(e) = client.anvil_set_storage_at(token, balance_cell.into(), balance.into()).await {
+        if let Err(e) = client.anvil_set_storage_at(token, balance_cell, balance.into()).await {
             error!("{e}");
             return Err(eyre!(e));
         }

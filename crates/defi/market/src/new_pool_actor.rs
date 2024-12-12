@@ -36,7 +36,7 @@ where
                     Ok(log_update_msg)=>{
                         process_log_entries(
                                 log_update_msg.inner.logs,
-                                &pools_loaders.as_ref(),
+                                &pools_loaders,
                                 tasks_tx.clone(),
                         ).await?
                     }

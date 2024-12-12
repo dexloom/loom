@@ -1,4 +1,4 @@
-use alloy_network::{Ethereum, Network};
+use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use loom_core_actors::SharedState;

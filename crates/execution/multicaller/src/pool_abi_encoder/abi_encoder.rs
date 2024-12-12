@@ -122,7 +122,7 @@ mod tests {
     #[test]
     fn test_default() {
         let abi_encoder_v2 = ProtocolABIEncoderV2::default();
-        assert_eq!(abi_encoder_v2.pool_classes.len(), 2);
+        assert_eq!(abi_encoder_v2.pool_classes.len(), 5);
     }
 
     #[test]
