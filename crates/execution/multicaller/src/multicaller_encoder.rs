@@ -1,11 +1,13 @@
 use alloy_primitives::{Address, Bytes};
 use eyre::{eyre, OptionExt, Result};
+use std::sync::Arc;
 use tracing::error;
 
+use crate::pool_abi_encoder::ProtocolABIEncoderV2;
+use crate::pool_opcodes_encoder::ProtocolSwapOpcodesEncoderV2;
+use crate::{SwapLineEncoder, SwapStepEncoder};
 use loom_types_blockchain::MulticallerCalls;
 use loom_types_entities::Swap;
-
-use crate::SwapStepEncoder;
 
 pub trait MulticallerEncoder {
     fn encode_calls(&self, calls: MulticallerCalls) -> Result<(Address, Bytes)>;
@@ -20,8 +22,19 @@ pub struct MulticallerSwapEncoder {
 }
 
 impl MulticallerSwapEncoder {
-    pub fn new(multicaller_address: Address) -> Self {
-        Self { multicaller_address, swap_step_encoder: SwapStepEncoder::new(multicaller_address) }
+    pub fn new(multicaller_address: Address, swap_step_encoder: SwapStepEncoder) -> Self {
+        Self { multicaller_address, swap_step_encoder }
+    }
+
+    pub fn default_with_address(multicaller_address: Address) -> Self {
+        let abi_encoder = ProtocolABIEncoderV2::default();
+        let opcodes_encoder = ProtocolSwapOpcodesEncoderV2::default();
+
+        let swap_line_encoder = SwapLineEncoder::new(multicaller_address, Arc::new(abi_encoder), Arc::new(opcodes_encoder));
+
+        let swap_step_encoder = SwapStepEncoder::new(multicaller_address, swap_line_encoder);
+
+        Self { multicaller_address, swap_step_encoder }
     }
 
     pub fn get_contract_address(&self) -> Address {

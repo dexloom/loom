@@ -9,18 +9,19 @@ use loom_defi_abi::IERC20;
 use loom_defi_address_book::TokenAddressEth;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{AbiSwapEncoder, Pool, PoolClass, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::error;
 
 use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};
 
-pub struct CurvePool<P, T, N>
+pub struct CurvePool<P, T, N, E = CurvePoolAbiEncoder<P, T, N>>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
+    E: PoolAbiEncoder + Send + Sync + 'static,
 {
     address: Address,
     pool_contract: Arc<CurveContract<P, T, N>>,
@@ -28,16 +29,17 @@ where
     tokens: Vec<Address>,
     underlying_tokens: Vec<Address>,
     lp_token: Option<Address>,
-    abi_encoder: Arc<CurveAbiSwapEncoder<P, T, N>>,
+    abi_encoder: Option<Arc<E>>,
     is_meta: bool,
     is_native: bool,
 }
 
-impl<P, T, N> Clone for CurvePool<P, T, N>
+impl<P, T, N, E> Clone for CurvePool<P, T, N, E>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
+    E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
     fn clone(&self) -> Self {
         Self {
@@ -47,19 +49,24 @@ where
             tokens: self.tokens.clone(),
             underlying_tokens: self.underlying_tokens.clone(),
             lp_token: self.lp_token,
-            abi_encoder: Arc::clone(&self.abi_encoder),
+            abi_encoder: self.abi_encoder.clone(),
             is_meta: self.is_meta,
             is_native: self.is_native,
         }
     }
 }
 
-impl<P, T, N> CurvePool<P, T, N>
+impl<P, T, N, E> CurvePool<P, T, N, E>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
+    E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
+    pub fn with_encoder(self, e: E) -> Self {
+        Self { abi_encoder: Some(Arc::new(e)), ..self }
+    }
+
     pub fn get_meta_coin_idx(&self, address: Address) -> Result<u32> {
         match self.get_coin_idx(address) {
             Ok(i) => Ok(i),
@@ -119,19 +126,19 @@ where
 
         let balances = CurveCommonContract::balances(client.clone(), pool_contract.get_address()).await?;
 
-        let abi_encoder = Arc::new(CurveAbiSwapEncoder::new(
-            pool_contract.get_address(),
-            tokens.clone(),
-            if !underlying_tokens.is_empty() { Some(underlying_tokens.clone()) } else { None },
-            lp_token,
-            is_meta,
-            is_native,
-            pool_contract.clone(),
-        ));
+        // let abi_encoder = Arc::new(CurveAbiSwapEncoder::new(
+        //     pool_contract.get_address(),
+        //     tokens.clone(),
+        //     if !underlying_tokens.is_empty() { Some(underlying_tokens.clone()) } else { None },
+        //     lp_token,
+        //     is_meta,
+        //     is_native,
+        //     pool_contract.clone(),
+        // ));
 
         Ok(CurvePool {
             address: pool_contract.get_address(),
-            abi_encoder,
+            abi_encoder: None,
             pool_contract,
             balances,
             tokens,
@@ -143,11 +150,64 @@ where
     }
 }
 
-impl<P, T, N> Pool for CurvePool<P, T, N>
+impl<P, T, N> CurvePool<P, T, N, CurvePoolAbiEncoder<P, T, N>>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
+{
+    pub async fn fetch_pool_data_with_default_encoder(client: P, pool_contract: CurveContract<P, T, N>) -> Result<Self> {
+        let pool_contract = Arc::new(pool_contract);
+
+        let mut tokens = CurveCommonContract::coins(client.clone(), pool_contract.get_address()).await?;
+        let mut is_native = false;
+
+        for tkn in tokens.iter_mut() {
+            if *tkn == address!("EeeeeEeeeEeEeeEeEeEeeEEEeeeeEeeeeeeeEEeE") {
+                //return Err(eyre!("ETH_CURVE_POOL_NOT_SUPPORTED"));
+                *tkn = TokenAddressEth::WETH;
+                is_native = true;
+            }
+        }
+
+        let lp_token = match CurveCommonContract::<P, T, N>::lp_token(pool_contract.get_address()).await {
+            Ok(lp_token_address) => Some(lp_token_address),
+            Err(_) => None,
+        };
+
+        let (underlying_tokens, is_meta) = match pool_contract.as_ref() {
+            CurveContract::I128_2ToMeta(_interface) => (CurveProtocol::<P, N, T>::get_underlying_tokens(tokens[1])?, true),
+            _ => (vec![], false),
+        };
+
+        let balances = CurveCommonContract::balances(client.clone(), pool_contract.get_address()).await?;
+
+        let mut pool = CurvePool {
+            address: pool_contract.get_address(),
+            abi_encoder: None,
+            pool_contract,
+            balances,
+            tokens,
+            underlying_tokens,
+            lp_token,
+            is_meta,
+            is_native,
+        };
+
+        let abi_encoder = Arc::new(CurvePoolAbiEncoder::new(&pool));
+
+        pool.abi_encoder = Some(abi_encoder);
+
+        Ok(pool)
+    }
+}
+
+impl<P, T, N, E> Pool for CurvePool<P, T, N, E>
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
     fn get_class(&self) -> PoolClass {
         PoolClass::Curve
@@ -159,6 +219,10 @@ where
 
     fn get_address(&self) -> Address {
         self.address
+    }
+
+    fn get_pool_id(&self) -> PoolId {
+        PoolId::Address(self.address)
     }
 
     fn get_fee(&self) -> U256 {
@@ -283,8 +347,9 @@ where
         self.pool_contract.can_calculate_in_amount()
     }
 
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder {
-        self.abi_encoder.as_ref()
+    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+        let r = self.abi_encoder.as_ref().unwrap().as_ref();
+        Some(r as &dyn PoolAbiEncoder)
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -353,11 +418,15 @@ where
         }
         Ok(state_reader)
     }
+
+    fn is_native(&self) -> bool {
+        false
+    }
 }
 
 #[allow(dead_code)]
 #[derive(Clone)]
-struct CurveAbiSwapEncoder<P, T, N>
+pub struct CurvePoolAbiEncoder<P, T, N>
 where
     T: Transport + Clone,
     N: Network,
@@ -372,13 +441,13 @@ where
     curve_contract: Arc<CurveContract<P, T, N>>,
 }
 
-impl<P, T, N> CurveAbiSwapEncoder<P, T, N>
+impl<P, T, N> CurvePoolAbiEncoder<P, T, N>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(
+    /*pub fn new(
         pool_address: Address,
         tokens: Vec<Address>,
         underlying_tokens: Option<Vec<Address>>,
@@ -388,6 +457,20 @@ where
         curve_contract: Arc<CurveContract<P, T, N>>,
     ) -> Self {
         Self { pool_address, tokens, underlying_tokens, lp_token, is_meta, is_native, curve_contract }
+    }
+
+     */
+
+    pub fn new(pool: &CurvePool<P, T, N>) -> Self {
+        Self {
+            pool_address: pool.address,
+            tokens: pool.tokens.clone(),
+            underlying_tokens: if pool.underlying_tokens.is_empty() { None } else { Some(pool.underlying_tokens.clone()) },
+            lp_token: pool.lp_token,
+            is_meta: pool.is_meta,
+            is_native: pool.is_native,
+            curve_contract: pool.pool_contract.clone(),
+        }
     }
 
     pub fn get_meta_coin_idx(&self, address: Address) -> Result<u32> {
@@ -424,7 +507,7 @@ where
     }
 }
 
-impl<P, T, N> AbiSwapEncoder for CurveAbiSwapEncoder<P, T, N>
+impl<P, T, N> PoolAbiEncoder for CurvePoolAbiEncoder<P, T, N>
 where
     T: Transport + Clone,
     N: Network,
@@ -540,7 +623,7 @@ mod tests {
 
         for curve_contract in curve_contracts.into_iter() {
             debug!("Loading Pool : {} {:?}", curve_contract.get_address(), curve_contract);
-            let pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await.unwrap();
+            let pool = CurvePool::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await.unwrap();
             let state_required = pool.get_state_required().unwrap();
 
             let state_required = RequiredStateReader::fetch_calls_and_slots(client.clone(), state_required, None).await.unwrap();

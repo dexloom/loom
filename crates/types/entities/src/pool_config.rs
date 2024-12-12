@@ -1,4 +1,4 @@
-use loom_types_entities::PoolClass;
+use crate::PoolClass;
 use std::collections::HashMap;
 use strum::IntoEnumIterator;
 

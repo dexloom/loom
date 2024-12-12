@@ -7,7 +7,7 @@ use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::error;
 
-use crate::{PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
+use crate::{PoolWrapper, SwapAmountType, SwapLine, Token};
 use loom_evm_db::LoomDBType;
 use loom_types_blockchain::LoomDataTypes;
 
@@ -80,19 +80,6 @@ impl<LDT: LoomDataTypes> SwapStep<LDT> {
             )
         }
         self
-    }
-
-    pub fn get_preswap_requirement(&self) -> PreswapRequirement {
-        let mut current_preswap_requirement: PreswapRequirement = PreswapRequirement::Unknown;
-        for swap_step in self.swap_line_vec.iter() {
-            let preswap_requirement = swap_step.get_first_pool().unwrap().get_encoder().preswap_requirement();
-            if current_preswap_requirement == PreswapRequirement::Unknown {
-                current_preswap_requirement = preswap_requirement;
-            } else {
-                current_preswap_requirement = PreswapRequirement::Base
-            }
-        }
-        current_preswap_requirement
     }
 
     pub fn can_flash_swap(&self) -> bool {

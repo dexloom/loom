@@ -1,6 +1,7 @@
 use std::env;
 use std::fmt::{Display, Formatter};
 use std::process::exit;
+use std::sync::Arc;
 use std::time::Duration;
 
 use alloy_provider::network::TransactionResponse;
@@ -24,23 +25,23 @@ use loom::core::actors::{Accessor, Actor, Broadcaster, Consumer, Producer, Share
 use loom::core::block_history::BlockHistoryActor;
 use loom::core::router::SwapRouterActor;
 use loom::defi::address_book::TokenAddressEth;
-use loom::defi::market::{fetch_and_add_pool_by_address, fetch_state_and_add_pool};
+use loom::defi::market::{fetch_and_add_pool_by_pool_id, fetch_state_and_add_pool};
 use loom::defi::pools::protocols::CurveProtocol;
-use loom::defi::pools::CurvePool;
+use loom::defi::pools::{CurvePool, PoolLoadersBuilder, PoolsConfig};
 use loom::defi::preloader::MarketStatePreloadedOneShotActor;
 use loom::defi::price::PriceActor;
 use loom::evm::db::LoomDBType;
 use loom::evm::utils::evm_tx_env::env_from_signed_tx;
 use loom::evm::utils::NWETH;
 use loom::execution::estimator::EvmEstimatorActor;
-use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
+use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapStepEncoder};
 use loom::node::actor_config::NodeBlockActorConfig;
 use loom::node::json_rpc::NodeBlockActor;
 use loom::strategy::backrun::{BackrunConfig, StateChangeArbActor};
 use loom::strategy::merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 use loom::types::blockchain::{debug_trace_block, ChainParameters, LoomDataTypesEthereum, Mempool};
 use loom::types::entities::{
-    AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, Swap, Token, TxSigners,
+    AccountNonceAndBalanceState, BlockHistory, LatestBlock, Market, MarketState, PoolClass, PoolId, Swap, Token, TxSigners,
 };
 use loom::types::events::{
     MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
@@ -149,7 +150,7 @@ async fn main() -> Result<()> {
         .ok_or_eyre("MULTICALLER_NOT_DEPLOYED")?;
     info!("Multicaller deployed at {:?}", multicaller_address);
 
-    let encoder = MulticallerSwapEncoder::new(multicaller_address);
+    let multicaller_encoder = MulticallerSwapEncoder::default_with_address(multicaller_address);
 
     let block_number = client.get_block_number().await?;
     info!("Current block_number={}", block_number);
@@ -242,7 +243,7 @@ async fn main() -> Result<()> {
 
     info!("Starting market state preload actor");
     let mut market_state_preload_actor = MarketStatePreloadedOneShotActor::new(client.clone())
-        .with_copied_account(encoder.get_contract_address())
+        .with_copied_account(multicaller_encoder.get_contract_address())
         .with_signers(tx_signers.clone());
     match market_state_preload_actor.access(market_state.clone()).start_and_wait() {
         Err(e) => {
@@ -295,15 +296,18 @@ async fn main() -> Result<()> {
         _ => info!("Price actor has been initialized"),
     }
 
+    let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(client.clone(), PoolsConfig::default()));
+
     for (pool_name, pool_config) in test_config.pools {
         match pool_config.class {
             PoolClass::UniswapV2 | PoolClass::UniswapV3 => {
                 debug!(address=%pool_config.address, class=%pool_config.class, "Loading pool");
-                fetch_and_add_pool_by_address(
+                fetch_and_add_pool_by_pool_id(
                     client.clone(),
                     market_instance.clone(),
                     market_state.clone(),
-                    pool_config.address,
+                    pool_loaders.clone(),
+                    PoolId::Address(pool_config.address),
                     pool_config.class,
                 )
                 .await?;
@@ -312,7 +316,7 @@ async fn main() -> Result<()> {
             PoolClass::Curve => {
                 debug!("Loading curve pool");
                 if let Ok(curve_contract) = CurveProtocol::get_contract_from_code(client.clone(), pool_config.address).await {
-                    let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
+                    let curve_pool = CurvePool::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await?;
                     fetch_state_and_add_pool(client.clone(), market_instance.clone(), market_state.clone(), curve_pool.into()).await?
                 } else {
                     error!("CURVE_POOL_NOT_LOADED");
@@ -323,7 +327,7 @@ async fn main() -> Result<()> {
                 error!("Unknown pool class")
             }
         }
-        let swap_path_len = market_instance.read().await.get_pool_paths(&pool_config.address).unwrap_or_default().len();
+        let swap_path_len = market_instance.read().await.get_pool_paths(&PoolId::Address(pool_config.address)).unwrap_or_default().len();
         info!(
             "Loaded pool '{}' with address={}, pool_class={}, swap_paths={}",
             pool_name, pool_config.address, pool_config.class, swap_path_len
@@ -363,7 +367,7 @@ async fn main() -> Result<()> {
     }
 
     // Start estimator actor
-    let mut estimator_actor = EvmEstimatorActor::new_with_provider(encoder.clone(), Some(client.clone()));
+    let mut estimator_actor = EvmEstimatorActor::new_with_provider(multicaller_encoder.clone(), Some(client.clone()));
     match estimator_actor.consume(swap_compose_channel.clone()).produce(swap_compose_channel.clone()).start() {
         Err(e) => error!("{e}"),
         _ => {
@@ -440,7 +444,9 @@ async fn main() -> Result<()> {
     // Swap path merger tries to build swap steps from swap lines
     if test_config.modules.arb_path_merger {
         info!("Starting swap path merger actor");
-        let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(multicaller_address);
+        let swap_step_encoder = SwapStepEncoder::default_wuth_address(multicaller_address);
+
+        let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(swap_step_encoder);
         match swap_path_merger_actor
             .access(latest_block.clone())
             .consume(swap_compose_channel.clone())

@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, U256};
+use alloy_primitives::U256;
 use eyre::{eyre, ErrReport, Result};
 use revm::primitives::Env;
 use revm::DatabaseRef;
@@ -174,9 +174,9 @@ impl<DB> ArbSwapPathMergerActor<DB>
 where
     DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
-    pub fn new(multicaller: Address) -> ArbSwapPathMergerActor<DB> {
+    pub fn new(swap_step_encoder: SwapStepEncoder) -> ArbSwapPathMergerActor<DB> {
         ArbSwapPathMergerActor {
-            encoder: SwapStepEncoder::new(multicaller),
+            encoder: swap_step_encoder,
             latest_block: None,
             market_events: None,
             compose_channel_rx: None,

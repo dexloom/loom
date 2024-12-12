@@ -7,10 +7,11 @@ use loom::core::router::SwapRouterActor;
 use loom::core::topology::{Topology, TopologyConfig};
 use loom::defi::health_monitor::{StateHealthMonitorActor, StuffingTxMonitorActor};
 use loom::evm::db::LoomDBType;
+use loom::execution::multicaller::SwapStepEncoder;
 use loom::metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom::strategy::backrun::{BackrunConfig, BackrunConfigSection, StateChangeArbActor};
 use loom::strategy::merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
-use loom::types::entities::config::load_from_file;
+use loom::types::entities::strategy_config::load_from_file;
 use loom::types::events::MarketEvents;
 
 #[tokio::main]
@@ -86,7 +87,9 @@ async fn main() -> Result<()> {
     }
 
     info!("Starting swap path merger actor");
-    let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(multicaller);
+    let swap_step_encoder = SwapStepEncoder::default_wuth_address(multicaller);
+
+    let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(swap_step_encoder);
 
     match swap_path_merger_actor
         .access(blockchain.latest_block())

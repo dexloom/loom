@@ -18,13 +18,13 @@ use loom_defi_health_monitor::{PoolHealthMonitorActor, StuffingTxMonitorActor};
 use loom_defi_market::{
     CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, RequiredPoolLoaderActor,
 };
-use loom_defi_pools::PoolsConfig;
+use loom_defi_pools::{PoolLoadersBuilder, PoolsConfig};
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
 use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::NWETH;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
-use loom_execution_multicaller::MulticallerSwapEncoder;
+use loom_execution_multicaller::{MulticallerSwapEncoder, SwapStepEncoder};
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_node_actor_config::NodeBlockActorConfig;
 #[cfg(feature = "db-access")]
@@ -177,7 +177,7 @@ where
             },
         };
 
-        self.encoder = Some(MulticallerSwapEncoder::new(multicaller_address));
+        self.encoder = Some(MulticallerSwapEncoder::default_with_address(multicaller_address));
         self.actor_manager.start(SwapRouterActor::<DB>::new().with_signers(self.signers.clone()).on_bc(&self.bc, &self.strategy))?;
         Ok(self)
     }
@@ -341,19 +341,22 @@ where
 
     /// Start pool loader from new block events
     pub fn with_new_pool_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
-        self.actor_manager.start(NewPoolLoaderActor::new(pools_config).on_bc(&self.bc))?;
+        let pool_loader = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), pools_config));
+        self.actor_manager.start(NewPoolLoaderActor::new(pool_loader).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start pool loader for last 10000 blocks
     pub fn with_pool_history_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
-        self.actor_manager.start(HistoryPoolLoaderOneShotActor::new(self.provider.clone(), pools_config).on_bc(&self.bc))?;
+        let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), pools_config));
+        self.actor_manager.start(HistoryPoolLoaderOneShotActor::new(self.provider.clone(), pool_loaders).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start pool loader from new block events
-    pub fn with_pool_loader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(PoolLoaderActor::new(self.provider.clone()).on_bc(&self.bc, &self.state))?;
+    pub fn with_pool_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
+        let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), pools_config));
+        self.actor_manager.start(PoolLoaderActor::new(self.provider.clone(), pool_loaders).on_bc(&self.bc, &self.state))?;
         Ok(self)
     }
 
@@ -369,18 +372,19 @@ where
             self.with_new_pool_loader(pools_config.clone())?
                 .with_pool_history_loader(pools_config.clone())?
                 .with_curve_pool_protocol_loader()?
-                .with_pool_loader()
+                .with_pool_loader(pools_config)
         } else {
-            self.with_new_pool_loader(pools_config.clone())?.with_pool_history_loader(pools_config.clone())?.with_pool_loader()
+            self.with_new_pool_loader(pools_config.clone())?.with_pool_history_loader(pools_config.clone())?.with_pool_loader(pools_config)
         }
     }
 
     //
     pub fn with_preloaded_state(&mut self, pools: Vec<(Address, PoolClass)>, state_required: Option<RequiredState>) -> Result<&mut Self> {
-        let mut actor = RequiredPoolLoaderActor::new(self.provider.clone());
+        let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), PoolsConfig::default()));
+        let mut actor = RequiredPoolLoaderActor::new(self.provider.clone(), pool_loaders);
 
         for (pool_address, pool_class) in pools {
-            actor = actor.with_pool(pool_address, pool_class);
+            actor = actor.with_pool_address(pool_address, pool_class);
         }
 
         if let Some(state_required) = state_required {
@@ -422,7 +426,10 @@ where
     /// Start swap path merger
     pub fn with_swap_path_merger(&mut self) -> Result<&mut Self> {
         let mutlicaller_address = self.encoder.clone().ok_or(eyre!("NO_ENCODER"))?.multicaller_address;
-        self.actor_manager.start(ArbSwapPathMergerActor::new(mutlicaller_address).on_bc(&self.bc, &self.strategy))?;
+
+        let swap_step_encoder = SwapStepEncoder::default_wuth_address(mutlicaller_address);
+
+        self.actor_manager.start(ArbSwapPathMergerActor::new(swap_step_encoder).on_bc(&self.bc, &self.strategy))?;
         Ok(self)
     }
 

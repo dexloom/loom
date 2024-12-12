@@ -19,7 +19,7 @@ use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_mempool::MempoolActor;
 use loom_defi_health_monitor::PoolHealthMonitorActor;
 use loom_defi_market::{CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor};
-use loom_defi_pools::PoolsConfig;
+use loom_defi_pools::{PoolLoadersBuilder, PoolsConfig};
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
 use loom_evm_db::DatabaseLoomExt;
@@ -117,7 +117,7 @@ impl<
             match v {
                 EncoderConfig::SwapStep(c) => {
                     let address: Address = c.address.parse()?;
-                    let encoder = MulticallerSwapEncoder::new(address);
+                    let encoder = MulticallerSwapEncoder::default_with_address(address);
                     topology.multicaller_encoders.insert(k.clone(), encoder);
                     topology.default_multicaller_encoder_name = Some(k.clone());
                 }
@@ -423,15 +423,19 @@ impl<
 
         if let Some(pool_actors) = config.actors.pools {
             let mut blockchains = HashMap::new();
+
             for (name, params) in pool_actors {
                 let client = topology.get_client(params.client.as_ref())?;
                 let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
                 let blockchain_state = topology.get_blockchain_state(params.blockchain.as_ref())?;
+
+                let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(client.clone(), PoolsConfig::default()));
+
                 blockchains.insert(blockchain.chain_id(), blockchain);
                 if params.history {
                     info!("Starting history pools loader {name}");
 
-                    let mut history_pools_loader_actor = HistoryPoolLoaderOneShotActor::new(client.clone(), PoolsConfig::new());
+                    let mut history_pools_loader_actor = HistoryPoolLoaderOneShotActor::new(client.clone(), pool_loaders.clone());
                     match history_pools_loader_actor.produce(blockchain.tasks_channel()).start() {
                         Ok(r) => {
                             tasks.extend(r);
@@ -459,7 +463,7 @@ impl<
 
                 if params.new {
                     info!("Starting new pool loader actor {name}");
-                    let mut new_pool_actor = NewPoolLoaderActor::new(PoolsConfig::new());
+                    let mut new_pool_actor = NewPoolLoaderActor::new(pool_loaders.clone());
                     match new_pool_actor.consume(blockchain.new_block_logs_channel()).produce(blockchain.tasks_channel()).start() {
                         Ok(r) => {
                             tasks.extend(r);
@@ -472,7 +476,7 @@ impl<
                 }
 
                 info!("Starting pool loader actor {name}");
-                let mut pool_loader_actor = PoolLoaderActor::new(client.clone());
+                let mut pool_loader_actor = PoolLoaderActor::new(client.clone(), pool_loaders.clone());
                 match pool_loader_actor
                     .access(blockchain.market())
                     .access(blockchain_state.market_state())

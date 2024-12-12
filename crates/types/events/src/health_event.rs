@@ -1,7 +1,6 @@
-use loom_types_blockchain::SwapError;
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-
 use crate::Message;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_entities::SwapError;
 
 #[derive(Clone, Debug)]
 pub enum HealthEvent<LDT: LoomDataTypes = LoomDataTypesEthereum> {

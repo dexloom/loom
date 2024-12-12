@@ -5,6 +5,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::required_state::RequiredState;
+use crate::PoolId;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
@@ -55,6 +56,15 @@ pub enum PoolClass {
     #[serde(rename = "uniswap3")]
     #[strum(serialize = "uniswap3")]
     UniswapV3,
+    #[serde(rename = "uniswap4")]
+    #[strum(serialize = "uniswap4")]
+    UniswapV4,
+    #[serde(rename = "maverick")]
+    #[strum(serialize = "maverick")]
+    Maverick,
+    #[serde(rename = "pancake3")]
+    #[strum(serialize = "pancake3")]
+    PancakeV3,
     #[serde(rename = "curve")]
     #[strum(serialize = "curve")]
     Curve,
@@ -67,6 +77,12 @@ pub enum PoolClass {
     #[serde(rename = "rocketpool")]
     #[strum(serialize = "rocketpool")]
     RocketPool,
+    #[serde(rename = "balancer1")]
+    #[strum(serialize = "balancer1")]
+    BalancerV1,
+    #[serde(rename = "balancer2")]
+    #[strum(serialize = "balancer2")]
+    BalancerV2,
     #[serde(rename = "custom")]
     #[strum(serialize = "custom")]
     Custom(u64),
@@ -87,6 +103,7 @@ pub enum PoolProtocol {
     Shibaswap,
     UniswapV3,
     UniswapV3Like,
+    UniswapV4,
     PancakeV3,
     Integral,
     Maverick,
@@ -94,6 +111,8 @@ pub enum PoolProtocol {
     LidoStEth,
     LidoWstEth,
     RocketEth,
+    BalancerV1,
+    BalancerV2,
     Custom(u64),
 }
 
@@ -105,6 +124,7 @@ impl Display for PoolProtocol {
             Self::UniswapV2Like => "UniswapV2Like",
             Self::UniswapV3 => "UniswapV3",
             Self::PancakeV3 => "PancakeV3",
+            Self::UniswapV4 => "UniswapV4",
             Self::UniswapV3Like => "UniswapV3Like",
             Self::NomiswapStable => "NomiswapStable",
             Self::Sushiswap => "Sushiswap",
@@ -120,6 +140,8 @@ impl Display for PoolProtocol {
             Self::LidoWstEth => "WstEth",
             Self::LidoStEth => "StEth",
             Self::RocketEth => "RocketEth",
+            Self::BalancerV1 => "BalancerV1",
+            Self::BalancerV2 => "BalancerV2",
             Self::Custom(x) => "Custom",
         };
         write!(f, "{}", protocol_name)
@@ -182,6 +204,12 @@ impl<LDT: LoomDataTypes> Deref for PoolWrapper<LDT> {
     }
 }
 
+impl<LDT: LoomDataTypes> AsRef<dyn Pool<LDT>> for PoolWrapper<LDT> {
+    fn as_ref(&self) -> &(dyn Pool<LDT> + 'static) {
+        self.pool.as_ref()
+    }
+}
+
 impl<LDT: LoomDataTypes> PoolWrapper<LDT> {
     pub fn new(pool: Arc<dyn Pool<LDT>>) -> Self {
         PoolWrapper { pool }
@@ -204,6 +232,8 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
     }
 
     fn get_address(&self) -> LDT::Address;
+
+    fn get_pool_id(&self) -> PoolId<LDT>;
 
     fn get_fee(&self) -> U256 {
         U256::ZERO
@@ -242,18 +272,20 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
         true
     }
 
-    fn get_encoder(&self) -> &dyn AbiSwapEncoder;
+    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder>;
 
     fn get_read_only_cell_vec(&self) -> Vec<U256> {
         Vec::new()
     }
 
     fn get_state_required(&self) -> Result<RequiredState>;
+
+    fn is_native(&self) -> bool;
 }
 
 pub struct DefaultAbiSwapEncoder {}
 
-impl AbiSwapEncoder for DefaultAbiSwapEncoder {}
+impl PoolAbiEncoder for DefaultAbiSwapEncoder {}
 
 #[derive(Clone, Debug, PartialEq)]
 pub enum PreswapRequirement {
@@ -264,7 +296,7 @@ pub enum PreswapRequirement {
     Base,
 }
 
-pub trait AbiSwapEncoder {
+pub trait PoolAbiEncoder: Send + Sync {
     fn encode_swap_in_amount_provided(
         &self,
         _token_from_address: Address,

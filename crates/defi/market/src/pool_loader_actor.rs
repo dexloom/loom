@@ -6,18 +6,16 @@ use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use eyre::{eyre, Result};
+use eyre::Result;
 use tracing::{debug, error, info};
 
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, SharedState, WorkerResult};
 use loom_core_actors::{Accessor, Consumer};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
-use loom_defi_pools::protocols::{fetch_uni2_factory, fetch_uni3_factory, CurveProtocol};
-use loom_defi_pools::{CurvePool, MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::required_state::RequiredStateReader;
-use loom_types_entities::{get_protocol_by_factory, Market, MarketState, PoolClass, PoolProtocol, PoolWrapper};
+use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders, PoolWrapper};
 use loom_types_events::Task;
 
 use revm::{Database, DatabaseCommit, DatabaseRef};
@@ -27,6 +25,7 @@ const MAX_CONCURRENT_TASKS: usize = 20;
 
 pub async fn pool_loader_worker<P, T, N, DB>(
     client: P,
+    pool_loaders: Arc<PoolLoaders<P, T, N>>,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     tasks_rx: Broadcaster<Task>,
@@ -48,9 +47,9 @@ where
                 _ => continue,
             };
 
-            for (pool_address, pool_class) in pools {
+            for (pool_id, pool_class) in pools {
                 // Check if pool already exists
-                if processed_pools.insert(pool_address, true).is_some() {
+                if processed_pools.insert(pool_id, true).is_some() {
                     continue;
                 }
 
@@ -58,16 +57,24 @@ where
                 let client_clone = client.clone();
                 let market_clone = market.clone();
                 let market_state = market_state.clone();
+                let pool_loaders_clone = pool_loaders.clone();
 
                 tokio::task::spawn(async move {
                     match sema_clone.acquire().await {
                         Ok(permit) => {
-                            if let Err(error) =
-                                fetch_and_add_pool_by_address(client_clone, market_clone, market_state, pool_address, pool_class).await
+                            if let Err(error) = fetch_and_add_pool_by_pool_id(
+                                client_clone,
+                                market_clone,
+                                market_state,
+                                pool_loaders_clone,
+                                pool_id,
+                                pool_class,
+                            )
+                            .await
                             {
                                 error!(%error, "failed fetch_and_add_pool_by_address");
                             } else {
-                                info!(%pool_address, %pool_class, "Pool loaded successfully");
+                                info!(%pool_id, %pool_class, "Pool loaded successfully");
                             }
                             drop(permit);
                         }
@@ -82,11 +89,12 @@ where
 }
 
 /// Fetch pool data, add it to the market and fetch the required state
-pub async fn fetch_and_add_pool_by_address<P, T, N, DB>(
+pub async fn fetch_and_add_pool_by_pool_id<P, T, N, DB>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
-    pool_address: Address,
+    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_id: PoolId,
     pool_class: PoolClass,
 ) -> Result<()>
 where
@@ -95,77 +103,11 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
-    debug!("Fetching pool {:#20x}", pool_address);
+    debug!("Fetching pool {}", pool_id);
 
-    match pool_class {
-        PoolClass::UniswapV2 => {
-            let factory_address = fetch_uni2_factory(client.clone(), pool_address).await?;
-            let fetch_result = match get_protocol_by_factory(factory_address) {
-                PoolProtocol::NomiswapStable | PoolProtocol::Miniswap | PoolProtocol::Integral | PoolProtocol::Safeswap => {
-                    Err(eyre!("POOL_PROTOCOL_NOT_SUPPORTED"))
-                }
+    let pool = pool_loaders.load_pool_with_provider(client.clone(), pool_id, &pool_class).await?;
+    fetch_state_and_add_pool(client, market.clone(), market_state.clone(), pool).await?;
 
-                _ => {
-                    let pool = UniswapV2Pool::fetch_pool_data(client.clone(), pool_address).await?;
-                    fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), PoolWrapper::new(Arc::new(pool))).await
-                }
-            };
-
-            if let Err(e) = fetch_result {
-                error!("fetch_and_add_pool uni2 error {:#20x} : {}", pool_address, e);
-                return Err(e);
-            }
-        }
-        PoolClass::UniswapV3 => {
-            let factory_address_result = fetch_uni3_factory(client.clone(), pool_address).await;
-            match factory_address_result {
-                Ok(factory_address) => {
-                    let pool_wrapped = match get_protocol_by_factory(factory_address) {
-                        PoolProtocol::PancakeV3 => {
-                            PoolWrapper::new(Arc::new(PancakeV3Pool::fetch_pool_data(client.clone(), pool_address).await?))
-                        }
-                        PoolProtocol::Maverick => {
-                            PoolWrapper::new(Arc::new(MaverickPool::fetch_pool_data(client.clone(), pool_address).await?))
-                        }
-                        _ => PoolWrapper::new(Arc::new(UniswapV3Pool::fetch_pool_data(client.clone(), pool_address).await?)),
-                    };
-
-                    if let Err(e) = fetch_state_and_add_pool(client, market, market_state, pool_wrapped).await {
-                        error!("fetch_and_add_pool uni3 error {:#20x} : {}", pool_address, e);
-                        return Err(e);
-                    }
-                }
-                Err(e) => {
-                    error!("Error fetching factory address at {:#20x}: {}", pool_address, e);
-                    return Err(eyre!("CANNOT_GET_FACTORY_ADDRESS"));
-                }
-            }
-        }
-        PoolClass::Curve => match CurveProtocol::get_contract_from_code(client.clone(), pool_address).await {
-            Ok(curve_contract) => {
-                let curve_pool = CurvePool::fetch_pool_data(client.clone(), curve_contract).await?;
-                let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
-
-                match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
-                    Err(e) => {
-                        error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
-                        return Err(e);
-                    }
-                    Ok(_) => {
-                        debug!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
-                    }
-                }
-            }
-            Err(e) => {
-                error!("Error getting curve contract from code {} : {} ", pool_address, e);
-                return Err(e);
-            }
-        },
-        _ => {
-            error!("Error pool not supported at {:#20x}", pool_address);
-            return Err(eyre!("POOL_CLASS_NOT_SUPPORTED"));
-        }
-    }
     Ok(())
 }
 
@@ -228,8 +170,15 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct PoolLoaderActor<P, T, N, DB> {
+pub struct PoolLoaderActor<P, T, N, DB>
+where
+    T: Transport + Clone,
+    N: Network,
+    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+{
     client: P,
+    pool_loaders: Arc<PoolLoaders<P, T, N>>,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
@@ -247,8 +196,8 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
-    pub fn new(client: P) -> Self {
-        Self { client, market: None, market_state: None, tasks_rx: None, _t: PhantomData, _n: PhantomData }
+    pub fn new(client: P, pool_loader: Arc<PoolLoaders<P, T, N>>) -> Self {
+        Self { client, pool_loaders: pool_loader, market: None, market_state: None, tasks_rx: None, _t: PhantomData, _n: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
@@ -261,11 +210,12 @@ where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database + DatabaseRef + DatabaseCommit + Default + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(pool_loader_worker(
             self.client.clone(),
+            self.pool_loaders.clone(),
             self.market.clone().unwrap(),
             self.market_state.clone().unwrap(),
             self.tasks_rx.clone().unwrap(),

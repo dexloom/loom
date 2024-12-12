@@ -1,12 +1,13 @@
-use crate::{LoomDataTypes, LoomDataTypesEthereum};
+use crate::PoolId;
 use alloy_primitives::U256;
 use eyre::{eyre, Report};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug)]
 pub struct SwapError<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub msg: String,
-    pub pool: LDT::Address,
+    pub pool: PoolId<LDT>,
     pub token_from: LDT::Address,
     pub token_to: LDT::Address,
     pub is_in_amount: bool,

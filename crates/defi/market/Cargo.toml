@@ -12,14 +12,13 @@ version.workspace = true
 loom-core-actors.workspace = true
 loom-core-actors-macros.workspace = true
 loom-core-blockchain.workspace = true
-loom-defi-abi.workspace = true
 loom-defi-pools.workspace = true
 loom-node-debug-provider.workspace = true
+loom-types-blockchain.workspace = true
 loom-types-entities.workspace = true
 loom-types-events.workspace = true
 
 eyre.workspace = true
-futures.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
@@ -29,7 +28,6 @@ alloy-network.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true
 alloy-rpc-types.workspace = true
-alloy-sol-types.workspace = true
 alloy-transport.workspace = true
 
 #revm

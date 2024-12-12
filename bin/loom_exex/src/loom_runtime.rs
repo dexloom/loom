@@ -14,7 +14,7 @@ use loom::node::debug_provider::DebugProviderExt;
 use loom::node::exex::loom_exex;
 use loom::storage::db::init_db_pool;
 use loom::strategy::backrun::{BackrunConfig, BackrunConfigSection};
-use loom::types::entities::config::load_from_file;
+use loom::types::entities::strategy_config::load_from_file;
 use loom::types::entities::{BlockHistoryState, PoolClass};
 use reth::revm::{Database, DatabaseCommit, DatabaseRef};
 use reth_exex::ExExContext;
@@ -106,7 +106,7 @@ where
         .with_pool_history_loader(pools_config.clone())? // load pools used in latest 10000 blocks
         //.with_curve_pool_protocol_loader()? // load curve + steth + wsteth
         .with_new_pool_loader(pools_config.clone())? // load new pools
-        .with_pool_loader()?
+        .with_pool_loader(pools_config.clone())?
         .with_swap_path_merger()? // load merger for multiple swap paths
         .with_diff_path_merger()? // load merger for different swap paths
         .with_same_path_merger()? // load merger for same swap paths with different stuffing txes

@@ -1,4 +1,4 @@
-use alloy_network::Network;
+use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use loom_core_actors::SharedState;
@@ -6,20 +6,18 @@ use loom_defi_address_book::{
     CurveMetapoolAddress, CurvePoolAddress, PancakeV2PoolAddress, PancakeV3PoolAddress, TokenAddressEth, UniswapV2PoolAddress,
     UniswapV3PoolAddress,
 };
-use loom_defi_market::fetch_and_add_pool_by_address;
+use loom_defi_market::fetch_and_add_pool_by_pool_id;
+use loom_defi_pools::PoolLoadersBuilder;
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_entities::pool_config::PoolsConfig;
 use loom_types_entities::{Market, MarketState, PoolClass, Token};
 use revm::{Database, DatabaseCommit, DatabaseRef};
+use std::sync::Arc;
 
-pub async fn preload_pools<P, T, N, DB>(
-    client: P,
-    market: SharedState<Market>,
-    market_state: SharedState<MarketState<DB>>,
-) -> eyre::Result<()>
+pub async fn preload_pools<P, T, DB>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState<DB>>) -> eyre::Result<()>
 where
-    N: Network,
     T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + DatabaseCommit + Database + Send + Sync + Clone + 'static,
 {
     let mut market_instance = market.write().await;
@@ -35,90 +33,129 @@ where
 
     drop(market_instance);
 
-    fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(), CurvePoolAddress::ETH_BTC_USD, PoolClass::Curve)
-        .await?;
+    let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(client.clone(), PoolsConfig::default()));
 
-    fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(), CurvePoolAddress::USDT_BTC_ETH, PoolClass::Curve)
-        .await?;
-
-    fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(), CurvePoolAddress::DAI_USDC_USDT, PoolClass::Curve)
-        .await?;
-
-    fetch_and_add_pool_by_address(client.clone(), market.clone(), market_state.clone(), CurveMetapoolAddress::LUSD, PoolClass::Curve)
-        .await?;
-
-    fetch_and_add_pool_by_address(
+    fetch_and_add_pool_by_pool_id(
         client.clone(),
         market.clone(),
         market_state.clone(),
-        UniswapV3PoolAddress::WETH_USDT_3000,
+        pool_loaders.clone(),
+        CurvePoolAddress::ETH_BTC_USD.into(),
+        PoolClass::Curve,
+    )
+    .await?;
+
+    fetch_and_add_pool_by_pool_id(
+        client.clone(),
+        market.clone(),
+        market_state.clone(),
+        pool_loaders.clone(),
+        CurvePoolAddress::USDT_BTC_ETH.into(),
+        PoolClass::Curve,
+    )
+    .await?;
+
+    fetch_and_add_pool_by_pool_id(
+        client.clone(),
+        market.clone(),
+        market_state.clone(),
+        pool_loaders.clone(),
+        CurvePoolAddress::DAI_USDC_USDT.into(),
+        PoolClass::Curve,
+    )
+    .await?;
+
+    fetch_and_add_pool_by_pool_id(
+        client.clone(),
+        market.clone(),
+        market_state.clone(),
+        pool_loaders.clone(),
+        CurveMetapoolAddress::LUSD.into(),
+        PoolClass::Curve,
+    )
+    .await?;
+
+    fetch_and_add_pool_by_pool_id(
+        client.clone(),
+        market.clone(),
+        market_state.clone(),
+        pool_loaders.clone(),
+        UniswapV3PoolAddress::WETH_USDT_3000.into(),
         PoolClass::UniswapV3,
     )
     .await?;
 
-    fetch_and_add_pool_by_address(
+    fetch_and_add_pool_by_pool_id(
         client.clone(),
         market.clone(),
         market_state.clone(),
-        PancakeV2PoolAddress::WETH_USDT,
+        pool_loaders.clone(),
+        PancakeV2PoolAddress::WETH_USDT.into(),
         PoolClass::UniswapV2,
     )
     .await?;
-    fetch_and_add_pool_by_address(
+    fetch_and_add_pool_by_pool_id(
         client.clone(),
         market.clone(),
         market_state.clone(),
-        UniswapV2PoolAddress::WETH_USDT,
+        pool_loaders.clone(),
+        UniswapV2PoolAddress::WETH_USDT.into(),
         PoolClass::UniswapV2,
     )
     .await?;
-    fetch_and_add_pool_by_address(
+    fetch_and_add_pool_by_pool_id(
         client.clone(),
         market.clone(),
         market_state.clone(),
-        PancakeV3PoolAddress::USDC_USDT_100,
+        pool_loaders.clone(),
+        PancakeV3PoolAddress::USDC_USDT_100.into(),
         PoolClass::UniswapV3,
     )
     .await?;
 
-    fetch_and_add_pool_by_address(
+    fetch_and_add_pool_by_pool_id(
         client.clone(),
         market.clone(),
         market_state.clone(),
-        UniswapV3PoolAddress::USDC_WETH_3000,
+        pool_loaders.clone(),
+        UniswapV3PoolAddress::USDC_WETH_3000.into(),
         PoolClass::UniswapV3,
     )
     .await?;
-    fetch_and_add_pool_by_address(
+    fetch_and_add_pool_by_pool_id(
         client.clone(),
         market.clone(),
         market_state.clone(),
-        UniswapV3PoolAddress::USDC_WETH_500,
+        pool_loaders.clone(),
+        UniswapV3PoolAddress::USDC_WETH_500.into(),
         PoolClass::UniswapV3,
     )
     .await?;
-    fetch_and_add_pool_by_address(
+    fetch_and_add_pool_by_pool_id(
         client.clone(),
         market.clone(),
         market_state.clone(),
-        UniswapV3PoolAddress::WBTC_USDT_3000,
+        pool_loaders.clone(),
+        UniswapV3PoolAddress::WBTC_USDT_3000.into(),
         PoolClass::UniswapV3,
     )
     .await?;
-    fetch_and_add_pool_by_address(
+    fetch_and_add_pool_by_pool_id(
         client.clone(),
         market.clone(),
         market_state.clone(),
-        UniswapV3PoolAddress::USDC_USDT_100,
+        pool_loaders.clone(),
+        UniswapV3PoolAddress::USDC_USDT_100.into(),
         PoolClass::UniswapV3,
     )
     .await?;
 
-    fetch_and_add_pool_by_address(
+    fetch_and_add_pool_by_pool_id(
         client.clone(),
         market.clone(),
         market_state.clone(),
-        UniswapV2PoolAddress::LUSD_WETH,
+        pool_loaders.clone(),
+        UniswapV2PoolAddress::LUSD_WETH.into(),
         PoolClass::UniswapV2,
     )
     .await?;

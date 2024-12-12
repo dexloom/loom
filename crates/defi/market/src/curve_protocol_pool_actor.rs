@@ -7,14 +7,14 @@ use alloy_provider::Provider;
 use alloy_transport::Transport;
 use tracing::{debug, error};
 
-use crate::pool_loader::fetch_state_and_add_pool;
+use crate::pool_loader_actor::fetch_state_and_add_pool;
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_defi_pools::protocols::CurveProtocol;
-use loom_defi_pools::CurvePool;
+use loom_defi_pools::{CurvePool, CurvePoolAbiEncoder};
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_entities::{Market, MarketState, PoolWrapper};
+use loom_types_entities::{Market, MarketState, PoolId, PoolWrapper};
 use revm::DatabaseRef;
 
 async fn curve_pool_loader_worker<P, T, N, DB>(
@@ -30,7 +30,9 @@ where
 {
     let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
     for curve_contract in curve_contracts.into_iter() {
-        if let Ok(curve_pool) = CurvePool::fetch_pool_data(client.clone(), curve_contract).await {
+        if let Ok(curve_pool) =
+            CurvePool::<P, T, N, CurvePoolAbiEncoder<P, T, N>>::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await
+        {
             let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
             match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
                 Err(e) => {
@@ -48,13 +50,15 @@ where
             if let Ok(pool_count) = CurveProtocol::get_pool_count(client.clone(), factory_address).await {
                 for pool_id in 0..pool_count {
                     if let Ok(addr) = CurveProtocol::get_pool_address(client.clone(), factory_address, pool_id).await {
-                        if market.read().await.get_pool(&addr).is_some() {
+                        if market.read().await.get_pool(&PoolId::Address(addr)).is_some() {
                             continue;
                         }
 
                         match CurveProtocol::get_contract_from_code(client.clone(), addr).await {
                             Ok(curve_contract) => {
-                                if let Ok(curve_pool) = CurvePool::fetch_pool_data(client.clone(), curve_contract).await {
+                                if let Ok(curve_pool) =
+                                    CurvePool::<P, T, N>::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await
+                                {
                                     let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
 
                                     match fetch_state_and_add_pool(
