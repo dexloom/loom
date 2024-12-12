@@ -92,5 +92,5 @@ pub fn decode_into_transaction(rlp_tx: &Bytes) -> Result<Transaction> {
     let mut raw_tx = raw_tx.as_slice();
     let transaction_recovered: TransactionSignedEcRecovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;
 
-    Ok(reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(transaction_recovered, &EthTxBuilder)?)
+    Ok(reth_rpc_types_compat::transaction::from_recovered(transaction_recovered, &EthTxBuilder::default())?)
 }

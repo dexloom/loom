@@ -2,7 +2,7 @@ use alloy_eips::{BlockHashOrNumber, BlockNumHash};
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, BlockHash, B256};
 use alloy_provider::Provider;
-use alloy_rpc_types::{Block, BlockTransactions, Log, Transaction};
+use alloy_rpc_types::{Block, BlockTransactions, Log};
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_transport::Transport;
 use chrono::Utc;
@@ -104,7 +104,7 @@ where
                                         debug!("block_with_senders_reth : txs {}", block_with_senders_reth.body.transactions.len());
 
                                         //convert RETH->RPCx
-                                        let block_with_senders_rpc = reth_rpc_types_compat::block::from_block_with_tx_hashes::<Transaction>(block_with_senders_reth, block_header.total_difficulty.unwrap_or_default(), Some(block_header.hash));
+                                        let block_with_senders_rpc = reth_rpc_types_compat::block::from_block_with_tx_hashes(block_with_senders_reth, block_header.total_difficulty.unwrap_or_default(), Some(block_header.hash));
 
                                         let txs = BlockTransactions::Full(block_with_senders_rpc.transactions.clone().into_transactions().collect());
                                         // remove OtherFields

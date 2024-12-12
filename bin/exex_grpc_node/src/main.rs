@@ -1,5 +1,6 @@
-use reth::primitives::TransactionSigned;
-use reth::transaction_pool::TransactionPool;
+use reth::api::NodeTypes;
+use reth::primitives::{EthPrimitives, TransactionSigned};
+use reth::transaction_pool::{EthPooledTransaction, TransactionPool};
 use reth_exex::{ExExContext, ExExEvent, ExExNotification};
 use reth_node_api::FullNodeComponents;
 use reth_node_ethereum::EthereumNode;
@@ -204,10 +205,10 @@ impl RemoteExEx for ExExService {
     }
 }
 
-async fn exex<Node: FullNodeComponents>(
-    mut ctx: ExExContext<Node>,
-    notifications: broadcast::Sender<ExExNotification>,
-) -> eyre::Result<()> {
+async fn exex<Node>(mut ctx: ExExContext<Node>, notifications: broadcast::Sender<ExExNotification>) -> eyre::Result<()>
+where
+    Node: FullNodeComponents<Types: NodeTypes<Primitives = EthPrimitives>>,
+{
     info!("ExEx worker started");
 
     while let Some(notification) = ctx.notifications.try_next().await? {
@@ -226,13 +227,13 @@ async fn exex<Node: FullNodeComponents>(
 
 pub async fn mempool_worker<Pool>(mempool: Pool, notifications: broadcast::Sender<TransactionSigned>) -> eyre::Result<()>
 where
-    Pool: TransactionPool + Clone + 'static,
+    Pool: TransactionPool<Transaction = EthPooledTransaction> + Clone + 'static,
 {
     info!("Mempool worker started");
     let mut tx_listener = mempool.new_transactions_listener();
 
     while let Some(tx_notification) = tx_listener.recv().await {
-        let _ = notifications.send(tx_notification.transaction.to_recovered_transaction().into());
+        let _ = notifications.send(tx_notification.transaction.to_consensus().into());
     }
     info!("Mempool worker finished");
 
