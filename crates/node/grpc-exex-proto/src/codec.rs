@@ -2,6 +2,7 @@ use crate::proto;
 use alloy_consensus::Header;
 use alloy_primitives::{Address, BlockHash, Bloom, PrimitiveSignature, TxHash, B256, B64, U256};
 use eyre::{eyre, OptionExt};
+use reth::api::BlockBody;
 use std::sync::Arc;
 
 impl TryFrom<&reth_exex::ExExNotification> for proto::ExExNotification {
@@ -41,7 +42,7 @@ impl TryFrom<&reth::providers::Chain> for proto::Chain {
                             hash: block.header.hash().to_vec(),
                             header: Some(block.header.header().into()),
                         }),
-                        body: block.body.transactions().map(TryInto::try_into).collect::<eyre::Result<_>>()?,
+                        body: block.body.transactions().iter().map(TryInto::try_into).collect::<eyre::Result<_>>()?,
                         ommers: block.body.ommers.iter().map(Into::into).collect(),
                         senders: block.senders.iter().map(|sender| sender.to_vec()).collect(),
                     })
@@ -112,6 +113,7 @@ impl From<&Header> for proto::Header {
             parent_beacon_block_root: header.parent_beacon_block_root.map(|root| root.to_vec()),
             extra_data: header.extra_data.to_vec(),
             requests_hash: header.requests_hash.map(|root| root.to_vec()),
+            target_blobs_per_block: header.target_blobs_per_block,
         }
     }
 }
@@ -541,6 +543,7 @@ impl TryFrom<&proto::Header> for Header {
             base_fee_per_gas: header.base_fee_per_gas,
             blob_gas_used: header.blob_gas_used,
             excess_blob_gas: header.excess_blob_gas,
+            target_blobs_per_block: header.target_blobs_per_block,
             parent_beacon_block_root: header.parent_beacon_block_root.as_ref().map(|root| B256::try_from(root.as_slice())).transpose()?,
             extra_data: header.extra_data.as_slice().to_vec().into(),
             requests_hash: header.requests_hash.as_ref().map(|root| B256::try_from(root.as_slice())).transpose()?,
@@ -681,7 +684,7 @@ impl TryFrom<&proto::Transaction> for reth::primitives::TransactionSigned {
             }),
         };
 
-        Ok(reth::primitives::TransactionSigned { hash, signature, transaction })
+        Ok(reth::primitives::TransactionSigned { hash: hash.into(), signature, transaction })
     }
 }
 

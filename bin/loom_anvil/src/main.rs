@@ -4,6 +4,8 @@ use std::process::exit;
 use std::sync::Arc;
 use std::time::Duration;
 
+use alloy_rpc_types_eth::TransactionTrait;
+
 use alloy_provider::network::TransactionResponse;
 
 use crate::flashbots_mock::mount_flashbots_mock;

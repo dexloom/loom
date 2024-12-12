@@ -16,18 +16,23 @@ use loom::storage::db::init_db_pool;
 use loom::strategy::backrun::{BackrunConfig, BackrunConfigSection};
 use loom::types::entities::strategy_config::load_from_file;
 use loom::types::entities::{BlockHistoryState, PoolClass};
+use reth::api::NodeTypes;
 use reth::revm::{Database, DatabaseCommit, DatabaseRef};
 use reth_exex::ExExContext;
 use reth_node_api::FullNodeComponents;
+use reth_primitives::EthPrimitives;
 use std::env;
 use std::future::Future;
 use tracing::info;
 
-pub async fn init<Node: FullNodeComponents>(
+pub async fn init<Node>(
     ctx: ExExContext<Node>,
     bc: Blockchain,
     config: NodeBlockActorConfig,
-) -> eyre::Result<impl Future<Output = eyre::Result<()>>> {
+) -> eyre::Result<impl Future<Output = eyre::Result<()>>>
+where
+    Node: FullNodeComponents<Types: NodeTypes<Primitives = EthPrimitives>>,
+{
     Ok(loom_exex(ctx, bc, config.clone()))
 }
 

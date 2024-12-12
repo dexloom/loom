@@ -43,13 +43,15 @@ impl ExExClient {
             }
         };
 
+        let eth_builder = EthTxBuilder::default();
+
         Ok(stream! {
             loop {
                 match stream.message().await {
                     Ok(Some(transaction_proto)) => {
                         if let Ok(transaction) = TransactionSigned::try_from(&transaction_proto){
                             if let Some(transaction) = transaction.into_ecrecovered() {
-                                let transaction = reth_rpc_types_compat::transaction::from_recovered::<EthTxBuilder>(transaction, &EthTxBuilder);
+                                let transaction = reth_rpc_types_compat::transaction::from_recovered(transaction, &eth_builder);
                                 if let Ok(transaction) = transaction {
                                     yield transaction;
                                 }
@@ -113,6 +115,8 @@ impl ExExClient {
             }
         };
 
+        let eth_builder = EthTxBuilder::default();
+
         Ok(stream! {
             loop {
                 match stream.message().await {
@@ -121,12 +125,12 @@ impl ExExClient {
                             let diff = sealed_block.difficulty;
                             let hash = sealed_block.hash();
 
-                            if let Ok(block) = reth_rpc_types_compat::block::from_block::<EthTxBuilder>(
+                            if let Ok(block) = reth_rpc_types_compat::block::from_block(
                                 sealed_block.unseal(),
                                 diff,
                                 BlockTransactionsKind::Full,
                                 Some(hash),
-                                &EthTxBuilder)
+                                &eth_builder)
                             {
 
                                 let txes = block.transactions.into_transactions().collect();

@@ -1,3 +1,4 @@
+use alloy_consensus::transaction::Transaction;
 use alloy_network::{Ethereum, TransactionResponse};
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
