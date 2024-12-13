@@ -1,4 +1,4 @@
-pub use curve_protocol_pool_actor::CurvePoolLoaderOneShotActor;
+pub use curve_protocol_pool_actor::ProtocolPoolLoaderOneShotActor;
 pub use history_pool_actor::HistoryPoolLoaderOneShotActor;
 pub use new_pool_actor::NewPoolLoaderActor;
 pub use pool_loader_actor::{fetch_and_add_pool_by_pool_id, fetch_state_and_add_pool, PoolLoaderActor};

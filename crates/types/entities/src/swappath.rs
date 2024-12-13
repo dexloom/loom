@@ -115,8 +115,8 @@ impl<LDT: LoomDataTypes> SwapPath<LDT> {
 
 #[derive(Clone, Debug, Default)]
 pub struct SwapPaths<LDT: LoomDataTypes = LoomDataTypesEthereum> {
-    paths: HashSet<SwapPath<LDT>>,
-    pool_paths: HashMap<PoolId<LDT>, HashSet<SwapPath<LDT>>>,
+    pub paths: HashSet<SwapPath<LDT>>,
+    pub pool_paths: HashMap<PoolId<LDT>, HashSet<SwapPath<LDT>>>,
 }
 
 impl<LDT: LoomDataTypes> SwapPaths<LDT> {

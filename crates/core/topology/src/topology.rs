@@ -18,7 +18,7 @@ use loom_core_block_history::BlockHistoryActor;
 use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_mempool::MempoolActor;
 use loom_defi_health_monitor::PoolHealthMonitorActor;
-use loom_defi_market::{CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor};
+use loom_defi_market::{HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, ProtocolPoolLoaderOneShotActor};
 use loom_defi_pools::{PoolLoadersBuilder, PoolsConfig};
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
@@ -449,7 +449,7 @@ impl<
                 if params.protocol {
                     info!("Starting curve pools loader {name}");
 
-                    let mut curve_pools_loader_actor = CurvePoolLoaderOneShotActor::new(client.clone());
+                    let mut curve_pools_loader_actor = ProtocolPoolLoaderOneShotActor::new(client.clone());
                     match curve_pools_loader_actor.access(blockchain.market()).access(blockchain_state.market_state()).start() {
                         Err(e) => {
                             panic!("CurvePoolLoaderOneShotActor : {}", e)

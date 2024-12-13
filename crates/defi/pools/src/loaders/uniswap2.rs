@@ -5,7 +5,9 @@ use alloy::primitives::Log as EVMLog;
 use alloy::providers::network::Ethereum;
 use alloy::sol_types::SolEventInterface;
 use eyre::{eyre, ErrReport};
+use futures::Stream;
 use loom_defi_abi::uniswap2::IUniswapV2Pair::IUniswapV2PairEvents;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::{get_protocol_by_factory, PoolClass, PoolId, PoolLoader, PoolProtocol, PoolWrapper};
 use revm::primitives::Env;
 use revm::DatabaseRef;
@@ -81,5 +83,9 @@ where
 
     fn is_code(&self, code: &Bytes) -> bool {
         UniswapV2Protocol::is_code(code)
+    }
+
+    fn protocol_loader(&self) -> eyre::Result<Pin<Box<dyn Stream<Item = (PoolId, PoolClass)> + Send>>> {
+        Err(eyre!("NOT_IMPLEMENTED"))
     }
 }

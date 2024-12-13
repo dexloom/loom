@@ -110,6 +110,12 @@ impl<LDT: LoomDataTypes> Market<LDT> {
         self.swap_paths.get_pool_paths_vec(pool_address)
     }
 
+    /// Get all swap paths from the market by the pool address.
+    #[inline]
+    pub fn swap_paths(&self) -> Vec<SwapPath<LDT>> {
+        self.swap_paths.paths.clone().into_iter().collect::<Vec<_>>()
+    }
+
     /// Get a pool reference by the pool address. If the pool exists but the class is unknown it returns None.
     #[inline]
     pub fn get_pool(&self, address: &PoolId<LDT>) -> Option<&PoolWrapper<LDT>> {

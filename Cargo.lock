@@ -4987,6 +4987,7 @@ dependencies = [
  "alloy-provider",
  "alloy-rpc-types",
  "alloy-transport",
+ "async-stream",
  "eyre",
  "loom-core-actors",
  "loom-core-actors-macros",
@@ -4998,6 +4999,7 @@ dependencies = [
  "loom-types-events",
  "revm",
  "tokio",
+ "tokio-stream",
  "tracing",
 ]
 
@@ -5008,8 +5010,10 @@ dependencies = [
  "alloy",
  "alloy-rpc-client",
  "alloy-transport",
+ "async-stream",
  "env_logger",
  "eyre",
+ "futures",
  "lazy_static",
  "loom-defi-abi",
  "loom-defi-address-book",
@@ -5024,6 +5028,7 @@ dependencies = [
  "revm",
  "strum",
  "tokio",
+ "tokio-stream",
  "tracing",
  "url",
 ]
@@ -5551,6 +5556,7 @@ dependencies = [
  "alloy-signer",
  "alloy-signer-local",
  "alloy-transport",
+ "async-stream",
  "chrono",
  "criterion",
  "eyre",
@@ -5579,6 +5585,7 @@ dependencies = [
  "strum_macros",
  "thiserror 1.0.69",
  "tokio",
+ "tokio-stream",
  "toml",
  "tracing",
 ]

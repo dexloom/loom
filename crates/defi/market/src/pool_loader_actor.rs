@@ -16,7 +16,7 @@ use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::required_state::RequiredStateReader;
 use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders, PoolWrapper};
-use loom_types_events::Task;
+use loom_types_events::LoomTask;
 
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::sync::Semaphore;
@@ -28,7 +28,7 @@ pub async fn pool_loader_worker<P, T, N, DB>(
     pool_loaders: Arc<PoolLoaders<P, T, N>>,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
-    tasks_rx: Broadcaster<Task>,
+    tasks_rx: Broadcaster<LoomTask>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -43,7 +43,7 @@ where
     loop {
         if let Ok(task) = tasks_rx.recv().await {
             let pools = match task {
-                Task::FetchAndAddPools(pools) => pools,
+                LoomTask::FetchAndAddPools(pools) => pools,
                 _ => continue,
             };
 
@@ -184,7 +184,7 @@ where
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
-    tasks_rx: Option<Broadcaster<Task>>,
+    tasks_rx: Option<Broadcaster<LoomTask>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }

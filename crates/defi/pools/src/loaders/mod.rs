@@ -22,7 +22,6 @@ macro_rules! pool_loader {
     ($name:ident) => {
         use alloy::providers::{Network, Provider};
         use alloy::transports::Transport;
-        use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
         use std::marker::PhantomData;
 
         #[derive(Clone)]
@@ -47,6 +46,10 @@ macro_rules! pool_loader {
         {
             pub fn new() -> Self {
                 Self::default()
+            }
+
+            pub fn with_provider(provder: P) -> Self {
+                Self { provider: Some(provder), phantom_data: PhantomData }
             }
         }
 

@@ -7,8 +7,8 @@ use loom_types_blockchain::{ChainParameters, Mempool};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::{AccountNonceAndBalanceState, LatestBlock, Market, Token};
 use loom_types_events::{
-    MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
-    MessageMempoolDataUpdate, MessageTxCompose, Task,
+    LoomTask, MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
+    MessageMempoolDataUpdate, MessageTxCompose,
 };
 
 #[derive(Clone)]
@@ -31,7 +31,7 @@ pub struct Blockchain<LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
 
     pool_health_monitor_channel: Broadcaster<MessageHealthEvent<LDT>>,
     influxdb_write_channel: Broadcaster<WriteQuery>,
-    tasks_channel: Broadcaster<Task>,
+    tasks_channel: Broadcaster<LoomTask>,
 }
 
 impl Blockchain<LoomDataTypesEthereum> {
@@ -49,7 +49,7 @@ impl Blockchain<LoomDataTypesEthereum> {
 
         let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(1000);
         let influx_write_channel: Broadcaster<WriteQuery> = Broadcaster::new(1000);
-        let tasks_channel: Broadcaster<Task> = Broadcaster::new(1000);
+        let tasks_channel: Broadcaster<LoomTask> = Broadcaster::new(1000);
 
         let mut market_instance = Market::default();
 
@@ -154,7 +154,7 @@ impl<LDT: LoomDataTypes> Blockchain<LDT> {
         self.influxdb_write_channel.clone()
     }
 
-    pub fn tasks_channel(&self) -> Broadcaster<Task> {
+    pub fn tasks_channel(&self) -> Broadcaster<LoomTask> {
         self.tasks_channel.clone()
     }
 }

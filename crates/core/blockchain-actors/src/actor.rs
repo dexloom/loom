@@ -16,7 +16,7 @@ use loom_core_router::SwapRouterActor;
 use loom_defi_address_book::TokenAddressEth;
 use loom_defi_health_monitor::{PoolHealthMonitorActor, StuffingTxMonitorActor};
 use loom_defi_market::{
-    CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, RequiredPoolLoaderActor,
+    HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, ProtocolPoolLoaderOneShotActor, RequiredPoolLoaderActor,
 };
 use loom_defi_pools::{PoolLoadersBuilder, PoolsConfig};
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
@@ -362,7 +362,7 @@ where
 
     /// Start pool loader for curve + steth + wsteth
     pub fn with_curve_pool_protocol_loader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(CurvePoolLoaderOneShotActor::new(self.provider.clone()).on_bc(&self.bc, &self.state))?;
+        self.actor_manager.start(ProtocolPoolLoaderOneShotActor::new(self.provider.clone()).on_bc(&self.bc, &self.state))?;
         Ok(self)
     }
 

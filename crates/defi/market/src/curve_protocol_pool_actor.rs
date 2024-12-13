@@ -8,129 +8,84 @@ use alloy_transport::Transport;
 use tracing::{debug, error};
 
 use crate::pool_loader_actor::fetch_state_and_add_pool;
-use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
-use loom_core_actors_macros::{Accessor, Consumer};
+use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Producer, SharedState, WorkerResult};
+use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_defi_pools::protocols::CurveProtocol;
 use loom_defi_pools::{CurvePool, CurvePoolAbiEncoder};
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_entities::{Market, MarketState, PoolId, PoolWrapper};
+use loom_types_entities::{Market, MarketState, PoolId, PoolLoaders, PoolWrapper};
+use loom_types_events::LoomTask;
 use revm::DatabaseRef;
+use tokio_stream::StreamExt;
 
-async fn curve_pool_loader_worker<P, T, N, DB>(
+async fn protocol_pool_loader_worker<P, T, N>(
     client: P,
-    market: SharedState<Market>,
-    market_state: SharedState<MarketState<DB>>,
+    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    tasks_tx: Broadcaster<LoomTask>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
-    let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
-    for curve_contract in curve_contracts.into_iter() {
-        if let Ok(curve_pool) =
-            CurvePool::<P, T, N, CurvePoolAbiEncoder<P, T, N>>::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await
-        {
-            let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
-            match fetch_state_and_add_pool(client.clone(), market.clone(), market_state.clone(), pool_wrapped.clone()).await {
-                Err(e) => {
-                    error!("Curve pool loading error : {}", e)
-                }
-                Ok(_) => {
-                    debug!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
-                }
-            }
-        }
-    }
-
-    for factory_idx in 0..10 {
-        if let Ok(factory_address) = CurveProtocol::get_factory_address(client.clone(), factory_idx).await {
-            if let Ok(pool_count) = CurveProtocol::get_pool_count(client.clone(), factory_address).await {
-                for pool_id in 0..pool_count {
-                    if let Ok(addr) = CurveProtocol::get_pool_address(client.clone(), factory_address, pool_id).await {
-                        if market.read().await.get_pool(&PoolId::Address(addr)).is_some() {
-                            continue;
-                        }
-
-                        match CurveProtocol::get_contract_from_code(client.clone(), addr).await {
-                            Ok(curve_contract) => {
-                                if let Ok(curve_pool) =
-                                    CurvePool::<P, T, N>::fetch_pool_data_with_default_encoder(client.clone(), curve_contract).await
-                                {
-                                    let pool_wrapped = PoolWrapper::new(Arc::new(curve_pool));
-
-                                    match fetch_state_and_add_pool(
-                                        client.clone(),
-                                        market.clone(),
-                                        market_state.clone(),
-                                        pool_wrapped.clone(),
-                                    )
-                                    .await
-                                    {
-                                        Err(e) => {
-                                            error!("Curve pool loading error {:?} : {}", pool_wrapped.get_address(), e);
-                                        }
-                                        Ok(_) => {
-                                            debug!("Curve pool loaded {:#20x}", pool_wrapped.get_address());
-                                        }
-                                    }
-                                }
-                            }
-                            Err(e) => {
-                                error!("Contract from code error {:#20x} : {}", addr, e)
-                            }
-                        }
+    for (pool_class, pool_loader) in pool_loaders.map.iter() {
+        let tasks_tx_clone = tasks_tx.clone();
+        if let Ok(mut proto_loader) = pool_loader.clone().protocol_loader() {
+            tokio::task::spawn(async move {
+                while let Some((pool_id, pool_class)) = proto_loader.next().await {
+                    if let Err(error) = tasks_tx_clone.send(LoomTask::FetchAndAddPools(vec![(pool_id, pool_class)])).await {
+                        error!(%error, "tasks_tx.send");
                     }
                 }
-            }
+            });
+        } else {
+            error!("Protocol loader unavailable for {}", pool_class);
         }
     }
 
     Ok("curve_protocol_loader_worker".to_string())
 }
 
-#[derive(Accessor, Consumer)]
-pub struct CurvePoolLoaderOneShotActor<P, T, N, DB> {
+#[derive(Producer)]
+pub struct ProtocolPoolLoaderOneShotActor<P, T, N>
+where
+    N: Network,
+    T: Transport + Clone,
+    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+{
     client: P,
-    #[accessor]
-    market: Option<SharedState<Market>>,
-    #[accessor]
-    market_state: Option<SharedState<MarketState<DB>>>,
+    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    #[producer]
+    tasks_tx: Option<Broadcaster<LoomTask>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N, DB> CurvePoolLoaderOneShotActor<P, T, N, DB>
+impl<P, T, N> ProtocolPoolLoaderOneShotActor<P, T, N>
 where
     N: Network,
     T: Transport + Clone,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P) -> Self {
-        Self { client, market: None, market_state: None, _n: PhantomData, _t: PhantomData }
+    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<P, T, N>>) -> Self {
+        Self { client, pool_loaders, tasks_tx: None, _n: PhantomData, _t: PhantomData }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
-        Self { market: Some(bc.market()), market_state: Some(state.market_state_commit()), ..self }
+    pub fn on_bc(self, bc: &Blockchain) -> Self {
+        Self { tasks_tx: Some(bc.tasks_channel()), ..self }
     }
 }
 
-impl<P, T, N, DB> Actor for CurvePoolLoaderOneShotActor<P, T, N, DB>
+impl<P, T, N> Actor for ProtocolPoolLoaderOneShotActor<P, T, N>
 where
     T: Transport + Clone,
     N: Network,
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
-    DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
-        let task = tokio::task::spawn(curve_pool_loader_worker(
-            self.client.clone(),
-            self.market.clone().unwrap(),
-            self.market_state.clone().unwrap(),
-        ));
+        let task =
+            tokio::task::spawn(protocol_pool_loader_worker(self.client.clone(), self.pool_loaders.clone(), self.tasks_tx.clone().unwrap()));
 
         Ok(vec![task])
     }

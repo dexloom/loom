@@ -3,14 +3,17 @@ use alloy::primitives::Bytes;
 use alloy::primitives::Log as EVMLog;
 use alloy::providers::network::Ethereum;
 use alloy::sol_types::SolEventInterface;
+use async_stream::stream;
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_abi::maverick::IMaverickPool::IMaverickPoolEvents;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::{PoolClass, PoolId, PoolLoader, PoolWrapper};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use tokio_stream::Stream;
 
 pool_loader!(MaverickPoolLoader);
 
@@ -70,5 +73,9 @@ where
 
     fn is_code(&self, _code: &Bytes) -> bool {
         false
+    }
+
+    fn protocol_loader(&self) -> Result<Pin<Box<dyn Stream<Item = (PoolId, PoolClass)> + Send>>> {
+        Err(eyre!("NOT_IMPLEMENTED"))
     }
 }
