@@ -1,4 +1,5 @@
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
+pub use crate::pool_opcodes_encoder::swap_opcodes_encoders::MulticallerOpcodesPayload;
 use alloy_primitives::Address;
 pub use curve::CurveSwapOpcodesEncoder;
 use eyre::Result;
@@ -29,6 +30,21 @@ pub trait SwapOpcodesEncoderTrait: Send + Sync + 'static {
         amount_in: SwapAmountType,
         cur_pool: &dyn Pool,
         next_pool: Option<&dyn Pool>,
-        multicaller: Address,
+        payload: MulticallerOpcodesPayload,
+        multicaller_address: Address,
+    ) -> Result<()>;
+
+    #[allow(clippy::too_many_arguments)]
+    fn encode_swap_out_amount_provided(
+        &self,
+        swap_opcodes: &mut MulticallerCalls,
+        abi_encoder: &dyn ProtocolAbiSwapEncoderTrait,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount_out: SwapAmountType,
+        cur_pool: &dyn Pool,
+        next_pool: Option<&dyn Pool>,
+        payload: MulticallerOpcodesPayload,
+        multicaller_address: Address,
     ) -> Result<()>;
 }

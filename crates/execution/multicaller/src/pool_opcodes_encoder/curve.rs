@@ -1,11 +1,12 @@
-use alloy_primitives::{Address, Bytes, U256};
-use eyre::Result;
+use alloy_primitives::{Address, U256};
+use eyre::{eyre, Result};
 use lazy_static::lazy_static;
 use std::collections::HashMap;
-use tracing::error;
+use tracing::{error, trace};
 
 use crate::helpers::AbiEncoderHelper;
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
+use crate::pool_opcodes_encoder::swap_opcodes_encoders::MulticallerOpcodesPayload;
 use crate::pool_opcodes_encoder::SwapOpcodesEncoderTrait;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::Pool;
@@ -40,6 +41,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
         amount_in: SwapAmountType,
         cur_pool: &dyn Pool,
         next_pool: Option<&dyn Pool>,
+        payload: MulticallerOpcodesPayload,
         multicaller: Address,
     ) -> Result<()> {
         //let pool_encoder = abi_encoder.cur_pool.get_encoder().ok_or_eyre("NO_POOL_ENCODER")?;
@@ -53,6 +55,17 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                 if in_native {
                     let weth_withdraw_opcode =
                         MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(amount));
+
+                    trace!(
+                        "curve encode_swap_in_amount_provided native set amount={} pool={} from={} to={} recipient={} payload_empty={}",
+                        amount,
+                        cur_pool.get_address(),
+                        token_from_address,
+                        token_to_address,
+                        multicaller,
+                        payload.is_empty()
+                    );
+
                     let mut swap_opcode = MulticallerCall::new_call_with_value(
                         pool_address,
                         &abi_encoder.encode_swap_in_amount_provided(
@@ -61,7 +74,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                             token_to_address,
                             amount,
                             multicaller,
-                            Bytes::new(),
+                            payload.encode()?,
                         )?,
                         amount,
                     );
@@ -70,10 +83,23 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                     }
                     swap_opcodes.add(weth_withdraw_opcode).add(swap_opcode);
                 } else {
+                    trace!("approve  token={:?}, to={:?}, amount={}", token_from_address, cur_pool.get_address(), amount);
+
                     let approve_opcode = MulticallerCall::new_call(
                         token_from_address,
                         &AbiEncoderHelper::encode_erc20_approve(cur_pool.get_address(), amount),
                     );
+
+                    trace!(
+                        "curve encode_swap_in_amount_provided set amount={} pool={} from={} to={} recipient={} payload_empty={}",
+                        amount,
+                        cur_pool.get_address(),
+                        token_from_address,
+                        token_to_address,
+                        multicaller,
+                        payload.is_empty()
+                    );
+
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
                         &abi_encoder.encode_swap_in_amount_provided(
@@ -82,7 +108,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                             token_to_address,
                             amount,
                             multicaller,
-                            Bytes::new(),
+                            payload.encode()?,
                         )?,
                     );
 
@@ -99,6 +125,15 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                         MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(U256::ZERO));
                     weth_withdraw_opcode.set_call_stack(false, 0, 0x4, 0x20);
 
+                    trace!(
+                        "curve encode_swap_in_amount_provided native else for stack0 amount=stack_rel_0 pool={:?} from={} to={} recipient={} payload_empty={}",
+                        cur_pool.get_address(),
+                        token_from_address,
+                        token_to_address,
+                        multicaller,
+                        payload.is_empty()
+                    );
+
                     let mut swap_opcode = MulticallerCall::new_call_with_value(
                         pool_address,
                         &abi_encoder.encode_swap_in_amount_provided(
@@ -107,7 +142,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                             token_to_address,
                             U256::ZERO,
                             multicaller,
-                            Bytes::new(),
+                            payload.encode()?,
                         )?,
                         U256::ZERO,
                     );
@@ -122,11 +157,22 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                     }
                     swap_opcodes.add(weth_withdraw_opcode).add(swap_opcode);
                 } else {
+                    trace!("approve  token={:?}, to={:?}, amount=stack_no_rel_0", token_from_address, cur_pool.get_address());
+
                     let mut approve_opcode = MulticallerCall::new_call(
                         token_from_address,
                         &AbiEncoderHelper::encode_erc20_approve(cur_pool.get_address(), U256::ZERO),
                     );
                     approve_opcode.set_call_stack(false, 0, 0x24, 0x20);
+
+                    trace!(
+                        "curve encode_swap_in_amount_provided else for stack0 amount=stack_rel_0 pool={:?} from={} to={} recipient={} payload_empty={}",
+                        cur_pool.get_address(),
+                        token_from_address,
+                        token_to_address,
+                        multicaller,
+                        payload.is_empty()
+                    );
 
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
@@ -136,7 +182,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                             token_to_address,
                             U256::ZERO,
                             multicaller,
-                            Bytes::new(),
+                            payload.encode()?,
                         )?,
                     );
                     swap_opcode.set_call_stack(
@@ -158,6 +204,16 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                         MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(U256::ZERO));
                     weth_withdraw_opcode.set_call_stack(true, stack_offset, 0x4, 0x20);
 
+                    trace!(
+                        "curve encode_swap_in_amount_provided native else for relstack amount=stack_rel_{} pool={:?} from={} to={} recipient={} payload_empty={}",
+                        stack_offset,
+                        cur_pool.get_address(),
+                        token_from_address,
+                        token_to_address,
+                        multicaller,
+                        payload.is_empty()
+                    );
+
                     let mut swap_opcode = MulticallerCall::new_call_with_value(
                         pool_address,
                         &abi_encoder.encode_swap_in_amount_provided(
@@ -166,7 +222,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                             token_to_address,
                             U256::ZERO,
                             multicaller,
-                            Bytes::new(),
+                            payload.encode()?,
                         )?,
                         U256::ZERO,
                     );
@@ -181,11 +237,23 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                     }
                     swap_opcodes.add(weth_withdraw_opcode).add(swap_opcode);
                 } else {
+                    trace!("approve  token={:?}, to={:?}, amount=stack_rel_{}", token_from_address, cur_pool.get_address(), stack_offset);
+
                     let mut approve_opcode = MulticallerCall::new_call(
                         token_from_address,
                         &AbiEncoderHelper::encode_erc20_approve(cur_pool.get_address(), U256::ZERO),
                     );
                     approve_opcode.set_call_stack(true, stack_offset, 0x24, 0x20);
+
+                    trace!(
+                        "curve encode_swap_in_amount_provided  for relstack amount=stack_rel_{} pool={:?} from={} to={} recipient={} payload_empty={}",
+                        stack_offset,
+                        cur_pool.get_address(),
+                        token_from_address,
+                        token_to_address,
+                        multicaller,
+                        payload.is_empty()
+                    );
 
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
@@ -195,7 +263,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                             token_to_address,
                             U256::ZERO,
                             multicaller,
-                            Bytes::new(),
+                            payload.encode()?,
                         )?,
                     );
                     swap_opcode.set_call_stack(
@@ -221,6 +289,15 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                         MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(U256::ZERO));
                     weth_withdraw_opcode.set_call_stack(true, 0, 0x4, 0x20);
 
+                    trace!(
+                        "curve encode_swap_in_amount_provided native else for balance amount=stack_rel_0 pool={:?} from={} to={} recipient={} payload_empty={}",
+                        cur_pool.get_address(),
+                        token_from_address,
+                        token_to_address,
+                        multicaller,
+                        payload.is_empty()
+                    );
+
                     let mut swap_opcode = MulticallerCall::new_call_with_value(
                         pool_address,
                         &abi_encoder.encode_swap_in_amount_provided(
@@ -229,7 +306,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                             token_to_address,
                             U256::ZERO,
                             multicaller,
-                            Bytes::new(),
+                            payload.encode()?,
                         )?,
                         U256::ZERO,
                     );
@@ -244,11 +321,22 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                     }
                     swap_opcodes.add(balance_opcode).add(weth_withdraw_opcode).add(swap_opcode);
                 } else {
+                    trace!("approve  token={:?}, to={:?}, amount=balance_stack_rel_0", token_from_address, cur_pool.get_address());
+
                     let mut approve_opcode = MulticallerCall::new_call(
                         token_from_address,
                         &AbiEncoderHelper::encode_erc20_approve(cur_pool.get_address(), U256::ZERO),
                     );
                     approve_opcode.set_call_stack(true, 0, 0x24, 0x20);
+
+                    trace!(
+                        "curve encode_swap_in_amount_provided else for balance amount=stack_rel_0 pool={:?} from={} to={} recipient={} payload_empty={}",
+                        cur_pool.get_address(),
+                        token_from_address,
+                        token_to_address,
+                        multicaller,
+                        payload.is_empty()
+                    );
 
                     let mut swap_opcode = MulticallerCall::new_call(
                         pool_address,
@@ -258,7 +346,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                             token_to_address,
                             U256::ZERO,
                             multicaller,
-                            Bytes::new(),
+                            payload.encode()?,
                         )?,
                     );
                     swap_opcode.set_call_stack(
@@ -303,5 +391,20 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
             }
         }
         Ok(())
+    }
+
+    fn encode_swap_out_amount_provided(
+        &self,
+        _swap_opcodes: &mut MulticallerCalls,
+        _abi_encoder: &dyn ProtocolAbiSwapEncoderTrait,
+        _token_from_address: Address,
+        _token_to_address: Address,
+        _amount_out: SwapAmountType,
+        _cur_pool: &dyn Pool,
+        _next_pool: Option<&dyn Pool>,
+        _payload: MulticallerOpcodesPayload,
+        _multicaller_address: Address,
+    ) -> Result<()> {
+        Err(eyre!("NOT_IMPLEMENTED"))
     }
 }

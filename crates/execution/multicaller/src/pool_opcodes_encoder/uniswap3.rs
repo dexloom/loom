@@ -1,7 +1,9 @@
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
+use crate::pool_opcodes_encoder::swap_opcodes_encoders::MulticallerOpcodesPayload;
 use crate::pool_opcodes_encoder::SwapOpcodesEncoderTrait;
 use crate::AbiEncoderHelper;
 use alloy_primitives::{Address, Bytes, U256};
+use eyre::eyre;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{Pool, PreswapRequirement, SwapAmountType};
 use tracing::trace;
@@ -18,9 +20,10 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
         amount_in: SwapAmountType,
         cur_pool: &dyn Pool,
         next_pool: Option<&dyn Pool>,
+        payload: MulticallerOpcodesPayload,
         multicaller_address: Address,
     ) -> eyre::Result<()> {
-        let inside_call_payload = Bytes::from(token_from_address.to_vec());
+        let inside_call_payload = if payload.is_empty() { Bytes::from(token_from_address.to_vec()) } else { payload.encode()? };
 
         let swap_to: Address = if let Some(next_pool) = next_pool {
             match abi_encoder.preswap_requirement(next_pool) {
@@ -33,7 +36,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
 
         let mut swap_opcode = match amount_in {
             SwapAmountType::Set(amount) => {
-                trace!("uniswap v3 i == 0 set amount in for pool={:?}, amount={}", cur_pool.get_address(), amount);
+                trace!("uniswap v3 encode_swap_in_amount_provided set amount in for pool={:?}, amount={}", cur_pool.get_address(), amount);
                 MulticallerCall::new_call(
                     cur_pool.get_address(),
                     &abi_encoder.encode_swap_in_amount_provided(
@@ -47,7 +50,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
                 )
             }
             SwapAmountType::Balance(addr) => {
-                trace!("uniswap v3 i == 0 balance of for pool={:?}, addr={}", cur_pool.get_address(), addr);
+                trace!("uniswap v3 encode_swap_in_amount_provided balance of for pool={:?}, addr={}", cur_pool.get_address(), addr);
                 let mut balance_opcode =
                     MulticallerCall::new_static_call(token_from_address, &AbiEncoderHelper::encode_erc20_balance_of(addr));
                 balance_opcode.set_return_stack(true, 0, 0x0, 0x20);
@@ -75,7 +78,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
                 swap_opcode
             }
             _ => {
-                trace!("uniswap v3 i == 0 else for pool={:?}", cur_pool.get_address());
+                trace!("uniswap v3 encode_swap_in_amount_provided else for pool={:?} value=stack_rel_0", cur_pool.get_address());
                 let mut swap_opcode = MulticallerCall::new_call(
                     cur_pool.get_address(),
                     &abi_encoder.encode_swap_in_amount_provided(
@@ -115,5 +118,20 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
             }
         }
         Ok(())
+    }
+
+    fn encode_swap_out_amount_provided(
+        &self,
+        _swap_opcodes: &mut MulticallerCalls,
+        _abi_encoder: &dyn ProtocolAbiSwapEncoderTrait,
+        _token_from_address: Address,
+        _token_to_address: Address,
+        _amount_out: SwapAmountType,
+        _cur_pool: &dyn Pool,
+        _next_pool: Option<&dyn Pool>,
+        _payload: MulticallerOpcodesPayload,
+        _multicaller_address: Address,
+    ) -> eyre::Result<()> {
+        Err(eyre!("NOT_IMPLEMENTED"))
     }
 }

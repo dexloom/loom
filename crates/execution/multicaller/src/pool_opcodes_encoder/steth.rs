@@ -1,5 +1,6 @@
 use crate::helpers::AbiEncoderHelper;
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
+use crate::pool_opcodes_encoder::swap_opcodes_encoders::MulticallerOpcodesPayload;
 use crate::pool_opcodes_encoder::SwapOpcodesEncoderTrait;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, Result};
@@ -20,6 +21,7 @@ impl SwapOpcodesEncoderTrait for StEthSwapEncoder {
         amount_in: SwapAmountType,
         cur_pool: &dyn Pool,
         next_pool: Option<&dyn Pool>,
+        _payload: MulticallerOpcodesPayload,
         multicaller: Address,
     ) -> Result<()> {
         let pool_address = cur_pool.get_address();
@@ -98,5 +100,20 @@ impl SwapOpcodesEncoderTrait for StEthSwapEncoder {
         }
 
         Err(eyre!("CANNOT_ENCODE_STETH_SWAP"))
+    }
+
+    fn encode_swap_out_amount_provided(
+        &self,
+        _swap_opcodes: &mut MulticallerCalls,
+        _abi_encoder: &dyn ProtocolAbiSwapEncoderTrait,
+        _token_from_address: Address,
+        _token_to_address: Address,
+        _amount_out: SwapAmountType,
+        _cur_pool: &dyn Pool,
+        _next_pool: Option<&dyn Pool>,
+        _payload: MulticallerOpcodesPayload,
+        _multicaller_address: Address,
+    ) -> Result<()> {
+        Err(eyre!("NOT_IMPLEMENTED"))
     }
 }

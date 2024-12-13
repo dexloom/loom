@@ -1,7 +1,9 @@
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
+use crate::pool_opcodes_encoder::swap_opcodes_encoders::MulticallerOpcodesPayload;
 use crate::pool_opcodes_encoder::SwapOpcodesEncoderTrait;
 use crate::AbiEncoderHelper;
 use alloy_primitives::{Address, Bytes, U256};
+use eyre::eyre;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{Pool, PreswapRequirement, SwapAmountType};
 use tracing::trace;
@@ -18,6 +20,7 @@ impl SwapOpcodesEncoderTrait for UniswapV2SwapOpcodesEncoder {
         amount_in: SwapAmountType,
         cur_pool: &dyn Pool,
         next_pool: Option<&dyn Pool>,
+        _payload: MulticallerOpcodesPayload,
         multicaller_address: Address,
     ) -> eyre::Result<()> {
         let swap_to: Address = if let Some(next_pool) = next_pool {
@@ -97,5 +100,20 @@ impl SwapOpcodesEncoderTrait for UniswapV2SwapOpcodesEncoder {
 
         swap_opcodes.add(swap_opcode);
         Ok(())
+    }
+
+    fn encode_swap_out_amount_provided(
+        &self,
+        _swap_opcodes: &mut MulticallerCalls,
+        _abi_encoder: &dyn ProtocolAbiSwapEncoderTrait,
+        _token_from_address: Address,
+        _token_to_address: Address,
+        _amount_out: SwapAmountType,
+        _cur_pool: &dyn Pool,
+        _next_pool: Option<&dyn Pool>,
+        _payload: MulticallerOpcodesPayload,
+        _multicaller_address: Address,
+    ) -> eyre::Result<()> {
+        Err(eyre!("NOT_IMPLEMENTED"))
     }
 }
