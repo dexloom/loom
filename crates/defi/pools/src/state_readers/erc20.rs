@@ -1,6 +1,5 @@
-use alloy_primitives::{Address, U256};
-use alloy_sol_types::SolCall;
-use alloy_sol_types::SolInterface;
+use alloy::primitives::{Address, U256};
+use alloy::sol_types::{SolCall, SolInterface};
 use eyre::Result;
 use loom_defi_abi::IERC20;
 use loom_evm_utils::evm::evm_call;

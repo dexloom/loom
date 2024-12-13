@@ -1,7 +1,7 @@
-use alloy_primitives::{Address, Bytes, U128, U256};
-use alloy_provider::{Network, Provider};
-use alloy_sol_types::{SolCall, SolInterface};
-use alloy_transport::Transport;
+use alloy::primitives::{Address, Bytes, U128, U256};
+use alloy::providers::{Network, Provider};
+use alloy::sol_types::{SolCall, SolInterface};
+use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaverickPoolInstance};
 use loom_defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuoterCalls};

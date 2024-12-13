@@ -5005,13 +5005,8 @@ dependencies = [
 name = "loom-defi-pools"
 version = "0.4.0"
 dependencies = [
- "alloy-primitives",
- "alloy-provider",
+ "alloy",
  "alloy-rpc-client",
- "alloy-rpc-types",
- "alloy-rpc-types-trace",
- "alloy-sol-macro",
- "alloy-sol-types",
  "alloy-transport",
  "env_logger",
  "eyre",

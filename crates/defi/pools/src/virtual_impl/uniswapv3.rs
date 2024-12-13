@@ -1,4 +1,4 @@
-use alloy_primitives::{Address, I256, U256};
+use alloy::primitives::{Address, I256, U256};
 use eyre::eyre;
 use loom_defi_uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
 use revm::DatabaseRef;

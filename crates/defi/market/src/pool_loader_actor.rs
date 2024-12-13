@@ -103,7 +103,7 @@ where
     P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
-    debug!("Fetching pool {}", pool_id);
+    debug!(%pool_id, %pool_class, "Fetching pool");
 
     let pool = pool_loaders.load_pool_with_provider(client.clone(), pool_id, &pool_class).await?;
     fetch_state_and_add_pool(client, market.clone(), market_state.clone(), pool).await?;

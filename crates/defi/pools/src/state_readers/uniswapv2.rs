@@ -1,5 +1,5 @@
-use alloy_primitives::{Address, U256};
-use alloy_sol_types::{SolCall, SolInterface};
+use alloy::primitives::{Address, U256};
+use alloy::sol_types::{SolCall, SolInterface};
 use eyre::Result;
 use revm::primitives::Env;
 use revm::DatabaseRef;

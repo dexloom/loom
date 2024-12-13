@@ -4,9 +4,9 @@ mod uniswap2;
 mod uniswap3;
 
 use crate::loaders::curve::CurvePoolLoader;
-use alloy_provider::network::Ethereum;
-use alloy_provider::{Network, Provider};
-use alloy_transport::Transport;
+use alloy::providers::network::Ethereum;
+use alloy::providers::{Network, Provider};
+use alloy::transports::Transport;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::pool_config::PoolsConfig;
 use loom_types_entities::{PoolClass, PoolLoader, PoolLoaders};
@@ -15,11 +15,18 @@ use std::sync::Arc;
 pub use uniswap2::UniswapV2PoolLoader;
 pub use uniswap3::UniswapV3PoolLoader;
 
+/// creates  pool loader and imports necessary crates
 #[macro_export]
 macro_rules! pool_loader {
     // This will match the input like MaverickPoolLoader
     ($name:ident) => {
+        use alloy::providers::{Network, Provider};
+        use alloy::transports::Transport;
+        use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+        use std::marker::PhantomData;
+
         #[derive(Clone)]
+
         pub struct $name<P, T, N, LDT = LoomDataTypesEthereum>
         where
             T: Transport + Clone,

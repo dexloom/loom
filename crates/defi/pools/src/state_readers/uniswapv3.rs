@@ -1,6 +1,6 @@
-use alloy_primitives::aliases::U24;
-use alloy_primitives::Address;
-use alloy_sol_types::{SolCall, SolInterface};
+use alloy::primitives::aliases::U24;
+use alloy::primitives::Address;
+use alloy::sol_types::{SolCall, SolInterface};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 

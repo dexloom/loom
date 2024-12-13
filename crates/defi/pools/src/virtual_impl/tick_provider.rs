@@ -1,5 +1,5 @@
 use crate::db_reader::UniswapV3DBReader;
-use alloy_primitives::{Address, U256};
+use alloy::primitives::{Address, U256};
 use loom_defi_uniswap_v3_math::tick_provider::TickProvider;
 use revm::DatabaseRef;
 

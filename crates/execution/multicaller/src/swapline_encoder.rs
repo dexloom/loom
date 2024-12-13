@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use alloy_primitives::{Address, Bytes, U256};
-use eyre::{eyre, OptionExt, Result};
+use eyre::{eyre, Result};
 use tracing::{trace, warn};
 
 use crate::helpers::AbiEncoderHelper;

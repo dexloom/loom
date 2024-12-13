@@ -1,7 +1,7 @@
 use std::ops::{BitAnd, Shl, Shr};
 
-use alloy_primitives::{Address, Signed, Uint, B256, I256};
-use alloy_primitives::{U160, U256};
+use alloy::primitives::{Address, Signed, Uint, B256, I256};
+use alloy::primitives::{U160, U256};
 use eyre::Result;
 use lazy_static::lazy_static;
 use revm::DatabaseRef;

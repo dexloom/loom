@@ -1,11 +1,11 @@
 use std::fmt::{Display, Formatter};
 use std::marker::PhantomData;
 
-use alloy_primitives::{address, Address, Bytes, U256};
-use alloy_provider::{Network, Provider};
-use alloy_rpc_types::{BlockId, BlockNumberOrTag};
-use alloy_sol_types::SolInterface;
-use alloy_transport::Transport;
+use alloy::primitives::{address, Address, Bytes, U256};
+use alloy::providers::{Network, Provider};
+use alloy::rpc::types::{BlockId, BlockNumberOrTag};
+use alloy::sol_types::SolInterface;
+use alloy::transports::Transport;
 use eyre::{eyre, Report, Result};
 use tracing::{debug, error, trace};
 

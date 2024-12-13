@@ -1,6 +1,6 @@
 use crate::protocols::helper::get_uniswap2pool_address;
 use crate::protocols::protocol::Protocol;
-use alloy_primitives::{Address, B256};
+use alloy::primitives::{Address, B256};
 use loom_defi_address_book::FactoryAddress;
 
 pub struct SushiswapProtocol {}

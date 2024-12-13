@@ -3,10 +3,10 @@ use std::ops::Sub;
 
 use crate::state_readers::UniswapV3QuoterV2StateReader;
 use crate::state_readers::{UniswapV3QuoterV2Encoder, UniswapV3StateReader};
-use alloy_primitives::{Address, Bytes, I256, U160, U256};
-use alloy_provider::{Network, Provider};
-use alloy_sol_types::{SolCall, SolInterface};
-use alloy_transport::Transport;
+use alloy::primitives::{Address, Bytes, I256, U160, U256};
+use alloy::providers::{Network, Provider};
+use alloy::sol_types::{SolCall, SolInterface};
+use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_defi_abi::uniswap3::IUniswapV3Pool;
 use loom_defi_abi::uniswap3::IUniswapV3Pool::slot0Return;

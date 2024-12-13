@@ -1,4 +1,4 @@
-use alloy_primitives::Address;
+use alloy::primitives::Address;
 
 #[allow(dead_code)]
 pub trait Protocol {

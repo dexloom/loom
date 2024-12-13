@@ -1,9 +1,9 @@
 use std::sync::Arc;
 
-use alloy_primitives::{address, Address, Bytes, U256};
-use alloy_provider::{Network, Provider};
-use alloy_sol_types::SolCall;
-use alloy_transport::Transport;
+use alloy::primitives::{address, Address, Bytes, U256};
+use alloy::providers::{Network, Provider};
+use alloy::sol_types::SolCall;
+use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::TokenAddressEth;
