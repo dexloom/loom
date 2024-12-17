@@ -18,10 +18,10 @@ loom-types-blockchain.workspace = true
 loom-types-entities.workspace = true
 loom-types-events.workspace = true
 
+async-stream.workspace = true
 eyre.workspace = true
 tokio.workspace = true
 tokio-stream.workspace = true
-async-stream.workspace = true
 tracing.workspace = true
 
 

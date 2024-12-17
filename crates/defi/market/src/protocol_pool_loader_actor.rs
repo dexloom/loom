@@ -1,26 +1,21 @@
-use revm::{Database, DatabaseCommit};
 use std::marker::PhantomData;
 use std::sync::Arc;
 
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
-use tracing::{debug, error};
+use tracing::error;
 
-use crate::pool_loader_actor::fetch_state_and_add_pool;
-use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Producer, SharedState, WorkerResult};
-use loom_core_actors_macros::{Accessor, Consumer, Producer};
-use loom_core_blockchain::{Blockchain, BlockchainState};
-use loom_defi_pools::protocols::CurveProtocol;
-use loom_defi_pools::{CurvePool, CurvePoolAbiEncoder};
+use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
+use loom_core_actors_macros::Producer;
+use loom_core_blockchain::Blockchain;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_entities::{Market, MarketState, PoolId, PoolLoaders, PoolWrapper};
+use loom_types_entities::PoolLoaders;
 use loom_types_events::LoomTask;
-use revm::DatabaseRef;
 use tokio_stream::StreamExt;
 
 async fn protocol_pool_loader_worker<P, T, N>(
-    client: P,
+    _client: P,
     pool_loaders: Arc<PoolLoaders<P, T, N>>,
     tasks_tx: Broadcaster<LoomTask>,
 ) -> WorkerResult

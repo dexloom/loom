@@ -1,18 +1,18 @@
 use std::sync::Arc;
 
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, U256};
 use eyre::{eyre, Result};
-use tracing::{trace, warn};
+use tracing::trace;
 
-use crate::helpers::AbiEncoderHelper;
-use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
+use crate::abi_helpers::AbiEncoderHelper;
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
 use crate::pool_opcodes_encoder::{MulticallerOpcodesPayload, ProtocolSwapOpcodesEncoderV2, SwapOpcodesEncoderTrait};
 use crate::ProtocolABIEncoderV2;
 use loom_defi_address_book::TokenAddressEth;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
-use loom_types_entities::{PoolClass, PoolWrapper, PreswapRequirement, SwapAmountType, SwapLine, Token};
+use loom_types_entities::SwapAmountType::RelativeStack;
+use loom_types_entities::{PoolWrapper, SwapAmountType, SwapLine, Token};
 
 #[derive(Clone)]
 pub struct SwapLineEncoder {
@@ -41,9 +41,9 @@ impl SwapLineEncoder {
         &self,
         swap_path: &SwapLine<LoomDataTypesEthereum>,
         inside_swap_opcodes: MulticallerCalls,
-        funds_to: Address,
+        funds_to: Option<&PoolWrapper>,
     ) -> Result<MulticallerCalls> {
-        trace!("encode_flash_swap_line_in_amount funds_to={}", funds_to);
+        trace!("encode_flash_swap_line_in_amount funds_to={:?}", funds_to);
         let mut flash_swap_opcodes = MulticallerCalls::new();
         let mut inside_opcodes = inside_swap_opcodes.clone();
 
@@ -52,7 +52,7 @@ impl SwapLineEncoder {
         let mut reverse_tokens: Vec<Arc<Token>> = swap_path.tokens().clone();
         reverse_tokens.reverse();
 
-        let mut prev_pool: Option<&PoolWrapper> = None;
+        let mut prev_pool: Option<&PoolWrapper> = funds_to;
 
         for (pool_idx, flash_pool) in reverse_pools.iter().enumerate() {
             let token_from_address = reverse_tokens[pool_idx + 1].get_address();
@@ -60,164 +60,20 @@ impl SwapLineEncoder {
 
             let amount_in = if pool_idx == swap_path.pools().len() - 1 { swap_path.amount_in } else { SwapAmountType::RelativeStack(0) };
 
-            let swap_to = match prev_pool {
-                Some(prev_pool) => match flash_pool.get_class() {
-                    PoolClass::UniswapV2 => match self.abi_encoder.preswap_requirement(prev_pool.as_ref()) {
-                        PreswapRequirement::Transfer(transfer_to) => {
-                            trace!(
-                                "uniswap v2 transfer to previous pool: token={:?}, to={:?}, prev_pool={:?}",
-                                token_to_address,
-                                transfer_to,
-                                prev_pool.get_address()
-                            );
-                            let mut transfer_opcode = MulticallerCall::new_call(
-                                token_to_address,
-                                &AbiEncoderHelper::encode_erc20_transfer(transfer_to, U256::ZERO),
-                            );
-                            transfer_opcode.set_call_stack(false, 0, 0x24, 0x20);
-                            inside_opcodes.insert(transfer_opcode);
-                            transfer_to
-                        }
-                        _ => self.multicaller_address,
-                    },
-                    _ => match self.abi_encoder.preswap_requirement(prev_pool.as_ref()) {
-                        PreswapRequirement::Transfer(funds_to) => {
-                            trace!("other transfer to previous pool: funds_to={:?}, prev_pool={:?}", funds_to, prev_pool);
-                            funds_to
-                        }
-                        _ => {
-                            trace!("other swap to multicaller, prev_pool={:?}", prev_pool);
-                            self.multicaller_address
-                        }
-                    },
-                },
-                None => funds_to,
-            };
+            self.opcodes_encoder.encode_flash_swap_in_amount_provided(
+                &mut flash_swap_opcodes,
+                self.abi_encoder.as_ref(),
+                token_from_address,
+                token_to_address,
+                amount_in,
+                flash_pool.as_ref(),
+                prev_pool.map(|v| v.as_ref()),
+                MulticallerOpcodesPayload::Opcodes(inside_opcodes),
+                self.multicaller_address,
+            )?;
 
-            match flash_pool.get_class() {
-                PoolClass::UniswapV2 => {
-                    match amount_in {
-                        SwapAmountType::Set(amount) => {
-                            trace!(
-                                "uniswap v2 transfer token={:?}, to={:?}, amount={}",
-                                token_from_address,
-                                flash_pool.get_address(),
-                                amount
-                            );
-                            inside_opcodes.add(MulticallerCall::new_call(
-                                token_from_address,
-                                &AbiEncoderHelper::encode_erc20_transfer(flash_pool.get_address(), amount),
-                            ));
-                        }
-                        _ => {
-                            warn!("InAmountTypeNotSet")
-                        }
-                    }
-
-                    if pool_idx == 0 && funds_to != self.multicaller_address {
-                        trace!("uniswap v2 transfer to token_to_address={:?}, funds_to={:?}", token_to_address, funds_to);
-                        let mut transfer_opcode =
-                            MulticallerCall::new_call(token_to_address, &AbiEncoderHelper::encode_erc20_transfer(funds_to, U256::ZERO));
-                        transfer_opcode.set_call_stack(false, 0, 0x24, 0x20);
-                        inside_opcodes.insert(transfer_opcode);
-                    }
-                }
-                PoolClass::UniswapV3 | PoolClass::Maverick | PoolClass::PancakeV3 => {
-                    trace!("uniswap v3 transfer token={:?}, to={:?}, amount={:?}", token_to_address, flash_pool.get_address(), amount_in);
-
-                    let mut transfer_opcode = MulticallerCall::new_call(
-                        token_from_address,
-                        &AbiEncoderHelper::encode_erc20_transfer(flash_pool.get_address(), amount_in.unwrap_or_default()),
-                    );
-
-                    if amount_in.is_not_set() {
-                        transfer_opcode.set_call_stack(false, 1, 0x24, 0x20);
-                    }
-
-                    inside_opcodes.add(transfer_opcode);
-                }
-
-                _ => {
-                    return Err(eyre!("CANNOT_ENCODE_FLASH_CALL"));
-                }
-            }
-
-            let inside_call_bytes = OpcodesEncoderV2::pack_do_calls_data(&inside_opcodes)?;
-            flash_swap_opcodes = MulticallerCalls::new();
-
-            trace!("flash swap_to {:?}", swap_to);
-
-            match flash_pool.get_class() {
-                PoolClass::UniswapV2 => {
-                    trace!("uniswap v2 get out amount for pool={:?}, amount={:?}", flash_pool.get_address(), amount_in);
-                    let mut get_out_amount_opcode =
-                        MulticallerCall::new_internal_call(&AbiEncoderHelper::encode_multicaller_uni2_get_out_amount(
-                            token_from_address,
-                            token_to_address,
-                            flash_pool.get_address(),
-                            amount_in.unwrap_or_default(),
-                            flash_pool.get_fee(),
-                        ));
-
-                    if amount_in.is_not_set() {
-                        get_out_amount_opcode.set_call_stack(false, 0, 0x24, 0x20);
-                    }
-
-                    let mut swap_opcode = MulticallerCall::new_call(
-                        flash_pool.get_address(),
-                        &self.abi_encoder.encode_swap_out_amount_provided(
-                            flash_pool.as_ref(),
-                            token_from_address,
-                            token_to_address,
-                            U256::ZERO,
-                            self.multicaller_address,
-                            inside_call_bytes,
-                        )?,
-                    );
-                    swap_opcode.set_call_stack(
-                        true,
-                        0,
-                        self.abi_encoder.swap_out_amount_offset(flash_pool.as_ref(), token_from_address, token_to_address).unwrap(),
-                        0x20,
-                    );
-
-                    flash_swap_opcodes.add(get_out_amount_opcode).add(swap_opcode);
-
-                    prev_pool = Some(flash_pool);
-                    inside_opcodes = flash_swap_opcodes.clone();
-                }
-                PoolClass::UniswapV3 | PoolClass::Maverick | PoolClass::PancakeV3 => {
-                    trace!("uniswap v3 swap in amount for pool={:?}, amount={:?}", flash_pool.get_address(), amount_in);
-                    let mut swap_opcode = MulticallerCall::new_call(
-                        flash_pool.get_address(),
-                        &self.abi_encoder.encode_swap_in_amount_provided(
-                            flash_pool.as_ref(),
-                            token_from_address,
-                            token_to_address,
-                            amount_in.unwrap_or_default(),
-                            swap_to,
-                            inside_call_bytes,
-                        )?,
-                    );
-
-                    if amount_in.is_not_set() {
-                        swap_opcode.set_call_stack(
-                            false,
-                            0,
-                            self.abi_encoder.swap_in_amount_offset(flash_pool.as_ref(), token_from_address, token_to_address).unwrap(),
-                            0x20,
-                        );
-                    }
-
-                    flash_swap_opcodes.add(swap_opcode);
-
-                    prev_pool = Some(flash_pool);
-                    inside_opcodes = flash_swap_opcodes.clone();
-                }
-                _ => {
-                    return Err(eyre!("CANNOT_ENCODE_FLASH_CALL"));
-                }
-            }
+            prev_pool = Some(flash_pool);
+            inside_opcodes = flash_swap_opcodes.clone();
         }
 
         Ok(flash_swap_opcodes)
@@ -227,7 +83,6 @@ impl SwapLineEncoder {
         &self,
         swap_path: &SwapLine<LoomDataTypesEthereum>,
         inside_swap_opcodes: MulticallerCalls,
-        _funds_from: Address,
     ) -> Result<MulticallerCalls> {
         trace!("encode_flash_swap_line_out_amount inside_opcodes={}", inside_swap_opcodes.len());
         let mut flash_swap_opcodes = MulticallerCalls::new();
@@ -238,6 +93,8 @@ impl SwapLineEncoder {
         let tokens: Vec<Arc<Token>> = swap_path.tokens().clone();
 
         for (pool_idx, flash_pool) in pools.iter().enumerate() {
+            flash_swap_opcodes = MulticallerCalls::new();
+
             let token_from_address = tokens[pool_idx].get_address();
             let token_to_address = tokens[pool_idx + 1].get_address();
 
@@ -245,7 +102,21 @@ impl SwapLineEncoder {
 
             let amount_out = if pool_idx == pools.len() - 1 { swap_path.amount_out } else { SwapAmountType::RelativeStack(0) };
 
-            let swap_to = match next_pool {
+            self.opcodes_encoder.encode_flash_swap_out_amount_provided(
+                &mut flash_swap_opcodes,
+                self.abi_encoder.as_ref(),
+                token_from_address,
+                token_to_address,
+                amount_out,
+                flash_pool.as_ref(),
+                next_pool.map(|v| v.as_ref()),
+                MulticallerOpcodesPayload::Opcodes(inside_opcodes),
+                self.multicaller_address,
+            )?;
+
+            inside_opcodes = flash_swap_opcodes.clone();
+
+            /*let swap_to = match next_pool {
                 Some(next_pool) => next_pool.get_address(),
                 None => self.multicaller_address,
             };
@@ -314,7 +185,9 @@ impl SwapLineEncoder {
 
             trace!("flash swap_to {:?}", swap_to);
 
-            match flash_pool.get_class() {
+
+             */
+            /*match flash_pool.get_class() {
                 PoolClass::UniswapV2 => {
                     trace!(
                         "uniswap v2 swap out amount provided for pool={:?}, amount_out={:?} receiver={} inside_opcodes_len={}",
@@ -390,6 +263,8 @@ impl SwapLineEncoder {
                     return Err(eyre!("CANNOT_ENCODE_FLASH_CALL"));
                 }
             }
+
+             */
         }
 
         Ok(flash_swap_opcodes)
@@ -402,30 +277,30 @@ impl SwapLineEncoder {
     pub fn encode_swap_line_in_amount(
         &self,
         swap_path: &SwapLine<LoomDataTypesEthereum>,
-        funds_from: Address,
-        funds_to: Address,
+        funds_to: Option<&PoolWrapper>,
     ) -> Result<MulticallerCalls> {
         let mut swap_opcodes = MulticallerCalls::new();
+
+        let mut amount_in = swap_path.amount_in;
 
         for i in 0..swap_path.pools().len() {
             let token_from_address = swap_path.tokens()[i].get_address();
             let token_to_address = swap_path.tokens()[i + 1].get_address();
 
             let cur_pool = &swap_path.pools()[i].clone();
-            let next_pool: Option<&PoolWrapper> = if i < swap_path.pools().len() - 1 { Some(&swap_path.pools()[i + 1]) } else { None };
+            let next_pool: Option<&PoolWrapper> = if i < swap_path.pools().len() - 1 { Some(&swap_path.pools()[i + 1]) } else { funds_to };
 
             trace!(
-                "encode_swap_line_in_amount for from={} to={} pool={}, next_pool={:?} funds {} {}",
+                "encode_swap_line_in_amount for from={} to={} pool={}, next_pool={:?} funds_to {:?}",
                 token_from_address,
                 token_to_address,
                 cur_pool.get_address(),
                 next_pool.map(|next_pool| next_pool.get_address()),
-                funds_from,
                 funds_to
             );
 
-            let amount_in = if i == 0 {
-                if let PreswapRequirement::Transfer(funds_needed_at) = self.abi_encoder.preswap_requirement(cur_pool.as_ref()) {
+            /*let amount_in = if i == 0 {
+                /*if let PreswapRequirement::Transfer(funds_needed_at) = self.abi_encoder.preswap_requirement(cur_pool.as_ref()) {
                     if funds_needed_at != funds_from {
                         trace!(
                             "encode_swap_line_in_amount  i == 0  amount in {:?} funds {}->{}",
@@ -477,18 +352,25 @@ impl SwapLineEncoder {
                 } else {
                     swap_path.amount_in
                 }
+
+                     */
+                swap_path.amount_in
             } else {
                 SwapAmountType::RelativeStack(0)
             };
 
-            let swap_to: Address = if let Some(next_pool) = next_pool {
+             */
+
+            /*let swap_to: Address = if let Some(next_pool) = next_pool {
                 match &self.abi_encoder.preswap_requirement(next_pool.as_ref()) {
                     PreswapRequirement::Transfer(next_funds_to) => *next_funds_to,
                     _ => self.multicaller_address,
                 }
             } else {
                 funds_to
-            };
+            };*/
+
+            let swap_to = next_pool.map(|x| x.get_address()).unwrap_or(self.multicaller_address);
 
             trace!("swap_to {:?}", swap_to);
 
@@ -503,6 +385,8 @@ impl SwapLineEncoder {
                 MulticallerOpcodesPayload::Empty,
                 self.multicaller_address,
             )?;
+
+            amount_in = RelativeStack(0);
         }
         Ok(swap_opcodes)
     }

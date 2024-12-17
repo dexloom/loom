@@ -45,11 +45,7 @@ impl SwapEncoder for MulticallerSwapEncoder {
             match &swap {
                 Swap::ExchangeSwapLine(swap_line) => {
                     trace!("START: exchange swap line");
-                    match self.swap_step_encoder.swap_line_encoder.encode_swap_line_in_amount(
-                        swap_line,
-                        self.swap_step_encoder.get_contract_address(),
-                        self.swap_step_encoder.get_contract_address(),
-                    ) {
+                    match self.swap_step_encoder.swap_line_encoder.encode_swap_line_in_amount(swap_line, None) {
                         Ok(calls) => calls,
                         Err(e) => {
                             error!("swap_line_encoder.encode_swap_line_in_amount : {}", e);

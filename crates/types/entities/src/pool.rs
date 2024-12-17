@@ -288,12 +288,27 @@ pub struct DefaultAbiSwapEncoder {}
 impl PoolAbiEncoder for DefaultAbiSwapEncoder {}
 
 #[derive(Clone, Debug, PartialEq)]
-pub enum PreswapRequirement {
+pub enum PreswapRequirement<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     Unknown,
-    Transfer(Address),
+    Transfer(LDT::Address),
     Allowance,
     Callback,
     Base,
+}
+
+impl<LDT: LoomDataTypes> PreswapRequirement<LDT> {
+    pub fn address_or(&self, default_address: LDT::Address) -> LDT::Address {
+        match self {
+            PreswapRequirement::Transfer(address) => *address,
+            _ => default_address,
+        }
+    }
+    pub fn address(&self) -> Option<LDT::Address> {
+        match self {
+            PreswapRequirement::Transfer(address) => Some(*address),
+            _ => None,
+        }
+    }
 }
 
 pub trait PoolAbiEncoder: Send + Sync {

@@ -132,9 +132,16 @@ async fn main() -> Result<()> {
         if !swap_path.tokens[0].is_weth() {
             continue;
         }
+
         let sp = swap_path.clone();
         let sp_dto: SwapLineDTO = (&sp).into();
         println!("Checking {}", sp_dto);
+        if let Some(filter) = &cli.filter.clone() {
+            if !format!("{}", sp_dto).contains(filter) {
+                println!("Skipping {}", sp_dto);
+                continue;
+            }
+        }
 
         let mut swapline = SwapLine { path: sp, amount_in: SwapAmountType::Set(in_amount), ..SwapLine::default() };
 
@@ -204,11 +211,16 @@ async fn main() -> Result<()> {
                         let change_i: i64 = *gas as i64 - *stored_gas as i64;
                         let change = format!("{change_i}");
 
-                        let change = match change_i {
-                            i if i > 0 => change.red(),
-                            i if i < 0 => change.green(),
-                            _ => change.normal(),
+                        let change = if *gas < 40000 {
+                            change.red()
+                        } else {
+                            match change_i {
+                                i if i > 0 => change.red(),
+                                i if i < 0 => change.green(),
+                                _ => change.normal(),
+                            }
                         };
+
                         println!("{} : {} {} - {} ", change, current_entry, gas, stored_gas,);
                     }
                     None => {

@@ -1,9 +1,9 @@
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::Result;
 use lazy_static::lazy_static;
-use tracing::{debug, trace};
+use tracing::trace;
 
-use crate::helpers::AbiEncoderHelper;
+use crate::abi_helpers::AbiEncoderHelper;
 use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::SwapLineEncoder;
 use loom_types_blockchain::LoomDataTypesEthereum;
@@ -70,14 +70,10 @@ impl SwapStepEncoder {
             }
 
             if swap.swap_line_vec().len() == 1 {
-                swap_opcodes.merge(self.swap_line_encoder.encode_swap_line_in_amount(
-                    swap.swap_line_vec().first().unwrap(),
-                    flash_funds_to,
-                    self.multicaller_address,
-                )?);
+                swap_opcodes.merge(self.swap_line_encoder.encode_swap_line_in_amount(swap.swap_line_vec().first().unwrap(), None)?);
             } else {
                 for swap_path in swap.swap_line_vec().iter() {
-                    let opcodes = self.swap_line_encoder.encode_swap_line_in_amount(swap_path, flash_funds_to, self.multicaller_address)?;
+                    let opcodes = self.swap_line_encoder.encode_swap_line_in_amount(swap_path, None)?;
                     let call_bytes = OpcodesEncoderV2::pack_do_calls(&opcodes)?;
                     swap_opcodes.add(MulticallerCall::new_call(self.multicaller_address, &call_bytes));
                 }
@@ -98,33 +94,26 @@ impl SwapStepEncoder {
 
     pub fn encode_in_amount(
         &self,
-        step0: SwapStep<LoomDataTypesEthereum>,
-        step1: SwapStep<LoomDataTypesEthereum>,
+        flash_step: SwapStep<LoomDataTypesEthereum>,
+        swap_step: SwapStep<LoomDataTypesEthereum>,
     ) -> Result<MulticallerCalls> {
-        let flash = step0.clone();
-        let mut swap = step1.clone();
+        let mut swap_step = swap_step;
 
-        let flash_funds_to = self.multicaller_address;
+        //let flash_funds_to = self.multicaller_address;
 
-        if flash.len() > 1 || swap.len() > 1 {
-            swap.get_mut_swap_line_by_index(swap.len() - 1).amount_in = SwapAmountType::Balance(flash_funds_to);
+        if flash_step.len() > 1 || swap_step.len() > 1 {
+            swap_step.get_mut_swap_line_by_index(swap_step.len() - 1).amount_in = SwapAmountType::Balance(self.multicaller_address);
         }
-
-        trace!("funds_to {:?}", flash_funds_to);
 
         let mut swap_opcodes = MulticallerCalls::new();
 
-        if swap.swap_line_vec().len() == 1 {
+        if swap_step.swap_line_vec().len() == 1 {
             trace!("swap.swap_line_vec().len() == 1");
-            swap_opcodes.merge(self.swap_line_encoder.encode_swap_line_in_amount(
-                swap.swap_line_vec().first().unwrap(),
-                flash_funds_to,
-                self.multicaller_address,
-            )?);
+            swap_opcodes.merge(self.swap_line_encoder.encode_swap_line_in_amount(swap_step.swap_line_vec().first().unwrap(), None)?);
         } else {
             trace!("swap.swap_line_vec().len() != 1");
-            for swap_path in swap.swap_line_vec().iter() {
-                let opcodes = self.swap_line_encoder.encode_swap_line_in_amount(swap_path, flash_funds_to, self.multicaller_address)?;
+            for swap_path in swap_step.swap_line_vec().iter() {
+                let opcodes = self.swap_line_encoder.encode_swap_line_in_amount(swap_path, None)?;
                 let call_bytes = OpcodesEncoderV2::pack_do_calls(&opcodes)?;
                 swap_opcodes.add(MulticallerCall::new_call(self.multicaller_address, &call_bytes));
 
@@ -134,7 +123,9 @@ impl SwapStepEncoder {
             }
         }
 
-        let mut flash_swaps = flash.swap_line_vec().clone();
+        let flash_funds_to = swap_step.get_first_pool();
+
+        let mut flash_swaps = flash_step.swap_line_vec().clone();
         flash_swaps.reverse();
 
         for flash_swap_path in flash_swaps.iter() {
@@ -146,27 +137,19 @@ impl SwapStepEncoder {
 
     pub fn encode_out_amount(
         &self,
-        step0: SwapStep<LoomDataTypesEthereum>,
-        step1: SwapStep<LoomDataTypesEthereum>,
+        swap_step: SwapStep<LoomDataTypesEthereum>,
+        flash_step: SwapStep<LoomDataTypesEthereum>,
     ) -> Result<MulticallerCalls> {
-        let flash = step1.clone();
-        let swap = step0.clone();
-
-        let flash_funds_to = self.multicaller_address;
-
-        debug!("funds_to {:?}", flash_funds_to);
-
         let mut swap_opcodes = MulticallerCalls::new();
 
-        if swap.swap_line_vec().len() == 1 {
-            swap_opcodes.merge(self.swap_line_encoder.encode_swap_line_in_amount(
-                swap.swap_line_vec().first().unwrap(),
-                flash_funds_to,
-                self.multicaller_address,
-            )?);
+        if swap_step.swap_line_vec().len() == 1 {
+            swap_opcodes.merge(
+                self.swap_line_encoder
+                    .encode_swap_line_in_amount(swap_step.swap_line_vec().first().unwrap(), flash_step.get_first_pool())?,
+            );
         } else {
-            for swap_path in swap.swap_line_vec().iter() {
-                let opcodes = self.swap_line_encoder.encode_swap_line_in_amount(swap_path, flash_funds_to, self.multicaller_address)?;
+            for swap_path in swap_step.swap_line_vec().iter() {
+                let opcodes = self.swap_line_encoder.encode_swap_line_in_amount(swap_path, None)?;
                 let call_bytes = OpcodesEncoderV2::pack_do_calls(&opcodes)?;
                 swap_opcodes.add(MulticallerCall::new_call(self.multicaller_address, &call_bytes));
 
@@ -176,11 +159,11 @@ impl SwapStepEncoder {
             }
         }
 
-        let mut flash_swaps = flash.swap_line_vec().clone();
+        let mut flash_swaps = flash_step.swap_line_vec().clone();
         flash_swaps.reverse();
 
         for flash_swap_path in flash_swaps.iter() {
-            swap_opcodes = self.swap_line_encoder.encode_flash_swap_line_out_amount(flash_swap_path, swap_opcodes, flash_funds_to)?;
+            swap_opcodes = self.swap_line_encoder.encode_flash_swap_line_out_amount(flash_swap_path, swap_opcodes)?;
         }
 
         Ok(swap_opcodes)

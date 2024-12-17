@@ -160,8 +160,7 @@ impl<LDT: LoomDataTypes> Market<LDT> {
     }
 
     /// Get all pool addresses that allow to swap from `token_from_address` to `token_to_address`.
-
-    #[inline]
+    /// #[inline]
     pub fn get_token_token_pools(&self, token_from_address: &LDT::Address, token_to_address: &LDT::Address) -> Option<Vec<PoolId<LDT>>> {
         self.token_token_pools.get(token_from_address)?.get(token_to_address).cloned()
     }

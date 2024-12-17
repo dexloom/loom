@@ -201,8 +201,11 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
         let mut sp1: Option<SwapLine<LDT>> = None;
 
         for i in 1..self.path.pool_count() {
-            let (head_path, tail_path) = self.split(i).unwrap();
+            let (head_path, mut tail_path) = self.split(i).unwrap();
             if head_path.can_flash_swap() || tail_path.can_flash_swap() {
+                if head_path.can_flash_swap() {
+                    tail_path.amount_in = SwapAmountType::<LDT>::Stack0;
+                }
                 sp0 = Some(head_path);
                 sp1 = Some(tail_path);
                 break;
@@ -219,8 +222,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
         step_0.add(sp0.unwrap());
 
         let mut step_1 = SwapStep::<LDT>::new(multicaller);
-        let mut sp1 = sp1.unwrap();
-        sp1.amount_in = SwapAmountType::<LDT>::Balance(multicaller);
+        let sp1 = sp1.unwrap();
         step_1.add(sp1);
 
         Some((step_0, step_1))

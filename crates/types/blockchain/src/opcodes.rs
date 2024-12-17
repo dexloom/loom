@@ -120,6 +120,11 @@ impl MulticallerCalls {
         }
     }
 
+    pub fn clean(&mut self) -> &mut Self {
+        self.opcodes_vec = Vec::new();
+        self
+    }
+
     pub fn add(&mut self, opcode: MulticallerCall) -> &mut Self {
         self.opcodes_vec.push(opcode);
         self

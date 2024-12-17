@@ -6,7 +6,14 @@ fn format_test_file(test_names: String, call_data: String, test_size: usize) -> 
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.15;
 
-contract MulticallerCallData  {{
+import "forge-std/Test.sol";
+import "forge-std/console.sol";
+
+import {{ERC20}} from "./mocks/ERC20.sol";
+import {{MultiCaller}} from "./Interface.sol";
+import {{TestHelper, SwapTest}} from "./Helper.sol";
+
+contract MulticallerGasBench  is Test, TestHelper, SwapTest  {{
 
     string[{}] testname = [
 {}
@@ -17,13 +24,36 @@ contract MulticallerCallData  {{
 ];
 
 
-    function get_call_data(uint256 i ) internal returns (bytes memory) {{
+    function get_call_data(uint256 i) internal override returns (bytes memory) {{
         return callsdata[i];
     }}
 
-    function get_test_name(uint256 i ) internal returns (string memory) {{
+    function get_test_name(uint256 i) internal override returns (string memory) {{
         return testname[i];
     }}
+
+    function get_count() internal override returns (uint256) {{
+        return callsdata.length;
+    }}
+
+    function get_swap_token() internal override returns (address) {{
+        return address(weth);
+    }}
+
+    function get_multicaller() internal override returns (address) {{
+        return address(TestHelper.multicaller);
+    }}
+
+    function test_combo() public {{
+        run_test_all();
+    }}
+
+    function test_single() public {{
+        run_test_one(0);
+    }}
+
+
+
 
 }}
         "#,

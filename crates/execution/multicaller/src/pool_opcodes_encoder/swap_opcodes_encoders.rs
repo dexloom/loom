@@ -117,4 +117,56 @@ impl SwapOpcodesEncoderTrait for ProtocolSwapOpcodesEncoderV2 {
             multicaller_address,
         )
     }
+
+    fn encode_flash_swap_in_amount_provided(
+        &self,
+        swap_opcodes: &mut MulticallerCalls,
+        abi_encoder: &dyn ProtocolAbiSwapEncoderTrait,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount_in: SwapAmountType,
+        flash_pool: &dyn Pool,
+        prev_pool: Option<&dyn Pool>,
+        payload: MulticallerOpcodesPayload,
+        multicaller_address: Address,
+    ) -> Result<()> {
+        let opcodes_encoder = self.pool_classes.get(&flash_pool.get_class()).ok_or_eyre("OPCODES_ENCODER_NOT_FOUND")?;
+        opcodes_encoder.encode_flash_swap_in_amount_provided(
+            swap_opcodes,
+            abi_encoder,
+            token_from_address,
+            token_to_address,
+            amount_in,
+            flash_pool,
+            prev_pool,
+            payload,
+            multicaller_address,
+        )
+    }
+
+    fn encode_flash_swap_out_amount_provided(
+        &self,
+        swap_opcodes: &mut MulticallerCalls,
+        abi_encoder: &dyn ProtocolAbiSwapEncoderTrait,
+        token_from_address: Address,
+        token_to_address: Address,
+        amount_out: SwapAmountType,
+        flash_pool: &dyn Pool,
+        next_pool: Option<&dyn Pool>,
+        payload: MulticallerOpcodesPayload,
+        multicaller_address: Address,
+    ) -> Result<()> {
+        let opcodes_encoder = self.pool_classes.get(&flash_pool.get_class()).ok_or_eyre("OPCODES_ENCODER_NOT_FOUND")?;
+        opcodes_encoder.encode_flash_swap_out_amount_provided(
+            swap_opcodes,
+            abi_encoder,
+            token_from_address,
+            token_to_address,
+            amount_out,
+            flash_pool,
+            next_pool,
+            payload,
+            multicaller_address,
+        )
+    }
 }

@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use crate::{PoolId, SwapAmountType, SwapLine, SwapStep, Token};
+use crate::{PoolId, SwapLine, SwapStep, Token};
 use alloy_primitives::U256;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
@@ -52,8 +52,8 @@ impl<LDT: LoomDataTypes> Swap<LDT> {
                 step_0.add(sp0.unwrap());
 
                 let mut step_1 = SwapStep::new(multicaller);
-                let mut sp1 = sp1.unwrap();
-                sp1.amount_in = SwapAmountType::Balance(multicaller);
+                let sp1 = sp1.unwrap();
+                //sp1.amount_in = SwapAmountType::Balance(multicaller);
                 step_1.add(sp1);
 
                 Some((step_0, step_1))

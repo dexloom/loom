@@ -449,8 +449,8 @@ impl<
                 if params.protocol {
                     info!("Starting curve pools loader {name}");
 
-                    let mut curve_pools_loader_actor = ProtocolPoolLoaderOneShotActor::new(client.clone());
-                    match curve_pools_loader_actor.access(blockchain.market()).access(blockchain_state.market_state()).start() {
+                    let mut curve_pools_loader_actor = ProtocolPoolLoaderOneShotActor::new(client.clone(), pool_loaders.clone());
+                    match curve_pools_loader_actor.produce(blockchain.tasks_channel()).start() {
                         Err(e) => {
                             panic!("CurvePoolLoaderOneShotActor : {}", e)
                         }

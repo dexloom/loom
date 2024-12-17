@@ -3,7 +3,6 @@ use alloy::primitives::Bytes;
 use alloy::primitives::Log as EVMLog;
 use alloy::providers::network::Ethereum;
 use alloy::sol_types::SolEventInterface;
-use async_stream::stream;
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_abi::maverick::IMaverickPool::IMaverickPoolEvents;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};

@@ -1,5 +1,5 @@
 use crate::protocols::CurveProtocol;
-use crate::{pool_loader, CurvePool, CurvePoolAbiEncoder};
+use crate::{pool_loader, CurvePool};
 use alloy::primitives::Bytes;
 use alloy::providers::network::Ethereum;
 use async_stream::stream;
@@ -12,7 +12,7 @@ use revm::DatabaseRef;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
-use tracing::{debug, error};
+use tracing::error;
 
 pool_loader!(CurvePoolLoader);
 
@@ -82,6 +82,9 @@ where
         if let Some(client) = provider_clone {
             Ok(Box::pin(stream! {
                 let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
+                for curve_contract in curve_contracts.iter() {
+                    yield (PoolId::Address(curve_contract.get_address()), PoolClass::Curve)
+                }
 
                 for factory_idx in 0..10 {
                     if let Ok(factory_address) = CurveProtocol::get_factory_address(client.clone(), factory_idx).await {

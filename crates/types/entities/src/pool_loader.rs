@@ -14,6 +14,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 use tokio_stream::Stream;
 
+#[allow(clippy::type_complexity)]
 pub trait PoolLoader<P, T, N, LDT = LoomDataTypesEthereum>: Send + Sync + 'static
 where
     N: Network,

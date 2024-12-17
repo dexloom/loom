@@ -37,6 +37,7 @@ macro_rules! pool_loader {
             phantom_data: PhantomData<(P, T, N, LDT)>,
         }
 
+        #[allow(dead_code)]
         impl<P, T, N, LDT> $name<P, T, N, LDT>
         where
             T: Transport + Clone,
