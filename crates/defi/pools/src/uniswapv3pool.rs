@@ -503,8 +503,8 @@ impl PoolAbiEncoder for UniswapV3AbiSwapEncoder {
 #[cfg(test)]
 mod test {
     use super::*;
-    use alloy_primitives::{address, BlockNumber};
-    use alloy_rpc_types::{BlockId, BlockNumberOrTag};
+    use alloy::primitives::{address, BlockNumber};
+    use alloy::rpc::types::{BlockId, BlockNumberOrTag};
     use loom_defi_abi::uniswap_periphery::IQuoterV2;
     use loom_defi_abi::uniswap_periphery::IQuoterV2::{QuoteExactInputSingleParams, QuoteExactOutputSingleParams};
     use loom_defi_address_book::{PeripheryAddress, UniswapV3PoolAddress};

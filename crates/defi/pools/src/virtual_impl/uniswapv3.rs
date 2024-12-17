@@ -337,7 +337,7 @@ impl UniswapV3PoolVirtual {
 
 #[cfg(test)]
 mod test {
-    use alloy_primitives::U256;
+    use alloy::primitives::U256;
     use loom_defi_uniswap_v3_math::full_math::mul_div_rounding_up;
 
     #[test]

@@ -595,10 +595,10 @@ where
 mod tests {
     use eyre::Result;
 
-    use alloy_primitives::U256;
-    use alloy_provider::network::primitives::BlockTransactionsKind;
-    use alloy_provider::Provider;
-    use alloy_rpc_types::BlockNumberOrTag;
+    use alloy::primitives::U256;
+    use alloy::providers::network::primitives::BlockTransactionsKind;
+    use alloy::providers::Provider;
+    use alloy::rpc::types::BlockNumberOrTag;
     use env_logger::Env as EnvLog;
     use loom_evm_db::{DatabaseLoomExt, LoomDBType};
     use loom_node_debug_provider::AnvilDebugProviderFactory;

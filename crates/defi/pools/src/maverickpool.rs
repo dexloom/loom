@@ -425,8 +425,8 @@ impl PoolAbiEncoder for MaverickAbiSwapEncoder {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloy_provider::network::primitives::BlockTransactionsKind;
-    use alloy_rpc_types::BlockNumberOrTag;
+    use alloy::providers::network::primitives::BlockTransactionsKind;
+    use alloy::rpc::types::BlockNumberOrTag;
     use loom_defi_abi::maverick::IMaverickQuoter::IMaverickQuoterInstance;
     use loom_evm_db::LoomDBType;
     use loom_evm_utils::evm_env::env_for_block;

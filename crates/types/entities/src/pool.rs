@@ -287,13 +287,29 @@ pub struct DefaultAbiSwapEncoder {}
 
 impl PoolAbiEncoder for DefaultAbiSwapEncoder {}
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug)]
 pub enum PreswapRequirement<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     Unknown,
     Transfer(LDT::Address),
     Allowance,
     Callback,
     Base,
+}
+
+impl<LDT> PartialEq for PreswapRequirement<LDT>
+where
+    LDT: LoomDataTypes,
+{
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (PreswapRequirement::Unknown, PreswapRequirement::Unknown) => true,
+            (PreswapRequirement::Transfer(addr1), PreswapRequirement::Transfer(addr2)) => addr1 == addr2,
+            (PreswapRequirement::Allowance, PreswapRequirement::Allowance) => true,
+            (PreswapRequirement::Callback, PreswapRequirement::Callback) => true,
+            (PreswapRequirement::Base, PreswapRequirement::Base) => true,
+            _ => false,
+        }
+    }
 }
 
 impl<LDT: LoomDataTypes> PreswapRequirement<LDT> {

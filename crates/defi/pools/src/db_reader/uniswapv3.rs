@@ -96,7 +96,7 @@ impl UniswapV3DBReader {
 
 #[cfg(test)]
 mod test {
-    use alloy_primitives::Address;
+    use alloy::primitives::Address;
     use eyre::Result;
     use revm::primitives::Env;
     use std::env;
