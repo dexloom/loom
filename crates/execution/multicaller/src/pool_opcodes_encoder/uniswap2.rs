@@ -229,7 +229,7 @@ impl SwapOpcodesEncoderTrait for UniswapV2SwapOpcodesEncoder {
         // encode inside bytes
         let inside_call_bytes = payload.encode()?;
 
-        // flash swap with out amount
+        // flash swap without amount
         trace!(
             "uniswap v2 swap out amount provided for pool={:?}, from={} to={} amount_out={:?} receiver={} inside_opcodes_len={}",
             flash_pool.get_address(),
