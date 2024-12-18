@@ -2,9 +2,9 @@ name: Loom
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   pull_request_target:
-    branches: [main]
+    branches: [ main ]
 
 env:
   CARGO_TERM_COLOR: always
@@ -110,7 +110,7 @@ jobs:
       - uses: dtolnay/rust-toolchain@clippy
       - name: install taplo
         env:
-            version: "0.9.3"
+          version: "0.9.3"
         run: |
           curl -Ls "https://github.com/tamasfe/taplo/releases/download/${{ env.version }}/taplo-full-linux-x86_64.gz" | \
           gzip -d > taplo && \
@@ -130,13 +130,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.ref }}
       - uses: dtolnay/rust-toolchain@clippy
         with:
-          toolchain: "1.82"
+          toolchain: "1.83"
       - uses: Swatinem/rust-cache@v2
       - uses: arduino/setup-protoc@v3
 
       - run: 'echo "pub const KEY_ENCRYPTION_PWD: [u8; 16] = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];" > crates/types/entities/src/private.rs'
       # workaround for latest stable rust
-      - run: cargo +1.82 clippy --all-targets --all-features -- -D warnings
+      - run: cargo +1.83 clippy --all-targets --all-features -- -D warnings
 
   deny:
     if: github.repository == 'dexloom/loom'
