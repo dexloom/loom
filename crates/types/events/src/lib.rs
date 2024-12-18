@@ -5,7 +5,7 @@ pub use message::Message;
 pub use node::*;
 pub use state_update_event::*;
 pub use swap_compose::*;
-pub use tasks::Task;
+pub use tasks::LoomTask;
 pub use tx_compose::*;
 
 mod best_tx_compose;

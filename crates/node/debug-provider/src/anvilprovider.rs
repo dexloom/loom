@@ -106,14 +106,10 @@ mod test {
     use alloy::node_bindings::Anvil;
     use alloy::primitives::{B256, U256};
     use alloy::rpc::types::BlockNumberOrTag;
-    use alloy::transports::http::Http;
-    use alloy_provider::ext::AnvilApi;
     use alloy_provider::ProviderBuilder;
     use alloy_rpc_client::ClientBuilder;
     use env_logger::Env as EnvLog;
     use eyre::Result;
-    use reqwest::Client;
-    use std::ops::Deref;
     use std::sync::Arc;
 
     use super::*;

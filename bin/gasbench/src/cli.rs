@@ -8,6 +8,9 @@ pub struct Cli {
     #[arg(short, long)]
     pub anvil: bool,
 
+    #[arg(short, long)]
+    pub filter: Option<String>,
+
     #[arg(value_name = "File", help = "File name")]
     pub file: Option<String>,
 }

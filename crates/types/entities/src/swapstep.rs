@@ -293,6 +293,22 @@ impl<LDT: LoomDataTypes> SwapStep<LDT> {
         ret
     }
 
+    pub fn get_first_pool(&self) -> Option<&PoolWrapper<LDT>> {
+        if self.swap_line_vec.len() == 1 {
+            self.swap_line_vec.first().and_then(|x| x.path.pools.first())
+        } else {
+            None
+        }
+    }
+
+    pub fn get_last_pool(&self) -> Option<&PoolWrapper<LDT>> {
+        if self.swap_line_vec.len() == 1 {
+            self.swap_line_vec.first().and_then(|x| x.path.pools.last())
+        } else {
+            None
+        }
+    }
+
     pub fn get_first_token(&self) -> Option<&Arc<Token<LDT>>> {
         let mut ret: Option<&Arc<Token<LDT>>> = None;
         for sp in self.swap_line_vec.iter() {

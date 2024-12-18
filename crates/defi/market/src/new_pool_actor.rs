@@ -10,14 +10,14 @@ use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Pro
 use loom_core_actors_macros::{Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_types_entities::PoolLoaders;
-use loom_types_events::{MessageBlockLogs, Task};
+use loom_types_events::{LoomTask, MessageBlockLogs};
 
 use crate::logs_parser::process_log_entries;
 
 pub async fn new_pool_worker<P, T, N>(
     log_update_rx: Broadcaster<MessageBlockLogs>,
     pools_loaders: Arc<PoolLoaders<P, T, N>>,
-    tasks_tx: Broadcaster<Task>,
+    tasks_tx: Broadcaster<LoomTask>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -61,7 +61,7 @@ where
     #[consumer]
     log_update_rx: Option<Broadcaster<MessageBlockLogs>>,
     #[producer]
-    tasks_tx: Option<Broadcaster<Task>>,
+    tasks_tx: Option<Broadcaster<LoomTask>>,
 }
 
 impl<P, T, N> NewPoolLoaderActor<P, T, N>

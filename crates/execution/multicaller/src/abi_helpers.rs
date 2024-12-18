@@ -93,11 +93,11 @@ impl AbiEncoderHelper {
         IMultiCaller::revertArgCall { value }.abi_encode().into()
     }
 
-    pub fn encode_multicaller_revert_stack() -> Bytes {
+    pub fn encode_multicaller_log_stack() -> Bytes {
         IMultiCaller::logStackCall {}.abi_encode().into()
     }
 
-    pub fn encode_multicaller_revert_stack_offset(offset: U256) -> Bytes {
+    pub fn encode_multicaller_log_stack_offset(offset: U256) -> Bytes {
         IMultiCaller::logStackOffsetCall { offset }.abi_encode().into()
     }
 

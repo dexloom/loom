@@ -15,7 +15,9 @@ loom-node-debug-provider.workspace = true
 loom-types-blockchain.workspace = true
 
 aes.workspace = true
+async-stream.workspace = true
 eyre.workspace = true
+futures.workspace = true
 hex.workspace = true
 indexmap.workspace = true
 lazy_static.workspace = true
@@ -26,6 +28,7 @@ strum.workspace = true
 strum_macros.workspace = true
 thiserror.workspace = true
 tokio.workspace = true
+tokio-stream.workspace = true
 toml.workspace = true
 tracing.workspace = true
 

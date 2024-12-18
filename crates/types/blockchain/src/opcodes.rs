@@ -106,10 +106,23 @@ impl MulticallerCalls {
         Self::default()
     }
 
+    pub fn len(&self) -> usize {
+        self.opcodes_vec.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.opcodes_vec.is_empty()
+    }
+
     pub fn log(&self) {
         for (i, o) in self.opcodes_vec.iter().enumerate() {
             debug!("{} {:?}", i, o);
         }
+    }
+
+    pub fn clean(&mut self) -> &mut Self {
+        self.opcodes_vec = Vec::new();
+        self
     }
 
     pub fn add(&mut self, opcode: MulticallerCall) -> &mut Self {

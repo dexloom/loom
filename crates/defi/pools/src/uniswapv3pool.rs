@@ -3,10 +3,10 @@ use std::ops::Sub;
 
 use crate::state_readers::UniswapV3QuoterV2StateReader;
 use crate::state_readers::{UniswapV3QuoterV2Encoder, UniswapV3StateReader};
-use alloy_primitives::{Address, Bytes, I256, U160, U256};
-use alloy_provider::{Network, Provider};
-use alloy_sol_types::{SolCall, SolInterface};
-use alloy_transport::Transport;
+use alloy::primitives::{Address, Bytes, I256, U160, U256};
+use alloy::providers::{Network, Provider};
+use alloy::sol_types::{SolCall, SolInterface};
+use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_defi_abi::uniswap3::IUniswapV3Pool;
 use loom_defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
@@ -503,8 +503,8 @@ impl PoolAbiEncoder for UniswapV3AbiSwapEncoder {
 #[cfg(test)]
 mod test {
     use super::*;
-    use alloy_primitives::{address, BlockNumber};
-    use alloy_rpc_types::{BlockId, BlockNumberOrTag};
+    use alloy::primitives::{address, BlockNumber};
+    use alloy::rpc::types::{BlockId, BlockNumberOrTag};
     use loom_defi_abi::uniswap_periphery::IQuoterV2;
     use loom_defi_abi::uniswap_periphery::IQuoterV2::{QuoteExactInputSingleParams, QuoteExactOutputSingleParams};
     use loom_defi_address_book::{PeripheryAddress, UniswapV3PoolAddress};

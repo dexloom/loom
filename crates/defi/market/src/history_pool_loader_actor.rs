@@ -13,12 +13,12 @@ use loom_core_blockchain::Blockchain;
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::PoolLoaders;
-use loom_types_events::Task;
+use loom_types_events::LoomTask;
 
 async fn history_pool_loader_one_shot_worker<P, T, N>(
     client: P,
     pool_loaders: Arc<PoolLoaders<P, T, N, LoomDataTypesEthereum>>,
-    tasks_tx: Broadcaster<Task>,
+    tasks_tx: Broadcaster<LoomTask>,
 ) -> WorkerResult
 where
     N: Network,
@@ -60,7 +60,7 @@ where
     client: P,
     pool_loaders: Arc<PoolLoaders<P, T, N>>,
     #[producer]
-    tasks_tx: Option<Broadcaster<Task>>,
+    tasks_tx: Option<Broadcaster<LoomTask>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }

@@ -15,7 +15,6 @@ pub trait SwapEncoder {
     /// - sender_eth_balance - balance of EOA
     ///
     /// returns (to. value, call_data) for transaction
-
     #[allow(clippy::too_many_arguments)]
     fn encode(
         &self,

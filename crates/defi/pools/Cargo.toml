@@ -16,22 +16,19 @@ loom-evm-utils.workspace = true
 loom-types-blockchain.workspace = true
 loom-types-entities.workspace = true
 
+async-stream.workspace = true
 eyre.workspace = true
+futures.workspace = true
 lazy_static.workspace = true
 reth-storage-api.workspace = true
 revm.workspace = true
 strum.workspace = true
+tokio-stream.workspace = true
 tracing.workspace = true
 
 
 # alloy
-alloy-primitives.workspace = true
-alloy-provider.workspace = true
-alloy-rpc-types.workspace = true
-alloy-rpc-types-trace.workspace = true
-alloy-sol-macro.workspace = true
-alloy-sol-types.workspace = true
-alloy-transport.workspace = true
+alloy.workspace = true
 
 [features]
 debug-calculation = []

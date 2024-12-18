@@ -1,18 +1,15 @@
 use crate::protocols::CurveProtocol;
 use crate::{pool_loader, CurvePool};
-use alloy_primitives::Bytes;
-use alloy_provider::network::Ethereum;
-use alloy_provider::Network;
-use alloy_provider::Provider;
-use alloy_transport::Transport;
+use alloy::primitives::Bytes;
+use alloy::providers::network::Ethereum;
+use async_stream::stream;
 use eyre::{eyre, ErrReport};
-use loom_types_blockchain::LoomDataTypes;
-use loom_types_blockchain::LoomDataTypesEthereum;
+use futures::Stream;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::{PoolClass, PoolId, PoolLoader, PoolWrapper};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::future::Future;
-use std::marker::PhantomData;
 use std::pin::Pin;
 use std::sync::Arc;
 use tracing::error;
@@ -77,5 +74,32 @@ where
 
     fn is_code(&self, _code: &Bytes) -> bool {
         false
+    }
+
+    fn protocol_loader(&self) -> eyre::Result<Pin<Box<dyn Stream<Item = (PoolId, PoolClass)> + Send>>> {
+        let provider_clone = self.provider.clone();
+
+        if let Some(client) = provider_clone {
+            Ok(Box::pin(stream! {
+                let curve_contracts = CurveProtocol::get_contracts_vec(client.clone());
+                for curve_contract in curve_contracts.iter() {
+                    yield (PoolId::Address(curve_contract.get_address()), PoolClass::Curve)
+                }
+
+                for factory_idx in 0..10 {
+                    if let Ok(factory_address) = CurveProtocol::get_factory_address(client.clone(), factory_idx).await {
+                        if let Ok(pool_count) = CurveProtocol::get_pool_count(client.clone(), factory_address).await {
+                            for pool_id in 0..pool_count {
+                                if let Ok(addr) = CurveProtocol::get_pool_address(client.clone(), factory_address, pool_id).await {
+                                    yield (PoolId::Address(addr), PoolClass::Curve)
+                                }
+                            }
+                        }
+                    }
+                }
+            }))
+        } else {
+            Err(eyre!("NO_PROVIDER"))
+        }
     }
 }

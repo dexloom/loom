@@ -12,7 +12,9 @@ use std::collections::HashMap;
 use std::future::Future;
 use std::pin::Pin;
 use std::sync::Arc;
+use tokio_stream::Stream;
 
+#[allow(clippy::type_complexity)]
 pub trait PoolLoader<P, T, N, LDT = LoomDataTypesEthereum>: Send + Sync + 'static
 where
     N: Network,
@@ -34,6 +36,7 @@ where
         env: Env,
     ) -> Result<PoolWrapper<LDT>>;
     fn is_code(&self, code: &Bytes) -> bool;
+    fn protocol_loader(&self) -> Result<Pin<Box<dyn Stream<Item = (PoolId, PoolClass)> + Send>>>;
 }
 
 pub struct PoolLoaders<P, T, N, LDT = LoomDataTypesEthereum>
@@ -45,7 +48,7 @@ where
 {
     provider: Option<P>,
     config: Option<PoolsConfig>,
-    map: HashMap<PoolClass, Arc<dyn PoolLoader<P, T, N, LDT>>>,
+    pub map: HashMap<PoolClass, Arc<dyn PoolLoader<P, T, N, LDT>>>,
 }
 
 impl<P, T, N, LDT> PoolLoaders<P, T, N, LDT>

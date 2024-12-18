@@ -25,17 +25,28 @@ pub enum SwapAmountType<LDT: LoomDataTypes = LoomDataTypesEthereum> {
 impl<LDT: LoomDataTypes> Copy for SwapAmountType<LDT> {}
 
 impl<LDT: LoomDataTypes> SwapAmountType<LDT> {
+    #[inline]
     pub fn unwrap(&self) -> U256 {
         match &self {
             Self::Set(x) => *x,
             _ => panic!("called `InAmountType::unwrap()` on a unknown value"),
         }
     }
-    pub fn unwrap_or_zero(&self) -> U256 {
+    #[inline]
+    pub fn unwrap_or_default(&self) -> U256 {
         match &self {
             Self::Set(x) => *x,
             _ => U256::ZERO,
         }
+    }
+
+    #[inline]
+    pub fn is_set(&self) -> bool {
+        matches!(self, Self::Set(_))
+    }
+    #[inline]
+    pub fn is_not_set(&self) -> bool {
+        !matches!(self, Self::Set(_))
     }
 }
 
@@ -141,7 +152,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
             token_from: self.get_first_token().map_or(LDT::Address::default(), |x| x.get_address()),
             token_to: self.get_last_token().map_or(LDT::Address::default(), |x| x.get_address()),
             is_in_amount: true,
-            amount: self.amount_in.unwrap_or_zero(),
+            amount: self.amount_in.unwrap_or_default(),
         }
     }
 
@@ -190,26 +201,28 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
         let mut sp1: Option<SwapLine<LDT>> = None;
 
         for i in 1..self.path.pool_count() {
-            let (flash_path, inside_path) = self.split(i).unwrap();
-            if flash_path.can_flash_swap() || inside_path.can_flash_swap() {
-                sp0 = Some(flash_path);
-                sp1 = Some(inside_path);
+            let (head_path, mut tail_path) = self.split(i).unwrap();
+            if head_path.can_flash_swap() || tail_path.can_flash_swap() {
+                if head_path.can_flash_swap() {
+                    tail_path.amount_in = SwapAmountType::<LDT>::Stack0;
+                }
+                sp0 = Some(head_path);
+                sp1 = Some(tail_path);
                 break;
             }
         }
 
         if sp0.is_none() || sp1.is_none() {
-            let (flash_path, inside_path) = self.split(1).unwrap();
-            sp0 = Some(flash_path);
-            sp1 = Some(inside_path);
+            let (head_path, tail_path) = self.split(1).unwrap();
+            sp0 = Some(head_path);
+            sp1 = Some(tail_path);
         }
 
         let mut step_0 = SwapStep::<LDT>::new(multicaller);
         step_0.add(sp0.unwrap());
 
         let mut step_1 = SwapStep::<LDT>::new(multicaller);
-        let mut sp1 = sp1.unwrap();
-        sp1.amount_in = SwapAmountType::<LDT>::Balance(multicaller);
+        let sp1 = sp1.unwrap();
         step_1.add(sp1);
 
         Some((step_0, step_1))

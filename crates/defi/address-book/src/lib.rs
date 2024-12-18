@@ -94,6 +94,8 @@ impl CurvePoolAddress {
     pub const ETH_BTC_USD: Address = address!("7f86bf177dd4f3494b841a37e810a34dd56c829b");
     pub const FRXETH_WETH: Address = address!("9c3b46c0ceb5b9e304fcd6d88fc50f7dd24b31bc");
     pub const ETH: Address = address!("a1f8a6807c402e4a15ef4eba36528a3fed24e577");
+    pub const STETH_ETH: Address = address!("dc24316b9ae028f1497c275eb9192a3ea0f67022");
+    pub const STETH_WETH: Address = address!("828b154032950c8ff7cf8085d841723db2696056");
 }
 
 #[non_exhaustive]

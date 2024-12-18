@@ -110,7 +110,9 @@ async fn main() -> Result<()> {
 
     btree_map.insert(pool.clone(), swap_directions);
 
-    let swap_paths = market.build_swap_path_vec(&btree_map)?;
+    //let swap_paths = market.build_swap_path_vec(&btree_map)?;
+
+    let swap_paths = market.swap_paths();
 
     let db = market_state_instance.read().await.state_db.clone();
 
@@ -132,14 +134,22 @@ async fn main() -> Result<()> {
         if !swap_path.tokens[0].is_weth() {
             continue;
         }
+
         let sp = swap_path.clone();
         let sp_dto: SwapLineDTO = (&sp).into();
+        println!("Checking {}", sp_dto);
+        if let Some(filter) = &cli.filter.clone() {
+            if !format!("{}", sp_dto).contains(filter) {
+                println!("Skipping {}", sp_dto);
+                continue;
+            }
+        }
 
         let mut swapline = SwapLine { path: sp, amount_in: SwapAmountType::Set(in_amount), ..SwapLine::default() };
 
         match swapline.calculate_with_in_amount(&db, env.clone(), in_amount) {
             Ok((out_amount, gas_used, _)) => {
-                info!("{} gas: {}  amount {} -> {}", sp_dto, gas_used, in_amount_f64, NWETH::to_float(out_amount));
+                println!("{} gas: {}  amount {} -> {}", sp_dto, gas_used, in_amount_f64, NWETH::to_float(out_amount));
                 swapline.amount_out = SwapAmountType::Set(out_amount)
             }
             Err(e) => {
@@ -203,15 +213,24 @@ async fn main() -> Result<()> {
                         let change_i: i64 = *gas as i64 - *stored_gas as i64;
                         let change = format!("{change_i}");
 
-                        let change = match change_i {
-                            i if i > 0 => change.red(),
-                            i if i < 0 => change.green(),
-                            _ => change.normal(),
+                        let change = if *gas < 40000 {
+                            change.red()
+                        } else {
+                            match change_i {
+                                i if i > 0 => change.red(),
+                                i if i < 0 => change.green(),
+                                _ => change.normal(),
+                            }
                         };
+
                         println!("{} : {} {} - {} ", change, current_entry, gas, stored_gas,);
                     }
                     None => {
-                        println!("{} : {} {}", "NO_DATA".green(), current_entry, gas,);
+                        if *gas < 40000 {
+                            println!("{} : {} {}", "FAILED".red(), current_entry, gas,);
+                        } else {
+                            println!("{} : {} {}", "NO_DATA".green(), current_entry, gas,);
+                        }
                     }
                 }
             }

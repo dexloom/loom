@@ -1,6 +1,6 @@
-use alloy_primitives::aliases::U24;
-use alloy_primitives::{Address, U160, U256};
-use alloy_sol_types::SolCall;
+use alloy::primitives::aliases::U24;
+use alloy::primitives::{Address, U160, U256};
+use alloy::sol_types::SolCall;
 use eyre::{eyre, Result};
 use loom_defi_abi::uniswap_periphery::IQuoterV2;
 use loom_evm_utils::evm::evm_call;

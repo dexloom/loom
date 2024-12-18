@@ -1,6 +1,6 @@
-use alloy_primitives::{keccak256, Address, Bytes, B256};
-use alloy_provider::{Network, Provider};
-use alloy_transport::Transport;
+use alloy::primitives::{keccak256, Address, Bytes, B256};
+use alloy::providers::{Network, Provider};
+use alloy::transports::Transport;
 use eyre::Result;
 
 use loom_defi_abi::uniswap2::IUniswapV2Pair;

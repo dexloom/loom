@@ -1,5 +1,5 @@
-use alloy_primitives::{b256, Address, Bytes, B256};
-use alloy_sol_types::SolCall;
+use alloy::primitives::{b256, Address, Bytes, B256};
+use alloy::sol_types::SolCall;
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_defi_address_book::FactoryAddress;
 

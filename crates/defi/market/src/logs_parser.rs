@@ -8,12 +8,12 @@ use tracing::error;
 
 use loom_core_actors::{run_async, Broadcaster};
 use loom_types_entities::PoolLoaders;
-use loom_types_events::Task;
+use loom_types_events::LoomTask;
 
 pub async fn process_log_entries<P, T, N>(
     log_entries: Vec<Log>,
     pool_loaders: &PoolLoaders<P, T, N>,
-    tasks_tx: Broadcaster<Task>,
+    tasks_tx: Broadcaster<LoomTask>,
 ) -> Result<()>
 where
     T: Transport + Clone,
@@ -34,6 +34,6 @@ where
         }
     }
 
-    run_async!(tasks_tx.send(Task::FetchAndAddPools(pool_to_fetch)));
+    run_async!(tasks_tx.send(LoomTask::FetchAndAddPools(pool_to_fetch)));
     Ok(())
 }

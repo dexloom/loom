@@ -2,11 +2,11 @@ use std::fmt::Debug;
 use std::ops::Sub;
 
 use crate::state_readers::UniswapV3StateReader;
-use alloy_primitives::aliases::{I24, U24};
-use alloy_primitives::{Address, Bytes, I256, U160, U256};
-use alloy_provider::{Network, Provider};
-use alloy_sol_types::{SolCall, SolInterface};
-use alloy_transport::Transport;
+use alloy::primitives::aliases::{I24, U24};
+use alloy::primitives::{Address, Bytes, I256, U160, U256};
+use alloy::providers::{Network, Provider};
+use alloy::sol_types::{SolCall, SolInterface};
+use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_defi_abi::pancake::IPancakeQuoterV2::IPancakeQuoterV2Calls;
 use loom_defi_abi::pancake::IPancakeV3Pool::slot0Return;

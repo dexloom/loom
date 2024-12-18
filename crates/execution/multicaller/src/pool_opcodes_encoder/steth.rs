@@ -1,7 +1,9 @@
-use crate::helpers::AbiEncoderHelper;
+use crate::abi_helpers::AbiEncoderHelper;
+use crate::opcodes_helpers::OpcodesHelpers;
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
+use crate::pool_opcodes_encoder::swap_opcodes_encoders::MulticallerOpcodesPayload;
 use crate::pool_opcodes_encoder::SwapOpcodesEncoderTrait;
-use alloy_primitives::{Address, Bytes, U256};
+use alloy_primitives::{Address, Bytes};
 use eyre::{eyre, Result};
 use loom_defi_address_book::TokenAddressEth;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
@@ -20,72 +22,30 @@ impl SwapOpcodesEncoderTrait for StEthSwapEncoder {
         amount_in: SwapAmountType,
         cur_pool: &dyn Pool,
         next_pool: Option<&dyn Pool>,
+        _payload: MulticallerOpcodesPayload,
         multicaller: Address,
     ) -> Result<()> {
         let pool_address = cur_pool.get_address();
 
         if token_from_address == TokenAddressEth::WETH && token_to_address == TokenAddressEth::STETH {
-            match amount_in {
-                SwapAmountType::Set(amount) => {
-                    let weth_withdraw_opcode =
-                        MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(amount));
-                    let swap_opcode = MulticallerCall::new_call_with_value(
-                        pool_address,
-                        &abi_encoder.encode_swap_in_amount_provided(
-                            cur_pool,
-                            token_from_address,
-                            token_to_address,
-                            amount,
-                            multicaller,
-                            Bytes::new(),
-                        )?,
-                        amount,
-                    );
+            let weth_withdraw_opcode =
+                MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(amount_in.unwrap_or_default()));
+            let swap_opcode = MulticallerCall::new_call_with_value(
+                pool_address,
+                &abi_encoder.encode_swap_in_amount_provided(
+                    cur_pool,
+                    token_from_address,
+                    token_to_address,
+                    amount_in.unwrap_or_default(),
+                    multicaller,
+                    Bytes::new(),
+                )?,
+                amount_in.unwrap_or_default(),
+            );
 
-                    //let steth_balance_opcode = Opcode::new_static_call( token_to_address, &EncoderHelper::encode_erc20_balance_of(multicaller) );
+            let opcodes_vec = vec![(weth_withdraw_opcode, 0x4, 0x20), (swap_opcode, 0x0, 0)];
 
-                    swap_opcodes.add(weth_withdraw_opcode).add(swap_opcode);
-                    //.add(steth_balance_opcode);
-                }
-                SwapAmountType::Stack0 => {
-                    let mut weth_withdraw_opcode =
-                        MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(U256::ZERO));
-                    weth_withdraw_opcode.set_call_stack(false, 0, 0x4, 0x20);
-
-                    let mut swap_opcode = MulticallerCall::new_call_with_value(pool_address, &Bytes::new(), U256::ZERO);
-                    swap_opcode.set_call_stack(false, 0, 0x4, 0x0);
-
-                    swap_opcodes.add(weth_withdraw_opcode).add(swap_opcode);
-                }
-
-                SwapAmountType::RelativeStack(stack_offset) => {
-                    let mut weth_withdraw_opcode =
-                        MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(U256::ZERO));
-                    weth_withdraw_opcode.set_call_stack(true, stack_offset, 0x4, 0x20);
-
-                    let mut swap_opcode = MulticallerCall::new_call_with_value(pool_address, &Bytes::new(), U256::ZERO);
-                    swap_opcode.set_call_stack(true, stack_offset, 0, 0);
-
-                    swap_opcodes.add(weth_withdraw_opcode).add(swap_opcode);
-                }
-                SwapAmountType::Balance(addr) => {
-                    let mut weth_balance_opcode =
-                        MulticallerCall::new_static_call(token_from_address, &AbiEncoderHelper::encode_erc20_balance_of(addr));
-                    weth_balance_opcode.set_return_stack(true, 0, 0, 0x20);
-
-                    let mut weth_withdraw_opcode =
-                        MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(U256::ZERO));
-                    weth_withdraw_opcode.set_call_stack(true, 0, 0x4, 0x20);
-
-                    let mut swap_opcode = MulticallerCall::new_call_with_value(pool_address, &Bytes::new(), U256::ZERO);
-                    swap_opcode.set_call_stack(true, 0, 0, 0);
-
-                    swap_opcodes.add(weth_balance_opcode).add(weth_withdraw_opcode).add(swap_opcode);
-                }
-                _ => {
-                    return Err(eyre!("CANNOT_ENCODE_STETH_SWAP"));
-                }
-            }
+            swap_opcodes.merge(OpcodesHelpers::build_multiple_stack(amount_in, opcodes_vec, Some(token_from_address))?);
 
             if next_pool.is_some() {
                 let mut steth_balance_opcode =
@@ -98,5 +58,20 @@ impl SwapOpcodesEncoderTrait for StEthSwapEncoder {
         }
 
         Err(eyre!("CANNOT_ENCODE_STETH_SWAP"))
+    }
+
+    fn encode_swap_out_amount_provided(
+        &self,
+        _swap_opcodes: &mut MulticallerCalls,
+        _abi_encoder: &dyn ProtocolAbiSwapEncoderTrait,
+        _token_from_address: Address,
+        _token_to_address: Address,
+        _amount_out: SwapAmountType,
+        _cur_pool: &dyn Pool,
+        _next_pool: Option<&dyn Pool>,
+        _payload: MulticallerOpcodesPayload,
+        _multicaller_address: Address,
+    ) -> Result<()> {
+        Err(eyre!("NOT_IMPLEMENTED"))
     }
 }

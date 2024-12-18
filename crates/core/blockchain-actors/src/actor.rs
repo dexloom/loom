@@ -16,7 +16,7 @@ use loom_core_router::SwapRouterActor;
 use loom_defi_address_book::TokenAddressEth;
 use loom_defi_health_monitor::{PoolHealthMonitorActor, StuffingTxMonitorActor};
 use loom_defi_market::{
-    CurvePoolLoaderOneShotActor, HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, RequiredPoolLoaderActor,
+    HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, ProtocolPoolLoaderOneShotActor, RequiredPoolLoaderActor,
 };
 use loom_defi_pools::{PoolLoadersBuilder, PoolsConfig};
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
@@ -276,7 +276,6 @@ where
     }
 
     /// Starts mempool actor collecting pending txes from all mempools and pulling new tx hashes in mempool_events channel
-
     pub fn mempool(&mut self) -> Result<&mut Self> {
         if !self.has_mempool {
             self.has_mempool = true;
@@ -324,9 +323,11 @@ where
         self.actor_manager.start(PoolHealthMonitorActor::new().on_bc(&self.bc))?;
         Ok(self)
     }
-    /// Starts state health monitor
+
     //TODO : Move out of Blockchain
-    /*pub fn with_health_monitor_state(&mut self) -> Result<&mut Self> {
+    /*
+    /// Starts state health monitor
+    pub fn with_health_monitor_state(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(StateHealthMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
         Ok(self)
     }
@@ -361,8 +362,9 @@ where
     }
 
     /// Start pool loader for curve + steth + wsteth
-    pub fn with_curve_pool_protocol_loader(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(CurvePoolLoaderOneShotActor::new(self.provider.clone()).on_bc(&self.bc, &self.state))?;
+    pub fn with_curve_pool_protocol_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
+        let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), pools_config));
+        self.actor_manager.start(ProtocolPoolLoaderOneShotActor::new(self.provider.clone(), pool_loaders).on_bc(&self.bc))?;
         Ok(self)
     }
 
@@ -371,7 +373,7 @@ where
         if pools_config.is_enabled(PoolClass::Curve) {
             self.with_new_pool_loader(pools_config.clone())?
                 .with_pool_history_loader(pools_config.clone())?
-                .with_curve_pool_protocol_loader()?
+                .with_curve_pool_protocol_loader(pools_config.clone())?
                 .with_pool_loader(pools_config)
         } else {
             self.with_new_pool_loader(pools_config.clone())?.with_pool_history_loader(pools_config.clone())?.with_pool_loader(pools_config)
@@ -401,8 +403,6 @@ where
         self.actor_manager.start(GethEstimatorActor::new(Arc::new(flashbots), self.encoder.clone().unwrap()).on_bc(&self.strategy))?;
         Ok(self)
     }
-
-    /// Strategy Part
 
     /// Starts EVM gas estimator and tips filler
     pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {

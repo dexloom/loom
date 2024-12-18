@@ -1,8 +1,8 @@
-use alloy_primitives::{Address, Bytes, U256};
-use alloy_provider::{Network, Provider};
-use alloy_rpc_types::BlockNumberOrTag;
-use alloy_sol_types::SolInterface;
-use alloy_transport::Transport;
+use alloy::primitives::{Address, Bytes, U256};
+use alloy::providers::{Network, Provider};
+use alloy::rpc::types::BlockNumberOrTag;
+use alloy::sol_types::SolInterface;
+use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, Result};
 use lazy_static::lazy_static;
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
@@ -374,8 +374,8 @@ impl PoolAbiEncoder for UniswapV2PoolAbiEncoder {
 #[cfg(test)]
 mod test {
     use super::*;
-    use alloy_primitives::{address, BlockNumber};
-    use alloy_rpc_types::BlockId;
+    use alloy::primitives::{address, BlockNumber};
+    use alloy::rpc::types::BlockId;
     use loom_defi_abi::uniswap2::IUniswapV2Router;
     use loom_defi_address_book::PeripheryAddress;
     use loom_evm_db::LoomDBType;
