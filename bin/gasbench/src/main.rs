@@ -110,7 +110,9 @@ async fn main() -> Result<()> {
 
     btree_map.insert(pool.clone(), swap_directions);
 
-    let swap_paths = market.build_swap_path_vec(&btree_map)?;
+    //let swap_paths = market.build_swap_path_vec(&btree_map)?;
+
+    let swap_paths = market.swap_paths();
 
     let db = market_state_instance.read().await.state_db.clone();
 
@@ -224,7 +226,11 @@ async fn main() -> Result<()> {
                         println!("{} : {} {} - {} ", change, current_entry, gas, stored_gas,);
                     }
                     None => {
-                        println!("{} : {} {}", "NO_DATA".green(), current_entry, gas,);
+                        if *gas < 40000 {
+                            println!("{} : {} {}", "FAILED".red(), current_entry, gas,);
+                        } else {
+                            println!("{} : {} {}", "NO_DATA".green(), current_entry, gas,);
+                        }
                     }
                 }
             }

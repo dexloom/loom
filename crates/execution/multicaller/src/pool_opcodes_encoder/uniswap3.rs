@@ -193,7 +193,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
             transfer_opcode.set_call_stack(false, 1, 0x24, 0x20);
 
             inside_opcodes.add(transfer_opcode);
-            //}
+
             MulticallerOpcodesPayload::Opcodes(inside_opcodes)
         } else {
             payload
@@ -226,14 +226,14 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
         if amount_out.is_not_set() {
             trace!("uniswap v3 swap out amount is not set");
 
-            swap_opcodes.add(MulticallerCall::new_calculation_call(&Bytes::from(vec![0x8, 0x2A, 0x00])));
-
             swap_opcode.set_call_stack(
                 true,
                 0,
                 abi_encoder.swap_out_amount_offset(flash_pool, token_from_address, token_to_address).unwrap(),
                 0x20,
             );
+
+            swap_opcodes.add(MulticallerCall::new_calculation_call(&Bytes::from(vec![0x2, 0x2A, 0x00])));
         };
 
         swap_opcodes.add(swap_opcode);

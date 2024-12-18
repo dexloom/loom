@@ -99,6 +99,8 @@ where
                 estimate_request.swap
             );
             // simulation has failed but this could be caused by a token / pool with unsupported fee issue
+            trace!("evm_access_list error calldata : {} {}", to, call_data);
+
             return Ok(());
         }
     };

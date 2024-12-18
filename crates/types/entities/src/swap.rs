@@ -29,35 +29,7 @@ impl<LDT: LoomDataTypes> Display for Swap<LDT> {
 impl<LDT: LoomDataTypes> Swap<LDT> {
     pub fn to_swap_steps(self: &Swap<LDT>, multicaller: LDT::Address) -> Option<(SwapStep<LDT>, SwapStep<LDT>)> {
         match self {
-            Swap::BackrunSwapLine(swap_line) => {
-                let mut sp0: Option<SwapLine<LDT>> = None;
-                let mut sp1: Option<SwapLine<LDT>> = None;
-
-                for i in 1..swap_line.path.pool_count() {
-                    let (flash_path, inside_path) = swap_line.split(i).unwrap();
-                    if flash_path.can_flash_swap() || inside_path.can_flash_swap() {
-                        sp0 = Some(flash_path);
-                        sp1 = Some(inside_path);
-                        break;
-                    }
-                }
-
-                if sp0.is_none() || sp1.is_none() {
-                    let (flash_path, inside_path) = swap_line.split(1).unwrap();
-                    sp0 = Some(flash_path);
-                    sp1 = Some(inside_path);
-                }
-
-                let mut step_0 = SwapStep::new(multicaller);
-                step_0.add(sp0.unwrap());
-
-                let mut step_1 = SwapStep::new(multicaller);
-                let sp1 = sp1.unwrap();
-                //sp1.amount_in = SwapAmountType::Balance(multicaller);
-                step_1.add(sp1);
-
-                Some((step_0, step_1))
-            }
+            Swap::BackrunSwapLine(swap_line) => swap_line.to_swap_steps(multicaller),
             Swap::BackrunSwapSteps((sp0, sp1)) => Some((sp0.clone(), sp1.clone())),
             _ => None,
         }
