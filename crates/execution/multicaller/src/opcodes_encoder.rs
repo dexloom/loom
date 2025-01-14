@@ -6,7 +6,7 @@ use eyre::{ErrReport, Result};
 use lazy_static::lazy_static;
 
 use loom_defi_abi::multicaller::IMultiCaller;
-use loom_types_blockchain::{CallType, MulticallerCall, MulticallerCalls};
+use loom_types_blockchain::{CallStack, CallType, MulticallerCall, MulticallerCalls};
 
 lazy_static! {
     static ref VALUE_CALL_SELECTOR: U256 = U256::from(0x7FFA);
@@ -25,6 +25,43 @@ pub trait OpcodesEncoder {
 }
 
 impl OpcodesEncoderV2 {
+    fn encode_data_offset(is_relative: bool, stack_offset: u32, data_offset: u32, data_len: usize) -> u32 {
+        let mut ret = if is_relative { 0x800000 } else { 0x0 };
+        ret |= (stack_offset & 0x7) << 20;
+        ret |= (data_len as u32 & 0xFF) << 12;
+        ret |= data_offset & 0xFFF;
+        ret
+    }
+
+    pub fn encode_call_stack(opcode: &MulticallerCall) -> u32 {
+        if let Some(call_stack) = &opcode.call_stack {
+            match opcode.call_type {
+                CallType::InternalCall | CallType::CalculationCall => Self::encode_data_offset(
+                    call_stack.is_relative,
+                    call_stack.stack_offset,
+                    call_stack.data_offset + 0xC,
+                    call_stack.data_len,
+                ),
+                _ => Self::encode_data_offset(
+                    call_stack.is_relative,
+                    call_stack.stack_offset,
+                    call_stack.data_offset + 0x20,
+                    call_stack.data_len,
+                ),
+            }
+        } else {
+            0xFFFFFF
+        }
+    }
+
+    pub fn encode_return_stack(opcode: &MulticallerCall) -> u32 {
+        if let Some(return_stack) = &opcode.return_stack {
+            Self::encode_data_offset(return_stack.is_relative, return_stack.stack_offset, return_stack.data_offset, return_stack.data_len)
+        } else {
+            0xFFFFFF
+        }
+    }
+
     fn pack_opcode(opcode: &MulticallerCall) -> Result<Vec<u8>> {
         let mut ret: Vec<u8> = Vec::new();
         let mut selector = U256::ZERO;
@@ -59,8 +96,8 @@ impl OpcodesEncoderV2 {
         } else {
             selector.bitor_assign(selector_call.shl(80));
             selector.bitor_assign(U256::from(opcode.call_data.len()).shl(0));
-            selector.bitor_assign(U256::from(opcode.call_stack & 0xFFFFFF).shl(16));
-            selector.bitor_assign(U256::from(opcode.return_stack & 0xFFFFFF).shl(40));
+            selector.bitor_assign(U256::from(Self::encode_call_stack(opcode)).shl(16));
+            selector.bitor_assign(U256::from(Self::encode_return_stack(opcode)).shl(40));
         }
 
         let selector_bytes = selector.to_be_bytes::<32>();
