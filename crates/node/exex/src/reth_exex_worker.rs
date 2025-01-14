@@ -2,7 +2,7 @@ use alloy_eips::BlockNumHash;
 use alloy_network::primitives::{BlockTransactions, BlockTransactionsKind};
 use alloy_primitives::map::HashMap;
 use alloy_primitives::{Address, U256};
-use alloy_rpc_types::Block;
+use alloy_rpc_types::{Block, TransactionInfo};
 use futures::TryStreamExt;
 use loom_core_actors::Broadcaster;
 use loom_core_blockchain::Blockchain;
@@ -18,6 +18,7 @@ use reth_node_api::{FullNodeComponents, NodeTypes};
 use reth_primitives::EthPrimitives;
 use reth_provider::Chain;
 use reth_rpc::eth::EthTxBuilder;
+use reth_rpc_types_compat::TransactionCompat;
 use reth_transaction_pool::{EthPooledTransaction, TransactionPool};
 use revm::db::states::StorageSlot;
 use revm::db::{BundleAccount, StorageWithOriginalValues};
@@ -61,7 +62,6 @@ async fn process_chain(
             info!(block_number=?block_hash_num.number, block_hash=?block_hash_num.hash, "Processing block");
             match reth_rpc_types_compat::block::from_block(
                 sealed_block.clone().unseal(),
-                sealed_block.difficulty,
                 BlockTransactionsKind::Full,
                 Some(sealed_block.hash()),
                 &eth_builder,
@@ -92,12 +92,12 @@ async fn process_chain(
 
             append_all_matching_block_logs_sealed(&mut logs, block_hash_num, receipts, false, sealed_block)?;
 
-            let sealed_header = sealed_block.header.clone();
+            let reth_header = sealed_block.header().clone();
             let block_header = alloy_rpc_types::Header {
-                hash: sealed_header.hash(),
-                inner: sealed_header.header().clone(),
-                total_difficulty: Some(sealed_header.difficulty),
-                size: Some(U256::from(sealed_header.size())),
+                hash: sealed_block.hash(),
+                inner: reth_header.clone(),
+                total_difficulty: Some(reth_header.difficulty),
+                size: Some(U256::from(reth_header.size())),
             };
 
             let log_update = BlockLogs { block_header: block_header.clone(), logs };
@@ -129,12 +129,12 @@ async fn process_chain(
                         account_state.storage.insert((*key).into(), storage_slot.present_value.into());
                     }
                 }
-                let sealed_header = sealed_block.header.clone();
+                let reth_header = sealed_block.header().clone();
                 let block_header = alloy_rpc_types::Header {
-                    hash: sealed_header.hash(),
-                    inner: sealed_header.header().clone(),
-                    total_difficulty: Some(sealed_header.difficulty),
-                    size: Some(U256::from(sealed_header.size())),
+                    hash: sealed_block.hash(),
+                    inner: reth_header.clone(),
+                    total_difficulty: Some(reth_header.difficulty),
+                    size: Some(U256::from(reth_header.size())),
                 };
 
                 let block_state_update = BlockStateUpdate { block_header: block_header.clone(), state_update: vec![state_update] };
@@ -218,12 +218,14 @@ where
                 if let Some(tx_notification) = tx_notification {
                     let tx_hash = *tx_notification.transaction.hash();
                     let recovered_tx  = tx_notification.transaction.to_consensus();
-                    let Ok(tx)  = reth_rpc_types_compat::transaction::from_recovered(recovered_tx, &eth_tx_builder) else {continue};
-                    let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, "exex".to_string());
-                    if let Err(e) =  mempool_tx.send(update_msg).await {
-                        error!(error=?e.to_string(), "mempool_tx.send");
-                    }else{
-                        debug!(hash = ?tx_notification.transaction.hash(), "Received pool tx");
+
+                    if let Ok(tx) = eth_tx_builder.fill(recovered_tx, TransactionInfo::default()) {
+                        let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, "exex".to_string());
+                        if let Err(e) =  mempool_tx.send(update_msg).await {
+                            error!(error=?e.to_string(), "mempool_tx.send");
+                        }else{
+                            debug!(hash = ?tx_notification.transaction.hash(), "Received pool tx");
+                        }
                     }
                 }
             }

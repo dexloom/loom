@@ -9,7 +9,7 @@ pub enum CallType {
     StaticCall,
     InternalCall,
     CalculationCall,
-    CustomCall
+    CustomCall,
 }
 
 #[derive(Clone, Debug)]
@@ -45,8 +45,6 @@ impl MulticallerCall {
         MulticallerCall::new(CallType::Call, to, call_data, None)
     }
 
-
-
     pub fn new_call_with_value(to: Address, call_data: &Bytes, value: U256) -> MulticallerCall {
         MulticallerCall::new(CallType::Call, to, call_data, Some(value))
     }
@@ -69,7 +67,6 @@ impl MulticallerCall {
     pub fn new_custom_call(call_data: &Bytes) -> MulticallerCall {
         MulticallerCall::new(CallType::CustomCall, Address::ZERO, call_data, None)
     }
-
 
     /*fn encode_data_offset(is_relative: bool, stack_offset: u32, data_offset: u32, data_len: usize) -> u32 {
         let mut ret = if is_relative { 0x800000 } else { 0x0 };

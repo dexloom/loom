@@ -8,6 +8,16 @@ use loom_types_entities::{CallSequence, Swap, SwapEncoder, SwapStep};
 use tracing::{debug, error, trace};
 
 impl SwapEncoder for MulticallerSwapEncoder {
+    fn set_address(&mut self, multicaller_address: Address) {
+        self.multicaller_address = multicaller_address;
+        self.swap_step_encoder.multicaller_address = multicaller_address;
+        self.swap_step_encoder.swap_line_encoder.multicaller_address = multicaller_address;
+    }
+
+    fn address(&self) -> Address {
+        self.multicaller_address
+    }
+
     fn encode(
         &self,
         swap: Swap,

@@ -6,7 +6,7 @@ use eyre::{ErrReport, Result};
 use lazy_static::lazy_static;
 
 use loom_defi_abi::multicaller::IMultiCaller;
-use loom_types_blockchain::{CallStack, CallType, MulticallerCall, MulticallerCalls};
+use loom_types_blockchain::{CallType, MulticallerCall, MulticallerCalls};
 
 lazy_static! {
     static ref VALUE_CALL_SELECTOR: U256 = U256::from(0x7FFA);

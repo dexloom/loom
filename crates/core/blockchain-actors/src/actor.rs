@@ -24,7 +24,7 @@ use loom_defi_price::PriceActor;
 use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::NWETH;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
-use loom_execution_multicaller::{MulticallerSwapEncoder, SwapStepEncoder};
+use loom_execution_multicaller::MulticallerSwapEncoder;
 use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom_node_actor_config::NodeBlockActorConfig;
 #[cfg(feature = "db-access")]
@@ -39,21 +39,21 @@ use loom_strategy_backrun::{
 };
 use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{BlockHistoryState, PoolClass, TxSigners};
+use loom_types_entities::{BlockHistoryState, PoolClass, SwapEncoder, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
-pub struct BlockchainActors<P, T, DB: Clone + Send + Sync + 'static> {
+pub struct BlockchainActors<P, T, DB: Clone + Send + Sync + 'static, E: Clone = MulticallerSwapEncoder> {
     provider: P,
     bc: Blockchain,
     state: BlockchainState<DB>,
     strategy: Strategy<DB>,
     pub signers: SharedState<TxSigners>,
     actor_manager: ActorsManager,
-    encoder: Option<MulticallerSwapEncoder>,
+    encoder: Option<E>,
     has_mempool: bool,
     has_state_update: bool,
     has_signers: bool,
@@ -62,7 +62,7 @@ pub struct BlockchainActors<P, T, DB: Clone + Send + Sync + 'static> {
     _t: PhantomData<T>,
 }
 
-impl<P, T, DB> BlockchainActors<P, T, DB>
+impl<P, T, DB, E> BlockchainActors<P, T, DB, E>
 where
     T: Transport + Clone,
     P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
@@ -76,8 +76,16 @@ where
         + Clone
         + Default
         + 'static,
+    E: SwapEncoder + Send + Sync + Clone + 'static,
 {
-    pub fn new(provider: P, bc: Blockchain, state: BlockchainState<DB>, strategy: Strategy<DB>, relays: Vec<RelayConfig>) -> Self {
+    pub fn new(
+        provider: P,
+        encoder: E,
+        bc: Blockchain,
+        state: BlockchainState<DB>,
+        strategy: Strategy<DB>,
+        relays: Vec<RelayConfig>,
+    ) -> Self {
         Self {
             provider,
             bc,
@@ -85,7 +93,7 @@ where
             strategy,
             signers: SharedState::new(TxSigners::new()),
             actor_manager: ActorsManager::new(),
-            encoder: None,
+            encoder: Some(encoder),
             has_mempool: false,
             has_state_update: false,
             has_signers: false,
@@ -168,16 +176,9 @@ where
     }
 
     /// Initializes encoder and start encoder actor
-    pub fn with_swap_encoder(&mut self, multicaller_address: Option<Address>) -> Result<&mut Self> {
-        let multicaller_address = match multicaller_address {
-            Some(multicaller) => multicaller,
-            None => match self.mutlicaller_address {
-                Some(multicaller) => multicaller,
-                None => return Err(eyre!("MULTICALLER_ADDRESS_NOT_SET")),
-            },
-        };
-
-        self.encoder = Some(MulticallerSwapEncoder::default_with_address(multicaller_address));
+    pub fn with_swap_encoder(&mut self, swap_encoder: E) -> Result<&mut Self> {
+        self.mutlicaller_address = Some(swap_encoder.address());
+        self.encoder = Some(swap_encoder);
         self.actor_manager.start(SwapRouterActor::<DB>::new().with_signers(self.signers.clone()).on_bc(&self.bc, &self.strategy))?;
         Ok(self)
     }
@@ -407,10 +408,8 @@ where
     /// Starts EVM gas estimator and tips filler
     pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(
-            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, MulticallerSwapEncoder, DB>::new(
-                self.encoder.clone().unwrap(),
-            )
-            .on_bc(&self.strategy),
+            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, E, DB>::new(self.encoder.clone().unwrap())
+                .on_bc(&self.strategy),
         )?;
         Ok(self)
     }
@@ -425,11 +424,9 @@ where
 
     /// Start swap path merger
     pub fn with_swap_path_merger(&mut self) -> Result<&mut Self> {
-        let mutlicaller_address = self.encoder.clone().ok_or(eyre!("NO_ENCODER"))?.multicaller_address;
+        let mutlicaller_address = self.encoder.clone().ok_or(eyre!("NO_ENCODER"))?.address();
 
-        let swap_step_encoder = SwapStepEncoder::default_wuth_address(mutlicaller_address);
-
-        self.actor_manager.start(ArbSwapPathMergerActor::new(swap_step_encoder).on_bc(&self.bc, &self.strategy))?;
+        self.actor_manager.start(ArbSwapPathMergerActor::new(mutlicaller_address).on_bc(&self.bc, &self.strategy))?;
         Ok(self)
     }
 

@@ -36,7 +36,7 @@ use loom::evm::db::LoomDBType;
 use loom::evm::utils::evm_tx_env::env_from_signed_tx;
 use loom::evm::utils::NWETH;
 use loom::execution::estimator::EvmEstimatorActor;
-use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapStepEncoder};
+use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
 use loom::node::actor_config::NodeBlockActorConfig;
 use loom::node::json_rpc::NodeBlockActor;
 use loom::strategy::backrun::{BackrunConfig, StateChangeArbActor};
@@ -446,9 +446,8 @@ async fn main() -> Result<()> {
     // Swap path merger tries to build swap steps from swap lines
     if test_config.modules.arb_path_merger {
         info!("Starting swap path merger actor");
-        let swap_step_encoder = SwapStepEncoder::default_wuth_address(multicaller_address);
 
-        let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(swap_step_encoder);
+        let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(multicaller_address);
         match swap_path_merger_actor
             .access(latest_block.clone())
             .consume(swap_compose_channel.clone())

@@ -118,7 +118,6 @@ pub fn env_from_signed_tx(rpl_bytes: Bytes) -> Result<TxEnv, EnvError> {
                 max_fee_per_blob_gas: None,
             })
         }
-        _ => Err(EnvError::UnsupportedTransactionType),
     }
 }
 

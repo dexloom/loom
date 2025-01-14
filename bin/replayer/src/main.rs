@@ -21,7 +21,7 @@ use loom_defi_pools::state_readers::ERC20StateReader;
 use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::evm_env::env_for_block;
 use loom_evm_utils::NWETH;
-use loom_execution_multicaller::AbiEncoderHelper;
+use loom_execution_multicaller::{AbiEncoderHelper, MulticallerSwapEncoder};
 use loom_node_player::NodeBlockPlayerActor;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{MarketState, PoolClass, PoolId, Swap, SwapAmountType, SwapLine};
@@ -74,20 +74,23 @@ async fn main() -> Result<()> {
 
     let strategy = Strategy::<LoomDB>::new();
 
+    let swap_encoder = MulticallerSwapEncoder::default();
+
     const TARGET_ADDRESS: Address = address!("A69babEF1cA67A37Ffaf7a485DfFF3382056e78C");
 
     let mut required_state = RequiredState::new();
     required_state.add_call(TokenAddressEth::WETH, AbiEncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS));
 
     // instead fo code above
-    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), bc_state.clone(), strategy.clone(), vec![]);
+    let mut bc_actors =
+        BlockchainActors::new(provider.clone(), swap_encoder.clone(), bc.clone(), bc_state.clone(), strategy.clone(), vec![]);
     bc_actors
         .with_nonce_and_balance_monitor_only_events()?
         .initialize_signers_with_anvil()?
         .with_market_state_preloader_virtual(vec![])?
         .with_preloaded_state(vec![(UniswapV3PoolAddress::USDC_WETH_500, PoolClass::UniswapV3)], Some(required_state))?
         .with_block_history()?
-        .with_swap_encoder(None)?
+        .with_swap_encoder(swap_encoder)?
         .with_evm_estimator()?;
 
     //Start node block player actor

@@ -9,6 +9,7 @@ use loom::core::blockchain_actors::BlockchainActors;
 use loom::core::topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
 use loom::defi::pools::PoolsConfig;
 use loom::evm::db::DatabaseLoomExt;
+use loom::execution::multicaller::MulticallerSwapEncoder;
 use loom::node::actor_config::NodeBlockActorConfig;
 use loom::node::debug_provider::DebugProviderExt;
 use loom::node::exex::loom_exex;
@@ -92,7 +93,9 @@ where
     let backrun_config: BackrunConfigSection = load_from_file::<BackrunConfigSection>(loom_config_filepath.into()).await?;
     let backrun_config: BackrunConfig = backrun_config.backrun_strategy;
 
-    let mut bc_actors = BlockchainActors::new(provider.clone(), bc.clone(), bc_state, strategy, relays);
+    let swap_encoder = MulticallerSwapEncoder::default_with_address(multicaller_address);
+
+    let mut bc_actors = BlockchainActors::new(provider.clone(), swap_encoder.clone(), bc.clone(), bc_state, strategy, relays);
     bc_actors
         .mempool()?
         .with_wait_for_node_sync()? // wait for node to sync before
@@ -102,7 +105,7 @@ where
         .with_health_monitor_pools()? // monitor pools health to disable empty
         //.with_health_monitor_state()? // monitor state health
         .with_health_monitor_stuffing_tx()? // collect stuffing tx information
-        .with_swap_encoder(Some(multicaller_address))? // convert swaps to opcodes and passes to estimator
+        .with_swap_encoder(swap_encoder)? // convert swaps to opcodes and passes to estimator
         .with_evm_estimator()? // estimate gas, add tips
         .with_signers()? // start signer actor that signs transactions before broadcasting
         .with_flashbots_broadcaster( true)? // broadcast signed txes to flashbots

@@ -25,7 +25,7 @@ impl SwapStepEncoder {
         Self { multicaller_address, swap_line_encoder }
     }
 
-    pub fn default_wuth_address(multicaller_address: Address) -> Self {
+    pub fn default_with_address(multicaller_address: Address) -> Self {
         let swap_line_encoder = SwapLineEncoder::default_with_address(multicaller_address);
         Self { multicaller_address, swap_line_encoder }
     }

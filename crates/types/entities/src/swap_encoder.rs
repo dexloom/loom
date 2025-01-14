@@ -28,6 +28,10 @@ pub trait SwapEncoder {
     ) -> Result<(Address, Option<U256>, Bytes, Vec<Tips>)>
     where
         Self: Sized;
+
+    fn set_address(&mut self, address: Address);
+
+    fn address(&self) -> Address;
 }
 
 #[derive(Clone)]

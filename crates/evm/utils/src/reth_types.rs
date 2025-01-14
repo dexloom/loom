@@ -1,13 +1,11 @@
+use alloy::consensus::TxEnvelope;
+use alloy::eips::eip2718::Decodable2718;
 use alloy::primitives::Bytes;
 use alloy::rpc::types::Transaction;
-use alloy::{
-    rlp::Decodable,
-    rpc::types::{BlockNumHash, Log as ALog},
-};
+use alloy::rpc::types::{BlockNumHash, Log as ALog};
 use eyre::{OptionExt, Result};
 use reth_db::models::StoredBlockBodyIndices;
-use reth_primitives::{BlockWithSenders, Receipt, SealedBlockWithSenders, TransactionSignedEcRecovered};
-use reth_rpc::eth::EthTxBuilder;
+use reth_primitives::{BlockWithSenders, Receipt, SealedBlockWithSenders};
 
 pub trait Convert<T> {
     fn convert(&self) -> T;
@@ -62,7 +60,7 @@ pub fn append_all_matching_block_logs_sealed(
     removed: bool,
     block: &SealedBlockWithSenders,
 ) -> Result<()> {
-    let mut tx_iter = block.body.transactions.iter();
+    let mut tx_iter = block.body().transactions.iter();
 
     // Iterate over receipts and append matching logs.
     for (log_index, (receipt_idx, receipt)) in (0_u64..).zip(receipts.iter().enumerate()) {
@@ -90,7 +88,18 @@ pub fn append_all_matching_block_logs_sealed(
 pub fn decode_into_transaction(rlp_tx: &Bytes) -> Result<Transaction> {
     let raw_tx = rlp_tx.clone().to_vec();
     let mut raw_tx = raw_tx.as_slice();
-    let transaction_recovered: TransactionSignedEcRecovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;
+    //let transaction_recovered: TransactionSignedEcRecovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;
+    //let transaction_recovered: TransactionSignedEcRecovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;
+    //let transaction_recovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;
 
-    Ok(reth_rpc_types_compat::transaction::from_recovered(transaction_recovered, &EthTxBuilder::default())?)
+    let inner = TxEnvelope::decode_2718(&mut raw_tx)?;
+    let from = inner.recover_signer()?;
+
+    let tx = Transaction { inner, block_hash: None, block_number: None, transaction_index: None, effective_gas_price: None, from };
+
+    //let env: TxEnvelope = tx.into();
+
+    //let tx: Transaction = transaction_recovered.transaction().try_into()?;
+
+    Ok(tx)
 }
