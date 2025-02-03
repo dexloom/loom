@@ -12,6 +12,7 @@ exclude.workspace = true
 loom-core-actors.workspace = true
 loom-core-blockchain.workspace = true
 loom-core-blockchain-actors.workspace = true
+loom-execution-multicaller.workspace = true
 loom-node-actor-config.workspace = true
 loom-types-events.workspace = true
 

@@ -64,9 +64,11 @@ where
             let pool_address = pool_id.address()?;
             let factory_address = fetch_uni2_factory(provider.clone(), pool_address).await?;
             match get_protocol_by_factory(factory_address) {
-                PoolProtocol::NomiswapStable | PoolProtocol::Miniswap | PoolProtocol::Integral | PoolProtocol::Safeswap => {
-                    Err(eyre!("POOL_PROTOCOL_NOT_SUPPORTED"))
-                }
+                PoolProtocol::NomiswapStable
+                | PoolProtocol::Miniswap
+                | PoolProtocol::Integral
+                | PoolProtocol::Safeswap
+                | PoolProtocol::AntFarm => Err(eyre!("POOL_PROTOCOL_NOT_SUPPORTED")),
                 _ => Ok(PoolWrapper::new(Arc::new(UniswapV2Pool::fetch_pool_data(provider, pool_id.address()?).await?))),
             }
         })

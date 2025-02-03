@@ -15,7 +15,7 @@ use reth::chainspec::{Chain, EthereumChainSpecParser};
 use reth::cli::Cli;
 use reth_node_ethereum::node::EthereumAddOns;
 use reth_node_ethereum::EthereumNode;
-use reth_provider::providers::BlockchainProvider2;
+use reth_provider::providers::BlockchainProvider;
 use std::time::Duration;
 use tokio::{signal, task};
 use tracing::{error, info};
@@ -44,7 +44,7 @@ fn main() -> eyre::Result<()> {
                 .with_persistence_threshold(loom_args.persistence_threshold)
                 .with_memory_block_buffer_target(loom_args.memory_block_buffer_target);
             let handle = builder
-                .with_types_and_provider::<EthereumNode, BlockchainProvider2<_>>()
+                .with_types_and_provider::<EthereumNode, BlockchainProvider<_>>()
                 .with_components(EthereumNode::components())
                 .with_add_ons(EthereumAddOns::default())
                 .install_exex("loom-exex", |node_ctx| loom_runtime::init(node_ctx, bc_clone, NodeBlockActorConfig::all_enabled()))

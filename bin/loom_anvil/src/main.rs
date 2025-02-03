@@ -19,6 +19,7 @@ use clap::Parser;
 use loom::node::debug_provider::AnvilDebugProviderFactory;
 
 use eyre::{ErrReport, OptionExt, Result};
+use influxdb::WriteQuery;
 use loom::broadcast::accounts::{InitializeSignersOneShotBlockingActor, NonceAndBalanceMonitorActor, TxSignersActor};
 use loom::broadcast::broadcaster::{AnvilBroadcastActor, FlashbotsBroadcastActor};
 use loom::broadcast::flashbots::client::RelayConfig;
@@ -27,6 +28,7 @@ use loom::core::actors::{Accessor, Actor, Broadcaster, Consumer, Producer, Share
 use loom::core::block_history::BlockHistoryActor;
 use loom::core::router::SwapRouterActor;
 use loom::defi::address_book::TokenAddressEth;
+use loom::defi::health_monitor::StuffingTxMonitorActor;
 use loom::defi::market::{fetch_and_add_pool_by_pool_id, fetch_state_and_add_pool};
 use loom::defi::pools::protocols::CurveProtocol;
 use loom::defi::pools::{CurvePool, PoolLoadersBuilder, PoolsConfig};
@@ -36,7 +38,7 @@ use loom::evm::db::LoomDBType;
 use loom::evm::utils::evm_tx_env::env_from_signed_tx;
 use loom::evm::utils::NWETH;
 use loom::execution::estimator::EvmEstimatorActor;
-use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder, SwapStepEncoder};
+use loom::execution::multicaller::{MulticallerDeployer, MulticallerSwapEncoder};
 use loom::node::actor_config::NodeBlockActorConfig;
 use loom::node::json_rpc::NodeBlockActor;
 use loom::strategy::backrun::{BackrunConfig, StateChangeArbActor};
@@ -187,6 +189,8 @@ async fn main() -> Result<()> {
     let market_events_channel: Broadcaster<MarketEvents> = Broadcaster::new(100);
     let mempool_events_channel: Broadcaster<MempoolEvents> = Broadcaster::new(500);
     let pool_health_monitor_channel: Broadcaster<MessageHealthEvent> = Broadcaster::new(100);
+
+    let influx_channel: Broadcaster<WriteQuery> = Broadcaster::new(100);
 
     let market_instance = SharedState::new(market_instance);
     let market_state = SharedState::new(market_state_instance);
@@ -377,6 +381,23 @@ async fn main() -> Result<()> {
         }
     }
 
+    let mut health_monitor_actor = StuffingTxMonitorActor::new(client.clone());
+    match health_monitor_actor
+        .access(latest_block.clone())
+        .consume(market_events_channel.clone())
+        .consume(tx_compose_channel.clone())
+        .produce(influx_channel.clone())
+        .start()
+    {
+        Ok(_) => {
+            //tasks.extend(r);
+            info!("Stuffing tx monitor actor started")
+        }
+        Err(e) => {
+            panic!("StuffingTxMonitorActor error {}", e)
+        }
+    }
+
     // Start actor that encodes paths found
     if test_config.modules.encoder {
         info!("Starting swap router actor");
@@ -432,6 +453,7 @@ async fn main() -> Result<()> {
             .consume(mempool_events_channel.clone())
             .produce(swap_compose_channel.clone())
             .produce(pool_health_monitor_channel.clone())
+            .produce(influx_channel.clone())
             .start()
         {
             Err(e) => {
@@ -446,9 +468,8 @@ async fn main() -> Result<()> {
     // Swap path merger tries to build swap steps from swap lines
     if test_config.modules.arb_path_merger {
         info!("Starting swap path merger actor");
-        let swap_step_encoder = SwapStepEncoder::default_wuth_address(multicaller_address);
 
-        let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(swap_step_encoder);
+        let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(multicaller_address);
         match swap_path_merger_actor
             .access(latest_block.clone())
             .consume(swap_compose_channel.clone())
@@ -598,7 +619,7 @@ async fn main() -> Result<()> {
                 match msg {
                     Ok(msg) => match msg.inner {
                         SwapComposeMessage::Ready(ready_message) => {
-                            debug!(swap=%ready_message.swap, "Sign message");
+                            debug!(swap=%ready_message.swap, "Ready message");
                             stat.sign_counter += 1;
 
                             if stat.best_profit_eth < ready_message.swap.abs_profit_eth() {
@@ -613,7 +634,7 @@ async fn main() -> Result<()> {
                             }
                         }
                         SwapComposeMessage::Prepare(encode_message) => {
-                            debug!(swap=%encode_message.swap, "Route message");
+                            debug!(swap=%encode_message.swap, "Prepare message");
                             stat.found_counter += 1;
                         }
                         _ => {}

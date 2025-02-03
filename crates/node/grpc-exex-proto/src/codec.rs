@@ -33,18 +33,18 @@ impl TryFrom<&reth::providers::Chain> for proto::Chain {
 
     fn try_from(chain: &reth::providers::Chain) -> Result<Self, Self::Error> {
         let bundle_state = chain.execution_outcome().state();
+
         Ok(proto::Chain {
             blocks: chain
                 .blocks_iter()
                 .map(|block| {
+                    let ommers = block.body().ommers().unwrap_or_default().iter().map(Into::into).collect();
+
                     Ok(proto::Block {
-                        header: Some(proto::SealedHeader {
-                            hash: block.header.hash().to_vec(),
-                            header: Some(block.header.header().into()),
-                        }),
-                        body: block.body.transactions().iter().map(TryInto::try_into).collect::<eyre::Result<_>>()?,
-                        ommers: block.body.ommers.iter().map(Into::into).collect(),
-                        senders: block.senders.iter().map(|sender| sender.to_vec()).collect(),
+                        header: Some(proto::SealedHeader { hash: block.hash().to_vec(), header: Some(block.header().into()) }),
+                        body: block.transactions().iter().map(TryInto::try_into).collect::<eyre::Result<_>>()?,
+                        ommers,
+                        senders: block.senders().iter().map(|sender| sender.to_vec()).collect(),
                     })
                 })
                 .collect::<eyre::Result<_>>()?,
@@ -113,7 +113,6 @@ impl From<&Header> for proto::Header {
             parent_beacon_block_root: header.parent_beacon_block_root.map(|root| root.to_vec()),
             extra_data: header.extra_data.to_vec(),
             requests_hash: header.requests_hash.map(|root| root.to_vec()),
-            target_blobs_per_block: header.target_blobs_per_block,
         }
     }
 }
@@ -230,7 +229,7 @@ impl TryFrom<&reth::primitives::TransactionSigned> for proto::Transaction {
 
                         Ok(proto::AuthorizationListItem {
                             authorization: Some(proto::Authorization {
-                                chain_id: authorization.chain_id(),
+                                chain_id: authorization.chain_id().to(),
                                 address: authorization.address().to_vec(),
                                 nonce: authorization.nonce(),
                             }),
@@ -543,7 +542,6 @@ impl TryFrom<&proto::Header> for Header {
             base_fee_per_gas: header.base_fee_per_gas,
             blob_gas_used: header.blob_gas_used,
             excess_blob_gas: header.excess_blob_gas,
-            target_blobs_per_block: header.target_blobs_per_block,
             parent_beacon_block_root: header.parent_beacon_block_root.as_ref().map(|root| B256::try_from(root.as_slice())).transpose()?,
             extra_data: header.extra_data.as_slice().to_vec().into(),
             requests_hash: header.requests_hash.as_ref().map(|root| B256::try_from(root.as_slice())).transpose()?,
@@ -673,7 +671,7 @@ impl TryFrom<&proto::Transaction> for reth::primitives::TransactionSigned {
                     .map(|authorization| {
                         let authorization = authorization.authorization.as_ref().ok_or_eyre("no authorization")?;
                         Ok(alloy_eips::eip7702::Authorization {
-                            chain_id: authorization.chain_id,
+                            chain_id: U256::from(authorization.chain_id),
                             address: Address::try_from(authorization.address.as_slice())?,
                             nonce: authorization.nonce,
                         }

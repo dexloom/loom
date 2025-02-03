@@ -24,13 +24,12 @@ use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
 use loom_evm_db::DatabaseLoomExt;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
-use loom_execution_multicaller::MulticallerSwapEncoder;
 use loom_node_actor_config::NodeBlockActorConfig;
 #[cfg(feature = "db-access")]
 use loom_node_db_access::RethDbAccessBlockActor;
 use loom_node_grpc::NodeExExGrpcActor;
 use loom_node_json_rpc::{NodeBlockActor, NodeMempoolActor};
-use loom_types_entities::{BlockHistoryState, MarketState, TxSigners};
+use loom_types_entities::{BlockHistoryState, MarketState, SwapEncoder, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
@@ -41,7 +40,7 @@ pub struct Topology<DB: Clone + Send + Sync + 'static> {
     blockchain_states: HashMap<String, BlockchainState<DB>>,
     strategies: HashMap<String, Strategy<DB>>,
     signers: HashMap<String, SharedState<TxSigners>>,
-    multicaller_encoders: HashMap<String, MulticallerSwapEncoder>,
+    multicaller_encoders: HashMap<String, Address>,
     default_blockchain_name: Option<String>,
     default_multicaller_encoder_name: Option<String>,
     default_signer_name: Option<String>,
@@ -60,7 +59,10 @@ impl<
             + 'static,
     > Topology<DB>
 {
-    pub async fn from(config: TopologyConfig) -> Result<(Topology<DB>, Vec<JoinHandle<WorkerResult>>)> {
+    pub async fn from<E: SwapEncoder + Send + Sync + Clone + 'static>(
+        config: TopologyConfig,
+        encoder: E,
+    ) -> Result<(Topology<DB>, Vec<JoinHandle<WorkerResult>>)> {
         let mut topology = Topology::<DB> {
             clients: HashMap::new(),
             blockchains: HashMap::new(),
@@ -117,8 +119,8 @@ impl<
             match v {
                 EncoderConfig::SwapStep(c) => {
                     let address: Address = c.address.parse()?;
-                    let encoder = MulticallerSwapEncoder::default_with_address(address);
-                    topology.multicaller_encoders.insert(k.clone(), encoder);
+                    //let encoder = MulticallerSwapEncoder::default_with_address(address);
+                    topology.multicaller_encoders.insert(k.clone(), address);
                     topology.default_multicaller_encoder_name = Some(k.clone());
                 }
             }
@@ -160,6 +162,7 @@ impl<
                 .consume(blockchain.new_block_headers_channel())
                 .consume(blockchain.new_block_with_tx_channel())
                 .produce(blockchain.mempool_events_channel())
+                .produce(blockchain.influxdb_write_channel())
                 .start()
             {
                 Ok(r) => {
@@ -233,7 +236,7 @@ impl<
 
                 let mut market_state_preload_actor = MarketStatePreloadedOneShotActor::new(client)
                     .with_signers(signers.clone())
-                    .with_copied_account(topology.get_multicaller_encoder(None)?.get_contract_address());
+                    .with_copied_account(topology.get_multicaller_address(None)?);
                 match market_state_preload_actor.access(blockchain_state.market_state()).start_and_wait() {
                     Ok(_) => {
                         info!("Market state preload actor executed successfully")
@@ -504,10 +507,16 @@ impl<
 
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
                         let strategy = topology.get_strategy(params.blockchain.as_ref())?;
-                        let encoder = topology.get_multicaller_encoder(params.encoder.as_ref())?;
+                        let multicaller_address = topology.get_multicaller_address(params.encoder.as_ref())?;
+                        let mut encoder = encoder.clone();
+                        encoder.set_address(multicaller_address);
 
                         let mut evm_estimator_actor = EvmEstimatorActor::new_with_provider(encoder, client);
-                        match evm_estimator_actor.consume(strategy.swap_compose_channel()).produce(strategy.swap_compose_channel()).start()
+                        match evm_estimator_actor
+                            .consume(strategy.swap_compose_channel())
+                            .produce(strategy.swap_compose_channel())
+                            .produce(blockchain.influxdb_write_channel())
+                            .start()
                         {
                             Ok(r) => {
                                 tasks.extend(r);
@@ -522,7 +531,10 @@ impl<
                         let client = topology.get_client(params.client.as_ref())?;
                         let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
                         let strategy = topology.get_strategy(params.blockchain.as_ref())?;
-                        let encoder = topology.get_multicaller_encoder(params.encoder.as_ref())?;
+                        let multicaller_address = topology.get_multicaller_address(params.encoder.as_ref())?;
+
+                        let mut encoder = encoder.clone();
+                        encoder.set_address(multicaller_address);
 
                         let flashbots_client = Arc::new(Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays());
 
@@ -582,9 +594,9 @@ impl<
         }
     }
 
-    pub fn get_multicaller_encoder(&self, name: Option<&String>) -> Result<MulticallerSwapEncoder> {
+    pub fn get_multicaller_address(&self, name: Option<&String>) -> Result<Address> {
         match self.multicaller_encoders.get(name.unwrap_or(&self.default_multicaller_encoder_name.clone().unwrap())) {
-            Some(encoder) => Ok(encoder.clone()),
+            Some(multicaller_address) => Ok(*multicaller_address),
             None => Err(eyre!("ENCODER_NOT_FOUND")),
         }
     }

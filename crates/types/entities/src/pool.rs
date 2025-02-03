@@ -24,6 +24,8 @@ pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
         PoolProtocol::PancakeV3
     } else if factory_address == FactoryAddress::NOMISWAP {
         PoolProtocol::NomiswapStable
+    } else if factory_address == FactoryAddress::ANTFARM {
+        PoolProtocol::AntFarm
     } else if factory_address == FactoryAddress::SUSHISWAP_V2 {
         PoolProtocol::Sushiswap
     } else if factory_address == FactoryAddress::SUSHISWAP_V3 {
@@ -98,6 +100,7 @@ pub enum PoolProtocol {
     SushiswapV3,
     DooarSwap,
     OgPepe,
+    AntFarm,
     Safeswap,
     Miniswap,
     Shibaswap,
@@ -131,6 +134,7 @@ impl Display for PoolProtocol {
             Self::SushiswapV3 => "SushiswapV3",
             Self::DooarSwap => "Dooarswap",
             Self::OgPepe => "OgPepe",
+            Self::AntFarm => "AntFarm",
             Self::Miniswap => "Miniswap",
             Self::Shibaswap => "Shibaswap",
             Self::Safeswap => "Safeswap",

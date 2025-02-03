@@ -138,7 +138,7 @@ async fn rayon_run(state_db: &LoomDBType, pool: PoolWrapper, threadpool: Arc<Thr
     assert_eq!(counter, ITER_COUNT, "NOT_ALL_RESULTS");
 }
 
-async fn rayon_parallel_run<'a>(state_db: &LoomDBType, pool: PoolWrapper) {
+async fn rayon_parallel_run(state_db: &LoomDBType, pool: PoolWrapper) {
     const TASKS_COUNT: u32 = 3;
     let mut tasks: Vec<JoinHandle<_>> = Vec::new();
 

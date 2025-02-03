@@ -12,6 +12,7 @@ use reth::revm::db::{BundleAccount, StorageWithOriginalValues};
 use reth::rpc::eth::EthTxBuilder;
 use reth_exex::ExExNotification;
 use reth_primitives::SealedBlockWithSenders;
+use reth_rpc_types_compat::TransactionCompat;
 use reth_tracing::tracing::error;
 use std::collections::BTreeMap;
 use tokio_stream::Stream;
@@ -49,11 +50,10 @@ impl ExExClient {
             loop {
                 match stream.message().await {
                     Ok(Some(transaction_proto)) => {
-                        if let Ok(transaction) = TransactionSigned::try_from(&transaction_proto){
-                            if let Some(transaction) = transaction.into_ecrecovered() {
-                                let transaction = reth_rpc_types_compat::transaction::from_recovered(transaction, &eth_builder);
-                                if let Ok(transaction) = transaction {
-                                    yield transaction;
+                        if let Ok(transaction_signed) = TransactionSigned::try_from(&transaction_proto){
+                            if let Some(transaction) = transaction_signed.into_ecrecovered() {
+                                if let Ok(tx) = eth_builder.fill_pending(transaction) {
+                                        yield tx;
                                 }
                             }
                         }
@@ -122,12 +122,10 @@ impl ExExClient {
                 match stream.message().await {
                     Ok(Some(block_msg)) => {
                         if let Ok(sealed_block)  = SealedBlockWithSenders::try_from(&block_msg) {
-                            let diff = sealed_block.difficulty;
                             let hash = sealed_block.hash();
 
                             if let Ok(block) = reth_rpc_types_compat::block::from_block(
                                 sealed_block.unseal(),
-                                diff,
                                 BlockTransactionsKind::Full,
                                 Some(hash),
                                 &eth_builder)

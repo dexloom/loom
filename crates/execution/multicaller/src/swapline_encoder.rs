@@ -16,7 +16,7 @@ use loom_types_entities::{PoolWrapper, SwapAmountType, SwapLine, Token};
 
 #[derive(Clone)]
 pub struct SwapLineEncoder {
-    multicaller_address: Address,
+    pub multicaller_address: Address,
     abi_encoder: Arc<dyn ProtocolAbiSwapEncoderTrait>,
     opcodes_encoder: Arc<dyn SwapOpcodesEncoderTrait>,
 }

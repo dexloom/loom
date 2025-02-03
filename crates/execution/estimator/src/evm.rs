@@ -7,11 +7,12 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
+use influxdb::{Timestamp, WriteQuery};
 use std::marker::PhantomData;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info, trace};
 
-use loom_core_blockchain::Strategy;
+use loom_core_blockchain::{Blockchain, Strategy};
 use loom_evm_utils::NWETH;
 use loom_types_entities::SwapEncoder;
 
@@ -28,6 +29,7 @@ async fn estimator_task<T, N, DB>(
     swap_encoder: impl SwapEncoder,
     estimate_request: SwapComposeData<DB>,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
+    influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> Result<()>
 where
     T: Transport + Clone,
@@ -42,7 +44,7 @@ where
         "EVM estimation",
     );
 
-    let start_time = chrono::Local::now();
+    let start_time = chrono::Utc::now();
 
     let tx_signer = estimate_request.tx_compose.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
     let gas_price = estimate_request.tx_compose.priority_gas_fee + estimate_request.tx_compose.next_block_base_fee;
@@ -54,7 +56,6 @@ where
         None,
         Some(tx_signer.address()),
         Some(estimate_request.tx_compose.eth_balance),
-        estimate_request.call_sequence.clone(),
     )?;
 
     let tx_request = TransactionRequest {
@@ -90,7 +91,19 @@ where
     let evm_env = env_for_block(estimate_request.tx_compose.next_block_number, estimate_request.tx_compose.next_block_timestamp);
 
     let (gas_used, access_list) = match evm_access_list(&db, &evm_env, &tx_request) {
-        Ok((gas_used, access_list)) => (gas_used, access_list),
+        Ok((gas_used, access_list)) => {
+            for pool_id in estimate_request.swap.get_pool_id_vec() {
+                let pool_id_string = format!("{}", pool_id);
+                let write_query =
+                    WriteQuery::new(Timestamp::from(start_time), "estimation").add_field("success", 1i64).add_tag("pool", pool_id_string);
+
+                if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
+                    error!("Failed to send block latency to influxdb: {:?}", e);
+                }
+            }
+
+            (gas_used, access_list)
+        }
         Err(e) => {
             trace!(
                 "evm_access_list error for block_number={}, block_timestamp={}, swap={}, err={e}",
@@ -100,6 +113,16 @@ where
             );
             // simulation has failed but this could be caused by a token / pool with unsupported fee issue
             trace!("evm_access_list error calldata : {} {}", to, call_data);
+
+            /*for pool_id in estimate_request.swap.get_pool_id_vec() {
+                let pool_id_string = format!("{}", pool_id);
+                let write_query =
+                    WriteQuery::new(Timestamp::from(start_time), "estimation").add_field("success", -1i64).add_tag("pool", pool_id_string);
+
+                if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
+                    error!("Failed to send block latency to influxdb: {:?}", e);
+                }
+            }*/
 
             return Ok(());
         }
@@ -129,7 +152,6 @@ where
         Some(gas_cost),
         Some(tx_signer.address()),
         Some(estimate_request.tx_compose.eth_balance),
-        estimate_request.call_sequence.clone(),
     ) {
         Ok((to, call_value, call_data, tips_vec)) => (to, call_value, call_data, tips_vec),
         Err(error) => {
@@ -189,7 +211,7 @@ where
         _ => Ok(()),
     };
 
-    let sim_duration = chrono::Local::now() - start_time;
+    let sim_duration = chrono::Utc::now() - start_time;
 
     info!(
         cost=gas_cost_f64,
@@ -209,6 +231,7 @@ async fn estimator_worker<T, N, DB>(
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
     compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
+    influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> WorkerResult
 where
     T: Transport + Clone,
@@ -227,6 +250,7 @@ where
                             let compose_channel_tx_cloned = compose_channel_tx.clone();
                             let encoder_cloned = encoder.clone();
                             let client_cloned = client.clone();
+                            let influxdb_channel_tx_cloned = influxdb_write_channel_tx.clone();
                             tokio::task::spawn(
                                 async move {
                                 if let Err(e) = estimator_task(
@@ -234,6 +258,7 @@ where
                                         encoder_cloned,
                                         estimate_request.clone(),
                                         compose_channel_tx_cloned,
+                                        influxdb_channel_tx_cloned,
                                 ).await {
                                         error!("Error in EVM estimator_task: {:?}", e);
                                     }
@@ -256,6 +281,8 @@ pub struct EvmEstimatorActor<P, T, N, E, DB: Clone + Send + Sync + 'static> {
     compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
     compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
+    #[producer]
+    influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -269,17 +296,34 @@ where
     DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     pub fn new(encoder: E) -> Self {
-        Self { encoder, client: None, compose_channel_tx: None, compose_channel_rx: None, _t: PhantomData::<T>, _n: PhantomData::<N> }
+        Self {
+            encoder,
+            client: None,
+            compose_channel_tx: None,
+            compose_channel_rx: None,
+            influxdb_write_channel_tx: None,
+            _t: PhantomData::<T>,
+            _n: PhantomData::<N>,
+        }
     }
 
     pub fn new_with_provider(encoder: E, client: Option<P>) -> Self {
-        Self { encoder, client, compose_channel_tx: None, compose_channel_rx: None, _t: PhantomData::<T>, _n: PhantomData::<N> }
+        Self {
+            encoder,
+            client,
+            compose_channel_tx: None,
+            compose_channel_rx: None,
+            influxdb_write_channel_tx: None,
+            _t: PhantomData::<T>,
+            _n: PhantomData::<N>,
+        }
     }
 
-    pub fn on_bc(self, strategy: &Strategy<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
         Self {
             compose_channel_tx: Some(strategy.swap_compose_channel()),
             compose_channel_rx: Some(strategy.swap_compose_channel()),
+            influxdb_write_channel_tx: Some(bc.influxdb_write_channel()),
             ..self
         }
     }
@@ -299,6 +343,7 @@ where
             self.encoder.clone(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
+            self.influxdb_write_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])
     }

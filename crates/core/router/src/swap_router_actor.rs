@@ -54,7 +54,9 @@ async fn router_task_broadcast<DB: DatabaseRef + Send + Sync + Clone + 'static>(
 ) -> Result<()> {
     debug!("router_task_broadcast started {}", route_request.swap);
 
-    match tx_compose_channel_tx.send(MessageTxCompose::sign(route_request.tx_compose)).await {
+    let tx_compose = TxComposeData { swap: Some(route_request.swap), tips: route_request.tips, ..route_request.tx_compose };
+
+    match tx_compose_channel_tx.send(MessageTxCompose::sign(tx_compose)).await {
         Err(_) => {
             error!("compose_channel_tx.send(estimate_request)");
             Err(eyre!("ERROR_SENDING_REQUEST"))

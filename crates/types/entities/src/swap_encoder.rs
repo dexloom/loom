@@ -1,4 +1,3 @@
-use crate::call_sequence::CallSequence;
 use crate::tips::Tips;
 use crate::Swap;
 use alloy_primitives::{Address, BlockNumber, Bytes, U256};
@@ -24,10 +23,13 @@ pub trait SwapEncoder {
         gas_cost: Option<U256>,
         sender_address: Option<Address>,
         sender_eth_balance: Option<U256>,
-        sequence: Option<CallSequence>,
     ) -> Result<(Address, Option<U256>, Bytes, Vec<Tips>)>
     where
         Self: Sized;
+
+    fn set_address(&mut self, address: Address);
+
+    fn address(&self) -> Address;
 }
 
 #[derive(Clone)]

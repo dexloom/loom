@@ -1,4 +1,4 @@
-use alloy_primitives::U256;
+use alloy_primitives::{Address, U256};
 use eyre::{eyre, ErrReport, Result};
 use revm::primitives::Env;
 use revm::DatabaseRef;
@@ -8,7 +8,6 @@ use tracing::{debug, error, info};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, Strategy};
-use loom_execution_multicaller::SwapStepEncoder;
 use loom_types_entities::{LatestBlock, Swap, SwapStep};
 use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeData, SwapComposeMessage};
 
@@ -47,7 +46,7 @@ async fn arb_swap_steps_optimizer_task<DB: DatabaseRef + Send + Sync + Clone>(
 }
 
 async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static>(
-    encoder: SwapStepEncoder,
+    multicaller_address: Address,
     latest_block: SharedState<LatestBlock>,
     market_events_rx: Broadcaster<MarketEvents>,
     compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
@@ -111,7 +110,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                             };
 
 
-                            match SwapStep::merge_swap_paths( req_swap.clone(), swap_path.clone(), encoder.get_contract_address() ){
+                            match SwapStep::merge_swap_paths( req_swap.clone(), swap_path.clone(), multicaller_address ){
                                 Ok((sp0, sp1)) => {
                                     let latest_block_guard = latest_block.read().await;
                                     let block_header = latest_block_guard.block_header.clone().unwrap();
@@ -159,7 +158,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
 
 #[derive(Consumer, Producer, Accessor)]
 pub struct ArbSwapPathMergerActor<DB: Send + Sync + Clone + 'static> {
-    encoder: SwapStepEncoder,
+    multicaller_address: Address,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
@@ -174,9 +173,9 @@ impl<DB> ArbSwapPathMergerActor<DB>
 where
     DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
-    pub fn new(swap_step_encoder: SwapStepEncoder) -> ArbSwapPathMergerActor<DB> {
+    pub fn new(multicaller_address: Address) -> ArbSwapPathMergerActor<DB> {
         ArbSwapPathMergerActor {
-            encoder: swap_step_encoder,
+            multicaller_address,
             latest_block: None,
             market_events: None,
             compose_channel_rx: None,
@@ -200,7 +199,7 @@ where
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(arb_swap_path_merger_worker(
-            self.encoder.clone(),
+            self.multicaller_address,
             self.latest_block.clone().unwrap(),
             self.market_events.clone().unwrap(),
             self.compose_channel_rx.clone().unwrap(),

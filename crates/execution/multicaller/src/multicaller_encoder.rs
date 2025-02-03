@@ -5,7 +5,7 @@ use tracing::error;
 
 use crate::pool_abi_encoder::ProtocolABIEncoderV2;
 use crate::pool_opcodes_encoder::ProtocolSwapOpcodesEncoderV2;
-use crate::{SwapLineEncoder, SwapStepEncoder};
+use crate::{SwapLineEncoder, SwapStepEncoder, DEFAULT_VIRTUAL_ADDRESS};
 use loom_types_blockchain::MulticallerCalls;
 use loom_types_entities::Swap;
 
@@ -74,5 +74,11 @@ impl MulticallerEncoder for MulticallerSwapEncoder {
                 Err(eyre!("SWAP_TYPE_NOT_SUPPORTED"))
             }
         }
+    }
+}
+
+impl Default for MulticallerSwapEncoder {
+    fn default() -> Self {
+        MulticallerSwapEncoder::default_with_address(DEFAULT_VIRTUAL_ADDRESS)
     }
 }

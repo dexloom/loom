@@ -4,6 +4,7 @@ use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::ErrReport;
+use influxdb::WriteQuery;
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::task::JoinHandle;
 use tracing::info;
@@ -43,6 +44,9 @@ pub struct StateChangeArbActor<P, T, N, DB: Clone + Send + Sync + 'static> {
     compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
     pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
+    #[producer]
+    influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
+
     _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
@@ -69,6 +73,7 @@ where
             market_events_tx: None,
             compose_channel_tx: None,
             pool_health_monitor_tx: None,
+            influxdb_write_channel_tx: None,
             _t: PhantomData,
             _n: PhantomData,
         }
@@ -92,6 +97,7 @@ where
             .consume(searcher_pool_update_channel.clone())
             .produce(self.compose_channel_tx.clone().unwrap())
             .produce(self.pool_health_monitor_tx.clone().unwrap())
+            .produce(self.influxdb_write_channel_tx.clone().unwrap())
             .start()
         {
             Err(e) => {

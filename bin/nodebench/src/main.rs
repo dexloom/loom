@@ -15,6 +15,7 @@ use futures::future::join_all;
 use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_blockchain_actors::BlockchainActors;
 use loom_evm_db::LoomDB;
+use loom_execution_multicaller::MulticallerSwapEncoder;
 use loom_node_actor_config::NodeBlockActorConfig;
 use loom_types_events::MempoolEvents;
 use std::fmt::Formatter;
@@ -234,7 +235,9 @@ async fn collect_stat_task(
     let bc_state = BlockchainState::<LoomDB>::new();
     let strategy = Strategy::<LoomDB>::new();
 
-    let mut bc_actors = BlockchainActors::new(provider, bc.clone(), bc_state, strategy, vec![]);
+    let encoder = MulticallerSwapEncoder::default();
+
+    let mut bc_actors = BlockchainActors::new(provider, encoder, bc.clone(), bc_state, strategy, vec![]);
     if grps {
         bc_actors.with_exex_events()?;
     } else {

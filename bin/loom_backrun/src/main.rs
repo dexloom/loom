@@ -1,4 +1,4 @@
-use alloy_provider::Provider;
+use alloy::providers::Provider;
 use eyre::Result;
 use tracing::{error, info};
 
@@ -7,7 +7,7 @@ use loom::core::router::SwapRouterActor;
 use loom::core::topology::{Topology, TopologyConfig};
 use loom::defi::health_monitor::{StateHealthMonitorActor, StuffingTxMonitorActor};
 use loom::evm::db::LoomDBType;
-use loom::execution::multicaller::SwapStepEncoder;
+use loom::execution::multicaller::MulticallerSwapEncoder;
 use loom::metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
 use loom::strategy::backrun::{BackrunConfig, BackrunConfigSection, StateChangeArbActor};
 use loom::strategy::merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
@@ -24,7 +24,10 @@ async fn main() -> Result<()> {
 
     let topology_config = TopologyConfig::load_from_file("config.toml".to_string())?;
     let influxdb_config = topology_config.influxdb.clone();
-    let (topology, mut worker_task_vec) = Topology::<LoomDBType>::from(topology_config).await?;
+
+    let encoder = MulticallerSwapEncoder::default();
+
+    let (topology, mut worker_task_vec) = Topology::<LoomDBType>::from(topology_config, encoder).await?;
 
     let client = topology.get_client(Some("local".to_string()).as_ref())?;
     let blockchain = topology.get_blockchain(Some("mainnet".to_string()).as_ref())?;
@@ -53,6 +56,7 @@ async fn main() -> Result<()> {
         .consume(blockchain.mempool_events_channel())
         .produce(strategy.swap_compose_channel())
         .produce(blockchain.pool_health_monitor_channel())
+        .produce(blockchain.influxdb_write_channel())
         .start()
     {
         Err(e) => {
@@ -64,8 +68,8 @@ async fn main() -> Result<()> {
         }
     }
 
-    let multicaller = topology.get_multicaller_encoder(None).unwrap().get_contract_address();
-    info!("Starting swap path encoder actor with multicaller at : {}", multicaller);
+    let multicaller_address = topology.get_multicaller_address(None)?;
+    info!("Starting swap path encoder actor with multicaller at : {}", multicaller_address);
 
     let mut swap_path_encoder_actor = SwapRouterActor::new();
 
@@ -87,9 +91,8 @@ async fn main() -> Result<()> {
     }
 
     info!("Starting swap path merger actor");
-    let swap_step_encoder = SwapStepEncoder::default_wuth_address(multicaller);
 
-    let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(swap_step_encoder);
+    let mut swap_path_merger_actor = ArbSwapPathMergerActor::new(multicaller_address);
 
     match swap_path_merger_actor
         .access(blockchain.latest_block())

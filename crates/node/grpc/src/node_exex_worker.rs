@@ -60,7 +60,6 @@ async fn process_chain_task(
         info!("Processing block block_number={} block_hash={}", block_hash_num.number, block_hash_num.hash);
         match reth_rpc_types_compat::block::from_block(
             sealed_block.clone().unseal(),
-            sealed_block.difficulty,
             BlockTransactionsKind::Full,
             Some(sealed_block.hash()),
             &eth_tx_builder,

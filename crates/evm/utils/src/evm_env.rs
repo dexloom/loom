@@ -35,7 +35,7 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> En
             basefee: U256::from(block_header.base_fee_per_gas.unwrap_or_default()),
             difficulty: block_header.difficulty,
             prevrandao: Some(block_header.parent_hash),
-            blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(block_header.excess_blob_gas.unwrap())),
+            blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(block_header.excess_blob_gas.unwrap(), false)),
         },
         tx: TxEnv {
             caller: tx.from,

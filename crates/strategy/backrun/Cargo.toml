@@ -21,6 +21,7 @@ loom-types-events.workspace = true
 
 chrono.workspace = true
 eyre.workspace = true
+influxdb.workspace = true
 lazy_static.workspace = true
 num_cpus.workspace = true
 rayon.workspace = true

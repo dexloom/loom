@@ -14,6 +14,7 @@ use reth_node_ethereum::EthereumNode;
 use reth_node_types::NodeTypesWithDBAdapter;
 use reth_primitives::BlockWithSenders;
 use reth_provider::providers::StaticFileProvider;
+use reth_provider::BlockBodyIndicesProvider;
 use reth_provider::{AccountExtReader, BlockReader, ProviderFactory, ReceiptProvider, StateProvider, StorageReader, TransactionVariant};
 use std::collections::{BTreeMap, HashMap};
 use std::marker::PhantomData;
@@ -104,7 +105,7 @@ where
                                         debug!("block_with_senders_reth : txs {}", block_with_senders_reth.body.transactions.len());
 
                                         //convert RETH->RPCx
-                                        let block_with_senders_rpc = reth_rpc_types_compat::block::from_block_with_tx_hashes(block_with_senders_reth, block_header.total_difficulty.unwrap_or_default(), Some(block_header.hash));
+                                        let block_with_senders_rpc = reth_rpc_types_compat::block::from_block_with_tx_hashes(block_with_senders_reth,  Some(block_header.hash));
 
                                         let txs = BlockTransactions::Full(block_with_senders_rpc.transactions.clone().into_transactions().collect());
                                         // remove OtherFields
@@ -202,7 +203,7 @@ where
                             let mut account_btree : BTreeMap<Address, AccountState> = accounts.into_iter().map(|(address, account)|{
                                 let account = account.unwrap_or_default();
                                 let account_code = if account.has_bytecode() {
-                                     state_provider.bytecode_by_hash(account.bytecode_hash.unwrap_or_default()).ok().unwrap_or_default()
+                                     state_provider.bytecode_by_hash(&account.bytecode_hash.unwrap_or_default()).ok().unwrap_or_default()
                                 }else{
                                     None
                                 };

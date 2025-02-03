@@ -4,6 +4,7 @@ use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use alloy_transport::Transport;
 use eyre::{eyre, Result};
+use influxdb::{Timestamp, WriteQuery};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 use std::sync::Arc;
@@ -15,8 +16,8 @@ use loom_core_blockchain::Blockchain;
 use loom_evm_utils::NWETH;
 use loom_types_entities::{LatestBlock, Swap, Token};
 
-use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
-use loom_core_actors_macros::{Accessor, Consumer};
+use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_types_blockchain::debug_trace_transaction;
 use loom_types_events::{MarketEvents, MessageTxCompose, TxComposeMessageType};
 
@@ -25,15 +26,16 @@ struct TxToCheck {
     block: u64,
     token_in: Token,
     profit: U256,
+    cost: U256,
     tips: U256,
     swap: Swap,
 }
 
-async fn check_mf_tx<P: Provider<T, Ethereum> + 'static, T: Transport + Clone>(
+async fn calc_coinbase_diff<P: Provider<T, Ethereum> + 'static, T: Transport + Clone>(
     client: P,
     tx_hash: TxHash,
     coinbase: Address,
-) -> Result<()> {
+) -> Result<U256> {
     let (pre, post) = debug_trace_transaction(client, tx_hash, true).await?;
 
     let coinbase_pre = pre.get(&coinbase).ok_or(eyre!("COINBASE_NOT_FOUND_IN_PRE"))?;
@@ -42,7 +44,7 @@ async fn check_mf_tx<P: Provider<T, Ethereum> + 'static, T: Transport + Clone>(
     let balance_diff = coinbase_post.balance.unwrap_or_default().checked_sub(coinbase_pre.balance.unwrap_or_default()).unwrap_or_default();
     info!("Stuffing tx mined MF tx: {:?} sent to coinbase: {}", tx_hash, NWETH::to_float(balance_diff));
 
-    Ok(())
+    Ok(balance_diff)
 }
 
 pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'static, T: Transport + Clone>(
@@ -50,6 +52,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'stat
     latest_block: SharedState<LatestBlock>,
     tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
     market_events_rx: Broadcaster<MarketEvents>,
+    influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> WorkerResult {
     let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
@@ -70,17 +73,46 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'stat
                                     if let Some(tx_to_check) = txs_to_check.get(&tx_hash).cloned(){
                                         info!("Stuffing tx found mined {:?} block: {} -> {} idx: {} profit: {} tips: {} token: {} to: {:?} {}", tx.tx_hash(), tx_to_check.block, block_number, idx, NWETH::to_float(tx_to_check.profit), NWETH::to_float(tx_to_check.tips), tx_to_check.token_in.get_symbol(), tx.to().unwrap_or_default(), tx_to_check.swap );
                                         if idx < txs.len() - 1 {
-                                            let mf_tx = &txs[idx+1];
-                                            info!("Stuffing tx mined {:?} MF tx: {:?} to: {:?}", tx.tx_hash(), mf_tx.tx_hash(), mf_tx.to().unwrap_or_default() );
-                                            tokio::task::spawn(
-                                                check_mf_tx(client.clone(), mf_tx.tx_hash(), coinbase)
-                                            );
+                                            let others_tx = &txs[idx+1];
+                                            let others_tx_hash = others_tx.tx_hash();
+                                            let client_clone = client.clone();
+                                            let influx_channel_clone = influxdb_write_channel_tx.clone();
+                                            info!("Stuffing tx mined {:?} MF tx: {:?} to: {:?}", tx.tx_hash(), others_tx.tx_hash(), others_tx.to().unwrap_or_default() );
+                                            tokio::task::spawn( async move {
+                                                if let Ok(coinbase_diff)  = calc_coinbase_diff(client_clone, others_tx_hash, coinbase).await {
+                                                    let start_time_utc =   chrono::Utc::now();
+                                                    let bribe = NWETH::to_float(tx_to_check.tips);
+                                                    let others_bribe = NWETH::to_float(coinbase_diff);
+                                                    let cost = NWETH::to_float(tx_to_check.cost);
+
+                                                    let write_query = WriteQuery::new(Timestamp::from(start_time_utc), "stuffing_mined")
+                                                        .add_field("our_bribe", bribe)
+                                                        .add_field("our_cost", cost)
+                                                        .add_field("others_bribe", others_bribe)
+                                                        .add_tag("tx_block", tx_to_check.block)
+                                                        .add_tag("block", block_number)
+                                                        .add_tag("block_idx", idx as u64)
+                                                        .add_tag("stuffing_tx", tx_hash.to_string())
+                                                        .add_tag("other_tx", others_tx_hash.to_string());
+                                                    if let Err(e) = influx_channel_clone.send(write_query).await {
+                                                       error!("Failed to send block latency to influxdb: {:?}", e);
+                                                    }
+                                                };
+                                            });
                                         }
                                         txs_to_check.remove::<TxHash>(&tx.tx_hash());
                                     }
                                 }
                             }
-                            info!("Stuffing txs to check : {} at block {}", txs_to_check.len(), block_number)
+                            info!("Stuffing txs to check : {} at block {}", txs_to_check.len(), block_number);
+
+
+                            let start_time_utc =   chrono::Utc::now();
+
+                            let write_query = WriteQuery::new(Timestamp::from(start_time_utc), "stuffing_waiting").add_field("value", txs_to_check.len() as u64).add_tag("block", block_number);
+                            if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
+                               error!("Failed to send block latency to influxdb: {:?}", e);
+                            }
                         }
                     }
                     Err(e)=>{
@@ -90,7 +122,6 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'stat
             },
 
             msg = tx_compose_channel_rx.recv() => {
-
                 let tx_compose_update : Result<MessageTxCompose, RecvError>  = msg;
                 match tx_compose_update {
                     Ok(tx_compose_msg)=>{
@@ -102,6 +133,8 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'stat
                                     Arc::new(Token::new(Address::repeat_byte(0x11))), |x| x.clone()
                                 );
 
+                                let cost = U256::from(tx_compose_data.next_block_base_fee + tx_compose_data.priority_gas_fee) * U256::from(tx_compose_data.gas);
+
                                 let entry = txs_to_check.entry(*stuffing_tx_hash).or_insert(
                                         TxToCheck{
                                                 block : tx_compose_data.next_block_number,
@@ -109,6 +142,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'stat
                                                 profit : U256::ZERO,
                                                 tips : U256::ZERO,
                                                 swap : swap.clone(),
+                                                cost,
                                         }
                                 );
                                 let profit = swap.abs_profit();
@@ -118,6 +152,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'stat
                                     entry.token_in = token_in.as_ref().clone();
                                     entry.profit = profit;
                                     entry.tips = tx_compose_data.tips.unwrap_or_default();
+
                                     entry.swap = swap.clone();
                                 }
                             }
@@ -132,7 +167,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'stat
     }
 }
 
-#[derive(Accessor, Consumer)]
+#[derive(Accessor, Consumer, Producer)]
 pub struct StuffingTxMonitorActor<P, T> {
     client: P,
     #[accessor]
@@ -141,12 +176,22 @@ pub struct StuffingTxMonitorActor<P, T> {
     tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
+    #[producer]
+    influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
+
     _t: PhantomData<T>,
 }
 
 impl<P: Provider<T, Ethereum> + Send + Sync + Clone + 'static, T: Transport + Clone> StuffingTxMonitorActor<P, T> {
     pub fn new(client: P) -> Self {
-        StuffingTxMonitorActor { client, latest_block: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
+        StuffingTxMonitorActor {
+            client,
+            latest_block: None,
+            tx_compose_channel_rx: None,
+            market_events_rx: None,
+            influxdb_write_channel_tx: None,
+            _t: PhantomData,
+        }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -154,6 +199,7 @@ impl<P: Provider<T, Ethereum> + Send + Sync + Clone + 'static, T: Transport + Cl
             latest_block: Some(bc.latest_block()),
             tx_compose_channel_rx: Some(bc.tx_compose_channel()),
             market_events_rx: Some(bc.market_events_channel()),
+            influxdb_write_channel_tx: Some(bc.influxdb_write_channel()),
             ..self
         }
     }
@@ -170,6 +216,7 @@ where
             self.latest_block.clone().unwrap(),
             self.tx_compose_channel_rx.clone().unwrap(),
             self.market_events_rx.clone().unwrap(),
+            self.influxdb_write_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])
     }

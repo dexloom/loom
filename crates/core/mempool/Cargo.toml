@@ -17,6 +17,7 @@ loom-types-events.workspace = true
 
 chrono.workspace = true
 eyre.workspace = true
+influxdb.workspace = true
 tokio.workspace = true
 tracing.workspace = true
 
