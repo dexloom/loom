@@ -113,7 +113,7 @@ impl<LDT: LoomDataTypes> Swap<LDT> {
             Swap::BackrunSwapSteps((sp0, sp1)) => {
                 let mut swap_line_vec = sp0.swap_line_vec().clone();
                 swap_line_vec.extend(sp1.swap_line_vec().clone());
-                swap_line_vec.iter().flat_map(|item| item.pools().iter().cloned()).collect::<Vec<_>>().iter().cloned().collect()
+                swap_line_vec.iter().flat_map(|item| item.pools().iter().cloned()).collect::<Vec<_>>().to_vec()
             }
             Swap::Multiple(swap_vec) => swap_vec.iter().flat_map(|x| x.get_pools_vec()).collect(),
             Swap::None => Vec::new(),
