@@ -5,6 +5,7 @@ use alloy_primitives::{Address, U256};
 #[cfg(not(debug_assertions))]
 use chrono::TimeDelta;
 use eyre::{eyre, ErrReport, Result};
+use influxdb::{Timestamp, WriteQuery};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
 use revm::{DatabaseCommit, DatabaseRef};
@@ -33,11 +34,14 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     market: SharedState<Market>,
     swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
+    influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> Result<()> {
     debug!("Message received {} stuffing : {:?}", state_update_event.origin, state_update_event.stuffing_tx_hash());
 
     let mut db = state_update_event.market_state().clone();
     DatabaseHelpers::apply_geth_state_update_vec(&mut db, state_update_event.state_update().clone());
+
+    let start_time_utc = chrono::Utc::now();
 
     let start_time = std::time::Instant::now();
     let mut swap_path_vec: Vec<SwapPath> = Vec::new();
@@ -181,14 +185,28 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
 
         answers += 1;
     }
+
+    let stuffing_tx_hash = state_update_event.stuffing_tx_hash();
+    let elapsed = start_time.elapsed().as_micros();
     info!(
         origin = %state_update_event.origin,
         swap_path_vec_len,
         answers,
-        elapsed = start_time.elapsed().as_micros(),
-        stuffing_hash = %state_update_event.stuffing_tx_hash(),
+        elapsed,
+        stuffing_hash = %stuffing_tx_hash,
         "Calculation finished"
     );
+
+    let write_query = WriteQuery::new(Timestamp::from(start_time_utc), "calculations")
+        .add_field("calculations", swap_path_vec_len as u64)
+        .add_field("answers", answers as u64)
+        .add_field("elapsed", elapsed as u64)
+        .add_tag("origin", state_update_event.origin)
+        .add_tag("stuffing", stuffing_tx_hash.to_string());
+
+    if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
+        error!("Failed to send block latency to influxdb: {:?}", e);
+    }
 
     Ok(())
 }
@@ -201,6 +219,7 @@ pub async fn state_change_arb_searcher_worker<
     search_request_rx: Broadcaster<StateUpdateEvent<DB>>,
     swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
     pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
+    influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> WorkerResult {
     subscribe!(search_request_rx);
 
@@ -221,7 +240,8 @@ pub async fn state_change_arb_searcher_worker<
                             msg,
                             market.clone(),
                             swap_request_tx.clone(),
-                            pool_health_monitor_tx.clone()
+                            pool_health_monitor_tx.clone(),
+                            influxdb_write_channel_tx.clone(),
                         )
                     );
                 }
@@ -241,11 +261,20 @@ pub struct StateChangeArbSearcherActor<DB: Clone + Send + Sync + 'static> {
     compose_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
     pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
+    #[producer]
+    influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 }
 
 impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateChangeArbSearcherActor<DB> {
     pub fn new(backrun_config: BackrunConfig) -> StateChangeArbSearcherActor<DB> {
-        StateChangeArbSearcherActor { backrun_config, market: None, state_update_rx: None, compose_tx: None, pool_health_monitor_tx: None }
+        StateChangeArbSearcherActor {
+            backrun_config,
+            market: None,
+            state_update_rx: None,
+            compose_tx: None,
+            pool_health_monitor_tx: None,
+            influxdb_write_channel_tx: None,
+        }
     }
 
     pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
@@ -254,6 +283,7 @@ impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateCh
             pool_health_monitor_tx: Some(bc.pool_health_monitor_channel()),
             compose_tx: Some(strategy.swap_compose_channel()),
             state_update_rx: Some(strategy.state_update_channel()),
+            influxdb_write_channel_tx: Some(bc.influxdb_write_channel()),
             ..self
         }
     }
@@ -269,6 +299,7 @@ impl<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone +
             self.state_update_rx.clone().unwrap(),
             self.compose_tx.clone().unwrap(),
             self.pool_health_monitor_tx.clone().unwrap(),
+            self.influxdb_write_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])
     }

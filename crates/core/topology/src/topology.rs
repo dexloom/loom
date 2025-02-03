@@ -59,7 +59,7 @@ impl<
             + 'static,
     > Topology<DB>
 {
-    pub async fn from<E: SwapEncoder + Send + Sync + Clone + Default + 'static>(
+    pub async fn from<E: SwapEncoder + Send + Sync + Clone + 'static>(
         config: TopologyConfig,
         encoder: E,
     ) -> Result<(Topology<DB>, Vec<JoinHandle<WorkerResult>>)> {
@@ -162,6 +162,7 @@ impl<
                 .consume(blockchain.new_block_headers_channel())
                 .consume(blockchain.new_block_with_tx_channel())
                 .produce(blockchain.mempool_events_channel())
+                .produce(blockchain.influxdb_write_channel())
                 .start()
             {
                 Ok(r) => {
@@ -511,7 +512,11 @@ impl<
                         encoder.set_address(multicaller_address);
 
                         let mut evm_estimator_actor = EvmEstimatorActor::new_with_provider(encoder, client);
-                        match evm_estimator_actor.consume(strategy.swap_compose_channel()).produce(strategy.swap_compose_channel()).start()
+                        match evm_estimator_actor
+                            .consume(strategy.swap_compose_channel())
+                            .produce(strategy.swap_compose_channel())
+                            .produce(blockchain.influxdb_write_channel())
+                            .start()
                         {
                             Ok(r) => {
                                 tasks.extend(r);

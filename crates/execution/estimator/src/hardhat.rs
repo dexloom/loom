@@ -49,7 +49,6 @@ async fn estimator_worker<DB: DatabaseRef + Send + Sync + Clone>(
                                         Some(gas_cost),
                                         Some(tx_signer.address()),
                                         Some(estimate_request.tx_compose.eth_balance),
-                                        estimate_request.call_sequence.clone(),
                                     )?;
 
                                     let tx_request = TransactionRequest {

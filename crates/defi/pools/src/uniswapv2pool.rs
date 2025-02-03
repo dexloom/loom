@@ -81,7 +81,7 @@ impl UniswapV2Pool {
         token_address_from < token_address_to
     }
 
-    fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
+    fn get_uni2_protocol_by_factory(factory_address: Address) -> PoolProtocol {
         if factory_address == FactoryAddress::UNISWAP_V2 {
             PoolProtocol::UniswapV2
         } else if factory_address == FactoryAddress::SUSHISWAP_V2 {
@@ -98,6 +98,8 @@ impl UniswapV2Pool {
             PoolProtocol::Shibaswap
         } else if factory_address == FactoryAddress::OG_PEPE {
             PoolProtocol::OgPepe
+        } else if factory_address == FactoryAddress::ANTFARM {
+            PoolProtocol::AntFarm
         } else {
             PoolProtocol::UniswapV2Like
         }
@@ -119,7 +121,7 @@ impl UniswapV2Pool {
         let token0 = UniswapV2StateReader::token0(&db, env.clone(), address)?;
         let token1 = UniswapV2StateReader::token1(&db, env.clone(), address)?;
         let factory = UniswapV2StateReader::factory(&db, env.clone(), address)?;
-        let protocol = Self::get_protocol_by_factory(factory);
+        let protocol = Self::get_uni2_protocol_by_factory(factory);
 
         let fee = Self::get_fee_by_protocol(protocol);
 
@@ -163,7 +165,7 @@ impl UniswapV2Pool {
                 None
             };
 
-        let protocol = UniswapV2Pool::get_protocol_by_factory(factory);
+        let protocol = UniswapV2Pool::get_uni2_protocol_by_factory(factory);
 
         let fee = Self::get_fee_by_protocol(protocol);
 

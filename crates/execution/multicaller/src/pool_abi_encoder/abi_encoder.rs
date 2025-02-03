@@ -76,7 +76,7 @@ impl ProtocolAbiSwapEncoderTrait for ProtocolABIEncoderV2 {
     }
 
     fn is_native(&self, pool: &dyn Pool) -> bool {
-        self.pool_classes.get(&pool.get_class()).map_or(false, |encoder| encoder.is_native(pool))
+        self.pool_classes.get(&pool.get_class()).is_some_and(|encoder| encoder.is_native(pool))
     }
 
     fn swap_in_amount_offset(&self, pool: &dyn Pool, token_from_address: Address, token_to_address: Address) -> Option<u32> {

@@ -71,7 +71,7 @@ impl<LDT: LoomDataTypes> Market<LDT> {
     /// Check if the token is a basic token.
     #[inline]
     pub fn is_basic_token(&self, address: &LDT::Address) -> bool {
-        self.tokens.get(address).map_or(false, |t| t.is_basic())
+        self.tokens.get(address).is_some_and(|t| t.is_basic())
     }
 
     /// Add a new pool to the market if it does not exist or the class is unknown.
@@ -144,7 +144,7 @@ impl<LDT: LoomDataTypes> Market<LDT> {
     /// Check if the pool is ok.
     #[inline]
     pub fn is_pool_disabled(&self, address: &PoolId<LDT>) -> bool {
-        self.pools_disabled.get(address).map_or(false, |&is_disabled| is_disabled)
+        self.pools_disabled.get(address).is_some_and(|&is_disabled| is_disabled)
     }
 
     /// Get a [`Token`] reference from the market by the address of the token or create a new one.

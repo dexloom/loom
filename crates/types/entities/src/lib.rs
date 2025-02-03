@@ -5,7 +5,6 @@ extern crate core;
 pub use account_nonce_balance::{AccountNonceAndBalanceState, AccountNonceAndBalances};
 pub use block_history::{BlockHistory, BlockHistoryEntry, BlockHistoryManager, BlockHistoryState};
 pub use calculation_result::CalculationResult;
-pub use call_sequence::{CallSequence, FlashLoanParams};
 pub use datafetcher::{DataFetcher, FetchState};
 pub use keystore::KeyStore;
 pub use latest_block::LatestBlock;
@@ -50,7 +49,6 @@ mod datafetcher;
 mod mock_pool;
 pub mod strategy_config;
 
-pub mod call_sequence;
 mod mock_pool_generic;
 pub mod pool_config;
 mod pool_id;

@@ -30,6 +30,7 @@ impl FactoryAddress {
     pub const MINISWAP: Address = address!("2294577031f113df4782b881cf0b140e94209a6f");
     pub const SHIBASWAP: Address = address!("115934131916c8b277dd010ee02de363c09d037c");
     pub const OG_PEPE: Address = address!("52fba58f936833f8b643e881ad308b2e37713a86");
+    pub const ANTFARM: Address = address!("E48AEE124F9933661d4DD3Eb265fA9e153e32CBe");
 
     // Uniswap V3 compatible
     pub const UNISWAP_V3: Address = address!("1f98431c8ad98523631ae4a59f267346ea31f984");

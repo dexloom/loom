@@ -4,7 +4,7 @@ use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Bytes, U256};
 use eyre::{eyre, Result};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::{CallSequence, PoolId, Swap};
+use loom_types_entities::{PoolId, Swap};
 use revm::DatabaseRef;
 use std::ops::Deref;
 
@@ -53,7 +53,6 @@ impl<DB, LDT: LoomDataTypes> SwapComposeMessage<DB, LDT> {
 pub struct SwapComposeData<DB, LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub tx_compose: TxComposeData<LDT>,
     pub swap: Swap<LDT>,
-    pub call_sequence: Option<CallSequence>,
     pub prestate: Option<DB>,
     pub poststate: Option<DB>,
     pub poststate_update: Option<Vec<LDT::StateUpdate>>,
@@ -113,7 +112,6 @@ impl<DB: DatabaseRef + Send + Sync + Clone + 'static, LDT: LoomDataTypes> Defaul
         Self {
             tx_compose: Default::default(),
             swap: Swap::None,
-            call_sequence: None,
             prestate: None,
             poststate: None,
             poststate_update: None,

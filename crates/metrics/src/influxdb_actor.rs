@@ -5,6 +5,8 @@ use loom_core_actors::{Actor, ActorResult, Broadcaster, Consumer, WorkerResult};
 use loom_core_actors_macros::Consumer;
 use loom_core_blockchain::Blockchain;
 use std::collections::HashMap;
+use std::time::Duration;
+use tokio::time::timeout;
 use tracing::{error, info, warn};
 
 pub async fn start_influxdb_worker(
@@ -28,9 +30,16 @@ pub async fn start_influxdb_worker(
                 for (key, value) in tags.iter() {
                     event = event.add_tag(key, value.clone());
                 }
-                let write_result = client.query(event).await;
-                if write_result.is_err() {
-                    error!("Write failed: {:?}", write_result.err().unwrap());
+
+                match timeout(Duration::from_millis(500), client.query(event)).await {
+                    Ok(inner_result) => {
+                        if let Err(e) = inner_result {
+                            error!("InfluxDB Write failed: {:?}", e);
+                        }
+                    }
+                    Err(elapsed) => {
+                        error!("InfluxDB Query timed out: {:?}", elapsed);
+                    }
                 }
             }
             Err(e) => match e {

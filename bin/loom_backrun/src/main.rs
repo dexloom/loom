@@ -56,6 +56,7 @@ async fn main() -> Result<()> {
         .consume(blockchain.mempool_events_channel())
         .produce(strategy.swap_compose_channel())
         .produce(blockchain.pool_health_monitor_channel())
+        .produce(blockchain.influxdb_write_channel())
         .start()
     {
         Err(e) => {

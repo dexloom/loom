@@ -1,7 +1,7 @@
 use std::fmt::{Display, Formatter};
 use std::sync::Arc;
 
-use crate::{PoolId, SwapLine, SwapStep, Token};
+use crate::{PoolId, PoolWrapper, SwapLine, SwapStep, Token};
 use alloy_primitives::U256;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
@@ -82,8 +82,10 @@ impl<LDT: LoomDataTypes> Swap<LDT> {
         match self {
             Swap::ExchangeSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_pool_id()).collect(),
             Swap::BackrunSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_pool_id()).collect(),
-            Swap::BackrunSwapSteps((sp0, _sp1)) => {
-                sp0.swap_line_vec().iter().flat_map(|item| item.pools().iter().map(|p| p.get_pool_id()).collect::<Vec<_>>()).collect()
+            Swap::BackrunSwapSteps((sp0, sp1)) => {
+                let mut swap_line_vec = sp0.swap_line_vec().clone();
+                swap_line_vec.extend(sp1.swap_line_vec().clone());
+                swap_line_vec.iter().flat_map(|item| item.pools().iter().map(|p| p.get_pool_id()).collect::<Vec<_>>()).collect()
             }
             Swap::Multiple(swap_vec) => swap_vec.iter().flat_map(|x| x.get_pool_id_vec()).collect(),
             Swap::None => Vec::new(),
@@ -94,10 +96,26 @@ impl<LDT: LoomDataTypes> Swap<LDT> {
         match self {
             Swap::ExchangeSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_address()).collect(),
             Swap::BackrunSwapLine(swap_line) => swap_line.pools().iter().map(|item| item.get_address()).collect(),
-            Swap::BackrunSwapSteps((sp0, _sp1)) => {
-                sp0.swap_line_vec().iter().flat_map(|item| item.pools().iter().map(|p| p.get_address()).collect::<Vec<_>>()).collect()
+            Swap::BackrunSwapSteps((sp0, sp1)) => {
+                let mut swap_line_vec = sp0.swap_line_vec().clone();
+                swap_line_vec.extend(sp1.swap_line_vec().clone());
+                swap_line_vec.iter().flat_map(|item| item.pools().iter().map(|p| p.get_address()).collect::<Vec<_>>()).collect()
             }
             Swap::Multiple(swap_vec) => swap_vec.iter().flat_map(|x| x.get_pool_address_vec()).collect(),
+            Swap::None => Vec::new(),
+        }
+    }
+
+    pub fn get_pools_vec(&self) -> Vec<PoolWrapper<LDT>> {
+        match self {
+            Swap::ExchangeSwapLine(swap_line) => swap_line.pools().clone(),
+            Swap::BackrunSwapLine(swap_line) => swap_line.pools().clone(),
+            Swap::BackrunSwapSteps((sp0, sp1)) => {
+                let mut swap_line_vec = sp0.swap_line_vec().clone();
+                swap_line_vec.extend(sp1.swap_line_vec().clone());
+                swap_line_vec.iter().flat_map(|item| item.pools().iter().cloned()).collect::<Vec<_>>().iter().cloned().collect()
+            }
+            Swap::Multiple(swap_vec) => swap_vec.iter().flat_map(|x| x.get_pools_vec()).collect(),
             Swap::None => Vec::new(),
         }
     }
