@@ -120,7 +120,6 @@ mod tests {
 
     #[test]
     fn test_preswap_requirement() {
-        let abi_encoder_v2 = ProtocolABIEncoderV2::default();
         let uni3 = UniswapV3Pool::new(Address::random());
 
         let pr = uni3.preswap_requirement();

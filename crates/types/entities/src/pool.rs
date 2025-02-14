@@ -6,7 +6,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::required_state::RequiredState;
-use crate::{PoolId, SwapEncoder};
+use crate::PoolId;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
@@ -228,7 +228,7 @@ impl<T: 'static + Pool<LoomDataTypesEthereum>> From<T> for PoolWrapper<LoomDataT
 }
 
 pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
-    fn as_any<'a>(&self) -> &dyn Any;
+    fn as_any(&self) -> &dyn Any;
 
     fn get_class(&self) -> PoolClass;
 

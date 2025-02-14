@@ -7371,6 +7371,7 @@ dependencies = [
  "loom-core-actors-macros",
  "loom-core-blockchain",
  "loom-core-blockchain-actors",
+ "loom-defi-abi",
  "loom-defi-address-book",
  "loom-defi-pools",
  "loom-evm-db",

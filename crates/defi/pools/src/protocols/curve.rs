@@ -4,8 +4,7 @@ use std::marker::PhantomData;
 use alloy::primitives::{address, Address, Bytes, U256};
 use alloy::providers::{Network, Provider};
 use alloy::rpc::types::{BlockId, BlockNumberOrTag};
-use alloy::sol_types::{SolCall, SolInterface};
-use alloy::transports::Transport;
+use alloy::sol_types::SolInterface;
 use eyre::{eyre, Report, Result};
 use tracing::{debug, error, trace};
 

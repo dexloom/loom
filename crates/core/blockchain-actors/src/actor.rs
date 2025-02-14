@@ -1,7 +1,6 @@
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::{Provider, RootProvider};
-use alloy_transport::{BoxTransport, Transport};
 use axum::Router;
 use eyre::{eyre, ErrReport, Result};
 use loom_broadcast_accounts::{InitializeSignersOneShotBlockingActor, NonceAndBalanceMonitorActor, TxSignersActor};
@@ -403,8 +402,7 @@ where
     /// Starts EVM gas estimator and tips filler
     pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(
-            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, E, DB>::new(self.encoder.clone().unwrap())
-                .on_bc(&self.bc, &self.strategy),
+            EvmEstimatorActor::<RootProvider, Ethereum, E, DB>::new(self.encoder.clone().unwrap()).on_bc(&self.bc, &self.strategy),
         )?;
         Ok(self)
     }

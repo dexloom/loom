@@ -1,5 +1,5 @@
-use alloy_primitives::{Address, Bytes, U256};
-use alloy_sol_types::{SolCall, SolInterface};
+use alloy::primitives::{Address, Bytes, U256};
+use alloy::sol_types::{SolCall, SolInterface};
 
 use crate::balancer::IVault;
 use crate::lido::{IStEth, IWStEth};

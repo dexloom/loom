@@ -28,7 +28,7 @@ async fn estimator_task<N, DB>(
     swap_encoder: impl SwapEncoder,
     estimate_request: SwapComposeData<DB>,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
-    influxdb_write_channel_tx: Broadcaster<WriteQuery>,
+    influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 ) -> Result<()>
 where
     N: Network,
@@ -95,8 +95,10 @@ where
                 let write_query =
                     WriteQuery::new(Timestamp::from(start_time), "estimation").add_field("success", 1i64).add_tag("pool", pool_id_string);
 
-                if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
-                    error!("Failed to send block latency to influxdb: {:?}", e);
+                if let Some(influxdb_write_channel_tx) = &influxdb_write_channel_tx {
+                    if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
+                        error!("Failed to send block latency to influxdb: {:?}", e);
+                    }
                 }
             }
 
@@ -229,7 +231,7 @@ async fn estimator_worker<N, DB>(
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
     compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
-    influxdb_write_channel_tx: Broadcaster<WriteQuery>,
+    influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 ) -> WorkerResult
 where
     N: Network,
@@ -328,7 +330,7 @@ where
             self.encoder.clone(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
-            self.influxdb_write_channel_tx.clone().unwrap(),
+            self.influxdb_write_channel_tx.clone(),
         ));
         Ok(vec![task])
     }

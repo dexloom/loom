@@ -315,7 +315,7 @@ impl LoomDB {
 
     pub fn apply_geth_update(&mut self, update: BTreeMap<Address, GethAccountState>) {
         for (addr, acc_state) in update {
-            info!("apply_geth_update {} is code {} storage_len {} ", addr, acc_state.code.is_some(), acc_state.storage.len());
+            trace!("apply_geth_update {} is code {} storage_len {} ", addr, acc_state.code.is_some(), acc_state.storage.len());
 
             for (k, v) in acc_state.storage.iter() {
                 if let Err(e) = self.insert_account_storage(addr, (*k).into(), (*v).into()) {

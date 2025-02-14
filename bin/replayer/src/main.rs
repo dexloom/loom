@@ -17,12 +17,13 @@ use loom_node_debug_provider::HttpCachedTransport;
 
 use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_blockchain_actors::BlockchainActors;
+use loom_defi_abi::AbiEncoderHelper;
 use loom_defi_address_book::{TokenAddressEth, UniswapV3PoolAddress};
 use loom_defi_pools::state_readers::ERC20StateReader;
 use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::evm_env::env_for_block;
 use loom_evm_utils::NWETH;
-use loom_execution_multicaller::{AbiEncoderHelper, MulticallerSwapEncoder};
+use loom_execution_multicaller::MulticallerSwapEncoder;
 use loom_node_player::NodeBlockPlayerActor;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{MarketState, PoolClass, PoolId, Swap, SwapAmountType, SwapLine};

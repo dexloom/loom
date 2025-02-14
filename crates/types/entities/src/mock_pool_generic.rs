@@ -1,6 +1,6 @@
 use crate::pool_id::PoolId;
 use crate::required_state::RequiredState;
-use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol};
+use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement};
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
@@ -10,6 +10,7 @@ use eyre::{eyre, ErrReport};
 use loom_evm_db::{AlloyDB, LoomDBType};
 use revm::primitives::Env;
 use revm::DatabaseRef;
+use std::any::Any;
 
 #[derive(Clone)]
 pub struct MockPoolGeneric<P> {

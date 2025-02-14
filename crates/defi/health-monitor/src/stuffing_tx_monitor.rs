@@ -3,6 +3,7 @@ use alloy_network::{Ethereum, TransactionResponse};
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use eyre::{eyre, Result};
+use influxdb::{Timestamp, WriteQuery};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;

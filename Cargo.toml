@@ -293,4 +293,3 @@ strip = true # stripping of debuginfo
 codegen-units = 1
 inherits = "release"
 lto = "fat"
-
