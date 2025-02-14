@@ -1,11 +1,8 @@
-use std::marker::PhantomData;
-
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::primitives::BlockTransactionsKind;
 use alloy_network::{Ethereum, Network};
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockTransactions;
-use alloy_transport::Transport;
 use eyre::Result;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
@@ -18,11 +15,10 @@ use loom_node_debug_provider::AnvilProviderExt;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_events::{MessageTxCompose, TxComposeData, TxComposeMessageType};
 
-async fn broadcast_task<P, T, N>(client: P, request: TxComposeData) -> Result<()>
+async fn broadcast_task<P, N>(client: P, request: TxComposeData) -> Result<()>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + AnvilProviderExt<T, N> + Clone + Send + Sync + 'static,
+    P: Provider<N> + AnvilProviderExt<N> + Clone + Send + Sync + 'static,
 {
     info!("Hardhat broadcast request received : {}", request.origin.unwrap_or("UNKNOWN_ORIGIN".to_string()));
     //let snap = client.dev_rpc().snapshot().await?;
@@ -45,10 +41,9 @@ where
     Ok(())
 }
 
-async fn anvil_broadcaster_worker<P, T>(client: P, bundle_rx: Broadcaster<MessageTxCompose>) -> WorkerResult
+async fn anvil_broadcaster_worker<P>(client: P, bundle_rx: Broadcaster<MessageTxCompose>) -> WorkerResult
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + AnvilProviderExt<Ethereum> + Send + Sync + Clone + 'static,
 {
     let mut bundle_rx: Receiver<MessageTxCompose> = bundle_rx.subscribe().await;
 
@@ -88,20 +83,18 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct AnvilBroadcastActor<P, T, LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
+pub struct AnvilBroadcastActor<P, LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
     client: P,
     #[consumer]
     tx_compose_rx: Option<Broadcaster<MessageTxCompose<LDT>>>,
-    _t: PhantomData<T>,
 }
 
-impl<P, T> AnvilBroadcastActor<P, T>
+impl<P> AnvilBroadcastActor<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + AnvilProviderExt<Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P) -> AnvilBroadcastActor<P, T> {
-        Self { client, tx_compose_rx: None, _t: PhantomData }
+    pub fn new(client: P) -> AnvilBroadcastActor<P> {
+        Self { client, tx_compose_rx: None }
     }
 
     pub fn on_bc(self, bc: &Blockchain<LoomDataTypesEthereum>) -> Self {
@@ -109,10 +102,9 @@ where
     }
 }
 
-impl<P, T> Actor for AnvilBroadcastActor<P, T>
+impl<P> Actor for AnvilBroadcastActor<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + AnvilProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + AnvilProviderExt<Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(anvil_broadcaster_worker(self.client.clone(), self.tx_compose_rx.clone().unwrap()));

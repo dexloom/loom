@@ -9,7 +9,6 @@ use alloy_rpc_types_trace::geth::{
     AccountState, GethDebugBuiltInTracerType, GethDebugTracerConfig, GethDebugTracerType, GethDebugTracingCallOptions,
     GethDebugTracingOptions, GethDefaultTracingOptions, GethTrace, PreStateConfig, PreStateFrame,
 };
-use alloy_transport::Transport;
 use eyre::Result;
 use lazy_static::lazy_static;
 use std::collections::BTreeMap;
@@ -38,7 +37,7 @@ pub fn debug_log_geth_state_update(state_update: &GethStateUpdate) {
     }
 }
 
-pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugProviderExt<T, N>>(
+pub async fn debug_trace_block<N: Network, P: Provider<N> + DebugProviderExt<N>>(
     client: P,
     block_id: BlockId,
     diff_mode: bool,
@@ -81,7 +80,7 @@ pub async fn debug_trace_block<T: Transport + Clone, N: Network, P: Provider<T, 
     Ok((pre, post))
 }
 
-async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N>, TR: Into<TransactionRequest> + Send + Sync>(
+async fn debug_trace_call<N: Network, C: DebugProviderExt<N>, TR: Into<TransactionRequest> + Send + Sync>(
     client: C,
     req: TR,
     block: BlockId,
@@ -116,12 +115,7 @@ async fn debug_trace_call<T: Transport + Clone, N: Network, C: DebugProviderExt<
     }
 }
 
-pub async fn debug_trace_call_pre_state<
-    T: Transport + Clone,
-    N: Network,
-    C: DebugProviderExt<T, N>,
-    TR: Into<TransactionRequest> + Send + Sync,
->(
+pub async fn debug_trace_call_pre_state<N: Network, C: DebugProviderExt<N>, TR: Into<TransactionRequest> + Send + Sync>(
     client: C,
     req: TR,
     block: BlockId,
@@ -130,12 +124,7 @@ pub async fn debug_trace_call_pre_state<
     Ok(debug_trace_call(client, req, block, opts, false).await?.0)
 }
 
-pub async fn debug_trace_call_post_state<
-    T: Transport + Clone,
-    N: Network,
-    C: DebugProviderExt<T, N>,
-    TR: Into<TransactionRequest> + Send + Sync,
->(
+pub async fn debug_trace_call_post_state<N: Network, C: DebugProviderExt<N>, TR: Into<TransactionRequest> + Send + Sync>(
     client: C,
     req: TR,
     block: BlockId,
@@ -144,12 +133,7 @@ pub async fn debug_trace_call_post_state<
     Ok(debug_trace_call(client, req, block, opts, true).await?.1)
 }
 
-pub async fn debug_trace_call_diff<
-    T: Transport + Clone,
-    N: Network,
-    C: DebugProviderExt<T, N>,
-    TR: Into<TransactionRequest> + Send + Sync,
->(
+pub async fn debug_trace_call_diff<N: Network, C: DebugProviderExt<N>, TR: Into<TransactionRequest> + Send + Sync>(
     client: C,
     req: TR,
     block: BlockId,
@@ -158,7 +142,7 @@ pub async fn debug_trace_call_diff<
     debug_trace_call(client, req, block, call_opts, true).await
 }
 
-pub async fn debug_trace_transaction<T: Transport + Clone, N: Network, P: Provider<T, N> + DebugApi<N, T>>(
+pub async fn debug_trace_transaction<N: Network, P: Provider<N> + DebugApi<N>>(
     client: P,
     req: TxHash,
     diff_mode: bool,
@@ -201,7 +185,7 @@ mod test {
         let ws_connect = WsConnect::new(node_url);
         let client = ClientBuilder::default().ws(ws_connect).await?;
 
-        let client = ProviderBuilder::new().on_client(client).boxed();
+        let client = ProviderBuilder::new().disable_recommended_fillers().on_client(client);
 
         let blocknumber = client.get_block_number().await?;
         let _block = client.get_block_by_number(blocknumber.into(), BlockTransactionsKind::Hashes).await?.unwrap();

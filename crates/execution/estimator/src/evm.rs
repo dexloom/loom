@@ -5,7 +5,6 @@ use alloy_network::{Ethereum, Network};
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
-use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use influxdb::{Timestamp, WriteQuery};
 use std::marker::PhantomData;
@@ -24,15 +23,14 @@ use loom_evm_utils::evm_env::env_for_block;
 use loom_types_events::{MessageSwapCompose, SwapComposeData, SwapComposeMessage, TxComposeData, TxState};
 use revm::DatabaseRef;
 
-async fn estimator_task<T, N, DB>(
-    client: Option<impl Provider<T, N> + 'static>,
+async fn estimator_task<N, DB>(
+    client: Option<impl Provider<N> + 'static>,
     swap_encoder: impl SwapEncoder,
     estimate_request: SwapComposeData<DB>,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
     influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> Result<()>
 where
-    T: Transport + Clone,
     N: Network,
     DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
@@ -226,15 +224,14 @@ where
     result
 }
 
-async fn estimator_worker<T, N, DB>(
-    client: Option<impl Provider<T, N> + Clone + 'static>,
+async fn estimator_worker<N, DB>(
+    client: Option<impl Provider<N> + Clone + 'static>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
     compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
     influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
     N: Network,
     DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
@@ -274,7 +271,7 @@ where
 }
 
 #[derive(Consumer, Producer)]
-pub struct EvmEstimatorActor<P, T, N, E, DB: Clone + Send + Sync + 'static> {
+pub struct EvmEstimatorActor<P, N, E, DB: Clone + Send + Sync + 'static> {
     encoder: E,
     client: Option<P>,
     #[consumer]
@@ -283,15 +280,13 @@ pub struct EvmEstimatorActor<P, T, N, E, DB: Clone + Send + Sync + 'static> {
     compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
     influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N, E, DB> EvmEstimatorActor<P, T, N, E, DB>
+impl<P, N, E, DB> EvmEstimatorActor<P, N, E, DB>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, Ethereum>,
+    P: Provider<Ethereum>,
     E: SwapEncoder + Send + Sync + Clone + 'static,
     DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
@@ -302,21 +297,12 @@ where
             compose_channel_tx: None,
             compose_channel_rx: None,
             influxdb_write_channel_tx: None,
-            _t: PhantomData::<T>,
             _n: PhantomData::<N>,
         }
     }
 
     pub fn new_with_provider(encoder: E, client: Option<P>) -> Self {
-        Self {
-            encoder,
-            client,
-            compose_channel_tx: None,
-            compose_channel_rx: None,
-            influxdb_write_channel_tx: None,
-            _t: PhantomData::<T>,
-            _n: PhantomData::<N>,
-        }
+        Self { encoder, client, compose_channel_tx: None, compose_channel_rx: None, influxdb_write_channel_tx: None, _n: PhantomData::<N> }
     }
 
     pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
@@ -329,11 +315,10 @@ where
     }
 }
 
-impl<P, T, N, E, DB> Actor for EvmEstimatorActor<P, T, N, E, DB>
+impl<P, N, E, DB> Actor for EvmEstimatorActor<P, N, E, DB>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     E: SwapEncoder + Clone + Send + Sync + 'static,
     DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone,
 {

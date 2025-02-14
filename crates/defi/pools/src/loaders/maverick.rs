@@ -16,10 +16,9 @@ use tokio_stream::Stream;
 
 pool_loader!(MaverickPoolLoader);
 
-impl<P, T> PoolLoader<P, T, Ethereum, LoomDataTypesEthereum> for MaverickPoolLoader<P, T, Ethereum, LoomDataTypesEthereum>
+impl<P> PoolLoader<P, Ethereum, LoomDataTypesEthereum> for MaverickPoolLoader<P, Ethereum, LoomDataTypesEthereum>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone + 'static,
+    P: Provider<Ethereum> + Clone + 'static,
 {
     fn get_pool_class_by_log(
         &self,

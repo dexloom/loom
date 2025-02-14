@@ -7,7 +7,6 @@ use alloy_network::Network;
 use alloy_primitives::{Address, Bytes, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types_trace::geth::AccountState;
-use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::Accessor;
@@ -19,11 +18,10 @@ use loom_types_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tracing::{debug, error, trace};
 
-async fn fetch_account_state<P, T, N>(client: P, address: Address) -> Result<AccountState>
+async fn fetch_account_state<P, N>(client: P, address: Address) -> Result<AccountState>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     let code = client.get_code_at(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.ok();
     let balance = client.get_balance(address).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await.ok();
@@ -58,7 +56,7 @@ async fn set_monitor_nonce(account_nonce_balance_state: Option<SharedState<Accou
     }
 }
 
-pub async fn preload_market_state<P, T, N, DB>(
+pub async fn preload_market_state<P, N, DB>(
     client: P,
     copied_accounts_vec: Vec<Address>,
     new_accounts_vec: Vec<(Address, u64, U256, Option<Bytes>)>,
@@ -67,9 +65,8 @@ pub async fn preload_market_state<P, T, N, DB>(
     account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let mut market_state_guard = market_state.write().await;
@@ -132,7 +129,7 @@ where
 
 #[allow(dead_code)]
 #[derive(Accessor)]
-pub struct MarketStatePreloadedOneShotActor<P, T, N, DB> {
+pub struct MarketStatePreloadedOneShotActor<P, N, DB> {
     name: &'static str,
     client: P,
     copied_accounts: Vec<Address>,
@@ -142,16 +139,14 @@ pub struct MarketStatePreloadedOneShotActor<P, T, N, DB> {
     market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
     account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
 #[allow(dead_code)]
-impl<P, T, N, DB> MarketStatePreloadedOneShotActor<P, T, N, DB>
+impl<P, N, DB> MarketStatePreloadedOneShotActor<P, N, DB>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn name(&self) -> &'static str {
@@ -167,7 +162,6 @@ where
             token_balances: Vec::new(),
             market_state: None,
             account_nonce_balance_state: None,
-            _t: PhantomData,
             _n: PhantomData,
         }
     }
@@ -219,11 +213,10 @@ where
     }
 }
 
-impl<P, T, N, DB> Actor for MarketStatePreloadedOneShotActor<P, T, N, DB>
+impl<P, N, DB> Actor for MarketStatePreloadedOneShotActor<P, N, DB>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start_and_wait(&self) -> Result<()> {

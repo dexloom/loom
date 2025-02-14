@@ -1,7 +1,6 @@
 use alloy::eips::BlockId;
 use alloy::network::primitives::{BlockTransactionsKind, HeaderResponse};
 use alloy::providers::{network::BlockResponse, Network, Provider};
-use alloy::transports::Transport;
 use eyre::ErrReport;
 use revm::{
     primitives::{AccountInfo, Address, Bytecode, B256, U256},
@@ -34,14 +33,14 @@ impl HandleOrRuntime {
 ///
 /// When accessing the database, it'll use the given provider to fetch the corresponding account's data.
 #[derive(Debug)]
-pub struct AlloyDB<T: Transport + Clone, N: Network, P: Provider<T, N>> {
+pub struct AlloyDB<N: Network, P: Provider<N>> {
     /// The provider to fetch the data from.
     provider: P,
     /// The block number on which the queries will be based on.
     block_number: BlockId,
     /// handle to the tokio runtime
     rt: HandleOrRuntime,
-    _marker: std::marker::PhantomData<fn() -> (T, N)>,
+    _marker: std::marker::PhantomData<fn() -> N>,
 }
 
 /*impl<T: Transport + Clone, N: Network, P: Provider<T, N>> Default for  AlloyDB<T, N, P> {
@@ -56,7 +55,7 @@ pub struct AlloyDB<T: Transport + Clone, N: Network, P: Provider<T, N>> {
  */
 
 #[allow(dead_code)]
-impl<T: Transport + Clone, N: Network, P: Provider<T, N>> AlloyDB<T, N, P> {
+impl<N: Network, P: Provider<N>> AlloyDB<N, P> {
     /// Create a new AlloyDB instance, with a [Provider] and a block.
     ///
     /// Returns `None` if no tokio runtime is available or if the current runtime is a current-thread runtime.
@@ -105,7 +104,7 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> AlloyDB<T, N, P> {
     }
 }
 
-impl<T: Transport + Clone, N: Network, P: Provider<T, N>> DatabaseRef for AlloyDB<T, N, P> {
+impl<N: Network, P: Provider<N>> DatabaseRef for AlloyDB<N, P> {
     type Error = ErrReport;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
@@ -148,7 +147,7 @@ impl<T: Transport + Clone, N: Network, P: Provider<T, N>> DatabaseRef for AlloyD
     }
 }
 
-impl<T: Transport + Clone, N: Network, P: Provider<T, N>> Database for AlloyDB<T, N, P> {
+impl<N: Network, P: Provider<N>> Database for AlloyDB<N, P> {
     type Error = ErrReport;
 
     #[inline]

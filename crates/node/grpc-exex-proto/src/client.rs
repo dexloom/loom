@@ -6,12 +6,11 @@ use alloy_rpc_types::{
 use alloy_rpc_types_trace::geth::AccountState;
 use async_stream::stream;
 use eyre::{eyre, Result};
-use reth::primitives::{SealedHeader, TransactionSigned};
+use reth::primitives::{RecoveredBlock, SealedHeader, TransactionSigned};
 use reth::revm::db::states::StorageSlot;
 use reth::revm::db::{BundleAccount, StorageWithOriginalValues};
 use reth::rpc::eth::EthTxBuilder;
 use reth_exex::ExExNotification;
-use reth_primitives::SealedBlockWithSenders;
 use reth_rpc_types_compat::TransactionCompat;
 use reth_tracing::tracing::error;
 use std::collections::BTreeMap;
@@ -21,6 +20,7 @@ use tonic::transport::Channel;
 use crate::helpers::append_all_matching_block_logs_sealed;
 use crate::proto::remote_ex_ex_client::RemoteExExClient;
 use crate::proto::SubscribeRequest;
+use reth_primitives::transaction::SignedTransactionIntoRecoveredExt;
 
 #[derive(Debug, Clone)]
 pub struct ExExClient {
@@ -51,7 +51,7 @@ impl ExExClient {
                 match stream.message().await {
                     Ok(Some(transaction_proto)) => {
                         if let Ok(transaction_signed) = TransactionSigned::try_from(&transaction_proto){
-                            if let Some(transaction) = transaction_signed.into_ecrecovered() {
+                            if let Ok(transaction) = transaction_signed.try_into_recovered() {
                                 if let Ok(tx) = eth_builder.fill_pending(transaction) {
                                         yield tx;
                                 }
@@ -121,13 +121,11 @@ impl ExExClient {
             loop {
                 match stream.message().await {
                     Ok(Some(block_msg)) => {
-                        if let Ok(sealed_block)  = SealedBlockWithSenders::try_from(&block_msg) {
-                            let hash = sealed_block.hash();
+                        if let Ok(sealed_block)  = RecoveredBlock::try_from(&block_msg) {
 
                             if let Ok(block) = reth_rpc_types_compat::block::from_block(
-                                sealed_block.unseal(),
+                                sealed_block,
                                 BlockTransactionsKind::Full,
-                                Some(hash),
                                 &eth_builder)
                             {
 

@@ -6,7 +6,6 @@ use crate::state_readers::{UniswapV3QuoterV2Encoder, UniswapV3StateReader};
 use alloy::primitives::{Address, Bytes, I256, U160, U256};
 use alloy::providers::{Network, Provider};
 use alloy::sol_types::{SolCall, SolInterface};
-use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_defi_abi::uniswap3::IUniswapV3Pool;
 use loom_defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
@@ -178,10 +177,7 @@ impl UniswapV3Pool {
         Ok(ret)
     }
 
-    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(
-        client: P,
-        address: Address,
-    ) -> Result<Self> {
+    pub async fn fetch_pool_data<N: Network, P: Provider<N> + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
         let uni3_pool = IUniswapV3Pool::IUniswapV3PoolInstance::new(address, client.clone());
 
         let token0: Address = uni3_pool.token0().call().await?._0;

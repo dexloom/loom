@@ -18,10 +18,9 @@ use tracing::error;
 
 pool_loader!(UniswapV3PoolLoader);
 
-impl<P, T> PoolLoader<P, T, Ethereum, LoomDataTypesEthereum> for UniswapV3PoolLoader<P, T, Ethereum, LoomDataTypesEthereum>
+impl<P> PoolLoader<P, Ethereum, LoomDataTypesEthereum> for UniswapV3PoolLoader<P, Ethereum, LoomDataTypesEthereum>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone + 'static,
+    P: Provider<Ethereum> + Clone + 'static,
 {
     fn get_pool_class_by_log(
         &self,

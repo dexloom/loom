@@ -233,7 +233,8 @@ where
     let mut tx_listener = mempool.new_transactions_listener();
 
     while let Some(tx_notification) = tx_listener.recv().await {
-        let _ = notifications.send(tx_notification.transaction.to_consensus().into());
+        let tx = tx_notification.transaction.to_consensus();
+        let _ = notifications.send(tx.tx().clone());
     }
     info!("Mempool worker finished");
 

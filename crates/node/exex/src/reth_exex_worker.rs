@@ -60,12 +60,7 @@ async fn process_chain(
         // Block with tx
         if config.block_with_tx {
             info!(block_number=?block_hash_num.number, block_hash=?block_hash_num.hash, "Processing block");
-            match reth_rpc_types_compat::block::from_block(
-                sealed_block.clone().unseal(),
-                BlockTransactionsKind::Full,
-                Some(sealed_block.hash()),
-                &eth_builder,
-            ) {
+            match reth_rpc_types_compat::block::from_block(sealed_block.clone(), BlockTransactionsKind::Full, &eth_builder) {
                 Ok(block) => {
                     let block: Block = Block {
                         transactions: BlockTransactions::Full(block.transactions.into_transactions().collect()),
@@ -88,7 +83,7 @@ async fn process_chain(
         if config.block_logs {
             let mut logs: Vec<alloy_rpc_types::Log> = Vec::new();
 
-            let receipts = receipts.iter().filter_map(|r| r.clone()).collect();
+            let receipts = receipts.clone();
 
             append_all_matching_block_logs_sealed(&mut logs, block_hash_num, receipts, false, sealed_block)?;
 

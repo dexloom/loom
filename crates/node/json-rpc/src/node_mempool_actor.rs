@@ -1,9 +1,6 @@
-use std::marker::PhantomData;
-
 use alloy_network::{Ethereum, TransactionResponse};
 use alloy_primitives::TxHash;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use futures::StreamExt;
 use tracing::error;
 
@@ -15,10 +12,9 @@ use loom_types_blockchain::MempoolTx;
 use loom_types_events::{MessageMempoolDataUpdate, NodeMempoolDataUpdate};
 
 /// Worker listens for new transactions in the node mempool and broadcasts [`MessageMempoolDataUpdate`].
-pub async fn new_node_mempool_worker<P, T>(client: P, name: String, mempool_tx: Broadcaster<MessageMempoolDataUpdate>) -> WorkerResult
+pub async fn new_node_mempool_worker<P>(client: P, name: String, mempool_tx: Broadcaster<MessageMempoolDataUpdate>) -> WorkerResult
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + 'static,
+    P: Provider<Ethereum> + Send + Sync + 'static,
 {
     let mempool_subscription = client.subscribe_full_pending_transactions().await?;
     let mut stream = mempool_subscription.into_stream();
@@ -38,21 +34,19 @@ where
 }
 
 #[derive(Producer)]
-pub struct NodeMempoolActor<P, T> {
+pub struct NodeMempoolActor<P> {
     name: &'static str,
     client: P,
     #[producer]
     mempool_tx: Option<Broadcaster<MessageMempoolDataUpdate>>,
-    _t: PhantomData<T>,
 }
 
-impl<P, T> NodeMempoolActor<P, T>
+impl<P> NodeMempoolActor<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P) -> NodeMempoolActor<P, T> {
-        NodeMempoolActor { client, name: "NodeMempoolActor", mempool_tx: None, _t: PhantomData }
+    pub fn new(client: P) -> NodeMempoolActor<P> {
+        NodeMempoolActor { client, name: "NodeMempoolActor", mempool_tx: None }
     }
 
     pub fn with_name(self, name: String) -> Self {
@@ -68,10 +62,9 @@ where
     }
 }
 
-impl<P, T> Actor for NodeMempoolActor<P, T>
+impl<P> Actor for NodeMempoolActor<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task =

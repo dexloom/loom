@@ -5,7 +5,6 @@ use std::sync::Arc;
 use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use eyre::Result;
 use tracing::{debug, error, info};
 
@@ -23,17 +22,16 @@ use tokio::sync::Semaphore;
 
 const MAX_CONCURRENT_TASKS: usize = 20;
 
-pub async fn pool_loader_worker<P, T, N, DB>(
+pub async fn pool_loader_worker<P, N, DB>(
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_loaders: Arc<PoolLoaders<P, N>>,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     tasks_rx: Broadcaster<LoomTask>,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let mut processed_pools = HashMap::new();
@@ -89,18 +87,17 @@ where
 }
 
 /// Fetch pool data, add it to the market and fetch the required state
-pub async fn fetch_and_add_pool_by_pool_id<P, T, N, DB>(
+pub async fn fetch_and_add_pool_by_pool_id<P, N, DB>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
-    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_loaders: Arc<PoolLoaders<P, N>>,
     pool_id: PoolId,
     pool_class: PoolClass,
 ) -> Result<()>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     debug!(%pool_id, %pool_class, "Fetching pool");
@@ -111,16 +108,15 @@ where
     Ok(())
 }
 
-pub async fn fetch_state_and_add_pool<P, T, N, DB>(
+pub async fn fetch_state_and_add_pool<P, N, DB>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     pool_wrapped: PoolWrapper,
 ) -> Result<()>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     match pool_wrapped.get_state_required() {
@@ -170,34 +166,31 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct PoolLoaderActor<P, T, N, DB>
+pub struct PoolLoaderActor<P, N, DB>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_loaders: Arc<PoolLoaders<P, N>>,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
     tasks_rx: Option<Broadcaster<LoomTask>>,
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N, DB> PoolLoaderActor<P, T, N, DB>
+impl<P, N, DB> PoolLoaderActor<P, N, DB>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
-    pub fn new(client: P, pool_loader: Arc<PoolLoaders<P, T, N>>) -> Self {
-        Self { client, pool_loaders: pool_loader, market: None, market_state: None, tasks_rx: None, _t: PhantomData, _n: PhantomData }
+    pub fn new(client: P, pool_loader: Arc<PoolLoaders<P, N>>) -> Self {
+        Self { client, pool_loaders: pool_loader, market: None, market_state: None, tasks_rx: None, _n: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
@@ -205,11 +198,10 @@ where
     }
 }
 
-impl<P, T, N, DB> Actor for PoolLoaderActor<P, T, N, DB>
+impl<P, N, DB> Actor for PoolLoaderActor<P, N, DB>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Default + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {

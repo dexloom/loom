@@ -1,9 +1,8 @@
 use crate::pool_config::PoolsConfig;
 use crate::{PoolClass, PoolId, PoolWrapper};
-use alloy_network::Network;
+use alloy_network::{Ethereum, Network};
 use alloy_primitives::Bytes;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, Result};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use reth_revm::primitives::Env;
@@ -15,11 +14,10 @@ use std::sync::Arc;
 use tokio_stream::Stream;
 
 #[allow(clippy::type_complexity)]
-pub trait PoolLoader<P, T, N, LDT = LoomDataTypesEthereum>: Send + Sync + 'static
+pub trait PoolLoader<P, N, LDT = LoomDataTypesEthereum>: Send + Sync + 'static
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N>,
+    P: Provider<N>,
     LDT: Send + Sync + LoomDataTypes,
 {
     fn get_pool_class_by_log(&self, log_entry: &LDT::Log) -> Option<(PoolId<LDT>, PoolClass)>;
@@ -39,23 +37,21 @@ where
     fn protocol_loader(&self) -> Result<Pin<Box<dyn Stream<Item = (PoolId, PoolClass)> + Send>>>;
 }
 
-pub struct PoolLoaders<P, T, N, LDT = LoomDataTypesEthereum>
+pub struct PoolLoaders<P, N = Ethereum, LDT = LoomDataTypesEthereum>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + 'static,
+    P: Provider<N> + 'static,
     LDT: LoomDataTypes,
 {
     provider: Option<P>,
     config: Option<PoolsConfig>,
-    pub map: HashMap<PoolClass, Arc<dyn PoolLoader<P, T, N, LDT>>>,
+    pub map: HashMap<PoolClass, Arc<dyn PoolLoader<P, N, LDT>>>,
 }
 
-impl<P, T, N, LDT> PoolLoaders<P, T, N, LDT>
+impl<P, N, LDT> PoolLoaders<P, N, LDT>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + 'static,
+    P: Provider<N> + 'static,
     LDT: LoomDataTypes,
 {
     pub fn new() -> Self {
@@ -70,18 +66,17 @@ where
         Self { provider: Some(provider), ..self }
     }
 
-    pub fn add_loader(self, pool_class: PoolClass, loader: Arc<dyn PoolLoader<P, T, N, LDT>>) -> Self {
+    pub fn add_loader(self, pool_class: PoolClass, loader: Arc<dyn PoolLoader<P, N, LDT>>) -> Self {
         let mut map = self.map;
         map.insert(pool_class, loader);
         Self { map, ..self }
     }
 }
 
-impl<P, T, N, LDT> Default for PoolLoaders<P, T, N, LDT>
+impl<P, N, LDT> Default for PoolLoaders<P, N, LDT>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + 'static,
+    P: Provider<N> + 'static,
     LDT: LoomDataTypes,
 {
     fn default() -> Self {
@@ -89,11 +84,10 @@ where
     }
 }
 
-impl<P, T, N> PoolLoaders<P, T, N>
+impl<P, N> PoolLoaders<P, N>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + 'static,
+    P: Provider<N> + 'static,
 {
     pub fn determine_pool_class(
         &self,

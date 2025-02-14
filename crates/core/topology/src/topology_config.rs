@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fs;
 
 use alloy_provider::RootProvider;
-use alloy_transport::BoxTransport;
 use eyre::Result;
 use loom_broadcast_flashbots::client::RelayConfig;
 use serde::Deserialize;
@@ -50,11 +49,11 @@ pub struct ClientConfigParams {
     pub db_path: Option<String>,
     pub exex: Option<String>,
     #[serde(skip)]
-    pub provider: Option<RootProvider<BoxTransport>>,
+    pub provider: Option<RootProvider>,
 }
 
 impl ClientConfigParams {
-    pub fn client(&self) -> Option<&RootProvider<BoxTransport>> {
+    pub fn client(&self) -> Option<&RootProvider> {
         self.provider.as_ref()
     }
 }

@@ -7,13 +7,12 @@ use crate::worker::node_player_worker;
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::BlockNumber;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use eyre::ErrReport;
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_evm_db::DatabaseLoomExt;
-use loom_node_debug_provider::{DebugProviderExt, HttpCachedTransport};
+use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::Mempool;
 use loom_types_entities::MarketState;
@@ -21,7 +20,7 @@ use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, Mess
 use tokio::task::JoinHandle;
 
 #[derive(Producer, Consumer, Accessor)]
-pub struct NodeBlockPlayerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
+pub struct NodeBlockPlayerActor<P, N, DB: Send + Sync + Clone + 'static> {
     client: P,
     start_block: BlockNumber,
     end_block: BlockNumber,
@@ -39,18 +38,16 @@ pub struct NodeBlockPlayerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
     block_logs_channel: Option<Broadcaster<MessageBlockLogs>>,
     #[producer]
     block_state_update_channel: Option<Broadcaster<MessageBlockStateUpdate>>,
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N, DB> NodeBlockPlayerActor<P, T, N, DB>
+impl<P, N, DB> NodeBlockPlayerActor<P, N, DB>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, start_block: BlockNumber, end_block: BlockNumber) -> NodeBlockPlayerActor<P, T, N, DB> {
+    pub fn new(client: P, start_block: BlockNumber, end_block: BlockNumber) -> NodeBlockPlayerActor<P, N, DB> {
         NodeBlockPlayerActor {
             client,
             start_block,
@@ -62,7 +59,6 @@ where
             block_with_tx_channel: None,
             block_logs_channel: None,
             block_state_update_channel: None,
-            _t: PhantomData,
             _n: PhantomData,
         }
     }
@@ -81,10 +77,9 @@ where
     }
 }
 
-impl<P, T, N, DB> Actor for NodeBlockPlayerActor<P, T, N, DB>
+impl<P, N, DB> Actor for NodeBlockPlayerActor<P, N, DB>
 where
-    P: Provider<HttpCachedTransport, Ethereum> + DebugProviderExt<HttpCachedTransport, Ethereum> + Send + Sync + Clone + 'static,
-    T: Send + Sync,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     N: Send + Sync,
     DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {

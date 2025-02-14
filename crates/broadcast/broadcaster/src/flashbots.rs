@@ -3,7 +3,6 @@ use std::sync::Arc;
 use alloy_network::Ethereum;
 use alloy_primitives::Bytes;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use tokio::sync::broadcast::error::RecvError;
 use tracing::error;
@@ -14,10 +13,9 @@ use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_types_events::{MessageTxCompose, RlpState, TxComposeData, TxComposeMessageType};
 
-async fn broadcast_task<P, T>(broadcast_request: TxComposeData, client: Arc<Flashbots<P, T>>) -> Result<()>
+async fn broadcast_task<P>(broadcast_request: TxComposeData, client: Arc<Flashbots<P>>) -> Result<()>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     let block_number = broadcast_request.next_block_number;
 
@@ -40,14 +38,13 @@ where
     }
 }
 
-async fn flashbots_broadcaster_worker<P, T>(
-    client: Arc<Flashbots<P, T>>,
+async fn flashbots_broadcaster_worker<P>(
+    client: Arc<Flashbots<P>>,
     bundle_rx: Broadcaster<MessageTxCompose>,
     allow_broadcast: bool,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     subscribe!(bundle_rx);
 
@@ -113,19 +110,18 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct FlashbotsBroadcastActor<P, T> {
-    client: Arc<Flashbots<P, T>>,
+pub struct FlashbotsBroadcastActor<P> {
+    client: Arc<Flashbots<P>>,
     #[consumer]
     tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     allow_broadcast: bool,
 }
 
-impl<P, T> FlashbotsBroadcastActor<P, T>
+impl<P> FlashbotsBroadcastActor<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: Flashbots<P, T>, allow_broadcast: bool) -> FlashbotsBroadcastActor<P, T> {
+    pub fn new(client: Flashbots<P>, allow_broadcast: bool) -> FlashbotsBroadcastActor<P> {
         FlashbotsBroadcastActor { client: Arc::new(client), tx_compose_channel_rx: None, allow_broadcast }
     }
 
@@ -134,10 +130,9 @@ where
     }
 }
 
-impl<P, T> Actor for FlashbotsBroadcastActor<P, T>
+impl<P> Actor for FlashbotsBroadcastActor<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(flashbots_broadcaster_worker(

@@ -3,7 +3,6 @@ mod test {
     use crate::BlockHistoryActor;
     use alloy_network::Ethereum;
     use alloy_provider::Provider;
-    use alloy_transport::Transport;
     use loom_core_blockchain::{Blockchain, BlockchainState};
     use loom_types_events::{BlockLogs, BlockStateUpdate, BlockUpdate, MessageBlockHeader};
     use revm::db::DatabaseRef;
@@ -71,10 +70,9 @@ mod test {
         Ok(())
     }
 
-    async fn broadcast_latest_block<P, T>(provider: P, bc: &Blockchain, state_update: Option<GethStateUpdateVec>) -> eyre::Result<()>
+    async fn broadcast_latest_block<P>(provider: P, bc: &Blockchain, state_update: Option<GethStateUpdateVec>) -> eyre::Result<()>
     where
-        T: Transport + Send + Sync + Clone + 'static,
-        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+        P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     {
         let block = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
         let filter = Filter::new().at_block_hash(block.header.hash);
@@ -86,14 +84,13 @@ mod test {
         broadcast_to_channels(bc, block.header.clone(), Some(block), Some(logs), Some(state_update)).await
     }
 
-    async fn test_actor_block_history_actor_chain_head_worker<P, T>(
+    async fn test_actor_block_history_actor_chain_head_worker<P>(
         provider: P,
         bc: Blockchain,
         state: BlockchainState<LoomDB>,
     ) -> eyre::Result<()>
     where
-        T: Transport + Send + Sync + Clone + 'static,
-        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+        P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     {
         const ADDR_01: Address = Address::repeat_byte(1);
         let cell_01: B256 = B256::from(U256::from_limbs([1, 0, 0, 0]));
@@ -130,19 +127,19 @@ mod test {
         assert_eq!(state.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(2));
 
         let snap = provider.anvil_snapshot().await?;
-        provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 1#0
+        provider.anvil_mine(Some(1), None).await?; // mine block 1#0
         broadcast_latest_block(provider.clone(), &bc, None).await?; // broadcast 1#0
 
-        provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 2#0
+        provider.anvil_mine(Some(1), None).await?; // mine block 2#0
         let block_2_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
 
         broadcast_latest_block(provider.clone(), &bc, None).await?; // broadcast 2#0
 
-        provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 3#0
+        provider.anvil_mine(Some(1), None).await?; // mine block 3#0
         let block_3_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
 
         provider.anvil_revert(snap).await?;
-        provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 1#1
+        provider.anvil_mine(Some(1), None).await?; // mine block 1#1
 
         let account_1_1 = account_state_add_storage(account_state_with_nonce_and_balance(4, U256::from(5)), cell_01, value_03);
         let state_1_1 = geth_state_update_add_account(GethStateUpdate::default(), ADDR_01, account_1_1);
@@ -152,7 +149,7 @@ mod test {
         assert_eq!(state.market_state().read().await.state_db.basic_ref(ADDR_01)?.unwrap().balance, U256::from(3));
         assert_eq!(state.market_state().read().await.state_db.storage_ref(ADDR_01, U256::from(1))?, U256::from(2));
 
-        provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 2#1
+        provider.anvil_mine(Some(1), None).await?; // mine block 2#1
         let block_2_1 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
 
         broadcast_latest_block(provider.clone(), &bc, None).await?; // broadcast 2#1, chain_head must change
@@ -198,8 +195,8 @@ mod test {
         ));
 
         let anvil = Anvil::new().try_spawn()?;
-        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url()).boxed();
-        let provider = ProviderBuilder::new().on_client(client_anvil);
+        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url());
+        let provider = ProviderBuilder::new().disable_recommended_fillers().on_client(client_anvil);
 
         let blockchain = Blockchain::new(1);
 
@@ -241,25 +238,24 @@ mod test {
         Ok(())
     }
 
-    async fn test_actor_block_history_actor_reorg_worker<P, T>(provider: P, bc: Blockchain) -> eyre::Result<()>
+    async fn test_actor_block_history_actor_reorg_worker<P>(provider: P, bc: Blockchain) -> eyre::Result<()>
     where
-        T: Transport + Send + Sync + Clone + 'static,
-        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+        P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     {
         let snap = provider.anvil_snapshot().await?;
 
         broadcast_latest_block(provider.clone(), &bc, None).await?; // block 0
-        provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 1#0
-        provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 2#0
+        provider.anvil_mine(Some(1), None).await?; // mine block 1#0
+        provider.anvil_mine(Some(1), None).await?; // mine block 2#0
         broadcast_latest_block(provider.clone(), &bc, None).await?; // block 2#0
 
         provider.anvil_revert(snap).await?;
 
-        provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 1#1
+        provider.anvil_mine(Some(1), None).await?; // mine block 1#1
         broadcast_latest_block(provider.clone(), &bc, None).await?;
-        provider.anvil_mine(Some(U256::from(1)), None).await?; // mine block 2#1
+        provider.anvil_mine(Some(1), None).await?; // mine block 2#1
         broadcast_latest_block(provider.clone(), &bc, None).await?;
-        provider.anvil_mine(Some(U256::from(1)), None).await.map_err(|_| eyre!("3#1"))?; // mine block 3#1
+        provider.anvil_mine(Some(1), None).await.map_err(|_| eyre!("3#1"))?; // mine block 3#1
         broadcast_latest_block(provider.clone(), &bc, None).await?;
 
         Ok(())
@@ -270,9 +266,9 @@ mod test {
         let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("info,tokio_tungstenite=off,tungstenite=off"));
 
         let anvil = Anvil::new().try_spawn()?;
-        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url()).boxed();
+        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url());
 
-        let provider = ProviderBuilder::new().on_client(client_anvil);
+        let provider = ProviderBuilder::new().disable_recommended_fillers().on_client(client_anvil);
 
         let blockchain = Blockchain::new(1);
 

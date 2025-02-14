@@ -440,8 +440,8 @@ mod test {
         let transport = HttpCachedTransport::new(node_url, Some("./.cache")).await;
         transport.set_block_number(20179184);
 
-        let client = ClientBuilder::default().transport(transport.clone(), true).with_poll_interval(Duration::from_millis(50)).boxed();
-        let provider = ProviderBuilder::new().on_client(client);
+        let client = ClientBuilder::default().transport(transport.clone(), true).with_poll_interval(Duration::from_millis(50));
+        let provider = ProviderBuilder::new().disable_recommended_fillers().on_client(client);
 
         let block_number = provider.get_block_number().await?;
         debug!("block {block_number}");
