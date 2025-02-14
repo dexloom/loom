@@ -1,6 +1,5 @@
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use loom_core_actors::SharedState;
 use loom_defi_address_book::{
     CurveMetapoolAddress, CurvePoolAddress, PancakeV2PoolAddress, PancakeV3PoolAddress, TokenAddressEth, UniswapV2PoolAddress,
@@ -14,10 +13,9 @@ use loom_types_entities::{Market, MarketState, PoolClass, Token};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::sync::Arc;
 
-pub async fn preload_pools<P, T, DB>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState<DB>>) -> eyre::Result<()>
+pub async fn preload_pools<P, DB>(client: P, market: SharedState<Market>, market_state: SharedState<MarketState<DB>>) -> eyre::Result<()>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + DatabaseCommit + Database + Send + Sync + Clone + 'static,
 {
     let mut market_instance = market.write().await;

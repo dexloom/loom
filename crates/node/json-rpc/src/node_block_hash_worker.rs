@@ -5,7 +5,6 @@ use alloy_primitives::BlockHash;
 use alloy_provider::Provider;
 use alloy_pubsub::PubSubConnect;
 use alloy_rpc_types::Header;
-use alloy_transport::Transport;
 use chrono::Utc;
 use eyre::Result;
 use futures::StreamExt;
@@ -39,14 +38,13 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
     }
 }
 
-pub async fn new_node_block_header_worker<P, T>(
+pub async fn new_node_block_header_worker<P>(
     client: P,
     new_block_header_channel: Broadcaster<Header>,
     block_header_channel: Broadcaster<MessageBlockHeader>,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     info!("Starting node block header worker");
     let sub = client.subscribe_blocks().await?;

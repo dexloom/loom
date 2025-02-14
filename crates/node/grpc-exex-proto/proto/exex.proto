@@ -89,7 +89,7 @@ message Header {
   optional bytes parent_beacon_block_root = 19;
   // TODO: add requests_root
   bytes extra_data = 20;
-  optional bytes requests_hash = 21;
+  //optional bytes requests_hash = 21;
 }
 
 message Transaction {

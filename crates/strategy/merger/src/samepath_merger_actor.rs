@@ -10,7 +10,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::state::StateOverride;
 use alloy_rpc_types::{BlockOverrides, Transaction};
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
-use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, Result};
 use lazy_static::lazy_static;
 use revm::primitives::{BlockEnv, Env, CANCUN};
@@ -63,7 +62,7 @@ fn get_merge_list<'a, DB: Clone + 'static>(
     ret
 }
 
-async fn same_path_merger_task<P, T, N, DB>(
+async fn same_path_merger_task<P, N, DB>(
     client: P,
     stuffing_txes: Vec<Transaction>,
     pre_states: Arc<RwLock<DataFetcher<TxHash, GethStateUpdate>>>,
@@ -74,8 +73,7 @@ async fn same_path_merger_task<P, T, N, DB>(
 ) -> Result<()>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     debug!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len());
@@ -237,9 +235,8 @@ where
 }
 
 async fn same_path_merger_worker<
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 >(
     client: P,
@@ -353,7 +350,7 @@ async fn same_path_merger_worker<
 }
 
 #[derive(Consumer, Producer, Accessor)]
-pub struct SamePathMergerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
+pub struct SamePathMergerActor<P, N, DB: Send + Sync + Clone + 'static> {
     client: P,
     //encoder: SwapStepEncoder,
     #[accessor]
@@ -366,15 +363,13 @@ pub struct SamePathMergerActor<P, T, N, DB: Send + Sync + Clone + 'static> {
     compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
     compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N, DB> SamePathMergerActor<P, T, N, DB>
+impl<P, N, DB> SamePathMergerActor<P, N, DB>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
@@ -385,7 +380,6 @@ where
             market_events: None,
             compose_channel_rx: None,
             compose_channel_tx: None,
-            _t: PhantomData,
             _n: PhantomData,
         }
     }
@@ -402,11 +396,10 @@ where
     }
 }
 
-impl<P, T, N, DB> Actor for SamePathMergerActor<P, T, N, DB>
+impl<P, N, DB> Actor for SamePathMergerActor<P, N, DB>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {

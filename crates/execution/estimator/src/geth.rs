@@ -7,7 +7,6 @@ use alloy_network::Ethereum;
 use alloy_primitives::{Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{TransactionInput, TransactionRequest};
-use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info};
@@ -22,13 +21,9 @@ use loom_core_actors_macros::{Consumer, Producer};
 use loom_types_blockchain::LoomTx;
 use loom_types_events::{MessageSwapCompose, SwapComposeData, SwapComposeMessage, TxComposeData, TxState};
 
-async fn estimator_task<
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone,
->(
+async fn estimator_task<P: Provider<Ethereum> + Send + Sync + Clone + 'static, DB: DatabaseRef + Send + Sync + Clone>(
     estimate_request: SwapComposeData<DB>,
-    client: Arc<Flashbots<P, T>>,
+    client: Arc<Flashbots<P>>,
     swap_encoder: impl SwapEncoder,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> Result<()> {
@@ -202,12 +197,8 @@ async fn estimator_task<
     Ok(())
 }
 
-async fn estimator_worker<
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + Send + Sync + Clone,
->(
-    client: Arc<Flashbots<P, T>>,
+async fn estimator_worker<P: Provider<Ethereum> + Send + Sync + Clone + 'static, DB: DatabaseRef + Send + Sync + Clone>(
+    client: Arc<Flashbots<P>>,
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
     compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
@@ -245,8 +236,8 @@ async fn estimator_worker<
 }
 
 #[derive(Consumer, Producer)]
-pub struct GethEstimatorActor<P, T, E, DB: Clone + Send + Sync + 'static> {
-    client: Arc<Flashbots<P, T>>,
+pub struct GethEstimatorActor<P, E, DB: Clone + Send + Sync + 'static> {
+    client: Arc<Flashbots<P>>,
     encoder: E,
     #[consumer]
     compose_channel_rx: Option<Broadcaster<MessageSwapCompose<DB>>>,
@@ -254,14 +245,13 @@ pub struct GethEstimatorActor<P, T, E, DB: Clone + Send + Sync + 'static> {
     compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
 }
 
-impl<P, T, E, DB> GethEstimatorActor<P, T, E, DB>
+impl<P, E, DB> GethEstimatorActor<P, E, DB>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     E: SwapEncoder + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Send + Sync + Clone,
 {
-    pub fn new(client: Arc<Flashbots<P, T>>, encoder: E) -> Self {
+    pub fn new(client: Arc<Flashbots<P>>, encoder: E) -> Self {
         Self { client, encoder, compose_channel_tx: None, compose_channel_rx: None }
     }
 
@@ -274,10 +264,9 @@ where
     }
 }
 
-impl<P, T, E, DB> Actor for GethEstimatorActor<P, T, E, DB>
+impl<P, E, DB> Actor for GethEstimatorActor<P, E, DB>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     E: SwapEncoder + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Send + Sync + Clone,
 {

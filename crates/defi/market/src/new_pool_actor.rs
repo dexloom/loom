@@ -1,6 +1,5 @@
 use alloy_network::Network;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use eyre::Result;
 use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;
@@ -14,15 +13,14 @@ use loom_types_events::{LoomTask, MessageBlockLogs};
 
 use crate::logs_parser::process_log_entries;
 
-pub async fn new_pool_worker<P, T, N>(
+pub async fn new_pool_worker<P, N>(
     log_update_rx: Broadcaster<MessageBlockLogs>,
-    pools_loaders: Arc<PoolLoaders<P, T, N>>,
+    pools_loaders: Arc<PoolLoaders<P, N>>,
     tasks_tx: Broadcaster<LoomTask>,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     subscribe!(log_update_rx);
 
@@ -51,26 +49,24 @@ where
 }
 
 #[derive(Consumer, Producer)]
-pub struct NewPoolLoaderActor<P, T, N>
+pub struct NewPoolLoaderActor<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_loaders: Arc<PoolLoaders<P, N>>,
     #[consumer]
     log_update_rx: Option<Broadcaster<MessageBlockLogs>>,
     #[producer]
     tasks_tx: Option<Broadcaster<LoomTask>>,
 }
 
-impl<P, T, N> NewPoolLoaderActor<P, T, N>
+impl<P, N> NewPoolLoaderActor<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(pool_loaders: Arc<PoolLoaders<P, T, N>>) -> Self {
+    pub fn new(pool_loaders: Arc<PoolLoaders<P, N>>) -> Self {
         NewPoolLoaderActor { log_update_rx: None, pool_loaders, tasks_tx: None }
     }
 
@@ -79,11 +75,10 @@ where
     }
 }
 
-impl<P, T, N> Actor for NewPoolLoaderActor<P, T, N>
+impl<P, N> Actor for NewPoolLoaderActor<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_pool_worker(

@@ -8,7 +8,6 @@ use alloy_network::{BlockResponse, Ethereum};
 use alloy_primitives::{BlockHash, BlockNumber};
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, BlockId, BlockTransactionsKind, Filter, Header, Log};
-use alloy_transport::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::{debug_trace_block, GethStateUpdateVec};
@@ -247,15 +246,14 @@ impl<S> BlockHistory<S> {
     }
 }
 
-pub struct BlockHistoryManager<P, T, D> {
+pub struct BlockHistoryManager<P, D> {
     client: P,
-    _td: PhantomData<(T, D)>,
+    _td: PhantomData<D>,
 }
 
-impl<P, T, S> BlockHistoryManager<P, T, S>
+impl<P, S> BlockHistoryManager<P, S>
 where
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-    T: Transport + Clone + Send + Sync + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     S: Clone,
 {
     pub async fn fetch_entry_by_hash(&self, block_hash: BlockHash) -> Result<BlockHistoryEntry> {
@@ -323,16 +321,14 @@ where
     }
 }
 
-impl<P, T, S> BlockHistoryManager<P, T, S>
+impl<P, S> BlockHistoryManager<P, S>
 where
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
-    T: Transport + Clone + Send + Sync + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     S: BlockHistoryState + Clone,
 {
     pub fn init(&self, current_state: S, depth: usize, block: Block) -> BlockHistory<S>
     where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+        P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     {
         let latest_block_number = block.header.number;
         let block_hash = block.header.hash;
@@ -356,8 +352,7 @@ where
 
     pub async fn fetch_entry_data(&self, entry: &mut BlockHistoryEntry) -> Result<()>
     where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+        P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     {
         if entry.logs.is_none() {
             let filter = Filter::new().at_block_hash(entry.hash());
@@ -557,9 +552,9 @@ mod test {
     #[tokio::test]
     async fn test_with_anvil() -> Result<()> {
         let anvil = Anvil::new().try_spawn()?;
-        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url()).boxed();
+        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url());
 
-        let provider = ProviderBuilder::new().on_client(client_anvil);
+        let provider = ProviderBuilder::new().disable_recommended_fillers().on_client(client_anvil);
 
         provider.anvil_set_auto_mine(false).await?;
 
@@ -575,7 +570,7 @@ mod test {
 
         let snap = provider.anvil_snapshot().await?;
 
-        provider.anvil_mine(Some(U256::from(1)), None).await?;
+        provider.anvil_mine(Some(1), None).await?;
 
         let block_number_2 = provider.get_block_number().await?;
         let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();

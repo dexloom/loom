@@ -2,9 +2,8 @@ use alloy_json_rpc::RpcError;
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
-use alloy_transport::{Transport, TransportErrorKind};
+use alloy_transport::TransportErrorKind;
 use eyre::Result;
-use std::marker::PhantomData;
 use thiserror::Error;
 use url::Url;
 
@@ -40,27 +39,25 @@ pub enum FlashbotsMiddlewareError {
 }
 
 #[derive(Clone)]
-pub struct FlashbotsMiddleware<P, T> {
+pub struct FlashbotsMiddleware<P> {
     provider: P,
     relay: Relay,
     simulation_relay: Option<Relay>,
-    _t: PhantomData<T>,
 }
 
-impl<P, T> FlashbotsMiddleware<P, T>
+impl<P> FlashbotsMiddleware<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     /// Initialize a new Flashbots middleware.
     ///
     /// The signer is used to sign requests to the relay.
     pub fn new(relay_url: impl Into<Url>, provider: P) -> Self {
-        Self { provider, relay: Relay::new(relay_url, Some(PrivateKeySigner::random())), simulation_relay: None, _t: PhantomData }
+        Self { provider, relay: Relay::new(relay_url, Some(PrivateKeySigner::random())), simulation_relay: None }
     }
 
     pub fn new_no_signer(relay_url: impl Into<Url>, provider: P) -> Self {
-        Self { provider, relay: Relay::new(relay_url, None), simulation_relay: None, _t: PhantomData }
+        Self { provider, relay: Relay::new(relay_url, None), simulation_relay: None }
     }
 
     /// Get the relay client used by the middleware.

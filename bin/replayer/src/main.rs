@@ -5,6 +5,7 @@ use std::time::Duration;
 
 use alloy::contract::CallBuilder;
 use alloy::primitives::{address, Address, U256};
+use alloy::providers::RootProvider;
 use alloy::rpc::types::Header;
 use alloy::{providers::ProviderBuilder, rpc::client::ClientBuilder};
 use clap::Parser;
@@ -58,9 +59,9 @@ async fn main() -> Result<()> {
     transport.set_block_number(start_block_number);
 
     let client = ClientBuilder::default().transport(transport.clone(), true).with_poll_interval(Duration::from_millis(50));
-    let provider = ProviderBuilder::new().on_client(client);
+    let provider = ProviderBuilder::new().disable_recommended_fillers().on_client(client);
 
-    let node_provider = ProviderBuilder::new().on_http(node_url);
+    let node_provider = ProviderBuilder::new().disable_recommended_fillers().on_http(node_url);
 
     // creating singers
     //let tx_signers = SharedState::new(TxSigners::new());
@@ -194,7 +195,7 @@ async fn main() -> Result<()> {
 
                         if let Ok(balance) = ERC20StateReader::balance_of(&state_db, env_for_block(cur_header.number, cur_header.timestamp), TokenAddressEth::WETH, TARGET_ADDRESS ) {
                             info!("------WETH Balance of {} : {}", TARGET_ADDRESS, balance);
-                            let fetched_balance = CallBuilder::new_raw(node_provider.clone(), AbiEncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS)).to(TokenAddressEth::WETH).block(cur_header.number.into()).call().await?;
+                            let fetched_balance = CallBuilder::<(), RootProvider, ()>::new_raw(node_provider.clone(), AbiEncoderHelper::encode_erc20_balance_of(TARGET_ADDRESS)).to(TokenAddressEth::WETH).block(cur_header.number.into()).call().await?;
 
                             let fetched_balance = U256::from_be_slice(fetched_balance.to_vec().as_slice());
                             if fetched_balance != balance {

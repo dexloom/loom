@@ -55,7 +55,8 @@ fn main() -> eyre::Result<()> {
                 .await?;
 
             let mempool = handle.node.pool.clone();
-            let ipc_provider = ProviderBuilder::new().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;
+            let ipc_provider =
+                ProviderBuilder::new().disable_recommended_fillers().on_builtin(handle.node.config.rpc.ipcpath.as_str()).await?;
             let alloy_db = AlloyDB::new(ipc_provider.clone(), BlockId::latest()).unwrap();
 
             let state_db = LoomDB::new().with_ext_db(alloy_db);
@@ -94,7 +95,7 @@ fn main() -> eyre::Result<()> {
                 let client_config = topology_config.clients.get("remote").unwrap();
                 let transport = WsConnect { url: client_config.url(), auth: None, config: None };
                 let client = ClientBuilder::default().ws(transport).await?;
-                let provider = ProviderBuilder::new().on_client(client).boxed();
+                let provider = ProviderBuilder::new().disable_recommended_fillers().on_client(client);
                 let bc = Blockchain::new(Chain::mainnet().id());
                 let bc_clone = bc.clone();
 

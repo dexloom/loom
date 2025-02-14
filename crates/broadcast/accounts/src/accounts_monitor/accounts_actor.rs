@@ -5,7 +5,6 @@ use alloy_primitives::{Address, Log, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockTransactions;
 use alloy_sol_types::SolEventInterface;
-use alloy_transport::Transport;
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
@@ -18,15 +17,14 @@ use tokio::sync::broadcast::error::RecvError;
 use tokio::time::sleep;
 use tracing::debug;
 
-pub async fn nonce_and_balance_fetcher_worker<P, T, N>(
+pub async fn nonce_and_balance_fetcher_worker<P, N>(
     client: P,
     accounts_state: SharedState<AccountNonceAndBalanceState>,
     only_once: bool,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     let eth_addr = Address::ZERO;
 
@@ -139,7 +137,7 @@ pub async fn nonce_and_balance_monitor_worker(
 }
 
 #[derive(Accessor, Consumer)]
-pub struct NonceAndBalanceMonitorActor<P, T, N> {
+pub struct NonceAndBalanceMonitorActor<P, N> {
     client: P,
     only_once: bool,
     with_fetcher: bool,
@@ -149,17 +147,15 @@ pub struct NonceAndBalanceMonitorActor<P, T, N> {
     latest_block: Option<SharedState<LatestBlock>>,
     #[consumer]
     market_events: Option<Broadcaster<MarketEvents>>,
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> NonceAndBalanceMonitorActor<P, T, N>
+impl<P, N> NonceAndBalanceMonitorActor<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P) -> NonceAndBalanceMonitorActor<P, T, N> {
+    pub fn new(client: P) -> NonceAndBalanceMonitorActor<P, N> {
         NonceAndBalanceMonitorActor {
             client,
             accounts_nonce_and_balance: None,
@@ -167,7 +163,6 @@ where
             market_events: None,
             only_once: false,
             with_fetcher: true,
-            _t: PhantomData,
             _n: PhantomData,
         }
     }
@@ -180,7 +175,7 @@ where
         Self { with_fetcher: false, ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain) -> NonceAndBalanceMonitorActor<P, T, N> {
+    pub fn on_bc(self, bc: &Blockchain) -> NonceAndBalanceMonitorActor<P, N> {
         NonceAndBalanceMonitorActor {
             accounts_nonce_and_balance: Some(bc.nonce_and_balance()),
             latest_block: Some(bc.latest_block().clone()),
@@ -190,11 +185,10 @@ where
     }
 }
 
-impl<P, T, N> Actor for NonceAndBalanceMonitorActor<P, T, N>
+impl<P, N> Actor for NonceAndBalanceMonitorActor<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let mut handles = Vec::new();

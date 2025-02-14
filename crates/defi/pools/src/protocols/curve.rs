@@ -30,30 +30,28 @@ use loom_defi_abi::curve::{
 };
 
 #[derive(Clone, Debug)]
-pub enum CurveContract<P, T, N>
+pub enum CurveContract<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    I128_2(ICurveI128_2Instance<T, P, N>),
-    I128_2To(ICurveI128_2_ToInstance<T, P, N>),
-    I128_2ToMeta(ICurveI128_2_To_MetaInstance<T, P, N>),
-    I128_3(ICurveI128_3Instance<T, P, N>),
-    I128_4(ICurveI128_4Instance<T, P, N>),
-    U256_2(ICurveU256_2Instance<T, P, N>),
-    U256_2To(ICurveU256_2_ToInstance<T, P, N>),
-    U256_2EthTo(ICurveU256_2_Eth_ToInstance<T, P, N>),
-    U256_3Eth(ICurveU256_3_EthInstance<T, P, N>),
-    U256_3EthTo(ICurveU256_3_Eth_ToInstance<T, P, N>),
-    U256_3EthTo2(ICurveU256_3_Eth_To2Instance<T, P, N>),
+    I128_2(ICurveI128_2Instance<(), P, N>),
+    I128_2To(ICurveI128_2_ToInstance<(), P, N>),
+    I128_2ToMeta(ICurveI128_2_To_MetaInstance<(), P, N>),
+    I128_3(ICurveI128_3Instance<(), P, N>),
+    I128_4(ICurveI128_4Instance<(), P, N>),
+    U256_2(ICurveU256_2Instance<(), P, N>),
+    U256_2To(ICurveU256_2_ToInstance<(), P, N>),
+    U256_2EthTo(ICurveU256_2_Eth_ToInstance<(), P, N>),
+    U256_3Eth(ICurveU256_3_EthInstance<(), P, N>),
+    U256_3EthTo(ICurveU256_3_Eth_ToInstance<(), P, N>),
+    U256_3EthTo2(ICurveU256_3_Eth_To2Instance<(), P, N>),
 }
 
-impl<P, T, N> Display for CurveContract<P, T, N>
+impl<P, N> Display for CurveContract<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let contract_type = match self {
@@ -74,22 +72,18 @@ where
     }
 }
 
-pub struct CurveCommonContract<P, T, N>
+pub struct CurveCommonContract<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    p: PhantomData<P>,
-    t: PhantomData<T>,
-    n: PhantomData<N>,
+    _pd: PhantomData<(P, N)>,
 }
 
-impl<P, T, N> CurveCommonContract<P, T, N>
+impl<P, N> CurveCommonContract<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     pub async fn lp_token(address: Address) -> Result<Address> {
         if address == address!("bEbc44782C7dB0a1A60Cb6fe97d0b483032FF1C7") {
@@ -222,11 +216,10 @@ where
     }
 }
 
-impl<P, T, N> CurveContract<P, T, N>
+impl<P, N> CurveContract<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     pub fn get_address(&self) -> Address {
         match self {
@@ -386,10 +379,7 @@ where
             CurveContract::I128_4(interface) => Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone()),
             CurveContract::U256_2(interface) => Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy).calldata().clone()),
             CurveContract::U256_2To(interface) => {
-                Ok(ICurveU256_2_To::exchangeCall { _0: U256::from(i), _1: U256::from(j), _2: amount, _3: min_dy, _4: to }
-                    .abi_encode()
-                    .into())
-                //                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, to).calldata().clone())
+                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, to).calldata().clone())
             }
             CurveContract::U256_2EthTo(interface) => {
                 Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, false, to).calldata().clone())
@@ -425,22 +415,18 @@ where
     }
 }
 
-pub struct CurveProtocol<P, N, T>
+pub struct CurveProtocol<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    p: PhantomData<P>,
-    n: PhantomData<N>,
-    t: PhantomData<T>,
+    p: PhantomData<(P, N)>,
 }
 
-impl<P, N, T> CurveProtocol<P, N, T>
+impl<P, N> CurveProtocol<P, N>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     pub fn get_underlying_tokens(meta_token_address: Address) -> Result<Vec<Address>> {
         if meta_token_address == address!("6c3F90f043a72FA612cbac8115EE7e52BDe6E490") {
@@ -456,52 +442,53 @@ where
         }
     }
 
-    pub fn new_i128_2(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_i128_2(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveI128_2Instance::new(address, client);
         CurveContract::I128_2(contract)
     }
-    pub fn new_i128_2_to_meta(client: P, address: Address) -> CurveContract<P, T, N> {
+
+    pub fn new_i128_2_to_meta(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveI128_2_To_MetaInstance::new(address, client);
         CurveContract::I128_2ToMeta(contract)
     }
 
-    pub fn new_i128_2_to(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_i128_2_to(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveI128_2_To::new(address, client);
         CurveContract::I128_2To(contract)
     }
-    pub fn new_i128_3(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_i128_3(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveI128_3::new(address, client);
         CurveContract::I128_3(contract)
     }
-    pub fn new_i128_4(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_i128_4(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveI128_4::new(address, client);
         CurveContract::I128_4(contract)
     }
-    pub fn new_u256_2(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_u256_2(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveU256_2::new(address, client);
         CurveContract::U256_2(contract)
     }
 
-    pub fn new_u256_2_to(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_u256_2_to(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveU256_2_To::new(address, client);
         CurveContract::U256_2To(contract)
     }
 
-    pub fn new_u256_2_eth_to(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_u256_2_eth_to(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveU256_2_Eth_To::new(address, client);
         CurveContract::U256_2EthTo(contract)
     }
 
-    pub fn new_u256_3_eth_to(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_u256_3_eth_to(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveU256_3_Eth_To::new(address, client);
         CurveContract::U256_3EthTo(contract)
     }
-    pub fn new_u256_3_eth_to2(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_u256_3_eth_to2(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveU256_3_Eth_To2::new(address, client);
         CurveContract::U256_3EthTo2(contract)
     }
 
-    pub fn new_u256_3_eth(client: P, address: Address) -> CurveContract<P, T, N> {
+    pub fn new_u256_3_eth(client: P, address: Address) -> CurveContract<P, N> {
         let contract = ICurveU256_3_Eth::new(address, client);
         CurveContract::U256_3Eth(contract)
     }
@@ -573,7 +560,7 @@ where
         }
     }
 
-    pub async fn get_contract_from_code(client: P, address: Address) -> Result<CurveContract<P, T, N>> {
+    pub async fn get_contract_from_code(client: P, address: Address) -> Result<CurveContract<P, N>> {
         //let sig = ICurveU256_3_EthCalls::Balances(  <ICurveU256_3_Eth<M>>::BalancesCall );
         //let sig = ICurveU256_3_EthCalls::Balances(  BalancesCall{} );
 
@@ -635,7 +622,7 @@ where
         Err(eyre!("ABI_NOT_FOUND"))
     }
 
-    pub fn get_contracts_vec(client: P) -> Vec<CurveContract<P, T, N>> {
+    pub fn get_contracts_vec(client: P) -> Vec<CurveContract<P, N>> {
         vec![
             Self::new_u256_3_eth_to(client.clone(), address!("f5f5B97624542D72A9E06f04804Bf81baA15e2B4")),
             //Self::new_u256_3_eth_to(client.clone(), "0x6c3F90f043a72FA612cbac8115EE7e52BDe6E490".parse().unwrap()),

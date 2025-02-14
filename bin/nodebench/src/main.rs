@@ -1,7 +1,6 @@
 use crate::cli::Cli;
 use alloy::network::primitives::BlockTransactionsKind;
 use alloy::primitives::{BlockHash, BlockNumber};
-use alloy::transports::BoxTransport;
 use alloy::{
     eips::BlockNumberOrTag,
     primitives::TxHash,
@@ -223,7 +222,7 @@ impl TxStatCollector {
 
 async fn collect_stat_task(
     id: usize,
-    provider: RootProvider<BoxTransport>,
+    provider: RootProvider,
     grps: bool,
     stat: Arc<RwLock<StatCollector>>,
     warn_up_blocks: usize,
@@ -373,15 +372,15 @@ async fn main() -> Result<()> {
 
     let mut tasks: Vec<JoinHandle<_>> = vec![];
 
-    let mut first_provider: Option<RootProvider<BoxTransport>> = None;
-    let mut prev_provider: Option<RootProvider<BoxTransport>> = None;
+    let mut first_provider: Option<RootProvider> = None;
+    let mut prev_provider: Option<RootProvider> = None;
 
     for (idx, endpoint) in cli.endpoint.iter().enumerate() {
         //let conn = WsConnect::new(endpoint.clone());
         let (provider, is_grpc) = if endpoint == "grpc" {
             (prev_provider.clone().unwrap(), true)
         } else {
-            (ProviderBuilder::new().on_builtin(endpoint.clone().as_str()).await?, false)
+            (ProviderBuilder::new().disable_recommended_fillers().on_builtin(endpoint.clone().as_str()).await?, false)
         };
 
         prev_provider = Some(provider.clone());

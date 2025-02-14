@@ -1,7 +1,6 @@
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_rpc_types::Filter;
-use alloy_transport::Transport;
 use std::marker::PhantomData;
 use std::sync::Arc;
 use tracing::{debug, error, info};
@@ -15,15 +14,14 @@ use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::PoolLoaders;
 use loom_types_events::LoomTask;
 
-async fn history_pool_loader_one_shot_worker<P, T, N>(
+async fn history_pool_loader_one_shot_worker<P, N>(
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, T, N, LoomDataTypesEthereum>>,
+    pool_loaders: Arc<PoolLoaders<P, N, LoomDataTypesEthereum>>,
     tasks_tx: Broadcaster<LoomTask>,
 ) -> WorkerResult
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
 {
     let mut current_block = client.get_block_number().await?;
 
@@ -51,28 +49,25 @@ where
 }
 
 #[derive(Producer)]
-pub struct HistoryPoolLoaderOneShotActor<P, T, N>
+pub struct HistoryPoolLoaderOneShotActor<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_loaders: Arc<PoolLoaders<P, N>>,
     #[producer]
     tasks_tx: Option<Broadcaster<LoomTask>>,
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> HistoryPoolLoaderOneShotActor<P, T, N>
+impl<P, N> HistoryPoolLoaderOneShotActor<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<P, T, N>>) -> Self {
-        Self { client, pool_loaders, tasks_tx: None, _t: PhantomData, _n: PhantomData }
+    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<P, N>>) -> Self {
+        Self { client, pool_loaders, tasks_tx: None, _n: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -80,11 +75,10 @@ where
     }
 }
 
-impl<P, T, N> Actor for HistoryPoolLoaderOneShotActor<P, T, N>
+impl<P, N> Actor for HistoryPoolLoaderOneShotActor<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(history_pool_loader_one_shot_worker(

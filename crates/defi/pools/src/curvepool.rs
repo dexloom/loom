@@ -4,7 +4,6 @@ use std::sync::Arc;
 use alloy::primitives::{address, Address, Bytes, U256};
 use alloy::providers::{Network, Provider};
 use alloy::sol_types::SolCall;
-use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::TokenAddressEth;
@@ -17,15 +16,14 @@ use tracing::error;
 
 use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};
 
-pub struct CurvePool<P, T, N, E = CurvePoolAbiEncoder<P, T, N>>
+pub struct CurvePool<P, N, E = CurvePoolAbiEncoder<P, N>>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     E: PoolAbiEncoder + Send + Sync + 'static,
 {
     address: Address,
-    pool_contract: Arc<CurveContract<P, T, N>>,
+    pool_contract: Arc<CurveContract<P, N>>,
     balances: Vec<U256>,
     tokens: Vec<Address>,
     underlying_tokens: Vec<Address>,
@@ -35,11 +33,10 @@ where
     is_native: bool,
 }
 
-impl<P, T, N, E> Clone for CurvePool<P, T, N, E>
+impl<P, N, E> Clone for CurvePool<P, N, E>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
     fn clone(&self) -> Self {
@@ -57,11 +54,10 @@ where
     }
 }
 
-impl<P, T, N, E> CurvePool<P, T, N, E>
+impl<P, N, E> CurvePool<P, N, E>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
     pub fn with_encoder(self, e: E) -> Self {
@@ -101,7 +97,7 @@ where
         self.pool_contract.get_dy(i, j, amount_in).await
     }
 
-    pub async fn fetch_pool_data(client: P, pool_contract: CurveContract<P, T, N>) -> Result<Self> {
+    pub async fn fetch_pool_data(client: P, pool_contract: CurveContract<P, N>) -> Result<Self> {
         let pool_contract = Arc::new(pool_contract);
 
         let mut tokens = CurveCommonContract::coins(client.clone(), pool_contract.get_address()).await?;
@@ -115,13 +111,13 @@ where
             }
         }
 
-        let lp_token = match CurveCommonContract::<P, T, N>::lp_token(pool_contract.get_address()).await {
+        let lp_token = match CurveCommonContract::<P, N>::lp_token(pool_contract.get_address()).await {
             Ok(lp_token_address) => Some(lp_token_address),
             Err(_) => None,
         };
 
         let (underlying_tokens, is_meta) = match pool_contract.as_ref() {
-            CurveContract::I128_2ToMeta(_interface) => (CurveProtocol::<P, N, T>::get_underlying_tokens(tokens[1])?, true),
+            CurveContract::I128_2ToMeta(_interface) => (CurveProtocol::<P, N>::get_underlying_tokens(tokens[1])?, true),
             _ => (vec![], false),
         };
 
@@ -151,13 +147,12 @@ where
     }
 }
 
-impl<P, T, N> CurvePool<P, T, N, CurvePoolAbiEncoder<P, T, N>>
+impl<P, N> CurvePool<P, N, CurvePoolAbiEncoder<P, N>>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    pub async fn fetch_pool_data_with_default_encoder(client: P, pool_contract: CurveContract<P, T, N>) -> Result<Self> {
+    pub async fn fetch_pool_data_with_default_encoder(client: P, pool_contract: CurveContract<P, N>) -> Result<Self> {
         let pool_contract = Arc::new(pool_contract);
 
         let mut tokens = CurveCommonContract::coins(client.clone(), pool_contract.get_address()).await?;
@@ -171,13 +166,13 @@ where
             }
         }
 
-        let lp_token = match CurveCommonContract::<P, T, N>::lp_token(pool_contract.get_address()).await {
+        let lp_token = match CurveCommonContract::<P, N>::lp_token(pool_contract.get_address()).await {
             Ok(lp_token_address) => Some(lp_token_address),
             Err(_) => None,
         };
 
         let (underlying_tokens, is_meta) = match pool_contract.as_ref() {
-            CurveContract::I128_2ToMeta(_interface) => (CurveProtocol::<P, N, T>::get_underlying_tokens(tokens[1])?, true),
+            CurveContract::I128_2ToMeta(_interface) => (CurveProtocol::<P, N>::get_underlying_tokens(tokens[1])?, true),
             _ => (vec![], false),
         };
 
@@ -203,11 +198,10 @@ where
     }
 }
 
-impl<P, T, N, E> Pool for CurvePool<P, T, N, E>
+impl<P, N, E> Pool for CurvePool<P, N, E>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
     E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
     fn as_any<'a>(&self) -> &dyn Any {
@@ -438,11 +432,10 @@ where
 
 #[allow(dead_code)]
 #[derive(Clone)]
-pub struct CurvePoolAbiEncoder<P, T, N>
+pub struct CurvePoolAbiEncoder<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     pool_address: Address,
     tokens: Vec<Address>,
@@ -450,14 +443,13 @@ where
     lp_token: Option<Address>,
     is_meta: bool,
     is_native: bool,
-    curve_contract: Arc<CurveContract<P, T, N>>,
+    curve_contract: Arc<CurveContract<P, N>>,
 }
 
-impl<P, T, N> CurvePoolAbiEncoder<P, T, N>
+impl<P, N> CurvePoolAbiEncoder<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     /*pub fn new(
         pool_address: Address,
@@ -473,7 +465,7 @@ where
 
      */
 
-    pub fn new(pool: &CurvePool<P, T, N>) -> Self {
+    pub fn new(pool: &CurvePool<P, N>) -> Self {
         Self {
             pool_address: pool.address,
             tokens: pool.tokens.clone(),
@@ -519,11 +511,10 @@ where
     }
 }
 
-impl<P, T, N> PoolAbiEncoder for CurvePoolAbiEncoder<P, T, N>
+impl<P, N> PoolAbiEncoder for CurvePoolAbiEncoder<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     fn encode_swap_in_amount_provided(
         &self,

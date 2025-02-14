@@ -1,7 +1,6 @@
 use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use revm::DatabaseRef;
 use revm::{Database, DatabaseCommit};
 use std::marker::PhantomData;
@@ -16,18 +15,17 @@ use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::required_state::{RequiredState, RequiredStateReader};
 use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders};
 
-async fn required_pools_loader_worker<P, T, N, DB>(
+async fn required_pools_loader_worker<P, N, DB>(
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_loaders: Arc<PoolLoaders<P, N>>,
     pools: Vec<(PoolId, PoolClass)>,
     required_state: Option<RequiredState>,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     for (pool_id, pool_class) in pools {
@@ -77,43 +75,31 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct RequiredPoolLoaderActor<P, T, N, DB>
+pub struct RequiredPoolLoaderActor<P, N, DB>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Clone + Send + Sync + 'static,
 {
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_loaders: Arc<PoolLoaders<P, N>>,
     pools: Vec<(PoolId, PoolClass)>,
     required_state: Option<RequiredState>,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N, DB> RequiredPoolLoaderActor<P, T, N, DB>
+impl<P, N, DB> RequiredPoolLoaderActor<P, N, DB>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Clone + Send + Sync + 'static,
 {
-    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<P, T, N>>) -> Self {
-        Self {
-            client,
-            pools: Vec::new(),
-            pool_loaders,
-            required_state: None,
-            market: None,
-            market_state: None,
-            _n: PhantomData,
-            _t: PhantomData,
-        }
+    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<P, N>>) -> Self {
+        Self { client, pools: Vec::new(), pool_loaders, required_state: None, market: None, market_state: None, _n: PhantomData }
     }
 
     pub fn with_pool_address(self, address: Address, pool_class: PoolClass) -> Self {
@@ -131,11 +117,10 @@ where
     }
 }
 
-impl<P, T, N, DB> Actor for RequiredPoolLoaderActor<P, T, N, DB>
+impl<P, N, DB> Actor for RequiredPoolLoaderActor<P, N, DB>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {

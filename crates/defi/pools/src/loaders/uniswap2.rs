@@ -17,10 +17,9 @@ use std::sync::Arc;
 
 pool_loader!(UniswapV2PoolLoader);
 
-impl<P, T> PoolLoader<P, T, Ethereum, LoomDataTypesEthereum> for UniswapV2PoolLoader<P, T, Ethereum, LoomDataTypesEthereum>
+impl<P> PoolLoader<P, Ethereum, LoomDataTypesEthereum> for UniswapV2PoolLoader<P, Ethereum, LoomDataTypesEthereum>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone + 'static,
+    P: Provider<Ethereum> + Clone + 'static,
 {
     fn get_pool_class_by_log(
         &self,

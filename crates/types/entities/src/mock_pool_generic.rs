@@ -1,32 +1,27 @@
 use crate::pool_id::PoolId;
 use crate::required_state::RequiredState;
-use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement};
+use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol};
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::BlockNumberOrTag;
-use alloy_transport::Transport;
 use eyre::Result;
 use eyre::{eyre, ErrReport};
 use loom_evm_db::{AlloyDB, LoomDBType};
 use revm::primitives::Env;
 use revm::DatabaseRef;
-use std::any::Any;
-use std::marker::PhantomData;
 
 #[derive(Clone)]
-pub struct MockPoolGeneric<P, T> {
+pub struct MockPoolGeneric<P> {
     pub(crate) client: P,
     pub(crate) token0: Address,
     pub(crate) token1: Address,
     pub(crate) address: Address,
-    _t: PhantomData<T>,
 }
 
-impl<P, T> Pool for MockPoolGeneric<P, T>
+impl<P> Pool for MockPoolGeneric<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     fn as_any<'a>(&self) -> &dyn Any {
         self

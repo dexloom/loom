@@ -171,18 +171,17 @@ impl LoomDB {
         }
     }
 
-    pub fn new_with_ro_db_and_provider<P, T, N>(read_only_db: Option<LoomDB>, client: P) -> Result<Self>
+    pub fn new_with_ro_db_and_provider<P, N>(read_only_db: Option<LoomDB>, client: P) -> Result<Self>
     where
         N: Network,
-        T: Transport + Clone,
-        P: Provider<T, N> + 'static,
+        P: Provider<N> + 'static,
         Self: Sized,
     {
         let box_transport = client.client().transport().clone().boxed();
 
         let rpc_client = ClientBuilder::default().transport(box_transport, true);
 
-        let provider = ProviderBuilder::new().on_client(rpc_client).boxed();
+        let provider = ProviderBuilder::new().disable_recommended_fillers().on_client(rpc_client);
 
         let ext_db = AlloyDB::new(provider, BlockNumberOrTag::Latest.into());
 

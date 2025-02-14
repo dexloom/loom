@@ -2,7 +2,6 @@ use alloy_network::Ethereum;
 use alloy_primitives::{BlockHash, BlockNumber};
 use alloy_provider::Provider;
 use alloy_rpc_types::Header;
-use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
@@ -14,13 +13,12 @@ use loom_types_entities::{BlockHistory, BlockHistoryManager, BlockHistoryState, 
 use loom_types_events::{MarketEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::borrow::BorrowMut;
-use std::marker::PhantomData;
 use std::ops::DerefMut;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info, trace, warn};
 
-pub async fn set_chain_head<P, T, DB>(
-    block_history_manager: &BlockHistoryManager<P, T, DB>,
+pub async fn set_chain_head<P, DB>(
+    block_history_manager: &BlockHistoryManager<P, DB>,
     block_history: &mut BlockHistory<DB>,
     latest_block: &mut LatestBlock,
     market_events_tx: Broadcaster<MarketEvents>,
@@ -28,8 +26,7 @@ pub async fn set_chain_head<P, T, DB>(
     chain_parameters: &ChainParameters,
 ) -> Result<(bool, usize)>
 where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     DB: Clone,
 {
     let block_number = header.number;
@@ -69,7 +66,7 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn new_block_history_worker<P, T, DB>(
+pub async fn new_block_history_worker<P, DB>(
     client: P,
     chain_parameters: ChainParameters,
     latest_block: SharedState<LatestBlock>,
@@ -82,8 +79,7 @@ pub async fn new_block_history_worker<P, T, DB>(
     market_events_tx: Broadcaster<MarketEvents>,
 ) -> WorkerResult
 where
-    T: Transport + Clone + Send + Sync + 'static,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     DB: BlockHistoryState + DatabaseRef + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     subscribe!(block_header_update_rx);
@@ -348,10 +344,9 @@ where
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct BlockHistoryActor<P, T, DB> {
+pub struct BlockHistoryActor<P, DB> {
     client: P,
     chain_parameters: ChainParameters,
-    _t: PhantomData<T>,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
     #[accessor]
@@ -370,17 +365,15 @@ pub struct BlockHistoryActor<P, T, DB> {
     market_events_tx: Option<Broadcaster<MarketEvents>>,
 }
 
-impl<P, T, DB> BlockHistoryActor<P, T, DB>
+impl<P, DB> BlockHistoryActor<P, DB>
 where
-    T: Transport + Sync + Send + Clone + 'static,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Sync + Send + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Sync + Send + Clone + 'static,
     DB: DatabaseRef + BlockHistoryState + DatabaseLoomExt + DatabaseCommit + Database + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
             client,
             chain_parameters: ChainParameters::ethereum(),
-            _t: PhantomData,
             latest_block: None,
             market_state: None,
             block_history: None,
@@ -408,10 +401,9 @@ where
     }
 }
 
-impl<P, T, DB> Actor for BlockHistoryActor<P, T, DB>
+impl<P, DB> Actor for BlockHistoryActor<P, DB>
 where
-    T: Transport + Sync + Send + Clone + 'static,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Sync + Send + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Sync + Send + Clone + 'static,
     DB: BlockHistoryState + DatabaseRef + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {

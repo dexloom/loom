@@ -10,7 +10,6 @@ use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_rpc_types_trace::geth::AccountState;
 use alloy_signer_local::PrivateKeySigner;
-use alloy_transport::Transport;
 use eyre::{eyre, OptionExt, Result};
 use k256::SecretKey;
 use lazy_static::lazy_static;
@@ -43,10 +42,9 @@ impl MulticallerDeployer {
         AccountState { balance: None, code: Some(self.code.clone()), nonce: None, storage: Default::default() }
     }
 
-    pub async fn deploy<P, T>(self, client: P, priv_key: SecretKey) -> Result<Self>
+    pub async fn deploy<P>(self, client: P, priv_key: SecretKey) -> Result<Self>
     where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+        P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     {
         let block = client
             .get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes)
@@ -122,10 +120,9 @@ impl MulticallerDeployer {
         //let address = Address::repeat_byte(3);
     }
 
-    pub async fn set_code<P, T>(self, client: P, address: Address) -> Result<Self>
+    pub async fn set_code<P>(self, client: P, address: Address) -> Result<Self>
     where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+        P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     {
         client.anvil_set_code(address, self.code.clone()).await.map_err(|_| eyre!("CANNOT_SET_CODE"))?;
 

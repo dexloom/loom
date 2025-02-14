@@ -7,7 +7,6 @@ use alloy::primitives::aliases::{I24, U24};
 use alloy::primitives::{Address, Bytes, I256, U160, U256};
 use alloy::providers::{Network, Provider};
 use alloy::sol_types::{SolCall, SolInterface};
-use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_defi_abi::pancake::IPancakeQuoterV2::IPancakeQuoterV2Calls;
 use loom_defi_abi::pancake::IPancakeV3Pool::slot0Return;
@@ -147,10 +146,7 @@ impl PancakeV3Pool {
         Ok(ret)
     }
 
-    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(
-        client: P,
-        address: Address,
-    ) -> Result<Self> {
+    pub async fn fetch_pool_data<N: Network, P: Provider<N> + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
         let uni3_pool = IPancakeV3Pool::IPancakeV3PoolInstance::new(address, client.clone());
 
         let token0: Address = uni3_pool.token0().call().await?._0;

@@ -1,7 +1,6 @@
 use alloy::primitives::{Address, Bytes, U128, U256};
 use alloy::providers::{Network, Provider};
 use alloy::sol_types::{SolCall, SolInterface};
-use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaverickPoolInstance};
 use loom_defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuoterCalls};
@@ -78,10 +77,7 @@ impl MaverickPool {
         PoolProtocol::Maverick
     }
 
-    pub async fn fetch_pool_data<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + Clone + 'static>(
-        client: P,
-        address: Address,
-    ) -> Result<Self> {
+    pub async fn fetch_pool_data<N: Network, P: Provider<N> + Send + Sync + Clone + 'static>(client: P, address: Address) -> Result<Self> {
         let pool = IMaverickPoolInstance::new(address, client.clone());
 
         let token0: Address = pool.tokenA().call().await?._0;

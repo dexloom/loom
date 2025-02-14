@@ -1,7 +1,7 @@
 use alloy::{
     primitives::{Address, Bytes, B256, U256, U64},
     providers::{network::Ethereum, Network, Provider, RootProvider},
-    transports::{BoxTransport, Transport, TransportResult},
+    transports::TransportResult,
 };
 
 use crate::AnvilDebugProvider;
@@ -10,10 +10,9 @@ pub(crate) fn convert_u64(r: U64) -> u64 {
     r.to::<u64>()
 }
 
-pub trait AnvilProviderExt<T, N>
+pub trait AnvilProviderExt<N>
 where
     N: Network,
-    T: Transport + Clone,
 {
     fn snapshot(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send;
     fn revert(&self, snap_id: u64) -> impl std::future::Future<Output = TransportResult<bool>> + Send;
@@ -30,13 +29,11 @@ where
     fn set_storage(&self, address: Address, cell: B256, value: B256) -> impl std::future::Future<Output = TransportResult<bool>> + Send;
 }
 
-impl<PN, PA, TN, TA, N> AnvilProviderExt<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N>
+impl<PN, PA, N> AnvilProviderExt<N> for AnvilDebugProvider<PN, PA, N>
 where
     N: Network,
-    TN: Transport + Clone,
-    TA: Transport + Clone,
-    PN: Provider<TN, N> + Send + Sync + Clone + 'static,
-    PA: Provider<TA, N> + Send + Sync + Clone + 'static,
+    PN: Provider<N> + Send + Sync + Clone + 'static,
+    PA: Provider<N> + Send + Sync + Clone + 'static,
 {
     fn snapshot(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send {
         self.anvil().client().request("evm_snapshot", ()).map_resp(convert_u64)
@@ -69,7 +66,7 @@ where
     }*/
 }
 
-impl AnvilProviderExt<BoxTransport, Ethereum> for RootProvider<BoxTransport> {
+impl AnvilProviderExt<Ethereum> for RootProvider<Ethereum> {
     fn snapshot(&self) -> impl std::future::Future<Output = TransportResult<u64>> + Send {
         self.client().request("evm_snapshot", ()).map_resp(convert_u64)
     }
@@ -120,9 +117,9 @@ mod test {
 
         let anvil = Anvil::new().try_spawn()?;
 
-        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url()).boxed();
+        let client_anvil = ClientBuilder::default().http(anvil.endpoint_url());
 
-        let provider = ProviderBuilder::new().on_client(client_anvil);
+        let provider = ProviderBuilder::new().disable_recommended_fillers().on_client(client_anvil);
 
         let address: Address = Address::repeat_byte(0x12);
 
@@ -149,11 +146,11 @@ mod test {
 
         let node_url = url::Url::parse(node_url.as_str())?;
 
-        let client_anvil = ClientBuilder::default().http(test_node_url).boxed();
-        let provider_anvil = ProviderBuilder::new().on_client(client_anvil).boxed();
+        let client_anvil = ClientBuilder::default().http(test_node_url);
+        let provider_anvil = ProviderBuilder::new().disable_recommended_fillers().on_client(client_anvil);
 
-        let client_node = ClientBuilder::default().http(node_url).boxed();
-        let provider_node = ProviderBuilder::new().on_client(client_node).boxed();
+        let client_node = ClientBuilder::default().http(node_url);
+        let provider_node = ProviderBuilder::new().disable_recommended_fillers().on_client(client_node);
 
         let provider = AnvilDebugProvider::new(provider_node, provider_anvil, BlockNumberOrTag::Number(10));
 

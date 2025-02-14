@@ -6,7 +6,6 @@ use alloy_primitives::{Address, BlockNumber, Bytes, TxKind, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, BlockNumberOrTag, TransactionInput, TransactionRequest};
 use alloy_rpc_types_trace::geth::AccountState;
-use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use tracing::{error, trace};
 
@@ -68,7 +67,7 @@ impl RequiredState {
 pub struct RequiredStateReader {}
 
 impl RequiredStateReader {
-    pub async fn fetch_calls_and_slots<T: Transport + Clone, N: Network, C: DebugProviderExt<T, N> + Provider<T, N> + Clone + 'static>(
+    pub async fn fetch_calls_and_slots<N: Network, C: DebugProviderExt<N> + Provider<N> + Clone + 'static>(
         client: C,
         required_state: RequiredState,
         block_number: Option<BlockNumber>,
