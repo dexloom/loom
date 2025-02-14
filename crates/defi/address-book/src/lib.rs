@@ -15,6 +15,13 @@ impl TokenAddressEth {
     pub const STETH: Address = address!("ae7ab96520de3a18e5e111b5eaab095312d7fe84");
     pub const WSTETH: Address = address!("7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0");
     pub const LUSD: Address = address!("5f98805a4e8be255a32880fdec7f6728c6568ba0");
+
+    pub fn is_weth(&address: &Address) -> bool {
+        address.eq(&Self::WETH)
+    }
+    pub fn is_eth(&address: &Address) -> bool {
+        address.eq(&Self::ETH_NATIVE)
+    }
 }
 
 #[non_exhaustive]

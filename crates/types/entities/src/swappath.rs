@@ -189,11 +189,12 @@ mod test {
     use super::*;
     use crate::pool::DefaultAbiSwapEncoder;
     use crate::required_state::RequiredState;
-    use crate::{Pool, PoolAbiEncoder};
+    use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement};
     use alloy_primitives::{Address, U256};
     use eyre::{eyre, ErrReport};
     use revm::primitives::Env;
     use revm::DatabaseRef;
+    use std::any::Any;
     use tokio::task::JoinHandle;
     use tracing::error;
 
@@ -209,6 +210,10 @@ mod test {
     }
 
     impl Pool for EmptyPool {
+        fn as_any<'a>(&self) -> &dyn Any {
+            self
+        }
+
         fn is_native(&self) -> bool {
             false
         }
@@ -246,12 +251,46 @@ mod test {
             false
         }
 
-        fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+        fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
             Some(&DefaultAbiSwapEncoder {})
         }
 
         fn get_state_required(&self) -> Result<RequiredState> {
             Ok(RequiredState::new())
+        }
+
+        fn get_class(&self) -> PoolClass {
+            PoolClass::Unknown
+        }
+
+        fn get_protocol(&self) -> PoolProtocol {
+            PoolProtocol::Unknown
+        }
+
+        fn get_fee(&self) -> U256 {
+            U256::ZERO
+        }
+
+        fn get_tokens(&self) -> Vec<<LoomDataTypesEthereum as LoomDataTypes>::Address> {
+            vec![]
+        }
+
+        fn get_swap_directions(
+            &self,
+        ) -> Vec<(<LoomDataTypesEthereum as LoomDataTypes>::Address, <LoomDataTypesEthereum as LoomDataTypes>::Address)> {
+            vec![]
+        }
+
+        fn can_calculate_in_amount(&self) -> bool {
+            true
+        }
+
+        fn get_read_only_cell_vec(&self) -> Vec<U256> {
+            vec![]
+        }
+
+        fn preswap_requirement(&self) -> PreswapRequirement {
+            PreswapRequirement::Base
         }
     }
 

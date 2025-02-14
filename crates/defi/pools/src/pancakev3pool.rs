@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fmt::Debug;
 use std::ops::Sub;
 
@@ -186,6 +187,9 @@ impl PancakeV3Pool {
 }
 
 impl Pool for PancakeV3Pool {
+    fn as_any<'a>(&self) -> &dyn Any {
+        self
+    }
     fn get_class(&self) -> PoolClass {
         PoolClass::PancakeV3
     }
@@ -200,6 +204,10 @@ impl Pool for PancakeV3Pool {
 
     fn get_pool_id(&self) -> PoolId {
         PoolId::Address(self.address)
+    }
+
+    fn get_fee(&self) -> U256 {
+        U256::from(self.fee)
     }
 
     fn get_tokens(&self) -> Vec<Address> {
@@ -280,7 +288,11 @@ impl Pool for PancakeV3Pool {
         true
     }
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+    fn can_calculate_in_amount(&self) -> bool {
+        true
+    }
+
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
         Some(&self.encoder)
     }
 
@@ -410,6 +422,10 @@ impl Pool for PancakeV3Pool {
     fn is_native(&self) -> bool {
         false
     }
+
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Callback
+    }
 }
 
 #[allow(dead_code)]
@@ -465,10 +481,6 @@ impl PoolAbiEncoder for PancakeV3AbiSwapEncoder {
         };
 
         Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
-    }
-
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Callback
     }
 
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {

@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::sync::Arc;
 
 use alloy::primitives::{address, Address, Bytes, U256};
@@ -209,6 +210,9 @@ where
     P: Provider<T, N> + Send + Sync + Clone + 'static,
     E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
+    fn as_any<'a>(&self) -> &dyn Any {
+        self
+    }
     fn get_class(&self) -> PoolClass {
         PoolClass::Curve
     }
@@ -347,9 +351,13 @@ where
         self.pool_contract.can_calculate_in_amount()
     }
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
         let r = self.abi_encoder.as_ref().unwrap().as_ref();
         Some(r as &dyn PoolAbiEncoder)
+    }
+
+    fn get_read_only_cell_vec(&self) -> Vec<U256> {
+        Vec::new()
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -420,7 +428,11 @@ where
     }
 
     fn is_native(&self) -> bool {
-        false
+        self.is_native
+    }
+
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Allowance
     }
 }
 
@@ -562,13 +574,7 @@ where
     ) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Allowance
-    }
 
-    fn is_native(&self) -> bool {
-        self.is_native
-    }
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }

@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -5,7 +6,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::required_state::RequiredState;
-use crate::PoolId;
+use crate::{PoolId, SwapEncoder};
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
@@ -227,29 +228,21 @@ impl<T: 'static + Pool<LoomDataTypesEthereum>> From<T> for PoolWrapper<LoomDataT
 }
 
 pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
-    fn get_class(&self) -> PoolClass {
-        PoolClass::Unknown
-    }
+    fn as_any<'a>(&self) -> &dyn Any;
 
-    fn get_protocol(&self) -> PoolProtocol {
-        PoolProtocol::Unknown
-    }
+    fn get_class(&self) -> PoolClass;
+
+    fn get_protocol(&self) -> PoolProtocol;
 
     fn get_address(&self) -> LDT::Address;
 
     fn get_pool_id(&self) -> PoolId<LDT>;
 
-    fn get_fee(&self) -> U256 {
-        U256::ZERO
-    }
+    fn get_fee(&self) -> U256;
 
-    fn get_tokens(&self) -> Vec<LDT::Address> {
-        Vec::new()
-    }
+    fn get_tokens(&self) -> Vec<LDT::Address>;
 
-    fn get_swap_directions(&self) -> Vec<(LDT::Address, LDT::Address)> {
-        Vec::new()
-    }
+    fn get_swap_directions(&self) -> Vec<(LDT::Address, LDT::Address)>;
 
     fn calculate_out_amount(
         &self,
@@ -272,19 +265,17 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
 
     fn can_flash_swap(&self) -> bool;
 
-    fn can_calculate_in_amount(&self) -> bool {
-        true
-    }
+    fn can_calculate_in_amount(&self) -> bool;
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder>;
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder>;
 
-    fn get_read_only_cell_vec(&self) -> Vec<U256> {
-        Vec::new()
-    }
+    fn get_read_only_cell_vec(&self) -> Vec<U256>;
 
     fn get_state_required(&self) -> Result<RequiredState>;
 
     fn is_native(&self) -> bool;
+
+    fn preswap_requirement(&self) -> PreswapRequirement;
 }
 
 pub struct DefaultAbiSwapEncoder {}
@@ -351,13 +342,6 @@ pub trait PoolAbiEncoder: Send + Sync {
         _payload: Bytes,
     ) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
-    }
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Unknown
-    }
-
-    fn is_native(&self) -> bool {
-        false
     }
 
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {

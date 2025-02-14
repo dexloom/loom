@@ -2,7 +2,7 @@ use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::OptionExt;
 use loom_types_blockchain::LoomDataTypesEthereum;
-use loom_types_entities::{Pool, PreswapRequirement};
+use loom_types_entities::Pool;
 
 pub struct CurveProtocolAbiEncoder;
 
@@ -16,7 +16,7 @@ impl ProtocolAbiSwapEncoderTrait for CurveProtocolAbiEncoder {
         recipient: Address,
         payload: Bytes,
     ) -> eyre::Result<Bytes> {
-        pool.get_encoder().ok_or_eyre("NO_POOL_ENCODER")?.encode_swap_in_amount_provided(
+        pool.get_abi_encoder().ok_or_eyre("NO_POOL_ENCODER")?.encode_swap_in_amount_provided(
             token_from_address,
             token_to_address,
             amount,
@@ -34,21 +34,13 @@ impl ProtocolAbiSwapEncoderTrait for CurveProtocolAbiEncoder {
         recipient: Address,
         payload: Bytes,
     ) -> eyre::Result<Bytes> {
-        pool.get_encoder().ok_or_eyre("NO_POOL_ENCODER")?.encode_swap_out_amount_provided(
+        pool.get_abi_encoder().ok_or_eyre("NO_POOL_ENCODER")?.encode_swap_out_amount_provided(
             token_from_address,
             token_to_address,
             amount,
             recipient,
             payload,
         )
-    }
-
-    fn preswap_requirement(&self, _pool: &dyn Pool) -> PreswapRequirement {
-        PreswapRequirement::Allowance
-    }
-
-    fn is_native(&self, pool: &dyn Pool) -> bool {
-        Pool::is_native(pool)
     }
 
     fn swap_in_amount_offset(&self, _pool: &dyn Pool, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {

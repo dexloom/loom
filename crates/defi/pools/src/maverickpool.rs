@@ -13,6 +13,7 @@ use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement};
 use revm::primitives::Env;
 use revm::DatabaseRef;
+use std::any::Any;
 use tracing::error;
 
 use crate::state_readers::UniswapV3StateReader;
@@ -142,6 +143,10 @@ impl MaverickPool {
 }
 
 impl Pool for MaverickPool {
+    fn as_any<'a>(&self) -> &dyn Any {
+        self
+    }
+
     fn get_class(&self) -> PoolClass {
         PoolClass::Maverick
     }
@@ -156,6 +161,10 @@ impl Pool for MaverickPool {
 
     fn get_pool_id(&self) -> PoolId {
         PoolId::Address(self.address)
+    }
+
+    fn get_fee(&self) -> U256 {
+        self.fee
     }
 
     fn get_tokens(&self) -> Vec<Address> {
@@ -248,8 +257,16 @@ impl Pool for MaverickPool {
         true
     }
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+    fn can_calculate_in_amount(&self) -> bool {
+        true
+    }
+
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
         Some(&self.encoder)
+    }
+
+    fn get_read_only_cell_vec(&self) -> Vec<U256> {
+        Vec::new()
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -342,6 +359,10 @@ impl Pool for MaverickPool {
     fn is_native(&self) -> bool {
         false
     }
+
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Callback
+    }
 }
 
 #[allow(dead_code)]
@@ -402,10 +423,6 @@ impl PoolAbiEncoder for MaverickAbiSwapEncoder {
         };
 
         Ok(Bytes::from(IMaverickPoolCalls::swap(swap_call).abi_encode()))
-    }
-
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Callback
     }
 
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {

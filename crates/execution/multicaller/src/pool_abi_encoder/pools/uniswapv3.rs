@@ -3,7 +3,7 @@ use alloy_primitives::{Address, Bytes, I256, U160, U256};
 use alloy_sol_types::SolInterface;
 use lazy_static::lazy_static;
 use loom_defi_abi::uniswap3::IUniswapV3Pool;
-use loom_types_entities::{Pool, PreswapRequirement};
+use loom_types_entities::Pool;
 use std::ops::Sub;
 
 lazy_static! {
@@ -69,14 +69,6 @@ impl ProtocolAbiSwapEncoderTrait for UniswapV3ProtocolAbiEncoder {
         };
 
         Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
-    }
-
-    fn preswap_requirement(&self, _pool: &dyn Pool) -> PreswapRequirement {
-        PreswapRequirement::Callback
-    }
-
-    fn is_native(&self, pool: &dyn Pool) -> bool {
-        pool.is_native()
     }
 
     fn swap_in_amount_offset(&self, _pool: &dyn Pool, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {

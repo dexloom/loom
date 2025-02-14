@@ -5,7 +5,7 @@ use crate::pool_abi_encoder::pools::{
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::OptionExt;
-use loom_types_entities::{Pool, PoolClass, PreswapRequirement};
+use loom_types_entities::{Pool, PoolClass};
 use std::collections::HashMap;
 use std::sync::Arc;
 
@@ -71,14 +71,6 @@ impl ProtocolAbiSwapEncoderTrait for ProtocolABIEncoderV2 {
         )
     }
 
-    fn preswap_requirement(&self, pool: &dyn Pool) -> PreswapRequirement {
-        self.pool_classes.get(&pool.get_class()).map_or(PreswapRequirement::Unknown, |encoder| encoder.preswap_requirement(pool))
-    }
-
-    fn is_native(&self, pool: &dyn Pool) -> bool {
-        self.pool_classes.get(&pool.get_class()).is_some_and(|encoder| encoder.is_native(pool))
-    }
-
     fn swap_in_amount_offset(&self, pool: &dyn Pool, token_from_address: Address, token_to_address: Address) -> Option<u32> {
         self.pool_classes
             .get(&pool.get_class())
@@ -118,6 +110,7 @@ impl ProtocolAbiSwapEncoderTrait for ProtocolABIEncoderV2 {
 mod tests {
     use super::*;
     use loom_defi_pools::UniswapV3Pool;
+    use loom_types_entities::PreswapRequirement;
 
     #[test]
     fn test_default() {
@@ -130,7 +123,7 @@ mod tests {
         let abi_encoder_v2 = ProtocolABIEncoderV2::default();
         let uni3 = UniswapV3Pool::new(Address::random());
 
-        let pr = abi_encoder_v2.preswap_requirement(&uni3);
+        let pr = uni3.preswap_requirement();
 
         assert_eq!(pr, PreswapRequirement::Callback)
     }

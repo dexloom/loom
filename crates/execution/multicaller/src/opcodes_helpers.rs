@@ -1,6 +1,6 @@
-use crate::AbiEncoderHelper;
 use alloy_primitives::{Address, U256};
 use eyre::Result;
+use loom_defi_abi::AbiEncoderHelper;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::SwapAmountType;
 

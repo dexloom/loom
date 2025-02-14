@@ -1,13 +1,16 @@
+use std::any::Any;
 use std::fmt::Debug;
 use std::ops::Sub;
 
 use crate::state_readers::UniswapV3QuoterV2StateReader;
 use crate::state_readers::{UniswapV3QuoterV2Encoder, UniswapV3StateReader};
+use crate::virtual_impl::UniswapV3PoolVirtual;
 use alloy::primitives::{Address, Bytes, I256, U160, U256};
 use alloy::providers::{Network, Provider};
 use alloy::sol_types::{SolCall, SolInterface};
 use alloy::transports::Transport;
 use eyre::{eyre, ErrReport, OptionExt, Result};
+use lazy_static::lazy_static;
 use loom_defi_abi::uniswap3::IUniswapV3Pool;
 use loom_defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use loom_defi_abi::uniswap_periphery::ITickLens;
@@ -21,7 +24,10 @@ use tracing::debug;
 #[cfg(feature = "debug-calculation")]
 use tracing::error;
 
-use crate::virtual_impl::UniswapV3PoolVirtual;
+lazy_static! {
+    static ref LOWER_LIMIT: U160 = U160::from(4295128740u64);
+    static ref UPPER_LIMIT: U160 = U160::from_str_radix("1461446703485210103287273052203988822378723970341", 10).unwrap();
+}
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
@@ -131,15 +137,15 @@ impl UniswapV3Pool {
     }
 
     pub fn get_price_limit(token_address_from: &Address, token_address_to: &Address) -> U160 {
-        if *token_address_from < *token_address_to {
-            U160::from(4295128740u64)
+        if token_address_from.lt(token_address_to) {
+            *LOWER_LIMIT
         } else {
-            U160::from_str_radix("1461446703485210103287273052203988822378723970341", 10).unwrap()
+            *UPPER_LIMIT
         }
     }
 
     pub fn get_zero_for_one(token_address_from: &Address, token_address_to: &Address) -> bool {
-        *token_address_from < *token_address_to
+        token_address_from.lt(token_address_to)
     }
 
     fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
@@ -218,6 +224,9 @@ impl UniswapV3Pool {
 }
 
 impl Pool for UniswapV3Pool {
+    fn as_any<'a>(&self) -> &dyn Any {
+        self
+    }
     fn get_class(&self) -> PoolClass {
         PoolClass::UniswapV3
     }
@@ -231,6 +240,10 @@ impl Pool for UniswapV3Pool {
     }
     fn get_pool_id(&self) -> PoolId {
         PoolId::Address(self.address)
+    }
+
+    fn get_fee(&self) -> U256 {
+        U256::from(self.fee)
     }
 
     fn get_tokens(&self) -> Vec<Address> {
@@ -350,8 +363,16 @@ impl Pool for UniswapV3Pool {
         true
     }
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+    fn can_calculate_in_amount(&self) -> bool {
+        true
+    }
+
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
         Some(&self.encoder)
+    }
+
+    fn get_read_only_cell_vec(&self) -> Vec<U256> {
+        Vec::new()
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -417,6 +438,10 @@ impl Pool for UniswapV3Pool {
     fn is_native(&self) -> bool {
         false
     }
+
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Callback
+    }
 }
 
 #[allow(dead_code)]
@@ -472,10 +497,6 @@ impl PoolAbiEncoder for UniswapV3AbiSwapEncoder {
         };
 
         Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
-    }
-
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Callback
     }
 
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
@@ -615,10 +636,9 @@ mod test {
                 }
             };
             assert_eq!(
-                amount_out,
-                contract_amount_out,
-                "{}",
-                format!("Missmatch for pool={:?}, token_out={}, amount_in={}", pool_address, &pool.token1, amount_in)
+                amount_out, contract_amount_out,
+                "Mismatch for pool={:?}, token_out={}, amount_in={}",
+                pool_address, &pool.token1, amount_in
             );
             assert_eq!(gas_used, 150_000);
 
@@ -636,10 +656,9 @@ mod test {
                 }
             };
             assert_eq!(
-                amount_out,
-                contract_amount_out,
-                "{}",
-                format!("Missmatch for pool={:?}, token_out={}, amount_in={}", pool_address, &pool.token0, amount_in)
+                amount_out, contract_amount_out,
+                "Mismatch for pool={:?}, token_out={}, amount_in={}",
+                pool_address, &pool.token0, amount_in
             );
             assert_eq!(gas_used, 150_000);
         }
@@ -678,10 +697,9 @@ mod test {
                 }
             };
             assert_eq!(
-                amount_in,
-                contract_amount_in,
-                "{}",
-                format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token0, amount_out)
+                amount_in, contract_amount_in,
+                "Mismatch for pool={:?}, token_in={:?}, amount_out={}",
+                pool_address, &pool.token0, amount_out
             );
             assert_eq!(gas_used, 150_000);
 
@@ -699,10 +717,9 @@ mod test {
                 }
             };
             assert_eq!(
-                amount_in,
-                contract_amount_in,
-                "{}",
-                format!("Missmatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token1, amount_out)
+                amount_in, contract_amount_in,
+                "Mismatch for pool={:?}, token_in={:?}, amount_out={}",
+                pool_address, &pool.token1, amount_out
             );
             assert_eq!(gas_used, 150_000);
         }
@@ -740,10 +757,9 @@ mod test {
                 }
             };
             assert_eq!(
-                amount_in,
-                contract_amount_in,
-                "{}",
-                format!("Mismatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token0, amount_out)
+                amount_in, contract_amount_in,
+                "Mismatch for pool={:?}, token_in={:?}, amount_out={}",
+                pool_address, &pool.token0, amount_out
             );
             assert_eq!(gas_used, 150_000);
 
@@ -761,10 +777,9 @@ mod test {
                 }
             };
             assert_eq!(
-                amount_in,
-                contract_amount_in,
-                "{}",
-                format!("Mismatch for pool={:?}, token_in={:?}, amount_out={}", pool_address, &pool.token1, amount_out)
+                amount_in, contract_amount_in,
+                "Mismatch for pool={:?}, token_in={:?}, amount_out={}",
+                pool_address, &pool.token1, amount_out
             );
             assert_eq!(gas_used, 150_000);
         }

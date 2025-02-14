@@ -115,3 +115,9 @@ impl From<B256> for PoolId {
         Self::Bytes32(bytes)
     }
 }
+
+impl From<[u8; 32]> for PoolId {
+    fn from(bytes: [u8; 32]) -> Self {
+        Self::Bytes32(B256::from(bytes))
+    }
+}

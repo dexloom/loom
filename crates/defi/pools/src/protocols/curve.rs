@@ -4,7 +4,7 @@ use std::marker::PhantomData;
 use alloy::primitives::{address, Address, Bytes, U256};
 use alloy::providers::{Network, Provider};
 use alloy::rpc::types::{BlockId, BlockNumberOrTag};
-use alloy::sol_types::SolInterface;
+use alloy::sol_types::{SolCall, SolInterface};
 use alloy::transports::Transport;
 use eyre::{eyre, Report, Result};
 use tracing::{debug, error, trace};
@@ -386,7 +386,10 @@ where
             CurveContract::I128_4(interface) => Ok(interface.exchange(i.into(), j.into(), amount, min_dy).calldata().clone()),
             CurveContract::U256_2(interface) => Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy).calldata().clone()),
             CurveContract::U256_2To(interface) => {
-                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, to).calldata().clone())
+                Ok(ICurveU256_2_To::exchangeCall { _0: U256::from(i), _1: U256::from(j), _2: amount, _3: min_dy, _4: to }
+                    .abi_encode()
+                    .into())
+                //                Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, to).calldata().clone())
             }
             CurveContract::U256_2EthTo(interface) => {
                 Ok(interface.exchange(U256::from(i), U256::from(j), amount, min_dy, false, to).calldata().clone())

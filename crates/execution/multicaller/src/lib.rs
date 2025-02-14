@@ -1,5 +1,4 @@
 #![allow(dead_code)]
-pub use abi_helpers::AbiEncoderHelper;
 pub use deploy::{MulticallerDeployer, DEFAULT_VIRTUAL_ADDRESS};
 pub use multicaller_encoder::MulticallerEncoder;
 pub use multicaller_encoder::MulticallerSwapEncoder;
@@ -8,7 +7,6 @@ pub use pool_abi_encoder::ProtocolABIEncoderV2;
 pub use swapline_encoder::SwapLineEncoder;
 pub use swapstep_encoder::SwapStepEncoder;
 
-mod abi_helpers;
 mod deploy;
 mod multicaller_encoder;
 mod opcodes_encoder;

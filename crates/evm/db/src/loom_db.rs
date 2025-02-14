@@ -19,7 +19,7 @@ use std::collections::hash_map::Entry;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
-use tracing::{error, trace};
+use tracing::{error, info, trace};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone)]
@@ -316,7 +316,7 @@ impl LoomDB {
 
     pub fn apply_geth_update(&mut self, update: BTreeMap<Address, GethAccountState>) {
         for (addr, acc_state) in update {
-            trace!("apply_geth_update {} is code {} storage_len {} ", addr, acc_state.code.is_some(), acc_state.storage.len());
+            info!("apply_geth_update {} is code {} storage_len {} ", addr, acc_state.code.is_some(), acc_state.storage.len());
 
             for (k, v) in acc_state.storage.iter() {
                 if let Err(e) = self.insert_account_storage(addr, (*k).into(), (*v).into()) {

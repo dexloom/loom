@@ -1,5 +1,5 @@
 use alloy_primitives::{Address, Bytes, U256};
-use loom_types_entities::{Pool, PreswapRequirement};
+use loom_types_entities::Pool;
 
 pub use abi_encoder::*;
 mod abi_encoder;
@@ -26,10 +26,6 @@ pub trait ProtocolAbiSwapEncoderTrait: Send + Sync + 'static {
         recipient: Address,
         payload: Bytes,
     ) -> eyre::Result<Bytes>;
-
-    fn preswap_requirement(&self, pool: &dyn Pool) -> PreswapRequirement;
-
-    fn is_native(&self, pool: &dyn Pool) -> bool;
 
     fn swap_in_amount_offset(&self, pool: &dyn Pool, token_from_address: Address, token_to_address: Address) -> Option<u32>;
 
