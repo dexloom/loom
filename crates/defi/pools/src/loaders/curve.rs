@@ -16,10 +16,9 @@ use tracing::error;
 
 pool_loader!(CurvePoolLoader);
 
-impl<P, T> PoolLoader<P, T, Ethereum, LoomDataTypesEthereum> for CurvePoolLoader<P, T, Ethereum, LoomDataTypesEthereum>
+impl<P> PoolLoader<P, Ethereum, LoomDataTypesEthereum> for CurvePoolLoader<P, Ethereum, LoomDataTypesEthereum>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone + 'static,
+    P: Provider<Ethereum> + Clone + 'static,
 {
     fn get_pool_class_by_log(
         &self,
@@ -51,7 +50,7 @@ where
             match CurveProtocol::get_contract_from_code(provider.clone(), pool_address).await {
                 Ok(curve_contract) => {
                     let curve_pool =
-                        CurvePool::<P, T, Ethereum>::fetch_pool_data_with_default_encoder(provider.clone(), curve_contract).await?;
+                        CurvePool::<P, Ethereum>::fetch_pool_data_with_default_encoder(provider.clone(), curve_contract).await?;
 
                     Ok(PoolWrapper::new(Arc::new(curve_pool)))
                 }

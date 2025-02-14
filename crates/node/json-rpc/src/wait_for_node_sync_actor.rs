@@ -1,11 +1,9 @@
 use alloy_network::Ethereum;
 use alloy_provider::Provider;
 use alloy_rpc_types::SyncStatus;
-use alloy_transport::Transport;
 use eyre::eyre;
 use loom_core_actors::{Actor, ActorResult, WorkerResult};
 use loom_node_debug_provider::DebugProviderExt;
-use std::marker::PhantomData;
 use std::time::Duration;
 use tokio::time::timeout;
 use tracing::{error, info};
@@ -14,10 +12,9 @@ const SYNC_CHECK_INTERVAL: Duration = Duration::from_secs(1);
 const CLIENT_TIMEOUT: Duration = Duration::from_secs(10);
 
 /// Wait for the node to sync. This works only for http/ipc/ws providers.
-async fn wait_for_node_sync_one_shot_worker<P, T>(client: P) -> WorkerResult
+async fn wait_for_node_sync_one_shot_worker<P>(client: P) -> WorkerResult
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
 {
     info!("Waiting for node to sync...");
     let mut print_count = 0;
@@ -50,25 +47,22 @@ where
     Ok("Node is sync".to_string())
 }
 
-pub struct WaitForNodeSyncOneShotBlockingActor<P, T> {
+pub struct WaitForNodeSyncOneShotBlockingActor<P> {
     client: P,
-    _t: PhantomData<T>,
 }
 
-impl<P, T> WaitForNodeSyncOneShotBlockingActor<P, T>
+impl<P> WaitForNodeSyncOneShotBlockingActor<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P) -> WaitForNodeSyncOneShotBlockingActor<P, T> {
-        WaitForNodeSyncOneShotBlockingActor { client, _t: PhantomData }
+    pub fn new(client: P) -> WaitForNodeSyncOneShotBlockingActor<P> {
+        WaitForNodeSyncOneShotBlockingActor { client }
     }
 }
 
-impl<P, T> Actor for WaitForNodeSyncOneShotBlockingActor<P, T>
+impl<P> Actor for WaitForNodeSyncOneShotBlockingActor<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start_and_wait(&self) -> eyre::Result<()> {
         let rt = tokio::runtime::Runtime::new()?; // we need a different runtime to wait for the result

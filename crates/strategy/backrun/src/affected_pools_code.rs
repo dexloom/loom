@@ -2,7 +2,6 @@ use alloy_eips::BlockNumberOrTag;
 use alloy_network::Network;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use eyre::eyre;
 use revm::primitives::Env;
 use std::collections::BTreeMap;
@@ -17,15 +16,14 @@ use loom_evm_db::{AlloyDB, LoomDB};
 use loom_types_blockchain::GethStateUpdateVec;
 use loom_types_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolId, PoolProtocol, PoolWrapper};
 
-pub async fn get_affected_pools_from_code<P, T, N>(
+pub async fn get_affected_pools_from_code<P, N>(
     client: P,
     market: SharedState<Market>,
     state_update: &GethStateUpdateVec,
 ) -> eyre::Result<BTreeMap<PoolWrapper, Vec<(Address, Address)>>>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     let mut market_state = MarketState::new(LoomDB::new());
 

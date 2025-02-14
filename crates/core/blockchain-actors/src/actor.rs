@@ -1,7 +1,6 @@
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::{Provider, RootProvider};
-use alloy_transport::{BoxTransport, Transport};
 use axum::Router;
 use eyre::{eyre, ErrReport, Result};
 use loom_broadcast_accounts::{InitializeSignersOneShotBlockingActor, NonceAndBalanceMonitorActor, TxSignersActor};
@@ -42,11 +41,10 @@ use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{BlockHistoryState, PoolClass, SwapEncoder, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
-pub struct BlockchainActors<P, T, DB: Clone + Send + Sync + 'static, E: Clone = MulticallerSwapEncoder> {
+pub struct BlockchainActors<P, DB: Clone + Send + Sync + 'static, E: Clone = MulticallerSwapEncoder> {
     provider: P,
     bc: Blockchain,
     state: BlockchainState<DB>,
@@ -59,13 +57,11 @@ pub struct BlockchainActors<P, T, DB: Clone + Send + Sync + 'static, E: Clone = 
     has_signers: bool,
     mutlicaller_address: Option<Address>,
     relays: Vec<RelayConfig>,
-    _t: PhantomData<T>,
 }
 
-impl<P, T, DB, E> BlockchainActors<P, T, DB, E>
+impl<P, DB, E> BlockchainActors<P, DB, E>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     DB: DatabaseRef<Error = ErrReport>
         + Database<Error = ErrReport>
         + DatabaseCommit
@@ -99,7 +95,6 @@ where
             has_signers: false,
             mutlicaller_address: None,
             relays,
-            _t: PhantomData,
         }
     }
 
@@ -293,10 +288,9 @@ where
     }
 
     /// Starts remote node pending tx provider
-    pub fn with_remote_mempool<PM, TM>(&mut self, provider: PM) -> Result<&mut Self>
+    pub fn with_remote_mempool<PM>(&mut self, provider: PM) -> Result<&mut Self>
     where
-        TM: Transport + Clone,
-        PM: Provider<TM, Ethereum> + Send + Sync + Clone + 'static,
+        PM: Provider<Ethereum> + Send + Sync + Clone + 'static,
     {
         self.mempool()?;
         self.actor_manager.start(NodeMempoolActor::new(provider).on_bc(&self.bc))?;
@@ -408,8 +402,7 @@ where
     /// Starts EVM gas estimator and tips filler
     pub fn with_evm_estimator(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(
-            EvmEstimatorActor::<RootProvider<BoxTransport>, BoxTransport, Ethereum, E, DB>::new(self.encoder.clone().unwrap())
-                .on_bc(&self.bc, &self.strategy),
+            EvmEstimatorActor::<RootProvider, Ethereum, E, DB>::new(self.encoder.clone().unwrap()).on_bc(&self.bc, &self.strategy),
         )?;
         Ok(self)
     }

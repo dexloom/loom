@@ -1,8 +1,7 @@
 use crate::proto;
-use alloy_consensus::Header;
-use alloy_primitives::{Address, BlockHash, Bloom, PrimitiveSignature, TxHash, B256, B64, U256};
+use alloy_primitives::{Address, BlockHash, Bloom, TxHash, B256, B64, U256};
 use eyre::{eyre, OptionExt};
-use reth::api::BlockBody;
+use reth::primitives::Block;
 use std::sync::Arc;
 
 impl TryFrom<&reth_exex::ExExNotification> for proto::ExExNotification {
@@ -33,17 +32,14 @@ impl TryFrom<&reth::providers::Chain> for proto::Chain {
 
     fn try_from(chain: &reth::providers::Chain) -> Result<Self, Self::Error> {
         let bundle_state = chain.execution_outcome().state();
-
         Ok(proto::Chain {
             blocks: chain
                 .blocks_iter()
                 .map(|block| {
-                    let ommers = block.body().ommers().unwrap_or_default().iter().map(Into::into).collect();
-
                     Ok(proto::Block {
                         header: Some(proto::SealedHeader { hash: block.hash().to_vec(), header: Some(block.header().into()) }),
-                        body: block.transactions().iter().map(TryInto::try_into).collect::<eyre::Result<_>>()?,
-                        ommers,
+                        body: block.body().transactions.iter().map(TryInto::try_into).collect::<eyre::Result<_>>()?,
+                        ommers: block.body().ommers.iter().map(Into::into).collect(),
                         senders: block.senders().iter().map(|sender| sender.to_vec()).collect(),
                     })
                 })
@@ -89,8 +85,8 @@ impl TryFrom<&reth::providers::Chain> for proto::Chain {
     }
 }
 
-impl From<&Header> for proto::Header {
-    fn from(header: &Header) -> Self {
+impl From<&reth::primitives::Header> for proto::Header {
+    fn from(header: &reth::primitives::Header) -> Self {
         proto::Header {
             parent_hash: header.parent_hash.to_vec(),
             ommers_hash: header.ommers_hash.to_vec(),
@@ -112,21 +108,21 @@ impl From<&Header> for proto::Header {
             excess_blob_gas: header.excess_blob_gas,
             parent_beacon_block_root: header.parent_beacon_block_root.map(|root| root.to_vec()),
             extra_data: header.extra_data.to_vec(),
-            requests_hash: header.requests_hash.map(|root| root.to_vec()),
         }
     }
 }
+
 impl TryFrom<&reth::primitives::TransactionSigned> for proto::Transaction {
     type Error = eyre::Error;
 
     fn try_from(transaction: &reth::primitives::TransactionSigned) -> Result<Self, Self::Error> {
         let hash = transaction.hash().to_vec();
         let signature = proto::Signature {
-            r: transaction.signature.r().to_le_bytes_vec(),
-            s: transaction.signature.s().to_le_bytes_vec(),
-            y_parity: transaction.signature.v(),
+            r: transaction.signature().r().to_le_bytes_vec(),
+            s: transaction.signature().s().to_le_bytes_vec(),
+            y_parity: transaction.signature().v(),
         };
-        let transaction = match &transaction.transaction {
+        let transaction = match &transaction.transaction() {
             reth::primitives::Transaction::Legacy(alloy_consensus::TxLegacy {
                 chain_id,
                 nonce,
@@ -388,15 +384,11 @@ impl TryFrom<(Address, &reth::revm::db::states::reverts::AccountRevert)> for pro
     }
 }
 
-impl TryFrom<&Option<reth::primitives::Receipt>> for proto::Receipt {
+impl TryFrom<&reth::primitives::Receipt> for proto::Receipt {
     type Error = eyre::Error;
 
-    fn try_from(receipt: &Option<reth::primitives::Receipt>) -> Result<Self, Self::Error> {
-        Ok(proto::Receipt {
-            receipt: Some(receipt.as_ref().map_or(eyre::Ok(proto::receipt::Receipt::Empty(())), |receipt| {
-                Ok(proto::receipt::Receipt::NonEmpty(receipt.try_into()?))
-            })?),
-        })
+    fn try_from(receipt: &reth::primitives::Receipt) -> Result<Self, Self::Error> {
+        Ok(proto::Receipt { receipt: Some(proto::receipt::Receipt::NonEmpty(receipt.try_into()?)) })
     }
 }
 
@@ -481,13 +473,11 @@ impl TryFrom<&proto::Chain> for reth::providers::Chain {
                     state_size: bundle.state_size as usize,
                     reverts_size: bundle.reverts_size as usize,
                 },
-                receipts: reth::primitives::Receipts::from_iter(
-                    execution_outcome
-                        .receipts
-                        .iter()
-                        .map(|block_receipts| block_receipts.receipts.iter().map(TryInto::try_into).collect::<eyre::Result<_>>())
-                        .collect::<eyre::Result<Vec<_>>>()?,
-                ),
+                receipts: execution_outcome
+                    .receipts
+                    .iter()
+                    .map(|block_receipts| block_receipts.receipts.iter().map(|receipt| receipt.try_into()).collect::<eyre::Result<_>>())
+                    .collect::<eyre::Result<Vec<_>>>()?,
                 first_block: execution_outcome.first_block,
                 requests: Default::default(),
             },
@@ -496,7 +486,7 @@ impl TryFrom<&proto::Chain> for reth::providers::Chain {
     }
 }
 
-impl TryFrom<&proto::Block> for reth::primitives::SealedBlockWithSenders {
+impl TryFrom<&proto::Block> for reth::primitives::RecoveredBlock<Block> {
     type Error = eyre::Error;
 
     fn try_from(block: &proto::Block) -> Result<Self, Self::Error> {
@@ -508,22 +498,19 @@ impl TryFrom<&proto::Block> for reth::primitives::SealedBlockWithSenders {
         let ommers = block.ommers.iter().map(TryInto::try_into).collect::<eyre::Result<_>>()?;
         let senders = block.senders.iter().map(|sender| Address::try_from(sender.as_slice())).collect::<Result<_, _>>()?;
 
-        reth::primitives::SealedBlockWithSenders::new(
-            reth::primitives::SealedBlock::new(
-                sealed_header,
-                reth::primitives::BlockBody { transactions, ommers, withdrawals: Default::default() },
-            ),
-            senders,
+        Ok(reth::primitives::SealedBlock::<Block>::from_sealed_parts(
+            sealed_header,
+            reth::primitives::BlockBody { transactions, ommers, withdrawals: Default::default() },
         )
-        .ok_or_eyre("senders do not match transactions")
+        .with_senders(senders))
     }
 }
 
-impl TryFrom<&proto::Header> for Header {
+impl TryFrom<&proto::Header> for reth::primitives::Header {
     type Error = eyre::Error;
 
     fn try_from(header: &proto::Header) -> Result<Self, Self::Error> {
-        Ok(Header {
+        Ok(reth::primitives::Header {
             parent_hash: B256::try_from(header.parent_hash.as_slice())?,
             ommers_hash: B256::try_from(header.ommers_hash.as_slice())?,
             beneficiary: Address::try_from(header.beneficiary.as_slice())?,
@@ -543,8 +530,8 @@ impl TryFrom<&proto::Header> for Header {
             blob_gas_used: header.blob_gas_used,
             excess_blob_gas: header.excess_blob_gas,
             parent_beacon_block_root: header.parent_beacon_block_root.as_ref().map(|root| B256::try_from(root.as_slice())).transpose()?,
+            requests_hash: None,
             extra_data: header.extra_data.as_slice().to_vec().into(),
-            requests_hash: header.requests_hash.as_ref().map(|root| B256::try_from(root.as_slice())).transpose()?,
         })
     }
 }
@@ -555,11 +542,12 @@ impl TryFrom<&proto::Transaction> for reth::primitives::TransactionSigned {
     fn try_from(transaction: &proto::Transaction) -> Result<Self, Self::Error> {
         let hash = TxHash::try_from(transaction.hash.as_slice())?;
         let signature = transaction.signature.as_ref().ok_or_eyre("no signature")?;
-        let signature = PrimitiveSignature::new(
+        let signature = alloy_primitives::PrimitiveSignature::new(
             U256::try_from_le_slice(signature.r.as_slice()).ok_or_eyre("failed to parse r")?,
             U256::try_from_le_slice(signature.s.as_slice()).ok_or_eyre("failed to parse s")?,
             signature.y_parity,
         );
+
         let transaction = match transaction.transaction.as_ref().ok_or_eyre("no transaction")? {
             proto::transaction::Transaction::Legacy(proto::TransactionLegacy {
                 chain_id,
@@ -669,9 +657,19 @@ impl TryFrom<&proto::Transaction> for reth::primitives::TransactionSigned {
                 authorization_list: authorization_list
                     .iter()
                     .map(|authorization| {
+                        let signature = authorization.signature.as_ref().ok_or_eyre("no signature")?;
+                        let signature = alloy_primitives::PrimitiveSignature::new(
+                            U256::try_from_le_slice(signature.r.as_slice()).ok_or_eyre("failed to parse r")?,
+                            U256::try_from_le_slice(signature.s.as_slice()).ok_or_eyre("failed to parse s")?,
+                            signature.y_parity,
+                        );
+
                         let authorization = authorization.authorization.as_ref().ok_or_eyre("no authorization")?;
+
+                        let chain_id = U256::from(authorization.chain_id);
+
                         Ok(alloy_eips::eip7702::Authorization {
-                            chain_id: U256::from(authorization.chain_id),
+                            chain_id,
                             address: Address::try_from(authorization.address.as_slice())?,
                             nonce: authorization.nonce,
                         }
@@ -682,7 +680,7 @@ impl TryFrom<&proto::Transaction> for reth::primitives::TransactionSigned {
             }),
         };
 
-        Ok(reth::primitives::TransactionSigned { hash: hash.into(), signature, transaction })
+        Ok(reth::primitives::TransactionSigned::new(transaction, signature, hash))
     }
 }
 
@@ -838,14 +836,14 @@ impl TryFrom<&proto::Revert> for (Address, reth::revm::db::states::reverts::Acco
     }
 }
 
-impl TryFrom<&proto::Receipt> for Option<reth::primitives::Receipt> {
+impl TryFrom<&proto::Receipt> for reth::primitives::Receipt {
     type Error = eyre::Error;
 
     fn try_from(receipt: &proto::Receipt) -> Result<Self, Self::Error> {
-        Ok(match receipt.receipt.as_ref().ok_or_eyre("no receipt")? {
-            proto::receipt::Receipt::Empty(()) => None,
-            proto::receipt::Receipt::NonEmpty(receipt) => Some(receipt.try_into()?),
-        })
+        match receipt.receipt.as_ref().ok_or_eyre("no receipt")? {
+            proto::receipt::Receipt::Empty(()) => Err(eyre::eyre!("empty")),
+            proto::receipt::Receipt::NonEmpty(receipt) => Ok(receipt.try_into()?),
+        }
     }
 }
 

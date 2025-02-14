@@ -1,19 +1,17 @@
 use alloy_network::{primitives::HeaderResponse, Ethereum};
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockTransactionsKind, Header};
-use alloy_transport::Transport;
 use loom_core_actors::{subscribe, Broadcaster, WorkerResult};
 use loom_types_events::{BlockUpdate, Message, MessageBlock};
 use tracing::{debug, error};
 
-pub async fn new_block_with_tx_worker<P, T>(
+pub async fn new_block_with_tx_worker<P>(
     client: P,
     block_header_receiver: Broadcaster<Header>,
     sender: Broadcaster<MessageBlock>,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + 'static,
+    P: Provider<Ethereum> + Send + Sync + 'static,
 {
     subscribe!(block_header_receiver);
 

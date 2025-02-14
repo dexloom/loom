@@ -21,7 +21,7 @@ pub fn append_all_matching_block_logs_sealed(receipts: BlockReceipts, removed: b
 
     let block_number = header.number;
 
-    let receipts: Vec<Receipt> = receipts.receipts.iter().filter_map(|r| r.try_into().expect("FAILED")).collect();
+    let receipts: Vec<Receipt> = receipts.receipts.iter().filter_map(|r| r.try_into().ok()).collect();
 
     // Iterate over receipts and append matching logs.
     for (receipt_idx, receipt) in receipts.iter().enumerate() {

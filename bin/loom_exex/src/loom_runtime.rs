@@ -1,7 +1,6 @@
 use alloy::network::Ethereum;
 use alloy::primitives::Address;
 use alloy::providers::Provider;
-use alloy::transports::Transport;
 use axum::Router;
 use eyre::{ErrReport, OptionExt};
 use loom::core::blockchain::{Blockchain, BlockchainState, Strategy};
@@ -37,7 +36,7 @@ where
     Ok(loom_exex(ctx, bc, config.clone()))
 }
 
-pub async fn start_loom<P, T, DB>(
+pub async fn start_loom<P, DB>(
     provider: P,
     bc: Blockchain,
     bc_state: BlockchainState<DB>,
@@ -47,8 +46,7 @@ pub async fn start_loom<P, T, DB>(
     is_exex: bool,
 ) -> eyre::Result<()>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + DebugProviderExt<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     DB: Database<Error = ErrReport>
         + DatabaseRef<Error = ErrReport>
         + DatabaseCommit

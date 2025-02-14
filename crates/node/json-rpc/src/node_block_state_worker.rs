@@ -2,7 +2,6 @@ use alloy_network::Network;
 
 use alloy_provider::Provider;
 use alloy_rpc_types::{BlockId, Header};
-use alloy_transport::Transport;
 use tracing::{debug, error};
 
 use loom_core_actors::{subscribe, Broadcaster, WorkerResult};
@@ -10,15 +9,14 @@ use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::debug_trace_block;
 use loom_types_events::{BlockStateUpdate, Message, MessageBlockStateUpdate};
 
-pub async fn new_node_block_state_worker<P, T, N>(
+pub async fn new_node_block_state_worker<P, N>(
     client: P,
     block_header_receiver: Broadcaster<Header>,
     sender: Broadcaster<MessageBlockStateUpdate>,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
 {
     subscribe!(block_header_receiver);
 

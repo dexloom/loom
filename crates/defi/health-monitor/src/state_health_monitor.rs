@@ -1,11 +1,9 @@
 use std::collections::HashMap;
-use std::marker::PhantomData;
 
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
 use alloy_primitives::Address;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use chrono::{DateTime, Duration, Local};
 use eyre::Result;
 use tokio::sync::broadcast::error::RecvError;
@@ -20,7 +18,7 @@ use loom_types_entities::MarketState;
 use loom_types_events::{MarketEvents, MessageTxCompose, TxComposeMessageType};
 use revm::DatabaseRef;
 
-async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> + 'static, DB: DatabaseLoomExt>(
+async fn verify_pool_state_task<P: Provider<Ethereum> + 'static, DB: DatabaseLoomExt>(
     client: P,
     address: Address,
     market_state: SharedState<MarketState<DB>>,
@@ -55,8 +53,7 @@ async fn verify_pool_state_task<T: Transport + Clone, P: Provider<T, Ethereum> +
 }
 
 pub async fn state_health_monitor_worker<
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Clone + 'static,
+    P: Provider<Ethereum> + Clone + 'static,
     DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 >(
     client: P,
@@ -126,7 +123,7 @@ pub async fn state_health_monitor_worker<
 }
 
 #[derive(Accessor, Consumer)]
-pub struct StateHealthMonitorActor<P, T, DB: Clone + Send + Sync + 'static> {
+pub struct StateHealthMonitorActor<P, DB: Clone + Send + Sync + 'static> {
     client: P,
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
@@ -134,17 +131,15 @@ pub struct StateHealthMonitorActor<P, T, DB: Clone + Send + Sync + 'static> {
     tx_compose_channel_rx: Option<Broadcaster<MessageTxCompose>>,
     #[consumer]
     market_events_rx: Option<Broadcaster<MarketEvents>>,
-    _t: PhantomData<T>,
 }
 
-impl<P, T, DB> StateHealthMonitorActor<P, T, DB>
+impl<P, DB> StateHealthMonitorActor<P, DB>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P) -> Self {
-        StateHealthMonitorActor { client, market_state: None, tx_compose_channel_rx: None, market_events_rx: None, _t: PhantomData }
+        StateHealthMonitorActor { client, market_state: None, tx_compose_channel_rx: None, market_events_rx: None }
     }
 
     pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
@@ -157,10 +152,9 @@ where
     }
 }
 
-impl<P, T, DB> Actor for StateHealthMonitorActor<P, T, DB>
+impl<P, DB> Actor for StateHealthMonitorActor<P, DB>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {

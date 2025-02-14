@@ -1,7 +1,6 @@
 use alloy_network::Network;
 use alloy_provider::Provider;
 use alloy_rpc_types::Log;
-use alloy_transport::Transport;
 use eyre::Result;
 use std::collections::HashMap;
 use tracing::error;
@@ -10,15 +9,14 @@ use loom_core_actors::{run_async, Broadcaster};
 use loom_types_entities::PoolLoaders;
 use loom_types_events::LoomTask;
 
-pub async fn process_log_entries<P, T, N>(
+pub async fn process_log_entries<P, N>(
     log_entries: Vec<Log>,
-    pool_loaders: &PoolLoaders<P, T, N>,
+    pool_loaders: &PoolLoaders<P, N>,
     tasks_tx: Broadcaster<LoomTask>,
 ) -> Result<()>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
 {
     let mut pool_to_fetch = Vec::new();
     let mut processed_pools = HashMap::new();

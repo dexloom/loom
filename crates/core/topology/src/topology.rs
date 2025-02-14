@@ -6,7 +6,6 @@ use crate::topology_config::{BroadcasterConfig, ClientConfigParams, EncoderConfi
 use alloy_primitives::Address;
 use alloy_provider::{ProviderBuilder, RootProvider};
 use alloy_rpc_client::ClientBuilder;
-use alloy_transport::BoxTransport;
 use alloy_transport_ipc::IpcConnect;
 use alloy_transport_ws::WsConnect;
 use eyre::{eyre, ErrReport, OptionExt, Result};
@@ -106,7 +105,7 @@ impl<
                 }
             };
 
-            let provider = Some(ProviderBuilder::new().on_client(client).boxed());
+            let provider = Some(ProviderBuilder::new().disable_recommended_fillers().on_client(client));
 
             topology.clients.insert(name.clone(), ClientConfigParams { provider, ..v.config_params() });
         }
@@ -559,7 +558,7 @@ impl<
         Ok((topology, tasks))
     }
 
-    pub fn get_client(&self, name: Option<&String>) -> Result<RootProvider<BoxTransport>> {
+    pub fn get_client(&self, name: Option<&String>) -> Result<RootProvider> {
         match self.clients.get(name.unwrap_or(&"local".to_string())) {
             Some(a) => Ok(a.client().ok_or_eyre("CLIENT_NOT_SET")?.clone()),
             None => Err(eyre!("CLIENT_NOT_FOUND")),

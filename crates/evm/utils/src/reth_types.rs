@@ -5,7 +5,7 @@ use alloy::rpc::types::Transaction;
 use alloy::rpc::types::{BlockNumHash, Log as ALog};
 use eyre::{OptionExt, Result};
 use reth_db::models::StoredBlockBodyIndices;
-use reth_primitives::{BlockWithSenders, Receipt, SealedBlockWithSenders};
+use reth_primitives::{Block, Receipt, RecoveredBlock};
 
 pub trait Convert<T> {
     fn convert(&self) -> T;
@@ -19,14 +19,14 @@ pub fn append_all_matching_block_logs(
     receipts: Vec<Receipt>,
     removed: bool,
     block_body_indices: StoredBlockBodyIndices,
-    block: BlockWithSenders,
+    block: RecoveredBlock<Block>,
 ) -> Result<()> {
     // Lazy loaded number of the first transaction in the block.
     // This is useful for blocks with multiple matching logs because it prevents
     // re-querying the block body indices.
     let loaded_first_tx_num = block_body_indices.first_tx_num;
 
-    let mut tx_iter = block.body.transactions.iter();
+    let mut tx_iter = block.body().transactions.iter();
 
     // Iterate over receipts and append matching logs.
     for (log_index, (receipt_idx, receipt)) in (0_u64..).zip(receipts.iter().enumerate()) {
@@ -38,7 +38,7 @@ pub fn append_all_matching_block_logs(
                 inner: log.clone(),
                 block_hash: Some(block_num_hash.hash),
                 block_number: Some(block_num_hash.number),
-                transaction_hash: Some(transaction_hash),
+                transaction_hash: Some(*transaction_hash),
                 // The transaction and receipt index is always the same.
                 transaction_index: Some(receipt_idx as u64 + loaded_first_tx_num),
                 log_index: Some(log_index),
@@ -58,7 +58,7 @@ pub fn append_all_matching_block_logs_sealed(
     block_num_hash: BlockNumHash,
     receipts: Vec<Receipt>,
     removed: bool,
-    block: &SealedBlockWithSenders,
+    block: &RecoveredBlock<Block>,
 ) -> Result<()> {
     let mut tx_iter = block.body().transactions.iter();
 
@@ -72,7 +72,7 @@ pub fn append_all_matching_block_logs_sealed(
                 inner: log.clone(),
                 block_hash: Some(block_num_hash.hash),
                 block_number: Some(block_num_hash.number),
-                transaction_hash: Some(transaction_hash),
+                transaction_hash: Some(*transaction_hash),
                 // The transaction and receipt index is always the same.
                 transaction_index: Some(receipt_idx as u64),
                 log_index: Some(log_index),

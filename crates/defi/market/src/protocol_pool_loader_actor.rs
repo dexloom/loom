@@ -3,7 +3,6 @@ use std::sync::Arc;
 
 use alloy_network::Network;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use tracing::error;
 
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
@@ -14,15 +13,14 @@ use loom_types_entities::PoolLoaders;
 use loom_types_events::LoomTask;
 use tokio_stream::StreamExt;
 
-async fn protocol_pool_loader_worker<P, T, N>(
+async fn protocol_pool_loader_worker<P, N>(
     _client: P,
-    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_loaders: Arc<PoolLoaders<P, N>>,
     tasks_tx: Broadcaster<LoomTask>,
 ) -> WorkerResult
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
 {
     for (pool_class, pool_loader) in pool_loaders.map.iter() {
         let tasks_tx_clone = tasks_tx.clone();
@@ -43,28 +41,25 @@ where
 }
 
 #[derive(Producer)]
-pub struct ProtocolPoolLoaderOneShotActor<P, T, N>
+pub struct ProtocolPoolLoaderOneShotActor<P, N>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
 {
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, T, N>>,
+    pool_loaders: Arc<PoolLoaders<P, N>>,
     #[producer]
     tasks_tx: Option<Broadcaster<LoomTask>>,
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N> ProtocolPoolLoaderOneShotActor<P, T, N>
+impl<P, N> ProtocolPoolLoaderOneShotActor<P, N>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<P, T, N>>) -> Self {
-        Self { client, pool_loaders, tasks_tx: None, _n: PhantomData, _t: PhantomData }
+    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<P, N>>) -> Self {
+        Self { client, pool_loaders, tasks_tx: None, _n: PhantomData }
     }
 
     pub fn on_bc(self, bc: &Blockchain) -> Self {
@@ -72,11 +67,10 @@ where
     }
 }
 
-impl<P, T, N> Actor for ProtocolPoolLoaderOneShotActor<P, T, N>
+impl<P, N> Actor for ProtocolPoolLoaderOneShotActor<P, N>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task =

@@ -58,12 +58,7 @@ async fn process_chain_task(
         let block_consensus_header = sealed_block.header().clone();
 
         info!("Processing block block_number={} block_hash={}", block_hash_num.number, block_hash_num.hash);
-        match reth_rpc_types_compat::block::from_block(
-            sealed_block.clone().unseal(),
-            BlockTransactionsKind::Full,
-            Some(sealed_block.hash()),
-            &eth_tx_builder,
-        ) {
+        match reth_rpc_types_compat::block::from_block(sealed_block.clone(), BlockTransactionsKind::Full, &eth_tx_builder) {
             Ok(block) => {
                 if let Err(e) = block_with_tx_channel.send(block).await {
                     error!("block_with_tx_channel.send error : {}", e)
@@ -76,7 +71,7 @@ async fn process_chain_task(
 
         let mut logs: Vec<alloy_rpc_types::Log> = Vec::new();
 
-        let receipts = receipts.iter().filter_map(|r| r.clone()).collect();
+        let receipts = receipts.clone();
 
         append_all_matching_block_logs_sealed(&mut logs, block_hash_num, receipts, false, sealed_block)?;
 

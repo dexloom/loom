@@ -6,24 +6,21 @@ use alloy_network::Ethereum;
 use alloy_primitives::{TxHash, U64};
 use alloy_provider::Provider;
 use alloy_signer_local::PrivateKeySigner;
-use alloy_transport::Transport;
 use eyre::{eyre, Result};
-use std::marker::PhantomData;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Arc;
 use tracing::{debug, error, info};
 use url::Url;
 
 #[derive(Clone)]
-pub struct FlashbotsClient<P, T> {
-    pub flashbots_middleware: FlashbotsMiddleware<P, T>,
+pub struct FlashbotsClient<T> {
+    pub flashbots_middleware: FlashbotsMiddleware<T>,
     pub name: String,
 }
 
-impl<P, T> FlashbotsClient<P, T>
+impl<P> FlashbotsClient<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     pub fn new(provider: P, url: &str) -> Self {
         let flashbots_middleware = Self::create_flashbots_middleware(provider, url);
@@ -41,14 +38,14 @@ where
         FlashbotsClient { flashbots_middleware: flashbots_client, name }
     }
 
-    fn create_flashbots_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P, T> {
-        let flashbots: FlashbotsMiddleware<P, T> = FlashbotsMiddleware::new(Url::parse(url).unwrap(), provider);
+    fn create_flashbots_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P> {
+        let flashbots: FlashbotsMiddleware<P> = FlashbotsMiddleware::new(Url::parse(url).unwrap(), provider);
 
         flashbots
     }
 
-    fn create_flashbots_no_signer_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P, T> {
-        let flashbots: FlashbotsMiddleware<P, T> = FlashbotsMiddleware::new_no_signer(Url::parse(url).unwrap(), provider);
+    fn create_flashbots_no_signer_middleware(provider: P, url: &str) -> FlashbotsMiddleware<P> {
+        let flashbots: FlashbotsMiddleware<P> = FlashbotsMiddleware::new_no_signer(Url::parse(url).unwrap(), provider);
         flashbots
     }
 
@@ -100,25 +97,23 @@ where
     }
 }
 
-pub struct Flashbots<P, T> {
+pub struct Flashbots<P> {
     req_id: AtomicU64,
     signer: PrivateKeySigner,
     provider: P,
-    simulation_client: FlashbotsClient<P, T>,
-    clients: Vec<Arc<FlashbotsClient<P, T>>>,
-    _t: PhantomData<T>,
+    simulation_client: FlashbotsClient<P>,
+    clients: Vec<Arc<FlashbotsClient<P>>>,
 }
 
-impl<P, T> Flashbots<P, T>
+impl<P> Flashbots<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     pub fn new(provider: P, simulation_endpoint: &str, signer: Option<PrivateKeySigner>) -> Self {
         let signer = signer.unwrap_or(PrivateKeySigner::random());
         let simulation_client = FlashbotsClient::new(provider.clone(), simulation_endpoint);
 
-        Flashbots { req_id: AtomicU64::new(0), signer, provider, clients: vec![], simulation_client, _t: PhantomData }
+        Flashbots { req_id: AtomicU64::new(0), signer, provider, clients: vec![], simulation_client }
     }
 
     pub fn with_default_relays(self) -> Self {
@@ -172,7 +167,7 @@ where
     }
 
     pub fn with_relays(self, relays: Vec<RelayConfig>) -> Self {
-        let clients: Vec<Arc<FlashbotsClient<P, T>>> = relays
+        let clients: Vec<Arc<FlashbotsClient<P>>> = relays
             .into_iter()
             .map(|relay| {
                 if relay.no_sign.unwrap_or(false) {
@@ -257,7 +252,7 @@ mod test {
         let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("debug,flashbots=off"));
         let node_url = Url::try_from(env::var("MAINNET_HTTP")?.as_str())?;
 
-        let provider = ProviderBuilder::new().on_http(node_url).boxed();
+        let provider = ProviderBuilder::new().disable_recommended_fillers().on_http(node_url);
         let block = provider.get_block_number().await?;
 
         let flashbots_client = FlashbotsClient::new(provider.clone(), "https://relay.flashbots.net");
@@ -285,7 +280,7 @@ mod test {
         let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or("trace"));
         let node_url = Url::try_from(env::var("MAINNET_HTTP")?.as_str())?;
 
-        let provider = ProviderBuilder::new().on_http(node_url).boxed();
+        let provider = ProviderBuilder::new().disable_recommended_fillers().on_http(node_url);
         let block = provider.get_block_number().await?;
 
         let flashbots_client =

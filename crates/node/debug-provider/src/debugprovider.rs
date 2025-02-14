@@ -12,41 +12,36 @@ use alloy::{
         types::trace::geth::{GethDebugTracingCallOptions, GethDebugTracingOptions, GethTrace, TraceResult},
         types::{BlockNumberOrTag, BlockTransactionsKind, TransactionRequest},
     },
-    transports::{BoxTransport, Transport, TransportResult},
+    transports::TransportResult,
 };
 use async_trait::async_trait;
 use eyre::{eyre, Result};
 use k256::SecretKey;
 
-use crate::HttpCachedTransport;
+//use crate::HttpCachedTransport;
 
 #[derive(Clone, Debug)]
-pub struct AnvilDebugProvider<PN, PA, TN, TA, N>
+pub struct AnvilDebugProvider<PN, PA, N>
 where
     N: Network,
-    TA: Transport + Clone,
-    TN: Transport + Clone,
-    PN: Provider<TN, N> + Send + Sync + Clone + 'static,
-    PA: Provider<TA, N> + Send + Sync + Clone + 'static,
+    PN: Provider<N> + Send + Sync + Clone + 'static,
+    PA: Provider<N> + Send + Sync + Clone + 'static,
 {
     _node: PN,
     _anvil: PA,
     _anvil_instance: Option<Arc<AnvilInstance>>,
     block_number: BlockNumberOrTag,
-    _ta: PhantomData<TA>,
-    _tn: PhantomData<TN>,
     _n: PhantomData<N>,
 }
 
 pub struct AnvilDebugProviderFactory {}
 
-pub type AnvilDebugProviderType =
-    AnvilDebugProvider<RootProvider<BoxTransport, Ethereum>, RootProvider<BoxTransport, Ethereum>, BoxTransport, BoxTransport, Ethereum>;
+pub type AnvilDebugProviderType = AnvilDebugProvider<RootProvider<Ethereum>, RootProvider<Ethereum>, Ethereum>;
 
 impl AnvilDebugProviderFactory {
     pub async fn from_node_on_block(node_url: String, block: BlockNumber) -> Result<AnvilDebugProviderType> {
         let node_ws = WsConnect::new(node_url.clone());
-        let node_provider = ProviderBuilder::new().on_ws(node_ws).await?.boxed();
+        let node_provider = ProviderBuilder::new().disable_recommended_fillers().on_ws(node_ws).await?;
 
         let anvil = Anvil::new().fork_block_number(block).fork(node_url.clone()).chain_id(1).arg("--disable-console-log").spawn();
 
@@ -54,7 +49,7 @@ impl AnvilDebugProviderFactory {
         let anvil_url = anvil.ws_endpoint_url();
         let anvil_ws = WsConnect::new(anvil_url.clone());
 
-        let anvil_provider = ProviderBuilder::new().on_ws(anvil_ws).await?.boxed();
+        let anvil_provider = ProviderBuilder::new().disable_recommended_fillers().on_ws(anvil_ws).await?;
 
         let curblock = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes).await?;
 
@@ -74,8 +69,6 @@ impl AnvilDebugProviderFactory {
             _anvil: anvil_provider,
             _anvil_instance: Some(Arc::new(anvil)),
             block_number: BlockNumberOrTag::Number(block),
-            _ta: PhantomData::<BoxTransport>,
-            _tn: PhantomData::<BoxTransport>,
             _n: PhantomData::<Ethereum>,
         };
 
@@ -96,16 +89,14 @@ impl AnvilDebugProviderFactory {
     }
 }
 
-impl<PN, PA, TN, TA, N> AnvilDebugProvider<PN, PA, TN, TA, N>
+impl<PN, PA, N> AnvilDebugProvider<PN, PA, N>
 where
-    TN: Transport + Clone,
-    TA: Transport + Clone,
     N: Network,
-    PA: Provider<TA, N> + Send + Sync + Clone + 'static,
-    PN: Provider<TN, N> + Send + Sync + Clone + 'static,
+    PA: Provider<N> + Send + Sync + Clone + 'static,
+    PN: Provider<N> + Send + Sync + Clone + 'static,
 {
     pub fn new(_node: PN, _anvil: PA, block_number: BlockNumberOrTag) -> Self {
-        Self { _node, _anvil, _anvil_instance: None, block_number, _ta: PhantomData, _tn: PhantomData, _n: PhantomData }
+        Self { _node, _anvil, _anvil_instance: None, block_number, _n: PhantomData }
     }
 
     pub fn node(&self) -> &PN {
@@ -145,25 +136,24 @@ impl<PN, PA, TN, TA, N> Provider<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N
 
  */
 
-impl<PN, PA, TA> Provider<TA, Ethereum> for AnvilDebugProvider<PN, PA, BoxTransport, TA, Ethereum>
+impl<PN, PA> Provider<Ethereum> for AnvilDebugProvider<PN, PA, Ethereum>
 where
-    TA: Transport + Clone,
-    PN: Provider<BoxTransport, Ethereum> + Send + Sync + Clone + 'static,
-    PA: Provider<TA, Ethereum> + Send + Sync + Clone + 'static,
+    PN: Provider<Ethereum> + Send + Sync + Clone + 'static,
+    PA: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     #[inline(always)]
-    fn root(&self) -> &RootProvider<TA, Ethereum> {
+    fn root(&self) -> &RootProvider<Ethereum> {
         self._anvil.root()
     }
 
     #[allow(clippy::type_complexity)]
-    fn get_block_number(&self) -> ProviderCall<TA, NoParams, U64, BlockNumber> {
+    fn get_block_number(&self) -> ProviderCall<NoParams, U64, BlockNumber> {
         self._anvil.get_block_number()
     }
 }
 
 #[async_trait]
-pub trait DebugProviderExt<T = BoxTransport, N = Ethereum> {
+pub trait DebugProviderExt<N = Ethereum> {
     async fn geth_debug_trace_call(
         &self,
         tx: TransactionRequest,
@@ -183,9 +173,8 @@ pub trait DebugProviderExt<T = BoxTransport, N = Ethereum> {
 }
 
 #[async_trait]
-impl<T, N> DebugProviderExt<T, N> for RootProvider<BoxTransport>
+impl<N> DebugProviderExt<N> for RootProvider<Ethereum>
 where
-    T: Transport + Clone,
     N: Network,
 {
     async fn geth_debug_trace_call(
@@ -213,43 +202,11 @@ where
 }
 
 #[async_trait]
-impl<T, N> DebugProviderExt<T, N> for RootProvider<HttpCachedTransport>
+impl<PN, PA, N> DebugProviderExt<N> for AnvilDebugProvider<PN, PA, N>
 where
-    T: Transport + Clone,
     N: Network,
-{
-    async fn geth_debug_trace_call(
-        &self,
-        tx: TransactionRequest,
-        block: BlockId,
-        trace_options: GethDebugTracingCallOptions,
-    ) -> TransportResult<GethTrace> {
-        self.debug_trace_call(tx, block, trace_options).await
-    }
-    async fn geth_debug_trace_block_by_number(
-        &self,
-        block: BlockNumberOrTag,
-        trace_options: GethDebugTracingOptions,
-    ) -> TransportResult<Vec<TraceResult>> {
-        self.debug_trace_block_by_number(block, trace_options).await
-    }
-    async fn geth_debug_trace_block_by_hash(
-        &self,
-        block: BlockHash,
-        trace_options: GethDebugTracingOptions,
-    ) -> TransportResult<Vec<TraceResult>> {
-        self.debug_trace_block_by_hash(block, trace_options).await
-    }
-}
-
-#[async_trait]
-impl<PN, PA, TN, TA, N> DebugProviderExt<TA, N> for AnvilDebugProvider<PN, PA, TN, TA, N>
-where
-    TN: Transport + Clone,
-    TA: Transport + Clone,
-    N: Network,
-    PN: Provider<TN, N> + Send + Sync + Clone + 'static,
-    PA: Provider<TA, N> + Send + Sync + Clone + 'static,
+    PN: Provider<N> + Send + Sync + Clone + 'static,
+    PA: Provider<N> + Send + Sync + Clone + 'static,
 {
     async fn geth_debug_trace_call(
         &self,
@@ -304,9 +261,9 @@ mod test {
         let provider_anvil =
             ProviderBuilder::new().on_anvil_with_config(|x| x.chain_id(1).fork(node_url.clone()).fork_block_number(20322777));
 
-        let client_node = ClientBuilder::default().http(node_url).boxed();
+        let client_node = ClientBuilder::default().http(node_url);
 
-        let provider_node = ProviderBuilder::new().on_client(client_node).boxed();
+        let provider_node = ProviderBuilder::new().disable_recommended_fillers().on_client(client_node);
 
         let provider = AnvilDebugProvider::new(provider_node, provider_anvil, BlockNumberOrTag::Number(10));
 

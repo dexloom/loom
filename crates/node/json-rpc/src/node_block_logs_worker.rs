@@ -3,14 +3,13 @@ use std::time::Duration;
 
 use alloy_provider::Provider;
 use alloy_rpc_types::{Filter, Header};
-use alloy_transport::Transport;
 use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error};
 
 use loom_core_actors::{subscribe, Broadcaster, WorkerResult};
 use loom_types_events::{BlockLogs, Message, MessageBlockLogs};
 
-pub async fn new_node_block_logs_worker<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + 'static>(
+pub async fn new_node_block_logs_worker<N: Network, P: Provider<N> + Send + Sync + 'static>(
     client: P,
     block_header_receiver: Broadcaster<Header>,
     sender: Broadcaster<MessageBlockLogs>,
@@ -47,7 +46,7 @@ pub async fn new_node_block_logs_worker<T: Transport + Clone, N: Network, P: Pro
 }
 
 #[allow(dead_code)]
-pub async fn new_node_block_logs_worker_reth<T: Transport + Clone, N: Network, P: Provider<T, N> + Send + Sync + 'static>(
+pub async fn new_node_block_logs_worker_reth<N: Network, P: Provider<N> + Send + Sync + 'static>(
     client: P,
     mut block_header_receiver: Receiver<Header>,
     sender: Broadcaster<MessageBlockLogs>,

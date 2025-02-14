@@ -1,7 +1,7 @@
 use crate::remv_db_direct_access::calc_hashmap_cell;
 use crate::{nweth, NWETH};
 use alloy::providers::ext::AnvilApi;
-use alloy::{network::Network, primitives::Address, providers::Provider, sol_types::private::U256, transports::Transport};
+use alloy::{network::Network, primitives::Address, providers::Provider, sol_types::private::U256};
 use eyre::{eyre, Result};
 use loom_defi_abi::IERC20::IERC20Instance;
 use loom_defi_address_book::TokenAddressEth;
@@ -24,22 +24,20 @@ impl BalanceCheater {
         }
     }
 
-    pub async fn get_anvil_token_balance<P, T, N>(client: P, token: Address, owner: Address) -> eyre::Result<U256>
+    pub async fn get_anvil_token_balance<P, N>(client: P, token: Address, owner: Address) -> eyre::Result<U256>
     where
         N: Network,
-        T: Transport + Clone,
-        P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     {
         let value = client.get_storage_at(token, Self::get_balance_cell(token, owner)?).await?;
 
         Ok(value)
     }
 
-    pub async fn set_anvil_token_balance<P, T, N>(client: P, token: Address, owner: Address, balance: U256) -> eyre::Result<()>
+    pub async fn set_anvil_token_balance<P, N>(client: P, token: Address, owner: Address, balance: U256) -> eyre::Result<()>
     where
-        T: Transport + Clone,
         N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<N> + Send + Sync + Clone + 'static,
     {
         let balance_cell = Self::get_balance_cell(token, owner)?;
 
@@ -64,11 +62,10 @@ impl BalanceCheater {
         }
         Ok(())
     }
-    pub async fn set_anvil_token_balance_float<P, T, N>(client: P, token: Address, owner: Address, balance: f64) -> eyre::Result<()>
+    pub async fn set_anvil_token_balance_float<P, N>(client: P, token: Address, owner: Address, balance: f64) -> eyre::Result<()>
     where
-        T: Transport + Clone,
         N: Network,
-        P: Provider<T, N> + Send + Sync + Clone + 'static,
+        P: Provider<N> + Send + Sync + Clone + 'static,
     {
         let balance = nweth::NWETH::from_float(balance);
         Self::set_anvil_token_balance(client, token, owner, balance).await

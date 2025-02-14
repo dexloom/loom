@@ -2,7 +2,6 @@ use std::marker::PhantomData;
 
 use alloy_network::Network;
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use eyre::ErrReport;
 use influxdb::WriteQuery;
 use revm::{Database, DatabaseCommit, DatabaseRef};
@@ -21,7 +20,7 @@ use crate::block_state_change_processor::BlockStateChangeProcessorActor;
 use crate::BackrunConfig;
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct StateChangeArbActor<P, T, N, DB: Clone + Send + Sync + 'static> {
+pub struct StateChangeArbActor<P, N, DB: Clone + Send + Sync + 'static> {
     backrun_config: BackrunConfig,
     client: P,
     use_blocks: bool,
@@ -47,18 +46,16 @@ pub struct StateChangeArbActor<P, T, N, DB: Clone + Send + Sync + 'static> {
     #[producer]
     influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 
-    _t: PhantomData<T>,
     _n: PhantomData<N>,
 }
 
-impl<P, T, N, DB> StateChangeArbActor<P, T, N, DB>
+impl<P, N, DB> StateChangeArbActor<P, N, DB>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, use_blocks: bool, use_mempool: bool, backrun_config: BackrunConfig) -> StateChangeArbActor<P, T, N, DB> {
+    pub fn new(client: P, use_blocks: bool, use_mempool: bool, backrun_config: BackrunConfig) -> StateChangeArbActor<P, N, DB> {
         StateChangeArbActor {
             backrun_config,
             client,
@@ -74,17 +71,15 @@ where
             compose_channel_tx: None,
             pool_health_monitor_tx: None,
             influxdb_write_channel_tx: None,
-            _t: PhantomData,
             _n: PhantomData,
         }
     }
 }
 
-impl<P, T, N, DB> Actor for StateChangeArbActor<P, T, N, DB>
+impl<P, N, DB> Actor for StateChangeArbActor<P, N, DB>
 where
-    T: Transport + Clone,
     N: Network,
-    P: Provider<T, N> + DebugProviderExt<T, N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     fn start(&self) -> ActorResult {

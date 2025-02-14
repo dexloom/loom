@@ -2,11 +2,9 @@ use alloy_consensus::transaction::Transaction;
 use alloy_network::{Ethereum, TransactionResponse};
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
-use alloy_transport::Transport;
 use eyre::{eyre, Result};
 use influxdb::{Timestamp, WriteQuery};
 use std::collections::HashMap;
-use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::broadcast::Receiver;
@@ -31,11 +29,7 @@ struct TxToCheck {
     swap: Swap,
 }
 
-async fn calc_coinbase_diff<P: Provider<T, Ethereum> + 'static, T: Transport + Clone>(
-    client: P,
-    tx_hash: TxHash,
-    coinbase: Address,
-) -> Result<U256> {
+async fn calc_coinbase_diff<P: Provider<Ethereum> + 'static>(client: P, tx_hash: TxHash, coinbase: Address) -> Result<U256> {
     let (pre, post) = debug_trace_transaction(client, tx_hash, true).await?;
 
     let coinbase_pre = pre.get(&coinbase).ok_or(eyre!("COINBASE_NOT_FOUND_IN_PRE"))?;
@@ -47,7 +41,7 @@ async fn calc_coinbase_diff<P: Provider<T, Ethereum> + 'static, T: Transport + C
     Ok(balance_diff)
 }
 
-pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'static, T: Transport + Clone>(
+pub async fn stuffing_tx_monitor_worker<P: Provider<Ethereum> + Clone + 'static>(
     client: P,
     latest_block: SharedState<LatestBlock>,
     tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
@@ -168,7 +162,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<T, Ethereum> + Clone + 'stat
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct StuffingTxMonitorActor<P, T> {
+pub struct StuffingTxMonitorActor<P> {
     client: P,
     #[accessor]
     latest_block: Option<SharedState<LatestBlock>>,
@@ -178,11 +172,9 @@ pub struct StuffingTxMonitorActor<P, T> {
     market_events_rx: Option<Broadcaster<MarketEvents>>,
     #[producer]
     influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
-
-    _t: PhantomData<T>,
 }
 
-impl<P: Provider<T, Ethereum> + Send + Sync + Clone + 'static, T: Transport + Clone> StuffingTxMonitorActor<P, T> {
+impl<P: Provider<Ethereum> + Send + Sync + Clone + 'static> StuffingTxMonitorActor<P> {
     pub fn new(client: P) -> Self {
         StuffingTxMonitorActor {
             client,
@@ -190,7 +182,6 @@ impl<P: Provider<T, Ethereum> + Send + Sync + Clone + 'static, T: Transport + Cl
             tx_compose_channel_rx: None,
             market_events_rx: None,
             influxdb_write_channel_tx: None,
-            _t: PhantomData,
         }
     }
 
@@ -205,10 +196,9 @@ impl<P: Provider<T, Ethereum> + Send + Sync + Clone + 'static, T: Transport + Cl
     }
 }
 
-impl<P, T> Actor for StuffingTxMonitorActor<P, T>
+impl<P> Actor for StuffingTxMonitorActor<P>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + Send + Sync + Clone + 'static,
+    P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(stuffing_tx_monitor_worker(

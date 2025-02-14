@@ -6,7 +6,6 @@ mod uniswap3;
 use crate::loaders::curve::CurvePoolLoader;
 use alloy::providers::network::Ethereum;
 use alloy::providers::{Network, Provider};
-use alloy::transports::Transport;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::pool_config::PoolsConfig;
 use loom_types_entities::{PoolClass, PoolLoader, PoolLoaders};
@@ -21,28 +20,25 @@ macro_rules! pool_loader {
     // This will match the input like MaverickPoolLoader
     ($name:ident) => {
         use alloy::providers::{Network, Provider};
-        use alloy::transports::Transport;
         use std::marker::PhantomData;
 
         #[derive(Clone)]
 
-        pub struct $name<P, T, N, LDT = LoomDataTypesEthereum>
+        pub struct $name<P, N, LDT = LoomDataTypesEthereum>
         where
-            T: Transport + Clone,
             N: Network,
-            P: Provider<T, N> + Clone,
+            P: Provider<N> + Clone,
             LDT: LoomDataTypes,
         {
             provider: Option<P>,
-            phantom_data: PhantomData<(P, T, N, LDT)>,
+            phantom_data: PhantomData<(P, N, LDT)>,
         }
 
         #[allow(dead_code)]
-        impl<P, T, N, LDT> $name<P, T, N, LDT>
+        impl<P, N, LDT> $name<P, N, LDT>
         where
-            T: Transport + Clone,
             N: Network,
-            P: Provider<T, N> + Clone,
+            P: Provider<N> + Clone,
             LDT: LoomDataTypes,
         {
             pub fn new() -> Self {
@@ -54,11 +50,10 @@ macro_rules! pool_loader {
             }
         }
 
-        impl<P, T, N, LDT> Default for $name<P, T, N, LDT>
+        impl<P, N, LDT> Default for $name<P, N, LDT>
         where
-            T: Transport + Clone,
             N: Network,
-            P: Provider<T, N> + Clone,
+            P: Provider<N> + Clone,
             LDT: LoomDataTypes,
         {
             fn default() -> Self {
@@ -68,21 +63,19 @@ macro_rules! pool_loader {
     };
 }
 
-pub struct PoolLoadersBuilder<P, T, N, LDT = LoomDataTypesEthereum>
+pub struct PoolLoadersBuilder<P, N, LDT = LoomDataTypesEthereum>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + 'static,
+    P: Provider<N> + 'static,
     LDT: LoomDataTypes,
 {
-    inner: PoolLoaders<P, T, N, LDT>,
+    inner: PoolLoaders<P, N, LDT>,
 }
 
-impl<P, T, N, LDT> PoolLoadersBuilder<P, T, N, LDT>
+impl<P, N, LDT> PoolLoadersBuilder<P, N, LDT>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + 'static,
+    P: Provider<N> + 'static,
     LDT: LoomDataTypes,
 {
     pub fn new() -> Self {
@@ -97,20 +90,19 @@ where
         Self { inner: self.inner.with_config(config) }
     }
 
-    pub fn add_loader(self, pool_class: PoolClass, pool_loader: Arc<dyn PoolLoader<P, T, N, LDT>>) -> Self {
+    pub fn add_loader(self, pool_class: PoolClass, pool_loader: Arc<dyn PoolLoader<P, N, LDT>>) -> Self {
         Self { inner: self.inner.add_loader(pool_class, pool_loader) }
     }
 
-    pub fn build(self) -> PoolLoaders<P, T, N, LDT> {
+    pub fn build(self) -> PoolLoaders<P, N, LDT> {
         self.inner
     }
 }
 
-impl<P, T, N, LDT> Default for PoolLoadersBuilder<P, T, N, LDT>
+impl<P, N, LDT> Default for PoolLoadersBuilder<P, N, LDT>
 where
     N: Network,
-    T: Transport + Clone,
-    P: Provider<T, N> + 'static,
+    P: Provider<N> + 'static,
     LDT: LoomDataTypes,
 {
     fn default() -> Self {
@@ -118,15 +110,13 @@ where
     }
 }
 
-impl<P, T> PoolLoadersBuilder<P, T, Ethereum, LoomDataTypesEthereum>
+impl<P> PoolLoadersBuilder<P, Ethereum, LoomDataTypesEthereum>
 where
-    T: Transport + Clone,
-    P: Provider<T, Ethereum> + 'static,
+    P: Provider<Ethereum> + 'static,
 {
-    pub fn default_pool_loaders(provider: P, config: PoolsConfig) -> PoolLoaders<P, T, Ethereum, LoomDataTypesEthereum>
+    pub fn default_pool_loaders(provider: P, config: PoolsConfig) -> PoolLoaders<P, Ethereum, LoomDataTypesEthereum>
     where
-        T: Transport + Clone,
-        P: Provider<T, Ethereum> + Clone,
+        P: Provider<Ethereum> + Clone,
     {
         PoolLoadersBuilder::new()
             .with_provider(provider.clone())
