@@ -2,13 +2,14 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::topology_config::TransportType;
-use crate::topology_config::{BroadcasterConfig, ClientConfigParams, EncoderConfig, EstimatorConfig, SignersConfig, TopologyConfig};
+use crate::topology_config::{BroadcasterConfig, ClientConfig, EncoderConfig, EstimatorConfig, SignersConfig, TopologyConfig};
 use alloy_primitives::Address;
-use alloy_provider::{ProviderBuilder, RootProvider};
+use alloy_provider::network::Ethereum;
+use alloy_provider::{Network, Provider, ProviderBuilder, RootProvider};
 use alloy_rpc_client::ClientBuilder;
 use alloy_transport_ipc::IpcConnect;
 use alloy_transport_ws::WsConnect;
-use eyre::{eyre, ErrReport, OptionExt, Result};
+use eyre::{eyre, ErrReport, Result};
 use loom_broadcast_accounts::{InitializeSignersOneShotBlockingActor, NonceAndBalanceMonitorActor, TxSignersActor};
 use loom_broadcast_broadcaster::FlashbotsBroadcastActor;
 use loom_broadcast_flashbots::Flashbots;
@@ -18,23 +19,32 @@ use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_mempool::MempoolActor;
 use loom_defi_health_monitor::PoolHealthMonitorActor;
 use loom_defi_market::{HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, ProtocolPoolLoaderOneShotActor};
-use loom_defi_pools::{PoolLoadersBuilder, PoolsConfig};
+use loom_defi_pools::PoolLoadersBuilder;
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
 use loom_evm_db::DatabaseLoomExt;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
+use loom_execution_multicaller::MulticallerSwapEncoder;
 use loom_node_actor_config::NodeBlockActorConfig;
 #[cfg(feature = "db-access")]
 use loom_node_db_access::RethDbAccessBlockActor;
 use loom_node_grpc::NodeExExGrpcActor;
 use loom_node_json_rpc::{NodeBlockActor, NodeMempoolActor};
-use loom_types_entities::{BlockHistoryState, MarketState, SwapEncoder, TxSigners};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_entities::{BlockHistoryState, MarketState, PoolLoaders, SwapEncoder, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::task::JoinHandle;
 use tracing::{error, info, warn};
 
-pub struct Topology<DB: Clone + Send + Sync + 'static> {
-    clients: HashMap<String, ClientConfigParams>,
+pub struct Topology<
+    DB: Clone + Send + Sync + 'static,
+    E: Send + Sync + Clone + 'static = MulticallerSwapEncoder,
+    P: Provider<N> + Send + Sync + Clone + 'static = RootProvider,
+    N: Network = Ethereum,
+    LDT: LoomDataTypes = LoomDataTypesEthereum,
+> {
+    config: TopologyConfig,
+    clients: HashMap<String, RootProvider<N>>,
     blockchains: HashMap<String, Blockchain>,
     blockchain_states: HashMap<String, BlockchainState<DB>>,
     strategies: HashMap<String, Strategy<DB>>,
@@ -43,6 +53,8 @@ pub struct Topology<DB: Clone + Send + Sync + 'static> {
     default_blockchain_name: Option<String>,
     default_multicaller_encoder_name: Option<String>,
     default_signer_name: Option<String>,
+    swap_encoder: E,
+    pool_loaders: Arc<PoolLoaders<P, N, LDT>>,
 }
 
 impl<
@@ -56,13 +68,16 @@ impl<
             + Sync
             + Clone
             + 'static,
-    > Topology<DB>
+        E: SwapEncoder + Send + Sync + Clone + 'static,
+        P: Provider<Ethereum> + Send + Sync + Clone + 'static,
+    > Topology<DB, E, P, Ethereum, LoomDataTypesEthereum>
 {
-    pub async fn from<E: SwapEncoder + Send + Sync + Clone + 'static>(
-        config: TopologyConfig,
-        encoder: E,
-    ) -> Result<(Topology<DB>, Vec<JoinHandle<WorkerResult>>)> {
-        let mut topology = Topology::<DB> {
+    pub fn from_config(config: TopologyConfig) -> Topology<DB, MulticallerSwapEncoder> {
+        let encoder = MulticallerSwapEncoder::default();
+        let pool_loaders = Arc::new(PoolLoadersBuilder::<RootProvider>::new().build());
+
+        Topology::<DB, MulticallerSwapEncoder> {
+            config,
             clients: HashMap::new(),
             blockchains: HashMap::new(),
             blockchain_states: HashMap::new(),
@@ -72,14 +87,56 @@ impl<
             default_blockchain_name: None,
             default_multicaller_encoder_name: None,
             default_signer_name: None,
-        };
+            swap_encoder: encoder,
+            pool_loaders,
+        }
+    }
 
-        let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
+    pub fn with_swap_encoder<NE: SwapEncoder + Send + Sync + Clone + 'static>(
+        self,
+        swap_encoder: NE,
+    ) -> Topology<DB, NE, P, Ethereum, LoomDataTypesEthereum> {
+        //let swap_encoder = Arc::new(swap_encoder);
+        Topology {
+            config: self.config,
+            clients: self.clients,
+            blockchains: self.blockchains,
+            blockchain_states: self.blockchain_states,
+            strategies: self.strategies,
+            signers: self.signers,
+            multicaller_encoders: self.multicaller_encoders,
+            default_blockchain_name: self.default_blockchain_name,
+            default_multicaller_encoder_name: self.default_multicaller_encoder_name,
+            default_signer_name: self.default_signer_name,
+            pool_loaders: self.pool_loaders,
+            swap_encoder,
+        }
+    }
 
-        //let timeout_duration = Duration::from_secs(10);
+    pub fn with_pool_loaders<NP: Provider + Send + Sync + Clone + 'static>(
+        self,
+        pool_loaders: PoolLoaders<NP, Ethereum, LoomDataTypesEthereum>,
+    ) -> Topology<DB, E, NP, Ethereum, LoomDataTypesEthereum> {
+        Topology {
+            config: self.config,
+            clients: self.clients,
+            blockchains: self.blockchains,
+            blockchain_states: self.blockchain_states,
+            strategies: self.strategies,
+            signers: self.signers,
+            multicaller_encoders: self.multicaller_encoders,
+            default_blockchain_name: self.default_blockchain_name,
+            default_multicaller_encoder_name: self.default_multicaller_encoder_name,
+            default_signer_name: self.default_signer_name,
+            swap_encoder: self.swap_encoder,
+            pool_loaders: Arc::new(pool_loaders),
+        }
+    }
 
-        for (name, v) in config.clients.clone().iter() {
-            let config_params = v.config_params();
+    pub async fn start_clients(self) -> Result<Self> {
+        let mut clients = HashMap::new();
+        for (name, v) in self.config.clients.iter() {
+            let config_params = v.clone();
 
             info!("Connecting to {name} : {v:?}");
 
@@ -105,34 +162,86 @@ impl<
                 }
             };
 
-            let provider = Some(ProviderBuilder::new().disable_recommended_fillers().on_client(client));
+            let provider = ProviderBuilder::<_, _, Ethereum>::new().disable_recommended_fillers().on_client(client);
 
-            topology.clients.insert(name.clone(), ClientConfigParams { provider, ..v.config_params() });
+            clients.insert(name.clone(), provider);
         }
+        Ok(Topology { clients, ..self })
+    }
 
-        if topology.clients.is_empty() {
-            return Err(eyre!("NO_CLIENTS_CONNECTED"));
-        }
+    pub fn build_blockchains(self) -> Self {
+        let mut multicaller_encoders = HashMap::new();
+        let mut strategies = HashMap::new();
+        let mut blockchains = HashMap::new();
+        let mut blockchain_states = HashMap::new();
+        let mut signers = HashMap::new();
 
-        for (k, v) in config.encoders.iter() {
+        let mut default_blockchain_name: Option<String> = None;
+        let mut default_multicaller_encoder_name: Option<String> = None;
+        let mut default_signer_name: Option<String> = None;
+
+        for (k, v) in self.config.encoders.iter() {
             match v {
                 EncoderConfig::SwapStep(c) => {
-                    let address: Address = c.address.parse()?;
-                    //let encoder = MulticallerSwapEncoder::default_with_address(address);
-                    topology.multicaller_encoders.insert(k.clone(), address);
-                    topology.default_multicaller_encoder_name = Some(k.clone());
+                    if let Ok(address) = c.address.parse() {
+                        multicaller_encoders.insert(k.clone(), address);
+                        default_multicaller_encoder_name = Some(k.clone());
+                    }
                 }
             }
         }
 
-        for (k, params) in config.blockchains.iter() {
+        for (k, params) in self.config.blockchains.iter() {
             let blockchain = Blockchain::new(params.chain_id.unwrap_or(1) as u64);
             let market_state = MarketState::new(DB::default());
             let blockchain_state = BlockchainState::<DB>::new_with_market_state(market_state);
             let strategy = Strategy::<DB>::new();
 
+            blockchains.insert(k.clone(), blockchain);
+
+            blockchain_states.insert(k.clone(), blockchain_state);
+            strategies.insert(k.clone(), strategy);
+
+            default_blockchain_name = Some(k.clone());
+        }
+
+        for (name, params) in self.config.signers.iter() {
+            match params {
+                SignersConfig::Env(_params) => {
+                    let signers_state = SharedState::new(TxSigners::new());
+                    signers.insert(name.clone(), signers_state);
+                    default_signer_name = Some(name.clone());
+                }
+            }
+        }
+
+        Self {
+            blockchains,
+            blockchain_states,
+            multicaller_encoders,
+            strategies,
+            signers,
+            default_multicaller_encoder_name,
+            default_blockchain_name,
+            default_signer_name,
+            ..self
+        }
+    }
+
+    pub async fn start_actors(&self) -> Result<Vec<JoinHandle<WorkerResult>>> {
+        let mut tasks: Vec<JoinHandle<WorkerResult>> = Vec::new();
+
+        if self.clients.is_empty() {
+            return Err(eyre!("NO_CLIENTS_CONNECTED"));
+        }
+
+        for (k, _params) in self.config.blockchains.iter() {
+            let blockchain = self.get_blockchain(Some(k))?;
+            let blockchain_state = self.get_blockchain_state(Some(k))?;
+            let client = self.get_client(None)?;
+
             info!("Starting block history actor {k}");
-            let mut block_history_actor = BlockHistoryActor::new(topology.get_client(None)?);
+            let mut block_history_actor = BlockHistoryActor::new(client);
             match block_history_actor
                 .access(blockchain.latest_block())
                 .access(blockchain_state.market_state())
@@ -175,7 +284,12 @@ impl<
 
             info!("Starting pool monitor monitor actor {k}");
             let mut new_pool_health_monior_actor = PoolHealthMonitorActor::new();
-            match new_pool_health_monior_actor.access(blockchain.market()).consume(blockchain.pool_health_monitor_channel()).start() {
+            match new_pool_health_monior_actor
+                .access(blockchain.market())
+                .consume(blockchain.pool_health_monitor_channel())
+                .produce(blockchain.influxdb_write_channel())
+                .start()
+            {
                 Ok(r) => {
                     tasks.extend(r);
                     info!("Pool monitor monitor actor started")
@@ -184,20 +298,14 @@ impl<
                     panic!("PoolHealthMonitorActor error {}", e)
                 }
             }
-
-            topology.blockchains.insert(k.clone(), blockchain);
-            topology.blockchain_states.insert(k.clone(), blockchain_state);
-            topology.strategies.insert(k.clone(), strategy);
-
-            topology.default_blockchain_name = Some(k.clone());
         }
 
-        for (name, params) in config.signers.iter() {
-            let signers = SharedState::new(TxSigners::new());
+        for (name, params) in self.config.signers.iter() {
+            let signers = self.get_signers(Some(name))?;
             match params {
                 SignersConfig::Env(params) => {
                     info!("Starting initialize env signers actor {name}");
-                    let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                    let blockchain = self.get_blockchain(params.blockchain.as_ref())?;
 
                     let mut initialize_signers_actor = InitializeSignersOneShotBlockingActor::new_from_encrypted_env();
                     match initialize_signers_actor.access(signers.clone()).access(blockchain.nonce_and_balance()).start_and_wait() {
@@ -219,23 +327,21 @@ impl<
                             panic!("Cannot start signers actor {}", e)
                         }
                     }
-                    topology.signers.insert(name.clone(), signers);
-                    topology.default_signer_name = Some(name.clone());
                 }
             }
         }
 
-        if let Some(preloader_actors) = config.preloaders {
+        if let Some(preloader_actors) = &self.config.preloaders {
             for (name, params) in preloader_actors {
                 info!("Starting market state preload actor {name}");
 
-                let blockchain_state = topology.get_blockchain_state(params.blockchain.as_ref())?;
-                let client = topology.get_client(params.client.as_ref())?;
-                let signers = topology.get_signers(params.signers.as_ref())?;
+                let blockchain_state = self.get_blockchain_state(params.blockchain.as_ref())?;
+                let client = self.get_client(params.client.as_ref())?;
+                let signers = self.get_signers(params.signers.as_ref())?;
 
                 let mut market_state_preload_actor = MarketStatePreloadedOneShotActor::new(client)
                     .with_signers(signers.clone())
-                    .with_copied_account(topology.get_multicaller_address(None)?);
+                    .with_copied_account(self.get_multicaller_address(None)?);
                 match market_state_preload_actor.access(blockchain_state.market_state()).start_and_wait() {
                     Ok(_) => {
                         info!("Market state preload actor executed successfully")
@@ -249,10 +355,10 @@ impl<
             warn!("No preloader in config")
         }
 
-        if let Some(node_exex_actors) = config.actors.node_exex {
+        if let Some(node_exex_actors) = &self.config.actors.node_exex {
             for (name, params) in node_exex_actors {
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
-                let url = params.url.unwrap_or("http://[::1]:10000".to_string());
+                let blockchain = self.get_blockchain(params.blockchain.as_ref())?;
+                let url = params.url.clone().unwrap_or("http://[::1]:10000".to_string());
 
                 info!("Starting node actor {name}");
                 let mut node_exex_block_actor = NodeExExGrpcActor::new(url);
@@ -275,11 +381,11 @@ impl<
             }
         }
 
-        if let Some(node_block_actors) = config.actors.node {
+        if let Some(node_block_actors) = &self.config.actors.node {
             for (name, params) in node_block_actors {
-                let client = topology.get_client(params.client.as_ref())?;
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
-                let client_config = topology.get_client_config(params.client.as_ref())?;
+                let client = self.get_client(params.client.as_ref())?;
+                let blockchain = self.get_blockchain(params.blockchain.as_ref())?;
+                let client_config = self.get_client_config(params.client.as_ref())?;
 
                 info!("Starting node actor {name}");
 
@@ -328,10 +434,10 @@ impl<
             }
         }
 
-        if let Some(node_mempool_actors) = config.actors.mempool {
+        if let Some(node_mempool_actors) = &self.config.actors.mempool {
             for (name, params) in node_mempool_actors {
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
-                match topology.get_client(params.client.as_ref()) {
+                let blockchain = self.get_blockchain(params.blockchain.as_ref())?;
+                match self.get_client(params.client.as_ref()) {
                     Ok(client) => {
                         println!("Starting node mempool actor {name}");
                         let mut node_mempool_actor = NodeMempoolActor::new(client).with_name(name.clone());
@@ -352,10 +458,10 @@ impl<
             }
         }
 
-        if let Some(price_actors) = config.actors.price {
+        if let Some(price_actors) = &self.config.actors.price {
             for (name, c) in price_actors {
-                let client = topology.get_client(c.client.as_ref())?;
-                let blockchain = topology.get_blockchain(c.blockchain.as_ref())?;
+                let client = self.get_client(c.client.as_ref())?;
+                let blockchain = self.get_blockchain(c.blockchain.as_ref())?;
                 info!("Starting price actor");
                 let mut price_actor = PriceActor::new(client);
                 match price_actor.access(blockchain.market()).start() {
@@ -372,10 +478,10 @@ impl<
             warn!("No price actor in config")
         }
 
-        if let Some(node_balance_actors) = config.actors.noncebalance {
+        if let Some(node_balance_actors) = &self.config.actors.noncebalance {
             for (name, c) in node_balance_actors {
-                let client = topology.get_client(c.client.as_ref())?;
-                let blockchain = topology.get_blockchain(c.blockchain.as_ref())?;
+                let client = self.get_client(c.client.as_ref())?;
+                let blockchain = self.get_blockchain(c.blockchain.as_ref())?;
 
                 info!("Starting nonce and balance monitor actor {name}");
                 let mut nonce_and_balance_monitor = NonceAndBalanceMonitorActor::new(client);
@@ -398,12 +504,12 @@ impl<
             warn!("No nonce and balance actors in config");
         }
 
-        if let Some(broadcaster_actors) = config.actors.broadcaster {
+        if let Some(broadcaster_actors) = &self.config.actors.broadcaster {
             for (name, params) in broadcaster_actors {
                 match params {
                     BroadcasterConfig::Flashbots(params) => {
-                        let client = topology.get_client(params.client.as_ref())?;
-                        let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
+                        let client = self.get_client(params.client.as_ref())?;
+                        let blockchain = self.get_blockchain(params.blockchain.as_ref())?;
 
                         let flashbots_client = Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays();
                         let mut flashbots_actor = FlashbotsBroadcastActor::new(flashbots_client, true);
@@ -423,15 +529,15 @@ impl<
             warn!("No broadcaster actors in config")
         }
 
-        if let Some(pool_actors) = config.actors.pools {
+        if let Some(pool_actors) = &self.config.actors.pools {
             let mut blockchains = HashMap::new();
 
             for (name, params) in pool_actors {
-                let client = topology.get_client(params.client.as_ref())?;
-                let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
-                let blockchain_state = topology.get_blockchain_state(params.blockchain.as_ref())?;
+                let client = self.get_client(params.client.as_ref())?;
+                let blockchain = self.get_blockchain(params.blockchain.as_ref())?;
+                let blockchain_state = self.get_blockchain_state(params.blockchain.as_ref())?;
 
-                let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(client.clone(), PoolsConfig::default()));
+                let pool_loaders = self.pool_loaders.clone();
 
                 blockchains.insert(blockchain.chain_id(), blockchain);
                 if params.history {
@@ -498,16 +604,17 @@ impl<
             warn!("No pool loader actors in config")
         }
 
-        if let Some(estimator_actors) = config.actors.estimator {
+        if let Some(estimator_actors) = &self.config.actors.estimator {
             for (name, params) in estimator_actors {
                 match params {
                     EstimatorConfig::Evm(params) => {
-                        let client = params.client.as_ref().map(|x| topology.get_client(Some(x))).transpose()?; //   topology.get_client(params.client.as_ref())?;
+                        let client = params.client.as_ref().map(|x| self.get_client(Some(x))).transpose()?; //   topology.get_client(params.client.as_ref())?;
 
-                        let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
-                        let strategy = topology.get_strategy(params.blockchain.as_ref())?;
-                        let multicaller_address = topology.get_multicaller_address(params.encoder.as_ref())?;
-                        let mut encoder = encoder.clone();
+                        let blockchain = self.get_blockchain(params.blockchain.as_ref())?;
+                        let strategy = self.get_strategy(params.blockchain.as_ref())?;
+                        let multicaller_address = self.get_multicaller_address(params.encoder.as_ref())?;
+
+                        let mut encoder = self.swap_encoder.clone();
                         encoder.set_address(multicaller_address);
 
                         let mut evm_estimator_actor = EvmEstimatorActor::new_with_provider(encoder, client);
@@ -527,12 +634,12 @@ impl<
                         }
                     }
                     EstimatorConfig::Geth(params) => {
-                        let client = topology.get_client(params.client.as_ref())?;
-                        let blockchain = topology.get_blockchain(params.blockchain.as_ref())?;
-                        let strategy = topology.get_strategy(params.blockchain.as_ref())?;
-                        let multicaller_address = topology.get_multicaller_address(params.encoder.as_ref())?;
+                        let client = self.get_client(params.client.as_ref())?;
+                        let blockchain = self.get_blockchain(params.blockchain.as_ref())?;
+                        let strategy = self.get_strategy(params.blockchain.as_ref())?;
+                        let multicaller_address = self.get_multicaller_address(params.encoder.as_ref())?;
 
-                        let mut encoder = encoder.clone();
+                        let mut encoder = self.swap_encoder.clone();
                         encoder.set_address(multicaller_address);
 
                         let flashbots_client = Arc::new(Flashbots::new(client, "https://relay.flashbots.net", None).with_default_relays());
@@ -555,18 +662,18 @@ impl<
             warn!("No estimator actors in config")
         }
 
-        Ok((topology, tasks))
+        Ok(tasks)
     }
 
     pub fn get_client(&self, name: Option<&String>) -> Result<RootProvider> {
         match self.clients.get(name.unwrap_or(&"local".to_string())) {
-            Some(a) => Ok(a.client().ok_or_eyre("CLIENT_NOT_SET")?.clone()),
+            Some(a) => Ok(a.clone()),
             None => Err(eyre!("CLIENT_NOT_FOUND")),
         }
     }
 
-    pub fn get_client_config(&self, name: Option<&String>) -> Result<ClientConfigParams> {
-        match self.clients.get(name.unwrap_or(&"local".to_string())) {
+    pub fn get_client_config(&self, name: Option<&String>) -> Result<ClientConfig> {
+        match self.config.clients.get(name.unwrap_or(&"local".to_string())) {
             Some(a) => Ok(a.clone()),
             None => Err(eyre!("CLIENT_NOT_FOUND")),
         }

@@ -23,6 +23,8 @@ eyre.workspace = true
 influxdb.workspace = true
 tokio.workspace = true
 tracing.workspace = true
+tikv-jemalloc-ctl.workspace = true
+tikv-jemallocator.workspace = true
 
 #alloy
 alloy-consensus.workspace = true

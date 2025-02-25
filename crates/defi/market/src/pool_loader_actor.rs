@@ -17,14 +17,15 @@ use loom_types_entities::required_state::RequiredStateReader;
 use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders, PoolWrapper};
 use loom_types_events::LoomTask;
 
+use loom_types_blockchain::get_touched_addresses;
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::sync::Semaphore;
 
 const MAX_CONCURRENT_TASKS: usize = 20;
 
-pub async fn pool_loader_worker<P, N, DB>(
+pub async fn pool_loader_worker<P, PL, N, DB>(
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, N>>,
+    pool_loaders: Arc<PoolLoaders<PL, N>>,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     tasks_rx: Broadcaster<LoomTask>,
@@ -32,6 +33,7 @@ pub async fn pool_loader_worker<P, N, DB>(
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
+    PL: Provider<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let mut processed_pools = HashMap::new();
@@ -70,7 +72,7 @@ where
                             )
                             .await
                             {
-                                error!(%error, "failed fetch_and_add_pool_by_address");
+                                error!(%error, %pool_id, %pool_class, "failed fetch_and_add_pool_by_address");
                             } else {
                                 info!(%pool_id, %pool_class, "Pool loaded successfully");
                             }
@@ -87,22 +89,23 @@ where
 }
 
 /// Fetch pool data, add it to the market and fetch the required state
-pub async fn fetch_and_add_pool_by_pool_id<P, N, DB>(
+pub async fn fetch_and_add_pool_by_pool_id<P, PL, N, DB>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
-    pool_loaders: Arc<PoolLoaders<P, N>>,
+    pool_loaders: Arc<PoolLoaders<PL, N>>,
     pool_id: PoolId,
     pool_class: PoolClass,
 ) -> Result<()>
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
+    PL: Provider<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     debug!(%pool_id, %pool_class, "Fetching pool");
 
-    let pool = pool_loaders.load_pool_with_provider(client.clone(), pool_id, &pool_class).await?;
+    let pool = pool_loaders.load_pool_without_provider(pool_id, &pool_class).await?;
     fetch_state_and_add_pool(client, market.clone(), market_state.clone(), pool).await?;
 
     Ok(())
@@ -124,18 +127,29 @@ where
             Ok(state) => {
                 let pool_address = pool_wrapped.get_address();
                 {
+                    let updated_addresses = get_touched_addresses(&state);
+
                     let mut market_state_write_guard = market_state.write().await;
                     market_state_write_guard.apply_geth_update(state);
-                    market_state_write_guard.config.add_force_insert(pool_address);
                     market_state_write_guard.config.disable_cell_vec(pool_address, pool_wrapped.get_read_only_cell_vec());
+
+                    let pool_tokens = pool_wrapped.get_tokens();
+
+                    for updated_address in updated_addresses {
+                        if !pool_tokens.contains(&updated_address) {
+                            market_state_write_guard.config.add_force_insert(updated_address);
+                        }
+                    }
 
                     drop(market_state_write_guard);
                 }
 
                 let directions_vec = pool_wrapped.get_swap_directions();
+                let pool_manager_cells = pool_wrapped.get_pool_manager_cells();
+                let pool_id = pool_wrapped.get_pool_id();
+
                 let mut directions_tree: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
                 directions_tree.insert(pool_wrapped.clone(), directions_vec);
-
                 {
                     let start_time = std::time::Instant::now();
                     let mut market_write_guard = market.write().await;
@@ -145,6 +159,13 @@ where
 
                     let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
                     market_write_guard.add_paths(swap_paths);
+
+                    for (pool_manager_address, cells_vec) in pool_manager_cells {
+                        for cell in cells_vec {
+                            market_write_guard.add_pool_manager_cell(pool_manager_address, pool_id, cell)
+                        }
+                    }
+
                     debug!(elapsed = start_time.elapsed().as_micros(),  market = %market_write_guard, "market_guard path added");
 
                     drop(market_write_guard);
@@ -166,14 +187,15 @@ where
 }
 
 #[derive(Accessor, Consumer)]
-pub struct PoolLoaderActor<P, N, DB>
+pub struct PoolLoaderActor<P, PL, N, DB>
 where
     N: Network,
     P: Provider<N> + Send + Sync + Clone + 'static,
+    PL: Provider<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, N>>,
+    pool_loaders: Arc<PoolLoaders<PL, N>>,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
@@ -183,13 +205,14 @@ where
     _n: PhantomData<N>,
 }
 
-impl<P, N, DB> PoolLoaderActor<P, N, DB>
+impl<P, PL, N, DB> PoolLoaderActor<P, PL, N, DB>
 where
     N: Network,
     P: Provider<N> + Send + Sync + Clone + 'static,
+    PL: Provider<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
-    pub fn new(client: P, pool_loader: Arc<PoolLoaders<P, N>>) -> Self {
+    pub fn new(client: P, pool_loader: Arc<PoolLoaders<PL, N>>) -> Self {
         Self { client, pool_loaders: pool_loader, market: None, market_state: None, tasks_rx: None, _n: PhantomData }
     }
 
@@ -198,10 +221,11 @@ where
     }
 }
 
-impl<P, N, DB> Actor for PoolLoaderActor<P, N, DB>
+impl<P, PL, N, DB> Actor for PoolLoaderActor<P, PL, N, DB>
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
+    PL: Provider<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Default + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {

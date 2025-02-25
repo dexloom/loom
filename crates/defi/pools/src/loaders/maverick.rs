@@ -39,10 +39,10 @@ where
         }
     }
 
-    fn fetch_pool_by_id(
-        &self,
+    fn fetch_pool_by_id<'a>(
+        &'a self,
         pool_id: PoolId<LoomDataTypesEthereum>,
-    ) -> Pin<Box<dyn Future<Output = Result<PoolWrapper<LoomDataTypesEthereum>>> + '_>> {
+    ) -> Pin<Box<dyn Future<Output = Result<PoolWrapper<LoomDataTypesEthereum>>> + Send + 'a>> {
         Box::pin(async move {
             if let Some(provider) = self.provider.clone() {
                 self.fetch_pool_by_id_from_provider(pool_id, provider).await

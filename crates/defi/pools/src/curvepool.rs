@@ -60,6 +60,17 @@ where
     P: Provider<N> + Send + Sync + Clone + 'static,
     E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
+    pub fn is_meta(&self) -> bool {
+        self.is_meta
+    }
+    pub fn curve_contract(&self) -> Arc<CurveContract<P, N>> {
+        self.pool_contract.clone()
+    }
+
+    pub fn lp_token(&self) -> Option<Address> {
+        self.lp_token
+    }
+
     pub fn with_encoder(self, e: E) -> Self {
         Self { abi_encoder: Some(Arc::new(e)), ..self }
     }
@@ -451,20 +462,6 @@ where
     N: Network,
     P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    /*pub fn new(
-        pool_address: Address,
-        tokens: Vec<Address>,
-        underlying_tokens: Option<Vec<Address>>,
-        lp_token: Option<Address>,
-        is_meta: bool,
-        is_native: bool,
-        curve_contract: Arc<CurveContract<P, T, N>>,
-    ) -> Self {
-        Self { pool_address, tokens, underlying_tokens, lp_token, is_meta, is_native, curve_contract }
-    }
-
-     */
-
     pub fn new(pool: &CurvePool<P, N>) -> Self {
         Self {
             pool_address: pool.address,

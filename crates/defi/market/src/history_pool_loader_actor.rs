@@ -9,19 +9,19 @@ use crate::logs_parser::process_log_entries;
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_core_actors_macros::Producer;
 use loom_core_blockchain::Blockchain;
-use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::PoolLoaders;
 use loom_types_events::LoomTask;
 
-async fn history_pool_loader_one_shot_worker<P, N>(
+async fn history_pool_loader_one_shot_worker<P, PL, N>(
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, N, LoomDataTypesEthereum>>,
+    pool_loaders: Arc<PoolLoaders<PL, N, LoomDataTypesEthereum>>,
     tasks_tx: Broadcaster<LoomTask>,
 ) -> WorkerResult
 where
     N: Network,
-    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
+    PL: Provider<N> + Send + Sync + Clone + 'static,
 {
     let mut current_block = client.get_block_number().await?;
 
@@ -49,24 +49,26 @@ where
 }
 
 #[derive(Producer)]
-pub struct HistoryPoolLoaderOneShotActor<P, N>
+pub struct HistoryPoolLoaderOneShotActor<P, PL, N>
 where
     N: Network,
     P: Provider<N> + Send + Sync + Clone + 'static,
+    PL: Provider<N> + Send + Sync + Clone + 'static,
 {
     client: P,
-    pool_loaders: Arc<PoolLoaders<P, N>>,
+    pool_loaders: Arc<PoolLoaders<PL, N>>,
     #[producer]
     tasks_tx: Option<Broadcaster<LoomTask>>,
     _n: PhantomData<N>,
 }
 
-impl<P, N> HistoryPoolLoaderOneShotActor<P, N>
+impl<P, PL, N> HistoryPoolLoaderOneShotActor<P, PL, N>
 where
     N: Network,
     P: Provider<N> + Send + Sync + Clone + 'static,
+    PL: Provider<N> + Send + Sync + Clone + 'static,
 {
-    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<P, N>>) -> Self {
+    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<PL, N>>) -> Self {
         Self { client, pool_loaders, tasks_tx: None, _n: PhantomData }
     }
 
@@ -75,10 +77,11 @@ where
     }
 }
 
-impl<P, N> Actor for HistoryPoolLoaderOneShotActor<P, N>
+impl<P, PL, N> Actor for HistoryPoolLoaderOneShotActor<P, PL, N>
 where
     N: Network,
-    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
+    P: Provider<N> + Send + Sync + Clone + 'static,
+    PL: Provider<N> + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(history_pool_loader_one_shot_worker(

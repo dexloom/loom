@@ -5,10 +5,10 @@ use tracing::{error, info};
 use loom::core::actors::{Accessor, Actor, Consumer, Producer};
 use loom::core::router::SwapRouterActor;
 use loom::core::topology::{Topology, TopologyConfig};
-use loom::defi::health_monitor::{StateHealthMonitorActor, StuffingTxMonitorActor};
+use loom::defi::health_monitor::{MetricsRecorderActor, StateHealthMonitorActor, StuffingTxMonitorActor};
 use loom::evm::db::LoomDBType;
 use loom::execution::multicaller::MulticallerSwapEncoder;
-use loom::metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
+use loom::metrics::InfluxDbWriterActor;
 use loom::strategy::backrun::{BackrunConfig, BackrunConfigSection, StateChangeArbActor};
 use loom::strategy::merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
 use loom::types::entities::strategy_config::load_from_file;
@@ -27,7 +27,14 @@ async fn main() -> Result<()> {
 
     let encoder = MulticallerSwapEncoder::default();
 
-    let (topology, mut worker_task_vec) = Topology::<LoomDBType>::from(topology_config, encoder).await?;
+    let topology =
+        Topology::<LoomDBType>::from_config(topology_config).with_swap_encoder(encoder).build_blockchains().start_clients().await?;
+
+    let mut worker_task_vec = topology.start_actors().await?;
+
+    //mut worker_task_vec = topology.start_actors().await;
+
+    //let (topology, mut worker_task_vec) = Topology::<LoomDBType>::from(topology_config, encoder).await?;
 
     let client = topology.get_client(Some("local".to_string()).as_ref())?;
     let blockchain = topology.get_blockchain(Some("mainnet".to_string()).as_ref())?;
@@ -171,6 +178,7 @@ async fn main() -> Result<()> {
         .access(blockchain.latest_block())
         .consume(blockchain.tx_compose_channel())
         .consume(blockchain.market_events_channel())
+        .produce(blockchain.influxdb_write_channel())
         .start()
     {
         Err(e) => {
@@ -195,8 +203,10 @@ async fn main() -> Result<()> {
             }
         }
 
-        let mut block_latency_recorder_actor = BlockLatencyRecorderActor::new();
+        let mut block_latency_recorder_actor = MetricsRecorderActor::new();
         match block_latency_recorder_actor
+            .access(blockchain.market())
+            .access(blockchain_state.market_state())
             .consume(blockchain.new_block_headers_channel())
             .produce(blockchain.influxdb_write_channel())
             .start()

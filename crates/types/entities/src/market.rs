@@ -1,5 +1,6 @@
 #![allow(clippy::type_complexity)]
 use alloy_primitives::map::HashMap;
+use alloy_primitives::U256;
 use eyre::{eyre, OptionExt, Result};
 use std::collections::BTreeMap;
 use std::fmt::Display;
@@ -19,6 +20,8 @@ pub struct Market<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pools: HashMap<PoolId<LDT>, PoolWrapper<LDT>>,
     // pool_address -> is_disabled
     pools_disabled: HashMap<PoolId<LDT>, bool>,
+    // pool_address -> pool
+    pools_manager_cells: HashMap<LDT::Address, HashMap<U256, PoolId<LDT>>>,
     // token_address -> token
     tokens: HashMap<LDT::Address, Arc<Token<LDT>>>,
     // token_from -> token_to
@@ -137,7 +140,6 @@ impl<LDT: LoomDataTypes> Market<LDT> {
     /// Set the pool status to ok or not ok.
     pub fn set_pool_disabled(&mut self, address: PoolId<LDT>, disabled: bool) {
         *self.pools_disabled.entry(address).or_insert(false) = disabled;
-
         self.swap_paths.disable_pool(&address, disabled);
     }
 
@@ -222,6 +224,23 @@ impl<LDT: LoomDataTypes> Market<LDT> {
         }
 
         Ok(SwapPath { tokens, pools, ..Default::default() })
+    }
+
+    pub fn disabled_pools_count(&self) -> usize {
+        self.pools_disabled.len()
+    }
+
+    pub fn add_pool_manager_cell(&mut self, pool_manager_address: LDT::Address, pool_id: PoolId<LDT>, cell: U256) {
+        let pool_manager_entry = self.pools_manager_cells.entry(pool_manager_address).or_default();
+        pool_manager_entry.insert(cell, pool_id);
+    }
+
+    pub fn is_pool_manager(&self, pool_manager_address: &LDT::Address) -> bool {
+        self.pools_manager_cells.contains_key(pool_manager_address)
+    }
+
+    pub fn get_pool_id_for_cell(&self, pool_manager_address: &LDT::Address, cell: &U256) -> Option<&PoolId<LDT>> {
+        self.pools_manager_cells.get(pool_manager_address).and_then(|pool_manager_cell| pool_manager_cell.get(cell))
     }
 }
 

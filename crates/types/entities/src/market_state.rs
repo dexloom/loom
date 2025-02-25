@@ -1,5 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
+use crate::PoolId;
 use alloy_primitives::{Address, BlockHash, BlockNumber, U256};
 use loom_evm_db::DatabaseHelpers;
 use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec};

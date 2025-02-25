@@ -21,7 +21,7 @@ where
     LDT: Send + Sync + LoomDataTypes,
 {
     fn get_pool_class_by_log(&self, log_entry: &LDT::Log) -> Option<(PoolId<LDT>, PoolClass)>;
-    fn fetch_pool_by_id<'a>(&'a self, pool_id: PoolId<LDT>) -> Pin<Box<dyn Future<Output = Result<PoolWrapper<LDT>>> + 'a>>;
+    fn fetch_pool_by_id<'a>(&'a self, pool_id: PoolId<LDT>) -> Pin<Box<dyn Future<Output = Result<PoolWrapper<LDT>>> + Send + 'a>>;
     fn fetch_pool_by_id_from_provider<'a>(
         &'a self,
         pool_id: PoolId<LDT>,
@@ -62,13 +62,13 @@ where
         Self { config: Some(config), ..self }
     }
 
-    pub fn with_provider(self, provider: P) -> Self {
-        Self { provider: Some(provider), ..self }
+    pub fn with_provider<NP: Provider<N>>(self, provider: NP) -> PoolLoaders<NP, N, LDT> {
+        PoolLoaders { provider: Some(provider), map: HashMap::new(), config: self.config }
     }
 
-    pub fn add_loader(self, pool_class: PoolClass, loader: Arc<dyn PoolLoader<P, N, LDT>>) -> Self {
+    pub fn add_loader<L: PoolLoader<P, N, LDT> + Send + Sync + Clone + 'static>(self, pool_class: PoolClass, loader: L) -> Self {
         let mut map = self.map;
-        map.insert(pool_class, loader);
+        map.insert(pool_class, Arc::new(loader));
         Self { map, ..self }
     }
 }
@@ -101,15 +101,36 @@ where
         None
     }
 
-    pub fn load_pool_with_provider<'a>(
+    /*pub fn load_pool_with_provider<'a>(
         &'a self,
         provider: P,
         pool_id: PoolId<LoomDataTypesEthereum>,
         pool_class: &'a PoolClass,
-    ) -> Pin<Box<dyn Future<Output = Result<PoolWrapper>> + Send + 'a>> {
+    ) -> Pin<Box<dyn Future<Output = Result<PoolWrapper>> + Send + 'a>>
+    where
+        P: Provider<N>,
+    {
         Box::pin(async move {
             if let Some(pool_loader) = self.map.get(pool_class).cloned() {
-                pool_loader.fetch_pool_by_id_from_provider(pool_id, provider).await
+                pool_loader.fetch_pool_by_id_from_provider(provider, pool_id).await
+            } else {
+                Err(eyre!("POOL_CLASS_NOT_FOUND"))
+            }
+        })
+    }
+     */
+
+    pub fn load_pool_without_provider<'a>(
+        &'a self,
+        pool_id: PoolId<LoomDataTypesEthereum>,
+        pool_class: &'a PoolClass,
+    ) -> Pin<Box<dyn Future<Output = Result<PoolWrapper>> + Send + 'a>>
+    where
+        P: Provider<N>,
+    {
+        Box::pin(async move {
+            if let Some(pool_loader) = self.map.get(pool_class).cloned() {
+                pool_loader.fetch_pool_by_id(pool_id).await
             } else {
                 Err(eyre!("POOL_CLASS_NOT_FOUND"))
             }

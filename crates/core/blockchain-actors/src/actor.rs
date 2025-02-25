@@ -13,7 +13,7 @@ use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_core_mempool::MempoolActor;
 use loom_core_router::SwapRouterActor;
 use loom_defi_address_book::TokenAddressEth;
-use loom_defi_health_monitor::{PoolHealthMonitorActor, StuffingTxMonitorActor};
+use loom_defi_health_monitor::{MetricsRecorderActor, PoolHealthMonitorActor, StuffingTxMonitorActor};
 use loom_defi_market::{
     HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, ProtocolPoolLoaderOneShotActor, RequiredPoolLoaderActor,
 };
@@ -24,7 +24,7 @@ use loom_evm_db::DatabaseLoomExt;
 use loom_evm_utils::NWETH;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
 use loom_execution_multicaller::MulticallerSwapEncoder;
-use loom_metrics::{BlockLatencyRecorderActor, InfluxDbWriterActor};
+use loom_metrics::InfluxDbWriterActor;
 use loom_node_actor_config::NodeBlockActorConfig;
 #[cfg(feature = "db-access")]
 use loom_node_db_access::RethDbAccessBlockActor;
@@ -478,7 +478,7 @@ where
 
     /// Start block latency recorder
     pub fn with_block_latency_recorder(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(BlockLatencyRecorderActor::new().on_bc(&self.bc))?;
+        self.actor_manager.start(MetricsRecorderActor::new().on_bc(&self.bc, &self.state))?;
         Ok(self)
     }
 

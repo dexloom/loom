@@ -46,6 +46,8 @@ impl FactoryAddress {
 
     // Maverick
     pub const MAVERICK: Address = address!("eb6625d65a0553c9dbc64449e56abfe519bd9c9b");
+
+    pub const UNISWAP_V4_POOL_MANAGER_ADDRESS: Address = address!("000000000004444c5dc75cB358380D2e3dE08A90");
 }
 
 #[non_exhaustive]
@@ -58,6 +60,9 @@ impl PeripheryAddress {
     pub const PANCAKE_V3_QUOTER: Address = address!("b048bbc1ee6b733fffcfb9e9cef7375518e25997");
     pub const PANCAKE_V3_TICK_LENS: Address = address!("9a489505a00ce272eaa5e07dba6491314cae3796");
     pub const MAVERICK_QUOTER: Address = address!("9980ce3b5570e41324904f46a06ce7b466925e23");
+    pub const UNISWAP_V4_QUOTER: Address = address!("52f0e24d1c21c8a0cb1e5a5dd6198556bd9e1203");
+    pub const PERMIT_2_ADDRESS: Address = address!("000000000022D473030F116dDEE9F6B43aC78BA3");
+    pub const UNISWAPV4_STATE_VIEW_ADDRESS: Address = address!("7fFE42C4a5DEeA5b0feC41C94C136Cf115597227");
 }
 
 #[non_exhaustive]
@@ -66,6 +71,7 @@ pub struct UniswapV2PoolAddress;
 impl UniswapV2PoolAddress {
     pub const LUSD_WETH: Address = address!("f20ef17b889b437c151eb5ba15a47bfc62bff469");
     pub const WETH_USDT: Address = address!("0d4a11d5eeaac28ec3f61d100daf4d40471f1852");
+    pub const USDC_WETH: Address = address!("0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc");
 }
 
 #[non_exhaustive]

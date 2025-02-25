@@ -1,4 +1,4 @@
-use super::affected_pools::get_affected_pools;
+use super::affected_pools_state::get_affected_pools_from_state_update;
 use eyre::eyre;
 use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
@@ -54,12 +54,11 @@ pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + '
             continue;
         };
 
-        let affected_pools = match get_affected_pools(market.clone(), &state_update).await {
-            Ok(affected_pools) => affected_pools,
-            Err(e) => {
-                error!("Could not get affected pools for block {:?}: {}", block_hash, e);
-                continue;
-            }
+        let affected_pools = get_affected_pools_from_state_update(market.clone(), &state_update).await;
+
+        if affected_pools.is_empty() {
+            error!("Could not get affected pools for block {:?}", block_hash);
+            continue;
         };
 
         let next_block_number = block_history_entry.number() + 1;

@@ -26,8 +26,8 @@ use loom_types_entities::required_state::{accounts_vec_len, storage_vec_len};
 use loom_types_entities::{LatestBlock, Market, MarketState};
 use loom_types_events::{MarketEvents, MempoolEvents, StateUpdateEvent};
 
-use super::affected_pools::get_affected_pools;
 use super::affected_pools_code::{get_affected_pools_from_code, is_pool_code};
+use super::affected_pools_state::get_affected_pools_from_state_update;
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
@@ -152,101 +152,93 @@ where
         }
     }
 
-    let affected_pools = get_affected_pools(market.clone(), &state_update_vec).await;
-    match affected_pools {
-        Ok(affected_pools) => {
-            let accounts_len = accounts_vec_len(&state_update_vec);
-            let storage_len = storage_vec_len(&state_update_vec);
+    let affected_pools = get_affected_pools_from_state_update(market.clone(), &state_update_vec).await;
 
-            debug!(%tx_hash, %source, pools = affected_pools.len(), accounts = accounts_len, storage = storage_len, "Mempool affected pools");
+    let accounts_len = accounts_vec_len(&state_update_vec);
+    let storage_len = storage_vec_len(&state_update_vec);
 
-            affecting_tx.write().await.insert(tx_hash, !affected_pools.is_empty());
+    debug!(%tx_hash, %source, pools = affected_pools.len(), accounts = accounts_len, storage = storage_len, "Mempool affected pools");
 
-            //TODO : Fix Latest header is empty
-            if let Some(latest_header) = latest_block.read().await.block_header.clone() {
-                let next_block_number = latest_header.number.as_u64() + 1;
-                let next_block_timestamp = latest_header.timestamp.as_u64() + 12;
+    affecting_tx.write().await.insert(tx_hash, !affected_pools.is_empty());
 
-                if !affected_pools.is_empty() {
-                    let cur_state_db = market_state.read().await.state_db.clone();
-                    let request = StateUpdateEvent::new(
-                        next_block_number,
-                        next_block_timestamp,
-                        cur_next_base_fee,
-                        cur_state_db,
-                        state_update_vec,
-                        Some(state_required_vec.clone()),
-                        affected_pools,
-                        vec![tx_hash],
-                        vec![mempool_tx.tx.clone().unwrap()],
-                        "pending_tx_searcher".to_string(),
-                        9000,
-                    );
-                    if let Err(e) = state_updates_broadcaster.send(request).await {
-                        error!("state_updates_broadcaster : {}", e)
-                    }
-                }
-            } else {
-                error!("Latest header is empty")
+    //TODO : Fix Latest header is empty
+    if let Some(latest_header) = latest_block.read().await.block_header.clone() {
+        let next_block_number = latest_header.number.as_u64() + 1;
+        let next_block_timestamp = latest_header.timestamp.as_u64() + 12;
+
+        if !affected_pools.is_empty() {
+            let cur_state_db = market_state.read().await.state_db.clone();
+            let request = StateUpdateEvent::new(
+                next_block_number,
+                next_block_timestamp,
+                cur_next_base_fee,
+                cur_state_db,
+                state_update_vec,
+                Some(state_required_vec.clone()),
+                affected_pools,
+                vec![tx_hash],
+                vec![mempool_tx.tx.clone().unwrap()],
+                "pending_tx_searcher".to_string(),
+                9000,
+            );
+            if let Err(e) = state_updates_broadcaster.send(request).await {
+                error!("state_updates_broadcaster : {}", e)
             }
+        }
+    } else {
+        error!("Latest header is empty")
+    }
 
-            if is_pool_code(&merged_state_update_vec) {
-                match get_affected_pools_from_code(client, market.clone(), &merged_state_update_vec).await {
-                    Ok(affected_pools) => {
-                        match affecting_tx.write().await.entry(tx_hash) {
-                            Entry::Occupied(mut v) => {
-                                if !v.get() {
-                                    v.insert(!affected_pools.is_empty());
-                                }
-                            }
-                            Entry::Vacant(v) => {
-                                v.insert(!affected_pools.is_empty());
-                            }
-                        };
-
-                        debug!("Mempool code pools {} {} update len : {}", tx_hash, source, affected_pools.len());
-
-                        if let Some(latest_header) = latest_block.read().await.block_header.clone() {
-                            let block_number = latest_header.number.as_u64() + 1;
-                            let block_timestamp = latest_header.timestamp.as_u64() + 12;
-
-                            if !affected_pools.is_empty() {
-                                let cur_state_db = market_state.read().await.state_db.clone();
-
-                                let request = StateUpdateEvent::new(
-                                    block_number,
-                                    block_timestamp,
-                                    cur_next_base_fee,
-                                    cur_state_db,
-                                    merged_state_update_vec,
-                                    None,
-                                    affected_pools,
-                                    vec![tx_hash],
-                                    vec![mempool_tx.tx.unwrap()],
-                                    "poolcode_searcher".to_string(),
-                                    3000,
-                                );
-                                if let Err(e) = state_updates_broadcaster.send(request).await {
-                                    error!("state_updates_broadcaster : {}", e)
-                                }
-                            }
-                        } else {
-                            error!("Latest header is empty")
+    if is_pool_code(&merged_state_update_vec) {
+        match get_affected_pools_from_code(client, market.clone(), &merged_state_update_vec).await {
+            Ok(affected_pools) => {
+                match affecting_tx.write().await.entry(tx_hash) {
+                    Entry::Occupied(mut v) => {
+                        if !v.get() {
+                            v.insert(!affected_pools.is_empty());
                         }
                     }
-                    Err(e) => {
-                        debug!("code affected pools error : {e}")
+                    Entry::Vacant(v) => {
+                        v.insert(!affected_pools.is_empty());
                     }
+                };
+
+                debug!("Mempool code pools {} {} update len : {}", tx_hash, source, affected_pools.len());
+
+                if let Some(latest_header) = latest_block.read().await.block_header.clone() {
+                    let block_number = latest_header.number.as_u64() + 1;
+                    let block_timestamp = latest_header.timestamp.as_u64() + 12;
+
+                    if !affected_pools.is_empty() {
+                        let cur_state_db = market_state.read().await.state_db.clone();
+
+                        let request = StateUpdateEvent::new(
+                            block_number,
+                            block_timestamp,
+                            cur_next_base_fee,
+                            cur_state_db,
+                            merged_state_update_vec,
+                            None,
+                            affected_pools,
+                            vec![tx_hash],
+                            vec![mempool_tx.tx.unwrap()],
+                            "poolcode_searcher".to_string(),
+                            3000,
+                        );
+                        if let Err(e) = state_updates_broadcaster.send(request).await {
+                            error!("state_updates_broadcaster : {}", e)
+                        }
+                    }
+                } else {
+                    error!("Latest header is empty")
                 }
             }
-            Ok(())
-        }
-        Err(e) => {
-            affecting_tx.write().await.insert(tx_hash, false);
-            error!("affected pools error : {}", e);
-            Err(eyre!("AFFECTED_POOLS_ERR"))
+            Err(e) => {
+                debug!("code affected pools error : {e}")
+            }
         }
     }
+    Ok(())
 }
 
 #[allow(clippy::too_many_arguments)]

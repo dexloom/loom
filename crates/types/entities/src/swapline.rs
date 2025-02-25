@@ -94,7 +94,7 @@ impl<LDT: LoomDataTypes> fmt::Display for SwapLine<LDT> {
 
         let tokens = self.tokens().iter().map(|token| token.get_symbol()).collect::<Vec<String>>().join(", ");
         let pools =
-            self.pools().iter().map(|pool| format!("{}@{}", pool.get_protocol(), pool.get_address())).collect::<Vec<String>>().join(", ");
+            self.pools().iter().map(|pool| format!("{}@{}", pool.get_protocol(), pool.get_pool_id())).collect::<Vec<String>>().join(", ");
         let amount_in = match self.amount_in {
             SwapAmountType::Set(x) => match token_in {
                 Some(t) => format!("{:?}", t.to_float(x)),

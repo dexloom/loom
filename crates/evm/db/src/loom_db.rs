@@ -19,7 +19,7 @@ use std::collections::hash_map::Entry;
 use std::collections::BTreeMap;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
-use tracing::{error, info, trace};
+use tracing::{error, trace};
 
 #[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone)]

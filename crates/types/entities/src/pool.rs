@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::cell::Cell;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -276,6 +277,10 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
     fn is_native(&self) -> bool;
 
     fn preswap_requirement(&self) -> PreswapRequirement;
+
+    fn get_pool_manager_cells(&self) -> Vec<(Address, Vec<U256>)> {
+        vec![]
+    }
 }
 
 pub struct DefaultAbiSwapEncoder {}
