@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::cell::Cell;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -66,6 +65,9 @@ pub enum PoolClass {
     #[serde(rename = "maverick")]
     #[strum(serialize = "maverick")]
     Maverick,
+    #[serde(rename = "maverick2")]
+    #[strum(serialize = "maverick2")]
+    MaverickV2,
     #[serde(rename = "pancake3")]
     #[strum(serialize = "pancake3")]
     PancakeV3,
@@ -95,6 +97,8 @@ pub enum PoolClass {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PoolProtocol {
     Unknown,
+    AaveV2,
+    AaveV3,
     UniswapV2,
     UniswapV2Like,
     NomiswapStable,
@@ -112,6 +116,7 @@ pub enum PoolProtocol {
     PancakeV3,
     Integral,
     Maverick,
+    MaverickV2,
     Curve,
     LidoStEth,
     LidoWstEth,
@@ -125,6 +130,8 @@ impl Display for PoolProtocol {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let protocol_name = match self {
             Self::Unknown => "Unknown",
+            Self::AaveV2 => "AaveV2",
+            Self::AaveV3 => "AaveV3",
             Self::UniswapV2 => "UniswapV2",
             Self::UniswapV2Like => "UniswapV2Like",
             Self::UniswapV3 => "UniswapV3",
@@ -142,6 +149,7 @@ impl Display for PoolProtocol {
             Self::Safeswap => "Safeswap",
             Self::Integral => "Integral",
             Self::Maverick => "Maverick",
+            Self::MaverickV2 => "MaverickV2",
             Self::Curve => "Curve",
             Self::LidoWstEth => "WstEth",
             Self::LidoStEth => "StEth",

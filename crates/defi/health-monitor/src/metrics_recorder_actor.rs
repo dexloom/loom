@@ -54,7 +54,7 @@ async fn metrics_recorder_worker<DB: DatabaseLoomExt + DatabaseRef + Send + Sync
 
         let influx_channel_clone = influx_channel_tx.clone();
 
-        if let Err(e) = tokio::time::timeout(Duration::from_secs(1), async move {
+        if let Err(e) = tokio::time::timeout(Duration::from_secs(2), async move {
             let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "state_accounts")
                 .add_field("value", accounts as f32)
                 .add_field("block_number", block_header.inner.header.number);

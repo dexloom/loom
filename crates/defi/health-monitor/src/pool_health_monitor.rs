@@ -45,6 +45,12 @@ pub async fn pool_health_monitor_worker(
                                         Some(pool)=>{
                                             info!("Disabling pool: protocol={}, address={:?}, msg={} amount={}", pool.get_protocol(),swap_error.pool, swap_error.msg, swap_error.amount);
 
+                                            let amount_f64 = if let Some(token_in) = market_guard.get_token(&swap_error.token_from) {
+                                                token_in.to_float(swap_error.amount)
+                                            } else {
+                                                -1.0f64
+                                            };
+
                                             let pool_protocol = pool.get_protocol().to_string();
                                             let pool_id = pool.get_pool_id().to_string();
                                             let influx_channel_clone = influx_channel_tx.clone();
@@ -56,10 +62,12 @@ pub async fn pool_health_monitor_worker(
 
                                                     let write_query = WriteQuery::new(Timestamp::from(start_time_utc), "pool_disabled")
                                                         .add_field("message", swap_error.msg)
+                                                        .add_field("amount", amount_f64)
                                                         .add_tag("id", pool_id)
                                                         .add_tag("protocol", pool_protocol)
                                                         .add_tag("token_from", swap_error.token_from.to_checksum(None))
                                                         .add_tag("token_to", swap_error.token_to.to_checksum(None));
+
                                                     if let Err(e) = influx_channel_clone.send(write_query).await {
                                                        error!("Failed to failed pool to influxdb: {:?}", e);
                                                     }

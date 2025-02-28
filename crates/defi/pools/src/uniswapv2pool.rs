@@ -2,7 +2,7 @@ use alloy::primitives::{Address, Bytes, U256};
 use alloy::providers::{Network, Provider};
 use alloy::rpc::types::BlockNumberOrTag;
 use alloy::sol_types::SolInterface;
-use eyre::{eyre, ErrReport, Result};
+use eyre::{eyre, ErrReport, OptionExt, Result};
 use lazy_static::lazy_static;
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_defi_abi::IERC20;
@@ -19,6 +19,7 @@ use crate::state_readers::UniswapV2StateReader;
 
 lazy_static! {
     static ref U112_MASK: U256 = (U256::from(1) << 112) - U256::from(1);
+    static ref U256_ONE: U256 = U256::from(1);
 }
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -253,7 +254,7 @@ impl Pool for UniswapV2Pool {
         } else if out_amount.is_zero() {
             Err(eyre!("OUT_AMOUNT_IS_ZERO"))
         } else {
-            Ok((out_amount, 100_000))
+            Ok((out_amount.checked_sub(*U256_ONE).ok_or_eyre("SUB_OVERFLOWN")?, 100_000))
         }
     }
 
@@ -287,7 +288,7 @@ impl Pool for UniswapV2Pool {
             if in_amount.is_zero() {
                 Err(eyre!("IN_AMOUNT_IS_ZERO"))
             } else {
-                Ok((in_amount + U256::from(1), 100_000))
+                Ok((in_amount.checked_add(*U256_ONE).ok_or_eyre("ADD_OVERFLOWN")?, 100_000))
             }
         }
     }

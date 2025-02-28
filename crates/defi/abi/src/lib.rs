@@ -17,4 +17,6 @@ pub mod uniswap4;
 pub mod uniswap_periphery;
 mod weth;
 
+pub mod maverick2;
+
 pub mod pancake;

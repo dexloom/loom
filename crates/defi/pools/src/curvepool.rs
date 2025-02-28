@@ -4,7 +4,8 @@ use std::sync::Arc;
 use alloy::primitives::{address, Address, Bytes, U256};
 use alloy::providers::{Network, Provider};
 use alloy::sol_types::SolCall;
-use eyre::{eyre, ErrReport, Result};
+use eyre::{eyre, ErrReport, OptionExt, Result};
+use lazy_static::lazy_static;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::TokenAddressEth;
 use loom_evm_utils::evm::evm_call;
@@ -15,6 +16,10 @@ use revm::DatabaseRef;
 use tracing::error;
 
 use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};
+
+lazy_static! {
+    static ref U256_ONE: U256 = U256::from(1);
+}
 
 pub struct CurvePool<P, N, E = CurvePoolAbiEncoder<P, N>>
 where
@@ -314,7 +319,7 @@ where
         if ret.is_zero() {
             Err(eyre!("ZERO_OUT_AMOUNT"))
         } else {
-            Ok((ret - U256::from(1), gas_used))
+            Ok((ret.checked_sub(*U256_ONE).ok_or_eyre("SUB_OVERFLOWN")?, gas_used))
         }
     }
 
@@ -341,7 +346,7 @@ where
             if ret.is_zero() {
                 Err(eyre!("ZERO_IN_AMOUNT"))
             } else {
-                Ok((ret + U256::from(1), gas_used))
+                Ok((ret.checked_add(*U256_ONE).ok_or_eyre("ADD_OVERFLOWN")?, gas_used))
             }
         } else {
             Err(eyre!("NOT_SUPPORTED"))

@@ -24,6 +24,7 @@ use tracing::debug;
 use tracing::error;
 
 lazy_static! {
+    static ref U256_ONE: U256 = U256::from(1);
     static ref LOWER_LIMIT: U160 = U160::from(4295128740u64);
     static ref UPPER_LIMIT: U160 = U160::from_str_radix("1461446703485210103287273052203988822378723970341", 10).unwrap();
 }
@@ -259,7 +260,7 @@ impl Pool for UniswapV3Pool {
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let (ret, gas_used) = if self.get_protocol() == PoolProtocol::UniswapV3 {
-            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_in_amount(&state_db, self, *token_address_from, in_amount)?;
+            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_in_amount_provider(&state_db, self, *token_address_from, in_amount)?;
 
             #[cfg(feature = "debug-calculation")]
             {
@@ -298,7 +299,8 @@ impl Pool for UniswapV3Pool {
         if ret.is_zero() {
             Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
-            Ok((ret, gas_used)) // value, gas_used
+            Ok((ret.checked_sub(*U256_ONE).ok_or_eyre("SUB_OVERFLOWN")?, gas_used))
+            // value, gas_used
         }
     }
 
@@ -311,7 +313,7 @@ impl Pool for UniswapV3Pool {
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let (ret, gas_used) = if self.get_protocol() == PoolProtocol::UniswapV3 {
-            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_out_amount(&state_db, self, *token_address_from, out_amount)?;
+            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_out_amount_provided(&state_db, self, *token_address_from, out_amount)?;
 
             #[cfg(feature = "debug-calculation")]
             {
@@ -351,7 +353,7 @@ impl Pool for UniswapV3Pool {
         if ret.is_zero() {
             Err(eyre!("RETURN_RESULT_IS_ZERO"))
         } else {
-            Ok((ret, gas_used)) // value, gas_used
+            Ok((ret.checked_add(*U256_ONE).ok_or_eyre("ADD_OVERFLOWN")?, gas_used))
         }
     }
 

@@ -47,6 +47,8 @@ impl FactoryAddress {
     // Maverick
     pub const MAVERICK: Address = address!("eb6625d65a0553c9dbc64449e56abfe519bd9c9b");
 
+    pub const MAVERICK_V2: Address = address!("0A7e848Aca42d879EF06507Fca0E7b33A0a63c1e");
+
     pub const UNISWAP_V4_POOL_MANAGER_ADDRESS: Address = address!("000000000004444c5dc75cB358380D2e3dE08A90");
 }
 
@@ -54,6 +56,7 @@ impl FactoryAddress {
 pub struct PeripheryAddress;
 
 impl PeripheryAddress {
+    pub const UNISWAP_PERMIT_2_ADDRESS: Address = address!("000000000022D473030F116dDEE9F6B43aC78BA3");
     pub const UNISWAP_V2_ROUTER: Address = address!("7a250d5630b4cf539739df2c5dacb4c659f2488d");
     pub const UNISWAP_V3_QUOTER_V2: Address = address!("61ffe014ba17989e743c5f6cb21bf9697530b21e");
     pub const UNISWAP_V3_TICK_LENS: Address = address!("bfd8137f7d1516d3ea5ca83523914859ec47f573");
@@ -61,8 +64,9 @@ impl PeripheryAddress {
     pub const PANCAKE_V3_TICK_LENS: Address = address!("9a489505a00ce272eaa5e07dba6491314cae3796");
     pub const MAVERICK_QUOTER: Address = address!("9980ce3b5570e41324904f46a06ce7b466925e23");
     pub const UNISWAP_V4_QUOTER: Address = address!("52f0e24d1c21c8a0cb1e5a5dd6198556bd9e1203");
-    pub const PERMIT_2_ADDRESS: Address = address!("000000000022D473030F116dDEE9F6B43aC78BA3");
     pub const UNISWAPV4_STATE_VIEW_ADDRESS: Address = address!("7fFE42C4a5DEeA5b0feC41C94C136Cf115597227");
+    pub const MAVERICK_V2_QUOTER: Address = address!("b40AfdB85a07f37aE217E7D6462e609900dD8D7A");
+    pub const MAVERICK_V2_TICK_LENS: Address = address!("6A9EB38DE5D349Fe751E0aDb4c0D9D391f94cc8D");
 }
 
 #[non_exhaustive]
@@ -117,6 +121,13 @@ pub struct CurveMetapoolAddress;
 
 impl CurveMetapoolAddress {
     pub const LUSD: Address = address!("ed279fdd11ca84beef15af5d39bb4d4bee23f0ca");
+}
+
+#[non_exhaustive]
+pub struct MaverickV2PoolAddress;
+
+impl MaverickV2PoolAddress {
+    pub const USDC_USDT: Address = address!("31373595F40Ea48a7aAb6CBCB0d377C6066E2dCA");
 }
 
 #[cfg(test)]

@@ -81,7 +81,7 @@ pub struct Tick {
 }
 
 impl UniswapV3PoolVirtual {
-    pub fn simulate_swap_in_amount<DB: DatabaseRef>(
+    pub fn simulate_swap_in_amount_provider<DB: DatabaseRef>(
         db: &DB,
         pool: &UniswapV3Pool,
         token_in: Address,
@@ -207,7 +207,7 @@ impl UniswapV3PoolVirtual {
         }
     }
 
-    pub fn simulate_swap_out_amount<DB: DatabaseRef>(
+    pub fn simulate_swap_out_amount_provided<DB: DatabaseRef>(
         db: &DB,
         pool: &UniswapV3Pool,
         token_in: Address,

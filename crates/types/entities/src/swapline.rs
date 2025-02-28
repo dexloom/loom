@@ -313,6 +313,8 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
         Err(eyre!("CANNOT_CALCULATE"))
     }
 
+    const MIN_VALID_OUT_AMOUNT: U256 = U256::from_limbs([0x100, 0, 0, 0]);
+
     /// Calculate the out amount for the swap line for a given in amount
     pub fn calculate_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
         &self,
@@ -332,7 +334,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
                 Ok((out_amount_result, gas_result)) => {
                     if out_amount_result.is_zero() {
                         return Err(SwapError::<LDT> {
-                            msg: "ZERO_AMOUNT".to_string(),
+                            msg: "ZERO_OUT_AMOUNT".to_string(),
                             pool: pool.get_pool_id(),
                             token_from: token_from.get_address(),
                             token_to: token_to.get_address(),
@@ -340,6 +342,17 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
                             amount: current_in_amount,
                         });
                     }
+                    if out_amount_result.lt(&Self::MIN_VALID_OUT_AMOUNT) {
+                        return Err(SwapError::<LDT> {
+                            msg: "ALMOST_ZERO_OUT_AMOUNT".to_string(),
+                            pool: pool.get_pool_id(),
+                            token_from: token_from.get_address(),
+                            token_to: token_to.get_address(),
+                            is_in_amount: true,
+                            amount: current_in_amount,
+                        });
+                    }
+
                     calculation_results.push(CalculationResult::new(current_in_amount, out_amount_result));
                     current_in_amount = out_amount_result;
                     final_out_amount = out_amount_result;

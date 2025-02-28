@@ -2,6 +2,7 @@ use alloy::primitives::{Address, Bytes, U128, U256};
 use alloy::providers::{Network, Provider};
 use alloy::sol_types::{SolCall, SolInterface};
 use eyre::{eyre, ErrReport, OptionExt, Result};
+use lazy_static::lazy_static;
 use loom_defi_abi::maverick::IMaverickPool::{getStateCall, IMaverickPoolCalls, IMaverickPoolInstance};
 use loom_defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuoterCalls};
 use loom_defi_abi::maverick::{IMaverickPool, IMaverickQuoter, State};
@@ -16,6 +17,10 @@ use std::any::Any;
 use tracing::error;
 
 use crate::state_readers::UniswapV3StateReader;
+
+lazy_static! {
+    static ref U256_ONE: U256 = U256::from(1);
+}
 
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -206,7 +211,7 @@ impl Pool for MaverickPool {
         if ret.is_zero() {
             Err(eyre!("ZERO_OUT_AMOUNT"))
         } else {
-            Ok((ret.checked_sub(U256::from(1)).ok_or_eyre("SUBTRACTION_OVERFLOWN")?, gas_used))
+            Ok((ret.checked_sub(*U256_ONE).ok_or_eyre("SUBTRACTION_OVERFLOWN")?, gas_used))
         }
     }
 
@@ -245,7 +250,7 @@ impl Pool for MaverickPool {
         if ret.is_zero() {
             Err(eyre!("ZERO_IN_AMOUNT"))
         } else {
-            Ok((ret + U256::from(1), gas_used))
+            Ok((ret.checked_add(*U256_ONE).ok_or_eyre("ADD_OVERFLOWN")?, gas_used))
         }
     }
 

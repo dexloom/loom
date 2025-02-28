@@ -31,14 +31,14 @@ pub async fn start_influxdb_worker(
                     event = event.add_tag(key, value.clone());
                 }
 
-                match timeout(Duration::from_millis(500), client.query(event)).await {
+                match timeout(Duration::from_millis(2000), client.query(event)).await {
                     Ok(inner_result) => {
                         if let Err(e) = inner_result {
                             error!("InfluxDB Write failed: {:?}", e);
                         }
                     }
                     Err(elapsed) => {
-                        error!("InfluxDB Query timed out: {:?}", elapsed);
+                        error!("InfluxDB Query timed out: {}", elapsed);
                     }
                 }
             }
