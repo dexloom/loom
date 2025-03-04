@@ -3,7 +3,7 @@ use alloy_primitives::{BlockHash, BlockNumber};
 use alloy_provider::Provider;
 use alloy_rpc_types::Header;
 use eyre::{eyre, Result};
-use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_core_actors::{run_sync, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_evm_db::DatabaseLoomExt;
@@ -48,9 +48,8 @@ where
 
                 latest_block.update(block_number, block_hash, Some(header), None, None, None);
 
-                if let Err(e) = market_events_tx
-                    .send(MarketEvents::BlockHeaderUpdate { block_number, block_hash, timestamp, base_fee, next_base_fee })
-                    .await
+                if let Err(e) =
+                    market_events_tx.send(MarketEvents::BlockHeaderUpdate { block_number, block_hash, timestamp, base_fee, next_base_fee })
                 {
                     error!("market_events_tx.send : {}", e);
                 }
@@ -147,7 +146,7 @@ where
                                             if block_hash == latest_block_guard.block_hash {
                                                 latest_block_guard.update(block_number, block_hash, None, Some(block.clone()), None, None );
 
-                                                if let Err(e) = market_events_tx.send(MarketEvents::BlockTxUpdate{ block_number, block_hash}).await {
+                                                if let Err(e) = market_events_tx.send(MarketEvents::BlockTxUpdate{ block_number, block_hash}) {
                                                     error!("market_events_tx.send : {}", e)
                                                 }
                                             }
@@ -197,7 +196,7 @@ where
                                         if block_hash == latest_block_guard.block_hash {
                                             latest_block_guard.update(block_number, block_hash, None, None,Some(blocklogs.logs), None );
 
-                                            if let Err(e) = market_events_tx.send(MarketEvents::BlockLogsUpdate { block_number, block_hash}).await {
+                                            if let Err(e) = market_events_tx.send(MarketEvents::BlockLogsUpdate { block_number, block_hash}) {
                                                 error!("market_events_tx.send : {}", e)
                                             }
                                         }
@@ -304,7 +303,7 @@ where
                     market_state_guard.block_number = latest_block_number;
 
 
-                    run_async!(market_events_tx.send(MarketEvents::BlockStateUpdate{ block_hash : msg_block_hash} ));
+                    run_sync!(market_events_tx.send(MarketEvents::BlockStateUpdate{ block_hash : msg_block_hash} ));
 
 
                     #[cfg(not(debug_assertions))]

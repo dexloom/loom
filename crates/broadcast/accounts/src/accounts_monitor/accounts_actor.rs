@@ -58,7 +58,7 @@ pub async fn nonce_and_balance_monitor_worker(
     latest_block: SharedState<LatestBlock>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    let mut market_events = market_events_rx.subscribe().await;
+    let mut market_events = market_events_rx.subscribe();
 
     loop {
         tokio::select! {

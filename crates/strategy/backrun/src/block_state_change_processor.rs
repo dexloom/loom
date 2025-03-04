@@ -1,6 +1,6 @@
 use super::affected_pools_state::get_affected_pools_from_state_update;
 use eyre::eyre;
-use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_core_actors::{run_sync, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
 use loom_types_blockchain::ChainParameters;
@@ -78,7 +78,7 @@ pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + '
             "block_searcher".to_string(),
             90_00,
         );
-        run_async!(state_updates_broadcaster.send(request));
+        run_sync!(state_updates_broadcaster.send(request));
     }
 }
 

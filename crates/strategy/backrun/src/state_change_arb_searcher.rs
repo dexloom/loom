@@ -44,17 +44,34 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
     let start_time_utc = chrono::Utc::now();
 
     let start_time = std::time::Instant::now();
-    let mut swap_path_vec: Vec<SwapPath> = Vec::new();
+    let mut swap_path_set: HashSet<SwapPath> = HashSet::new();
 
     let market_guard_read = market.read().await;
     debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.read acquired");
 
     for (pool, v) in state_update_event.directions().iter() {
         let pool_paths: Vec<SwapPath> = match market_guard_read.get_pool_paths(&pool.get_pool_id()) {
-            Some(paths) => paths
-                .into_iter()
-                .filter(|swap_path| !swap_path.pools.iter().any(|pool| !market_guard_read.is_pool_disabled(&pool.get_pool_id())))
-                .collect(),
+            Some(paths) => {
+                let pool_paths = paths
+                    .into_iter()
+                    .enumerate()
+                    .filter(|(idx, swap_path)| {
+                        *idx < 100 || swap_path.score.unwrap_or_default() > 0.97
+                        //&& !swap_path.pools.iter().any(|pool| market_guard_read.is_pool_disabled(&pool.get_pool_id()))
+                    })
+                    .map(|(_, swap_path)| swap_path)
+                    .collect::<Vec<_>>();
+
+                // let pool_paths = pool_paths
+                //     .into_iter()
+                //     .enumerate()
+                //     .filter(|(idx, path)| *idx < 100 || path.score.unwrap_or_default() > 0.9)
+                //     .map(|(idx, path)| path)
+                //     .collect::<Vec<_>>();
+                // pool_paths
+                pool_paths
+            }
+
             None => {
                 let mut pool_direction: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
                 pool_direction.insert(pool.clone(), v.clone());
@@ -62,10 +79,14 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
             }
         };
 
-        swap_path_vec.extend(pool_paths)
+        for pool_path in pool_paths {
+            swap_path_set.insert(pool_path);
+        }
     }
     drop(market_guard_read);
     debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.read released");
+
+    let swap_path_vec: Vec<SwapPath> = swap_path_set.into_iter().collect();
 
     if swap_path_vec.is_empty() {
         debug!(
@@ -90,20 +111,20 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
         thread_pool.install(|| {
             swap_path_vec.into_par_iter().for_each_with((&swap_path_tx, &market_state_clone, &env), |req, item| {
                 let mut mut_item: SwapLine = SwapLine { path: item, ..Default::default() };
-                #[cfg(not(debug_assertions))]
-                let start_time = chrono::Local::now();
+                //#[cfg(not(debug_assertions))]
+                //let start_time = chrono::Local::now();
                 let calc_result = SwapCalculator::calculate(&mut mut_item, req.1, req.2.clone());
-                #[cfg(not(debug_assertions))]
-                let took_time = chrono::Local::now() - start_time;
+                //#[cfg(not(debug_assertions))]
+                //let took_time = chrono::Local::now() - start_time;
 
                 match calc_result {
                     Ok(_) => {
-                        #[cfg(not(debug_assertions))]
-                        {
-                            if took_time > TimeDelta::new(0, 50 * 1000000).unwrap() {
-                                warn!("Took longer than expected {} {}", took_time, mut_item.clone())
-                            }
-                        }
+                        // #[cfg(not(debug_assertions))]
+                        // {
+                        //     if took_time > TimeDelta::new(0, 50 * 1000000).unwrap() {
+                        //         warn!("Took longer than expected {} {}", took_time, mut_item.clone())
+                        //     }
+                        // }
                         trace!("Calc result received: {}", mut_item);
 
                         if let Ok(profit) = mut_item.profit() {
@@ -117,12 +138,12 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                         }
                     }
                     Err(e) => {
-                        #[cfg(not(debug_assertions))]
-                        {
-                            if took_time > TimeDelta::new(0, 10 * 5000000).unwrap() {
-                                warn!("Took longer than expected {:?} {}", e, mut_item.clone())
-                            }
-                        }
+                        // #[cfg(not(debug_assertions))]
+                        // {
+                        //     if took_time > TimeDelta::new(0, 10 * 5000000).unwrap() {
+                        //         warn!("Took longer than expected {:?} {}", e, mut_item.clone())
+                        //     }
+                        // }
                         trace!("Swap error: {:?}", e);
 
                         if let Err(error) = swap_path_tx.try_send(Err(e)) {
@@ -169,14 +190,14 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
                 });
 
                 if !backrun_config.smart() || best_answers.check(&prepare_request) {
-                    if let Err(e) = swap_request_tx_clone.send(Message::new(prepare_request)).await {
+                    if let Err(e) = swap_request_tx_clone.send(Message::new(prepare_request)) {
                         error!("swap_request_tx_clone.send {}", e)
                     }
                 }
             }
             Err(swap_error) => {
                 if failed_pools.insert(swap_error.clone()) {
-                    if let Err(e) = pool_health_monitor_tx_clone.send(Message::new(HealthEvent::PoolSwapError(swap_error))).await {
+                    if let Err(e) = pool_health_monitor_tx_clone.send(Message::new(HealthEvent::PoolSwapError(swap_error))) {
                         error!("try_send to pool_health_monitor error : {:?}", e)
                     }
                 }
@@ -204,7 +225,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
         .add_tag("origin", state_update_event.origin)
         .add_tag("stuffing", stuffing_tx_hash.to_string());
 
-    if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
+    if let Err(e) = influxdb_write_channel_tx.send(write_query) {
         error!("Failed to send block latency to influxdb: {:?}", e);
     }
 
@@ -224,7 +245,7 @@ pub async fn state_change_arb_searcher_worker<
     subscribe!(search_request_rx);
 
     let cpus = num_cpus::get();
-    let tasks = (cpus * 8) / 10;
+    let tasks = (cpus * 5) / 10;
     info!("Starting state arb searcher cpus={cpus}, tasks={tasks}");
     let thread_pool = Arc::new(ThreadPoolBuilder::new().num_threads(tasks).build()?);
 
@@ -280,7 +301,7 @@ impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateCh
     pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
         Self {
             market: Some(bc.market()),
-            pool_health_monitor_tx: Some(bc.pool_health_monitor_channel()),
+            pool_health_monitor_tx: Some(bc.health_monitor_channel()),
             compose_tx: Some(strategy.swap_compose_channel()),
             state_update_rx: Some(strategy.state_update_channel()),
             influxdb_write_channel_tx: Some(bc.influxdb_write_channel()),

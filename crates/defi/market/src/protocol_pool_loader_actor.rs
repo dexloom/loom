@@ -28,7 +28,7 @@ where
             info!("Protocol loader started for {}", pool_class);
             tokio::task::spawn(async move {
                 while let Some((pool_id, pool_class)) = proto_loader.next().await {
-                    if let Err(error) = tasks_tx_clone.send(LoomTask::FetchAndAddPools(vec![(pool_id, pool_class)])).await {
+                    if let Err(error) = tasks_tx_clone.send(LoomTask::FetchAndAddPools(vec![(pool_id, pool_class)])) {
                         error!(%error, "tasks_tx.send");
                     }
                 }

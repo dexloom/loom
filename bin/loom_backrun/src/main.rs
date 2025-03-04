@@ -62,7 +62,7 @@ async fn main() -> Result<()> {
         .consume(blockchain.market_events_channel())
         .consume(blockchain.mempool_events_channel())
         .produce(strategy.swap_compose_channel())
-        .produce(blockchain.pool_health_monitor_channel())
+        .produce(blockchain.health_monitor_channel())
         .produce(blockchain.influxdb_write_channel())
         .start()
     {
@@ -243,7 +243,7 @@ async fn main() -> Result<()> {
     });
 
     // listening to MarketEvents in an infinite loop
-    let mut s = blockchain.market_events_channel().subscribe().await;
+    let mut s = blockchain.market_events_channel().subscribe();
     loop {
         let msg = s.recv().await;
         if let Ok(msg) = msg {

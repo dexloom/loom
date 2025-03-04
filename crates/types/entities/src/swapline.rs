@@ -3,7 +3,7 @@ use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
 use alloy_primitives::{I256, U256};
-use eyre::{eyre, ErrReport, Result};
+use eyre::{eyre, ErrReport, Report, Result};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use revm::primitives::Env;
 use revm::DatabaseRef;
@@ -316,7 +316,7 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
     const MIN_VALID_OUT_AMOUNT: U256 = U256::from_limbs([0x100, 0, 0, 0]);
 
     /// Calculate the out amount for the swap line for a given in amount
-    pub fn calculate_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
+    pub fn calculate_with_in_amount<DB: DatabaseRef<Error = Report>>(
         &self,
         state: &DB,
         env: Env,
@@ -375,9 +375,9 @@ impl<LDT: LoomDataTypes> SwapLine<LDT> {
     }
 
     /// Calculate the in amount for the swap line for a given out amount
-    pub fn calculate_with_out_amount(
+    pub fn calculate_with_out_amount<DB: DatabaseRef<Error = Report>>(
         &self,
-        state: &dyn DatabaseRef<Error = ErrReport>,
+        state: &DB,
         env: Env,
         out_amount: U256,
     ) -> Result<(U256, u64, Vec<CalculationResult>), SwapError<LDT>> {

@@ -45,7 +45,7 @@ async fn anvil_broadcaster_worker<P>(client: P, bundle_rx: Broadcaster<MessageTx
 where
     P: Provider<Ethereum> + AnvilProviderExt<Ethereum> + Send + Sync + Clone + 'static,
 {
-    let mut bundle_rx: Receiver<MessageTxCompose> = bundle_rx.subscribe().await;
+    let mut bundle_rx: Receiver<MessageTxCompose> = bundle_rx.subscribe();
 
     loop {
         tokio::select! {

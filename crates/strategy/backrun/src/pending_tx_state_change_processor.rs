@@ -181,7 +181,7 @@ where
                 "pending_tx_searcher".to_string(),
                 9000,
             );
-            if let Err(e) = state_updates_broadcaster.send(request).await {
+            if let Err(e) = state_updates_broadcaster.send(request) {
                 error!("state_updates_broadcaster : {}", e)
             }
         }
@@ -225,7 +225,7 @@ where
                             "poolcode_searcher".to_string(),
                             3000,
                         );
-                        if let Err(e) = state_updates_broadcaster.send(request).await {
+                        if let Err(e) = state_updates_broadcaster.send(request) {
                             error!("state_updates_broadcaster : {}", e)
                         }
                     }

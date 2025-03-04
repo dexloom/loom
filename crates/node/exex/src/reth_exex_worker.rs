@@ -43,7 +43,7 @@ async fn process_chain(
                 total_difficulty: None,
                 size: None,
             };
-            if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(header))).await {
+            if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(header))) {
                 error!(error=?e.to_string(), "block_header_channel.send")
             }
         }
@@ -69,7 +69,7 @@ async fn process_chain(
                         withdrawals: block.withdrawals,
                     };
 
-                    if let Err(e) = block_with_tx_channel.send(Message::new_with_time(BlockUpdate { block })).await {
+                    if let Err(e) = block_with_tx_channel.send(Message::new_with_time(BlockUpdate { block })) {
                         error!(error=?e.to_string(), "block_with_tx_channel.send")
                     }
                 }
@@ -97,7 +97,7 @@ async fn process_chain(
 
             let log_update = BlockLogs { block_header: block_header.clone(), logs };
 
-            if let Err(e) = logs_channel.send(Message::new_with_time(log_update)).await {
+            if let Err(e) = logs_channel.send(Message::new_with_time(log_update)) {
                 error!(error=?e.to_string(), "logs_channel.send")
             }
         }
@@ -134,7 +134,7 @@ async fn process_chain(
 
                 let block_state_update = BlockStateUpdate { block_header: block_header.clone(), state_update: vec![state_update] };
 
-                if let Err(e) = state_update_channel.send(Message::new_with_time(block_state_update)).await {
+                if let Err(e) = state_update_channel.send(Message::new_with_time(block_state_update)) {
                     error!(error=?e.to_string(), "block_with_tx_channel.send")
                 }
             }
@@ -216,7 +216,7 @@ where
 
                     if let Ok(tx) = eth_tx_builder.fill(recovered_tx, TransactionInfo::default()) {
                         let update_msg: MessageMempoolDataUpdate = MessageMempoolDataUpdate::new_with_source(NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } }, "exex".to_string());
-                        if let Err(e) =  mempool_tx.send(update_msg).await {
+                        if let Err(e) =  mempool_tx.send(update_msg) {
                             error!(error=?e.to_string(), "mempool_tx.send");
                         }else{
                             debug!(hash = ?tx_notification.transaction.hash(), "Received pool tx");

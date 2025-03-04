@@ -286,7 +286,7 @@ impl<
             let mut new_pool_health_monior_actor = PoolHealthMonitorActor::new();
             match new_pool_health_monior_actor
                 .access(blockchain.market())
-                .consume(blockchain.pool_health_monitor_channel())
+                .consume(blockchain.health_monitor_channel())
                 .produce(blockchain.influxdb_write_channel())
                 .start()
             {
@@ -589,6 +589,7 @@ impl<
                     .access(blockchain.market())
                     .access(blockchain_state.market_state())
                     .consume(blockchain.tasks_channel())
+                    .produce(blockchain.market_events_channel())
                     .start()
                 {
                     Ok(r) => {
@@ -621,6 +622,7 @@ impl<
                         match evm_estimator_actor
                             .consume(strategy.swap_compose_channel())
                             .produce(strategy.swap_compose_channel())
+                            .produce(blockchain.health_monitor_channel())
                             .produce(blockchain.influxdb_write_channel())
                             .start()
                         {

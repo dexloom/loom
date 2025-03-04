@@ -17,7 +17,7 @@ pub use pool_loader::{PoolLoader, PoolLoaders};
 pub use signers::{LoomTxSigner, TxSignerEth, TxSigners};
 pub use swap::Swap;
 pub use swap_encoder::SwapEncoder;
-pub use swap_error::SwapError;
+pub use swap_error::{EstimationError, SwapError};
 pub use swapline::{SwapAmountType, SwapLine};
 pub use swappath::{SwapPath, SwapPaths};
 pub use swappath_builder::build_swap_path_vec;

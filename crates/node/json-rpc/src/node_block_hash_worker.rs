@@ -8,7 +8,7 @@ use alloy_rpc_types::Header;
 use chrono::Utc;
 use eyre::Result;
 use futures::StreamExt;
-use loom_core_actors::{run_async, Broadcaster, WorkerResult};
+use loom_core_actors::{run_sync, Broadcaster, WorkerResult};
 use loom_types_events::{BlockHeader, MessageBlockHeader};
 use tracing::{error, info};
 
@@ -28,7 +28,7 @@ pub async fn new_node_block_hash_worker<P: Provider + PubSubConnect>(client: P, 
                     info!("Block hash received: {:?}" , header);
                     if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(header.hash) {
                         e.insert(Utc::now());
-                        run_async!(sender.send(header));
+                        run_sync!(sender.send(header));
                         block_processed.retain(|_, &mut v| v > Utc::now() - chrono::TimeDelta::minutes(10) );
                     }
                 }
@@ -60,10 +60,10 @@ where
                     info!("Block hash received: {:?}" , block_hash);
                     if let std::collections::hash_map::Entry::Vacant(e) = block_processed.entry(block_hash) {
                         e.insert(Utc::now());
-                        if let Err(e) =  new_block_header_channel.send(block_header.clone()).await {
+                        if let Err(e) =  new_block_header_channel.send(block_header.clone()) {
                             error!("Block hash broadcaster error  {}", e);
                         }
-                        if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(block_header))).await {
+                        if let Err(e) = block_header_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new(block_header))) {
                             error!("Block header broadcaster error {}", e);
                         }
                     }

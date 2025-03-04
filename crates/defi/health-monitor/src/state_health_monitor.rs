@@ -61,8 +61,8 @@ pub async fn state_health_monitor_worker<
     tx_compose_channel_rx: Broadcaster<MessageTxCompose>,
     market_events_rx: Broadcaster<MarketEvents>,
 ) -> WorkerResult {
-    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
-    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
+    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe();
+    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe();
 
     let mut check_time_map: HashMap<Address, DateTime<Local>> = HashMap::new();
     let mut pool_address_to_verify_vec: Vec<Address> = Vec::new();

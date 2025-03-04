@@ -39,7 +39,7 @@ async fn router_task_prepare<DB: DatabaseRef + Send + Sync + Clone + 'static>(
     };
     let estimate_request = MessageSwapCompose::estimate(estimate_request);
 
-    match compose_channel_tx.send(estimate_request).await {
+    match compose_channel_tx.send(estimate_request) {
         Err(_) => {
             error!("compose_channel_tx.send(estimate_request)");
             Err(eyre!("ERROR_SENDING_REQUEST"))
@@ -56,7 +56,7 @@ async fn router_task_broadcast<DB: DatabaseRef + Send + Sync + Clone + 'static>(
 
     let tx_compose = TxComposeData { swap: Some(route_request.swap), tips: route_request.tips, ..route_request.tx_compose };
 
-    match tx_compose_channel_tx.send(MessageTxCompose::sign(tx_compose)).await {
+    match tx_compose_channel_tx.send(MessageTxCompose::sign(tx_compose)) {
         Err(_) => {
             error!("compose_channel_tx.send(estimate_request)");
             Err(eyre!("ERROR_SENDING_REQUEST"))
@@ -72,7 +72,7 @@ async fn swap_router_worker<DB: DatabaseRef + Clone + Send + Sync + 'static>(
     swap_compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
     tx_compose_channel_tx: Broadcaster<MessageTxCompose>,
 ) -> WorkerResult {
-    let mut compose_channel_rx: Receiver<MessageSwapCompose<DB>> = swap_compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageSwapCompose<DB>> = swap_compose_channel_rx.subscribe();
 
     info!("swap router worker started");
 

@@ -1,4 +1,5 @@
 #![allow(clippy::type_complexity)]
+
 use alloy_primitives::map::HashMap;
 use alloy_primitives::U256;
 use eyre::{eyre, OptionExt, Result};
@@ -101,22 +102,41 @@ impl<LDT: LoomDataTypes> Market<LDT> {
     }
 
     /// Add a swap path to the market.
-    pub fn add_paths(&mut self, paths: Vec<SwapPath<LDT>>) {
-        for path in paths.into_iter() {
-            self.swap_paths.add(path);
-        }
+    pub fn add_paths(&mut self, paths: Vec<SwapPath<LDT>>) -> Vec<usize> {
+        paths.into_iter().filter_map(|path| self.swap_paths.add(path)).collect()
     }
 
     /// Get all swap paths from the market by the pool address.
     #[inline]
     pub fn get_pool_paths(&self, pool_address: &PoolId<LDT>) -> Option<Vec<SwapPath<LDT>>> {
-        self.swap_paths.get_pool_paths_vec(pool_address)
+        self.swap_paths.get_pool_paths_enabled_vec(pool_address)
     }
 
     /// Get all swap paths from the market by the pool address.
     #[inline]
-    pub fn swap_paths(&self) -> Vec<SwapPath<LDT>> {
+    pub fn swap_paths_vec(&self) -> Vec<SwapPath<LDT>> {
         self.swap_paths.paths.clone().into_iter().collect::<Vec<_>>()
+    }
+
+    #[inline]
+    pub fn swap_paths_vec_by_idx(&self, swap_path_idx_vec: Vec<usize>) -> Vec<SwapPath<LDT>> {
+        swap_path_idx_vec.into_iter().filter_map(|idx| self.swap_paths.paths.get(idx).cloned()).collect::<Vec<_>>()
+    }
+
+    #[inline]
+    pub fn pool_swap_paths_idx_vec(&self, pool_id: &PoolId<LDT>) -> Option<Vec<usize>> {
+        self.swap_paths.pool_paths.get(pool_id).cloned()
+    }
+
+    #[inline]
+    pub fn pool_swap_paths_vec(&self, pool_id: &PoolId<LDT>) -> Vec<(usize, SwapPath<LDT>)> {
+        let pool_paths = self.swap_paths.pool_paths.get(pool_id).cloned().unwrap_or_default();
+
+        let paths = pool_paths
+            .into_iter()
+            .filter_map(|idx| self.swap_paths.paths.get(idx).cloned().and_then(|a| Some((idx, a))))
+            .collect::<Vec<_>>();
+        paths
     }
 
     /// Get a pool reference by the pool address. If the pool exists but the class is unknown it returns None.
@@ -137,10 +157,42 @@ impl<LDT: LoomDataTypes> Market<LDT> {
         &self.pools
     }
 
+    pub fn swap_paths(&self) -> &SwapPaths<LDT> {
+        &self.swap_paths
+    }
+
+    pub fn swap_paths_mut(&mut self) -> &mut SwapPaths<LDT> {
+        &mut self.swap_paths
+    }
+
     /// Set the pool status to ok or not ok.
-    pub fn set_pool_disabled(&mut self, address: PoolId<LDT>, disabled: bool) {
-        *self.pools_disabled.entry(address).or_insert(false) = disabled;
-        self.swap_paths.disable_pool(&address, disabled);
+    pub fn set_pool_disabled(&mut self, address: PoolId<LDT>, token_from: LDT::Address, token_to: LDT::Address, disabled: bool) {
+        /*let update = match self.pools_disabled.entry(address) {
+            Entry::Occupied(mut entry) => {
+                if !entry.get() && disabled {
+                    entry.insert(disabled);
+                    true
+                } else {
+                    entry.insert(disabled);
+                    false
+                }
+            }
+            Entry::Vacant(entry) => {
+                entry.insert(disabled);
+                true
+            }
+        };
+
+        if update {
+            self.swap_paths.disable_pool_paths(&address, &token_from, &token_to, disabled);
+        }
+         */
+        self.swap_paths.disable_pool_paths(&address, &token_from, &token_to, disabled);
+    }
+
+    /// Set path status to ok or not ok.
+    pub fn set_path_disabled(&mut self, swap_path: &SwapPath<LDT>, disabled: bool) -> bool {
+        self.swap_paths.disable_path(swap_path, disabled)
     }
 
     /// Check if the pool is ok.

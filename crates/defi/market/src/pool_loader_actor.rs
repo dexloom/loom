@@ -8,14 +8,14 @@ use alloy_provider::Provider;
 use eyre::Result;
 use tracing::{debug, error, info};
 
-use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, SharedState, WorkerResult};
+use loom_core_actors::{run_sync, subscribe, Actor, ActorResult, Broadcaster, Producer, SharedState, WorkerResult};
 use loom_core_actors::{Accessor, Consumer};
-use loom_core_actors_macros::{Accessor, Consumer};
+use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::required_state::RequiredStateReader;
 use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders, PoolWrapper};
-use loom_types_events::LoomTask;
+use loom_types_events::{LoomTask, MarketEvents};
 
 use loom_types_blockchain::get_touched_addresses;
 use revm::{Database, DatabaseCommit, DatabaseRef};
@@ -29,6 +29,7 @@ pub async fn pool_loader_worker<P, PL, N, DB>(
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     tasks_rx: Broadcaster<LoomTask>,
+    market_events_tx: Broadcaster<MarketEvents>,
 ) -> WorkerResult
 where
     N: Network,
@@ -58,11 +59,12 @@ where
                 let market_clone = market.clone();
                 let market_state = market_state.clone();
                 let pool_loaders_clone = pool_loaders.clone();
+                let market_events_tx_clone = market_events_tx.clone();
 
                 tokio::task::spawn(async move {
                     match sema_clone.acquire().await {
                         Ok(permit) => {
-                            if let Err(error) = fetch_and_add_pool_by_pool_id(
+                            match fetch_and_add_pool_by_pool_id(
                                 client_clone,
                                 market_clone,
                                 market_state,
@@ -72,10 +74,15 @@ where
                             )
                             .await
                             {
-                                error!(%error, %pool_id, %pool_class, "failed fetch_and_add_pool_by_address");
-                            } else {
-                                info!(%pool_id, %pool_class, "Pool loaded successfully");
+                                Ok((pool_id, swap_path_idx_vec)) => {
+                                    info!(%pool_id, %pool_class, "Pool loaded successfully");
+                                    run_sync!(market_events_tx_clone.send(MarketEvents::NewPoolLoaded { pool_id, swap_path_idx_vec }))
+                                }
+                                Err(error) => {
+                                    error!(%error, %pool_id, %pool_class, "failed fetch_and_add_pool_by_address");
+                                }
                             }
+
                             drop(permit);
                         }
                         Err(error) => {
@@ -96,7 +103,7 @@ pub async fn fetch_and_add_pool_by_pool_id<P, PL, N, DB>(
     pool_loaders: Arc<PoolLoaders<PL, N>>,
     pool_id: PoolId,
     pool_class: PoolClass,
-) -> Result<()>
+) -> Result<(PoolId, Vec<usize>)>
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
@@ -106,9 +113,7 @@ where
     debug!(%pool_id, %pool_class, "Fetching pool");
 
     let pool = pool_loaders.load_pool_without_provider(pool_id, &pool_class).await?;
-    fetch_state_and_add_pool(client, market.clone(), market_state.clone(), pool).await?;
-
-    Ok(())
+    fetch_state_and_add_pool(client, market.clone(), market_state.clone(), pool).await
 }
 
 pub async fn fetch_state_and_add_pool<P, N, DB>(
@@ -116,7 +121,7 @@ pub async fn fetch_state_and_add_pool<P, N, DB>(
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     pool_wrapped: PoolWrapper,
-) -> Result<()>
+) -> Result<(PoolId, Vec<usize>)>
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
@@ -150,43 +155,42 @@ where
 
                 let mut directions_tree: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
                 directions_tree.insert(pool_wrapped.clone(), directions_vec);
-                {
-                    let start_time = std::time::Instant::now();
-                    let mut market_write_guard = market.write().await;
-                    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write acquired");
-                    // Ignore error if pool already exists because it was maybe already added by e.g. db pool loader
-                    let _ = market_write_guard.add_pool(pool_wrapped);
 
-                    let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
-                    market_write_guard.add_paths(swap_paths);
+                let start_time = std::time::Instant::now();
+                let mut market_write_guard = market.write().await;
+                debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write acquired");
+                // Ignore error if pool already exists because it was maybe already added by e.g. db pool loader
+                let _ = market_write_guard.add_pool(pool_wrapped);
 
-                    for (pool_manager_address, cells_vec) in pool_manager_cells {
-                        for cell in cells_vec {
-                            market_write_guard.add_pool_manager_cell(pool_manager_address, pool_id, cell)
-                        }
+                let swap_paths = market_write_guard.build_swap_path_vec(&directions_tree)?;
+                let swap_paths_added = market_write_guard.add_paths(swap_paths);
+
+                for (pool_manager_address, cells_vec) in pool_manager_cells {
+                    for cell in cells_vec {
+                        market_write_guard.add_pool_manager_cell(pool_manager_address, pool_id, cell)
                     }
-
-                    debug!(elapsed = start_time.elapsed().as_micros(),  market = %market_write_guard, "market_guard path added");
-
-                    drop(market_write_guard);
-                    debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write releases");
                 }
+
+                debug!(elapsed = start_time.elapsed().as_micros(),  market = %market_write_guard, "market_guard path added");
+
+                drop(market_write_guard);
+                debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write releases");
+
+                Ok((pool_id, swap_paths_added))
             }
             Err(e) => {
                 error!("{}", e);
-                return Err(e);
+                Err(e)
             }
         },
         Err(e) => {
             error!("{}", e);
-            return Err(e);
+            Err(e)
         }
     }
-
-    Ok(())
 }
 
-#[derive(Accessor, Consumer)]
+#[derive(Accessor, Consumer, Producer)]
 pub struct PoolLoaderActor<P, PL, N, DB>
 where
     N: Network,
@@ -202,6 +206,8 @@ where
     market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
     tasks_rx: Option<Broadcaster<LoomTask>>,
+    #[producer]
+    market_events_channel_tx: Option<Broadcaster<MarketEvents>>,
     _n: PhantomData<N>,
 }
 
@@ -213,11 +219,25 @@ where
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
     pub fn new(client: P, pool_loader: Arc<PoolLoaders<PL, N>>) -> Self {
-        Self { client, pool_loaders: pool_loader, market: None, market_state: None, tasks_rx: None, _n: PhantomData }
+        Self {
+            client,
+            pool_loaders: pool_loader,
+            market: None,
+            market_state: None,
+            tasks_rx: None,
+            market_events_channel_tx: None,
+            _n: PhantomData,
+        }
     }
 
     pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
-        Self { market: Some(bc.market()), market_state: Some(state.market_state_commit()), tasks_rx: Some(bc.tasks_channel()), ..self }
+        Self {
+            market: Some(bc.market()),
+            market_state: Some(state.market_state_commit()),
+            tasks_rx: Some(bc.tasks_channel()),
+            market_events_channel_tx: Some(bc.market_events_channel()),
+            ..self
+        }
     }
 }
 
@@ -235,6 +255,7 @@ where
             self.market.clone().unwrap(),
             self.market_state.clone().unwrap(),
             self.tasks_rx.clone().unwrap(),
+            self.market_events_channel_tx.clone().unwrap(),
         ));
         Ok(vec![task])
     }

@@ -30,7 +30,7 @@ async fn on_upgrade<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'st
     _who: SocketAddr,
     app_state: AppState<DB>,
 ) {
-    let mut receiver = app_state.bc.new_block_headers_channel().subscribe().await;
+    let mut receiver = app_state.bc.new_block_headers_channel().subscribe();
 
     while let Ok(header) = receiver.recv().await {
         let ws_msg = WebSocketMessage::BlockHeader(BlockHeader {

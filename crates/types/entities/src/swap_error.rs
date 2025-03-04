@@ -1,8 +1,22 @@
-use crate::PoolId;
+use crate::{PoolId, SwapPath};
 use alloy_primitives::U256;
 use eyre::{eyre, Report};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use std::hash::{Hash, Hasher};
+
+#[derive(Clone, Debug)]
+pub struct EstimationError<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+    pub msg: String,
+    pub swap_path: SwapPath<LDT>,
+}
+
+impl<LDT: LoomDataTypes> PartialEq<Self> for EstimationError<LDT> {
+    fn eq(&self, other: &Self) -> bool {
+        self.swap_path == other.swap_path
+    }
+}
+
+impl<LDT: LoomDataTypes> Eq for EstimationError<LDT> {}
 
 #[derive(Clone, Debug)]
 pub struct SwapError<LDT: LoomDataTypes = LoomDataTypesEthereum> {

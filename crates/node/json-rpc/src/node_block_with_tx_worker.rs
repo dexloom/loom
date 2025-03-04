@@ -26,7 +26,7 @@ where
                 match client.get_block_by_hash(block_header.hash(), BlockTransactionsKind::Full).await {
                     Ok(block_with_tx) => {
                         if let Some(block_with_txes) = block_with_tx {
-                            if let Err(e) = sender.send(Message::new_with_time(BlockUpdate { block: block_with_txes })).await {
+                            if let Err(e) = sender.send(Message::new_with_time(BlockUpdate { block: block_with_txes })) {
                                 error!("Broadcaster error {}", e);
                             }
                         } else {

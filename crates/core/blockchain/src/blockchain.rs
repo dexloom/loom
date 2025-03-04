@@ -146,7 +146,7 @@ impl<LDT: LoomDataTypes> Blockchain<LDT> {
         self.tx_compose_channel.clone()
     }
 
-    pub fn pool_health_monitor_channel(&self) -> Broadcaster<MessageHealthEvent<LDT>> {
+    pub fn health_monitor_channel(&self) -> Broadcaster<MessageHealthEvent<LDT>> {
         self.pool_health_monitor_channel.clone()
     }
 

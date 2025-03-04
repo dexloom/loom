@@ -158,7 +158,7 @@ async fn estimator_task<P: Provider<Ethereum> + Send + Sync + Clone + 'static, D
                             ..estimate_request
                         });
 
-                        match compose_channel_tx.send(sign_request).await {
+                        match compose_channel_tx.send(sign_request) {
                             Ok(_) => {
                                 info!("Simulated bundle broadcast to flashbots")
                             }

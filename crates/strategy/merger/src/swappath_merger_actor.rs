@@ -29,7 +29,7 @@ async fn arb_swap_steps_optimizer_task<DB: DatabaseRef + Send + Sync + Clone>(
                     swap: Swap::BackrunSwapSteps((s0, s1)),
                     ..request
                 });
-                compose_channel_tx.send(encode_request).await.map_err(|_| eyre!("CANNOT_SEND"))?;
+                compose_channel_tx.send(encode_request).map_err(|_| eyre!("CANNOT_SEND"))?;
             }
             Err(e) => {
                 error!("Optimization error:{}", e);

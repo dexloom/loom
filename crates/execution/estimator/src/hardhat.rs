@@ -89,7 +89,7 @@ async fn estimator_worker<DB: DatabaseRef + Send + Sync + Clone>(
                                         }
                                     );
 
-                                    if let Err(e) = compose_channel_tx.send(sign_request).await {
+                                    if let Err(e) = compose_channel_tx.send(sign_request){
                                         error!("{e}");
                                     }
                                 }
