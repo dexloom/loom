@@ -1,63 +1,63 @@
 [workspace]
 default-members = [
-  "bin/exex_grpc_node",
-  "bin/gasbench",
-  "bin/keys",
-  "bin/loom_anvil",
-  "bin/loom_backrun",
-  "bin/loom_exex",
-  "bin/nodebench",
-  "bin/replayer",
+    "bin/exex_grpc_node",
+    "bin/gasbench",
+    "bin/keys",
+    "bin/loom_anvil",
+    "bin/loom_backrun",
+    "bin/loom_exex",
+    "bin/nodebench",
+    "bin/replayer",
 ]
 members = [
-  "bin/exex_grpc_loom",
-  "bin/exex_grpc_node",
-  "bin/gasbench",
-  "bin/keys",
-  "bin/loom_anvil",
-  "bin/loom_backrun",
-  "bin/loom_exex",
-  "bin/nodebench",
-  "bin/replayer",
-  "crates/broadcast/accounts",
-  "crates/broadcast/broadcaster",
-  "crates/broadcast/flashbots",
-  "crates/core/block-history-actor",
-  "crates/core/blockchain",
-  "crates/core/blockchain-actors",
-  "crates/core/mempool",
-  "crates/core/router",
-  "crates/core/topology",
-  "crates/defi/abi",
-  "crates/defi/address-book",
-  "crates/defi/health-monitor",
-  "crates/defi/market",
-  "crates/defi/pools",
-  "crates/defi/preloader",
-  "crates/defi/price",
-  "crates/defi/uniswap-v3-math",
-  "crates/evm/db",
-  "crates/evm/utils",
-  "crates/execution/estimator",
-  "crates/execution/multicaller",
-  "crates/loom",
-  "crates/metrics",
-  "crates/node/db-access",
-  "crates/node/debug-provider",
-  "crates/node/exex",
-  "crates/node/grpc",
-  "crates/node/grpc-exex-proto",
-  "crates/node/json-rpc",
-  "crates/node/node-actor-config",
-  "crates/node/node-player",
-  "crates/rpc/handler",
-  "crates/rpc/state",
-  "crates/storage/db",
-  "crates/strategy/backrun",
-  "crates/strategy/merger",
-  "crates/types/blockchain",
-  "crates/types/entities",
-  "crates/types/events",
+    "bin/exex_grpc_loom",
+    "bin/exex_grpc_node",
+    "bin/gasbench",
+    "bin/keys",
+    "bin/loom_anvil",
+    "bin/loom_backrun",
+    "bin/loom_exex",
+    "bin/nodebench",
+    "bin/replayer",
+    "crates/broadcast/accounts",
+    "crates/broadcast/broadcaster",
+    "crates/broadcast/flashbots",
+    "crates/core/block-history-actor",
+    "crates/core/blockchain",
+    "crates/core/blockchain-actors",
+    "crates/core/mempool",
+    "crates/core/router",
+    "crates/core/topology",
+    "crates/defi/abi",
+    "crates/defi/address-book",
+    "crates/defi/health-monitor",
+    "crates/defi/market",
+    "crates/defi/pools",
+    "crates/defi/preloader",
+    "crates/defi/price",
+    "crates/defi/uniswap-v3-math",
+    "crates/evm/db",
+    "crates/evm/utils",
+    "crates/execution/estimator",
+    "crates/execution/multicaller",
+    "crates/loom",
+    "crates/metrics",
+    "crates/node/db-access",
+    "crates/node/debug-provider",
+    "crates/node/exex",
+    "crates/node/grpc",
+    "crates/node/grpc-exex-proto",
+    "crates/node/json-rpc",
+    "crates/node/node-actor-config",
+    "crates/node/node-player",
+    "crates/rpc/handler",
+    "crates/rpc/state",
+    "crates/storage/db",
+    "crates/strategy/backrun",
+    "crates/strategy/merger",
+    "crates/types/blockchain",
+    "crates/types/entities",
+    "crates/types/events",
 ]
 resolver = "2"
 
@@ -67,7 +67,7 @@ exclude = [".github/"]
 homepage = "https://github.com/dexloom/loom"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/dexloom/loom"
-rust-version = "1.83"
+rust-version = "1.84"
 version = "0.6.0"
 
 [workspace.dependencies]
@@ -168,6 +168,8 @@ sha2 = "0.10.8"
 strum = { version = "0.26.3" }
 strum_macros = { version = "0.26.4" }
 syn = { version = "2.0.85", features = ["fold", "full"] }
+tikv-jemalloc-ctl = "0.6"
+tikv-jemallocator = "0.6"
 toml = "0.8.19"
 tonic = "0.12.3"
 tower = "0.5.1"
@@ -203,19 +205,19 @@ revm-primitives = { version = "15.2.0", features = ["std"], default-features = f
 
 # alloy
 alloy = { version = "0.11.1", features = [
-  "consensus",
-  "contract",
-  "full",
-  "json-rpc",
-  "map-fxhash",
-  "node-bindings",
-  "rand",
-  "rlp",
-  "rpc-types-anvil",
-  "rpc-types-json",
-  "rpc-types-trace",
-  "serde",
-  "sol-types",
+    "consensus",
+    "contract",
+    "full",
+    "json-rpc",
+    "map-fxhash",
+    "node-bindings",
+    "rand",
+    "rlp",
+    "rpc-types-anvil",
+    "rpc-types-json",
+    "rpc-types-trace",
+    "serde",
+    "sol-types",
 ], default-features = false }
 alloy-consensus = "0.11.1"
 alloy-contract = "0.11.1"
@@ -293,4 +295,3 @@ strip = true # stripping of debuginfo
 codegen-units = 1
 inherits = "release"
 lto = "fat"
-

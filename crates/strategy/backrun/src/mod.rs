@@ -9,8 +9,8 @@ mod block_state_change_processor;
 mod pending_tx_state_change_processor;
 mod state_change_arb_searcher;
 
-mod affected_pools;
 mod affected_pools_code;
+mod affected_pools_state;
 mod arb_actor;
 mod backrun_config;
 mod swap_calculator;

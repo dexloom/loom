@@ -16,12 +16,13 @@ pub use pool_id::PoolId;
 pub use pool_loader::{PoolLoader, PoolLoaders};
 pub use signers::{LoomTxSigner, TxSignerEth, TxSigners};
 pub use swap::Swap;
+pub use swap_direction::SwapDirection;
 pub use swap_encoder::SwapEncoder;
-pub use swap_error::SwapError;
-pub use swapline::{SwapAmountType, SwapLine};
-pub use swappath::{SwapPath, SwapPaths};
-pub use swappath_builder::build_swap_path_vec;
-pub use swapstep::SwapStep;
+pub use swap_error::{EstimationError, SwapError};
+pub use swap_line::{SwapAmountType, SwapLine};
+pub use swap_path::{SwapPath, SwapPaths};
+pub use swap_path_builder::build_swap_path_vec;
+pub use swap_step::SwapStep;
 pub use token::{Token, TokenWrapper};
 
 mod block_history;
@@ -29,14 +30,14 @@ mod latest_block;
 mod market;
 mod market_state;
 mod pool;
-mod swapline;
-mod swappath;
+mod swap_line;
+mod swap_path;
 mod token;
 
 pub mod account_nonce_balance;
 pub mod required_state;
-mod swappath_builder;
-mod swapstep;
+mod swap_path_builder;
+mod swap_step;
 
 mod signers;
 
@@ -54,6 +55,7 @@ pub mod pool_config;
 mod pool_id;
 mod pool_loader;
 mod swap;
+mod swap_direction;
 mod swap_encoder;
 mod swap_error;
 pub mod tips;

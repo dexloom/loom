@@ -112,7 +112,7 @@ async fn main() -> Result<()> {
 
     //let swap_paths = market.build_swap_path_vec(&btree_map)?;
 
-    let swap_paths = market.swap_paths();
+    let swap_paths = market.swap_paths_vec();
 
     let db = market_state_instance.read().await.state_db.clone();
 

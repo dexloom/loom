@@ -49,7 +49,7 @@ async fn sign_task<LDT: LoomDataTypes>(
 
     let broadcast_request = TxComposeData { rlp_bundle: Some(rlp_bundle), ..sign_request };
 
-    match compose_channel_tx.send(MessageTxCompose::broadcast(broadcast_request)).await {
+    match compose_channel_tx.send(MessageTxCompose::broadcast(broadcast_request)) {
         Err(e) => {
             error!("{e}");
             Err(eyre!("BROADCAST_ERROR"))
@@ -62,7 +62,7 @@ async fn request_listener_worker<LDT: LoomDataTypes>(
     compose_channel_rx: Broadcaster<MessageTxCompose<LDT>>,
     compose_channel_tx: Broadcaster<MessageTxCompose<LDT>>,
 ) -> WorkerResult {
-    let mut compose_channel_rx: Receiver<MessageTxCompose<LDT>> = compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageTxCompose<LDT>> = compose_channel_rx.subscribe();
 
     loop {
         tokio::select! {

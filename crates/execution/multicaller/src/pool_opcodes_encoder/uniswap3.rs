@@ -2,9 +2,9 @@ use crate::opcodes_helpers::OpcodesHelpers;
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
 use crate::pool_opcodes_encoder::swap_opcodes_encoders::MulticallerOpcodesPayload;
 use crate::pool_opcodes_encoder::SwapOpcodesEncoderTrait;
-use crate::AbiEncoderHelper;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, OptionExt};
+use loom_defi_abi::AbiEncoderHelper;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{Pool, PreswapRequirement, SwapAmountType};
 use tracing::trace;
@@ -27,7 +27,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
         let inside_call_payload = if payload.is_empty() { Bytes::from(token_from_address.to_vec()) } else { payload.encode()? };
 
         let swap_to: Address = if let Some(next_pool) = next_pool {
-            match abi_encoder.preswap_requirement(next_pool) {
+            match next_pool.preswap_requirement() {
                 PreswapRequirement::Transfer(next_funds_to) => next_funds_to,
                 _ => multicaller_address,
             }
@@ -100,7 +100,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
         multicaller_address: Address,
     ) -> eyre::Result<()> {
         let swap_to = match prev_pool {
-            Some(prev_pool) => match abi_encoder.preswap_requirement(prev_pool) {
+            Some(prev_pool) => match prev_pool.preswap_requirement() {
                 PreswapRequirement::Transfer(funds_to) => {
                     trace!("other transfer to previous pool: funds_to={:?}, prev_pool={:?}", funds_to, prev_pool.get_address());
                     funds_to
@@ -180,7 +180,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
         payload: MulticallerOpcodesPayload,
         multicaller_address: Address,
     ) -> eyre::Result<()> {
-        let swap_to = next_pool.and_then(|next_pool| abi_encoder.preswap_requirement(next_pool).address()).unwrap_or(multicaller_address);
+        let swap_to = next_pool.and_then(|next_pool| next_pool.preswap_requirement().address()).unwrap_or(multicaller_address);
 
         let payload = if let MulticallerOpcodesPayload::Opcodes(inside_opcodes) = payload {
             let mut inside_opcodes = inside_opcodes;

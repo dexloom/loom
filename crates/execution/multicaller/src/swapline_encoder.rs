@@ -4,10 +4,10 @@ use alloy_primitives::{Address, U256};
 use eyre::{eyre, Result};
 use tracing::trace;
 
-use crate::abi_helpers::AbiEncoderHelper;
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
 use crate::pool_opcodes_encoder::{MulticallerOpcodesPayload, ProtocolSwapOpcodesEncoderV2, SwapOpcodesEncoderTrait};
 use crate::ProtocolABIEncoderV2;
+use loom_defi_abi::AbiEncoderHelper;
 use loom_defi_address_book::TokenAddressEth;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};

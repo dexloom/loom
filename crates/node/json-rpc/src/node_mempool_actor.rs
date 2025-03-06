@@ -25,7 +25,7 @@ where
             NodeMempoolDataUpdate { tx_hash, mempool_tx: MempoolTx { tx: Some(tx), ..MempoolTx::default() } },
             name.clone(),
         );
-        if let Err(e) = mempool_tx.send(update_msg).await {
+        if let Err(e) = mempool_tx.send(update_msg) {
             error!("mempool_tx.send error : {}", e);
             break;
         }

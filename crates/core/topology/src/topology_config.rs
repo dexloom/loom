@@ -1,13 +1,11 @@
-use std::collections::HashMap;
-use std::fs;
-
-use alloy_provider::RootProvider;
 use eyre::Result;
 use loom_broadcast_flashbots::client::RelayConfig;
 use serde::Deserialize;
+use std::collections::HashMap;
+use std::fs;
 use strum_macros::Display;
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct BlockchainConfig {
     pub chain_id: Option<i64>,
 }
@@ -42,26 +40,34 @@ pub struct InfluxDbConfig {
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
-pub struct ClientConfigParams {
+pub struct ClientConfig {
     pub url: String,
     pub node: NodeType,
     pub transport: TransportType,
     pub db_path: Option<String>,
     pub exex: Option<String>,
-    #[serde(skip)]
-    pub provider: Option<RootProvider>,
+    // #[serde(skip)]
+    // pub provider: Option<P>,
+    // _n: PhantomData<N>,
 }
 
-impl ClientConfigParams {
-    pub fn client(&self) -> Option<&RootProvider> {
+/*
+impl<P, N> ClientConfig<P, N>
+where
+    N: Network,
+    P: Provider<N> + Send + Sync + Clone + 'static,
+{
+    pub fn client(&self) -> Option<&P> {
         self.provider.as_ref()
     }
 }
 
+ */
+/*
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
 pub enum ClientConfig {
-    String(String),
+    //String(String),
     Params(ClientConfigParams),
 }
 
@@ -81,20 +87,22 @@ impl ClientConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+ */
+
+#[derive(Clone, Debug, Deserialize)]
 pub struct EnvSingerConfig {
     #[serde(rename = "bc")]
     pub blockchain: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum SignersConfig {
     #[serde(rename = "env")]
     Env(EnvSingerConfig),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct PreloaderConfig {
     pub client: Option<String>,
     #[serde(rename = "bc")]
@@ -103,25 +111,25 @@ pub struct PreloaderConfig {
     pub signers: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct SwapStepEncoderConfig {
     pub address: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum EncoderConfig {
     #[serde(rename = "swapstep")]
     SwapStep(SwapStepEncoderConfig),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct BlockchainClientConfig {
     #[serde(rename = "bc")]
     pub blockchain: Option<String>,
     pub client: Option<String>,
 }
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct ExExClientConfig {
     #[serde(rename = "bc")]
     pub blockchain: Option<String>,
@@ -157,14 +165,14 @@ impl FlashbotsBroadcasterConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum BroadcasterConfig {
     #[serde(rename = "flashbots")]
     Flashbots(FlashbotsBroadcasterConfig),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct EvmEstimatorConfig {
     pub client: Option<String>,
     #[serde(rename = "bc")]
@@ -172,7 +180,7 @@ pub struct EvmEstimatorConfig {
     pub encoder: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct GethEstimatorConfig {
     pub client: Option<String>,
     #[serde(rename = "bc")]
@@ -180,7 +188,7 @@ pub struct GethEstimatorConfig {
     pub encoder: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 #[serde(tag = "type")]
 pub enum EstimatorConfig {
     #[serde(rename = "evm")]
@@ -189,7 +197,7 @@ pub enum EstimatorConfig {
     Geth(GethEstimatorConfig),
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct PoolsConfig {
     #[serde(rename = "bc")]
     pub blockchain: Option<String>,
@@ -199,7 +207,7 @@ pub struct PoolsConfig {
     pub protocol: bool,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct WebserverConfig {
     pub host: String,
 }
@@ -210,12 +218,12 @@ impl Default for WebserverConfig {
     }
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Clone, Debug, Deserialize)]
 pub struct DatabaseConfig {
     pub url: String,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct ActorConfig {
     pub broadcaster: Option<HashMap<String, BroadcasterConfig>>,
     pub node: Option<HashMap<String, BlockchainClientConfig>>,
@@ -227,7 +235,7 @@ pub struct ActorConfig {
     pub estimator: Option<HashMap<String, EstimatorConfig>>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct TopologyConfig {
     pub influxdb: Option<InfluxDbConfig>,
     pub clients: HashMap<String, ClientConfig>,

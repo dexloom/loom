@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::cmp::Ordering;
 use std::fmt::{Debug, Display, Formatter};
 use std::hash::{Hash, Hasher};
@@ -5,6 +6,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::required_state::RequiredState;
+use crate::swap_direction::SwapDirection;
 use crate::PoolId;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
@@ -40,6 +42,8 @@ pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
         PoolProtocol::Shibaswap
     } else if factory_address == FactoryAddress::MAVERICK {
         PoolProtocol::Maverick
+    } else if factory_address == FactoryAddress::INTEGRAL {
+        PoolProtocol::Integral
     } else {
         PoolProtocol::Unknown
     }
@@ -64,6 +68,9 @@ pub enum PoolClass {
     #[serde(rename = "maverick")]
     #[strum(serialize = "maverick")]
     Maverick,
+    #[serde(rename = "maverick2")]
+    #[strum(serialize = "maverick2")]
+    MaverickV2,
     #[serde(rename = "pancake3")]
     #[strum(serialize = "pancake3")]
     PancakeV3,
@@ -93,6 +100,8 @@ pub enum PoolClass {
 #[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize)]
 pub enum PoolProtocol {
     Unknown,
+    AaveV2,
+    AaveV3,
     UniswapV2,
     UniswapV2Like,
     NomiswapStable,
@@ -110,6 +119,7 @@ pub enum PoolProtocol {
     PancakeV3,
     Integral,
     Maverick,
+    MaverickV2,
     Curve,
     LidoStEth,
     LidoWstEth,
@@ -123,6 +133,8 @@ impl Display for PoolProtocol {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let protocol_name = match self {
             Self::Unknown => "Unknown",
+            Self::AaveV2 => "AaveV2",
+            Self::AaveV3 => "AaveV3",
             Self::UniswapV2 => "UniswapV2",
             Self::UniswapV2Like => "UniswapV2Like",
             Self::UniswapV3 => "UniswapV3",
@@ -140,6 +152,7 @@ impl Display for PoolProtocol {
             Self::Safeswap => "Safeswap",
             Self::Integral => "Integral",
             Self::Maverick => "Maverick",
+            Self::MaverickV2 => "MaverickV2",
             Self::Curve => "Curve",
             Self::LidoWstEth => "WstEth",
             Self::LidoStEth => "StEth",
@@ -227,29 +240,21 @@ impl<T: 'static + Pool<LoomDataTypesEthereum>> From<T> for PoolWrapper<LoomDataT
 }
 
 pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
-    fn get_class(&self) -> PoolClass {
-        PoolClass::Unknown
-    }
+    fn as_any(&self) -> &dyn Any;
 
-    fn get_protocol(&self) -> PoolProtocol {
-        PoolProtocol::Unknown
-    }
+    fn get_class(&self) -> PoolClass;
+
+    fn get_protocol(&self) -> PoolProtocol;
 
     fn get_address(&self) -> LDT::Address;
 
     fn get_pool_id(&self) -> PoolId<LDT>;
 
-    fn get_fee(&self) -> U256 {
-        U256::ZERO
-    }
+    fn get_fee(&self) -> U256;
 
-    fn get_tokens(&self) -> Vec<LDT::Address> {
-        Vec::new()
-    }
+    fn get_tokens(&self) -> Vec<LDT::Address>;
 
-    fn get_swap_directions(&self) -> Vec<(LDT::Address, LDT::Address)> {
-        Vec::new()
-    }
+    fn get_swap_directions(&self) -> Vec<SwapDirection<LDT>>;
 
     fn calculate_out_amount(
         &self,
@@ -272,19 +277,21 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
 
     fn can_flash_swap(&self) -> bool;
 
-    fn can_calculate_in_amount(&self) -> bool {
-        true
-    }
+    fn can_calculate_in_amount(&self) -> bool;
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder>;
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder>;
 
-    fn get_read_only_cell_vec(&self) -> Vec<U256> {
-        Vec::new()
-    }
+    fn get_read_only_cell_vec(&self) -> Vec<U256>;
 
     fn get_state_required(&self) -> Result<RequiredState>;
 
     fn is_native(&self) -> bool;
+
+    fn preswap_requirement(&self) -> PreswapRequirement;
+
+    fn get_pool_manager_cells(&self) -> Vec<(Address, Vec<U256>)> {
+        vec![]
+    }
 }
 
 pub struct DefaultAbiSwapEncoder {}
@@ -351,13 +358,6 @@ pub trait PoolAbiEncoder: Send + Sync {
         _payload: Bytes,
     ) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
-    }
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Unknown
-    }
-
-    fn is_native(&self) -> bool {
-        false
     }
 
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {

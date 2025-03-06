@@ -2,7 +2,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
-use crate::{Market, PoolWrapper, SwapPath};
+use crate::{Market, PoolWrapper, SwapDirection, SwapPath};
 use eyre::Result;
 use loom_types_blockchain::LoomDataTypes;
 
@@ -434,14 +434,14 @@ fn build_swap_path_three_hopes_no_basic<LDT: LoomDataTypes>(
 
 pub fn build_swap_path_vec<LDT: LoomDataTypes>(
     market: &Market<LDT>,
-    directions: &BTreeMap<PoolWrapper<LDT>, Vec<(LDT::Address, LDT::Address)>>,
+    directions: &BTreeMap<PoolWrapper<LDT>, Vec<SwapDirection<LDT>>>,
 ) -> Result<Vec<SwapPath<LDT>>> {
     let mut ret_map = SwapPathSet::new();
 
     for (pool, directions) in directions.iter() {
         for direction in directions.iter() {
-            let token_from_address = direction.0;
-            let token_to_address = direction.1;
+            let token_from_address = *direction.from();
+            let token_to_address = *direction.to();
 
             if market.is_basic_token(&token_to_address) {
                 ret_map.extend(build_swap_path_two_hopes_basic_out(market, pool, token_from_address, token_to_address)?);

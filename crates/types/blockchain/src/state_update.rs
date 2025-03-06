@@ -31,6 +31,18 @@ lazy_static! {
         GethDebugTracingCallOptions { tracing_options: TRACING_OPTS.clone(), state_overrides: None, block_overrides: None };
 }
 
+pub fn get_touched_addresses(state_update: &GethStateUpdate) -> Vec<Address> {
+    let mut ret: Vec<Address> = Vec::new();
+
+    for (address, state) in state_update.iter() {
+        if !state.storage.is_empty() {
+            ret.push(*address)
+        }
+    }
+
+    ret
+}
+
 pub fn debug_log_geth_state_update(state_update: &GethStateUpdate) {
     for (address, state) in state_update {
         debug!("{} nonce {:?} balance {:?} is_code {}", address, state.nonce, state.balance, state.code.is_some())

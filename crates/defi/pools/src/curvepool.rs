@@ -1,19 +1,25 @@
+use std::any::Any;
 use std::sync::Arc;
 
 use alloy::primitives::{address, Address, Bytes, U256};
 use alloy::providers::{Network, Provider};
 use alloy::sol_types::SolCall;
-use eyre::{eyre, ErrReport, Result};
+use eyre::{eyre, ErrReport, OptionExt, Result};
+use lazy_static::lazy_static;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::TokenAddressEth;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::error;
 
 use crate::protocols::{CurveCommonContract, CurveContract, CurveProtocol};
+
+lazy_static! {
+    static ref U256_ONE: U256 = U256::from(1);
+}
 
 pub struct CurvePool<P, N, E = CurvePoolAbiEncoder<P, N>>
 where
@@ -59,6 +65,17 @@ where
     P: Provider<N> + Send + Sync + Clone + 'static,
     E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
+    pub fn is_meta(&self) -> bool {
+        self.is_meta
+    }
+    pub fn curve_contract(&self) -> Arc<CurveContract<P, N>> {
+        self.pool_contract.clone()
+    }
+
+    pub fn lp_token(&self) -> Option<Address> {
+        self.lp_token
+    }
+
     pub fn with_encoder(self, e: E) -> Self {
         Self { abi_encoder: Some(Arc::new(e)), ..self }
     }
@@ -203,6 +220,9 @@ where
     P: Provider<N> + Send + Sync + Clone + 'static,
     E: PoolAbiEncoder + Send + Sync + Clone + 'static,
 {
+    fn as_any<'a>(&self) -> &dyn Any {
+        self
+    }
     fn get_class(&self) -> PoolClass {
         PoolClass::Curve
     }
@@ -227,14 +247,14 @@ where
         self.tokens.clone()
     }
 
-    fn get_swap_directions(&self) -> Vec<(Address, Address)> {
-        let mut ret: Vec<(Address, Address)> = Vec::new();
+    fn get_swap_directions(&self) -> Vec<SwapDirection> {
+        let mut ret: Vec<SwapDirection> = Vec::new();
         if self.is_meta {
-            ret.push((self.tokens[0], self.tokens[1]));
-            ret.push((self.tokens[1], self.tokens[0]));
+            ret.push((self.tokens[0], self.tokens[1]).into());
+            ret.push((self.tokens[1], self.tokens[0]).into());
             for j in 0..self.underlying_tokens.len() {
-                ret.push((self.tokens[0], self.underlying_tokens[j]));
-                ret.push((self.underlying_tokens[j], self.tokens[0]));
+                ret.push((self.tokens[0], self.underlying_tokens[j]).into());
+                ret.push((self.underlying_tokens[j], self.tokens[0]).into());
             }
         } else {
             for i in 0..self.tokens.len() {
@@ -242,11 +262,11 @@ where
                     if i == j {
                         continue;
                     }
-                    ret.push((self.tokens[i], self.tokens[j]));
+                    ret.push((self.tokens[i], self.tokens[j]).into());
                 }
                 if let Some(lp_token_address) = self.lp_token {
-                    ret.push((self.tokens[i], lp_token_address));
-                    ret.push((lp_token_address, self.tokens[i]));
+                    ret.push((self.tokens[i], lp_token_address).into());
+                    ret.push((lp_token_address, self.tokens[i]).into());
                 }
             }
         }
@@ -299,7 +319,7 @@ where
         if ret.is_zero() {
             Err(eyre!("ZERO_OUT_AMOUNT"))
         } else {
-            Ok((ret - U256::from(1), gas_used))
+            Ok((ret.checked_sub(*U256_ONE).ok_or_eyre("SUB_OVERFLOWN")?, gas_used))
         }
     }
 
@@ -326,7 +346,7 @@ where
             if ret.is_zero() {
                 Err(eyre!("ZERO_IN_AMOUNT"))
             } else {
-                Ok((ret + U256::from(1), gas_used))
+                Ok((ret.checked_add(*U256_ONE).ok_or_eyre("ADD_OVERFLOWN")?, gas_used))
             }
         } else {
             Err(eyre!("NOT_SUPPORTED"))
@@ -341,9 +361,13 @@ where
         self.pool_contract.can_calculate_in_amount()
     }
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
         let r = self.abi_encoder.as_ref().unwrap().as_ref();
         Some(r as &dyn PoolAbiEncoder)
+    }
+
+    fn get_read_only_cell_vec(&self) -> Vec<U256> {
+        Vec::new()
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -414,7 +438,11 @@ where
     }
 
     fn is_native(&self) -> bool {
-        false
+        self.is_native
+    }
+
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Allowance
     }
 }
 
@@ -439,20 +467,6 @@ where
     N: Network,
     P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    /*pub fn new(
-        pool_address: Address,
-        tokens: Vec<Address>,
-        underlying_tokens: Option<Vec<Address>>,
-        lp_token: Option<Address>,
-        is_meta: bool,
-        is_native: bool,
-        curve_contract: Arc<CurveContract<P, T, N>>,
-    ) -> Self {
-        Self { pool_address, tokens, underlying_tokens, lp_token, is_meta, is_native, curve_contract }
-    }
-
-     */
-
     pub fn new(pool: &CurvePool<P, N>) -> Self {
         Self {
             pool_address: pool.address,
@@ -553,13 +567,7 @@ where
     ) -> Result<Bytes> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Allowance
-    }
 
-    fn is_native(&self) -> bool {
-        self.is_native
-    }
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {
         Some(0x44)
     }

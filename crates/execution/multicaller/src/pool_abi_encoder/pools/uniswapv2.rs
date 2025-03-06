@@ -4,7 +4,7 @@ use alloy_sol_types::SolInterface;
 use eyre::eyre;
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_types_blockchain::LoomDataTypesEthereum;
-use loom_types_entities::{Pool, PreswapRequirement};
+use loom_types_entities::Pool;
 
 pub struct UniswapV2ProtocolAbiEncoder;
 
@@ -44,14 +44,6 @@ impl ProtocolAbiSwapEncoderTrait for UniswapV2ProtocolAbiEncoder {
         };
 
         Ok(Bytes::from(IUniswapV2Pair::IUniswapV2PairCalls::swap(swap_call).abi_encode()))
-    }
-
-    fn preswap_requirement(&self, pool: &dyn Pool) -> PreswapRequirement {
-        PreswapRequirement::Transfer(pool.get_address())
-    }
-
-    fn is_native(&self, _pool: &dyn Pool) -> bool {
-        false
     }
 
     fn swap_out_amount_offset(&self, _pool: &dyn Pool, token_from_address: Address, token_to_address: Address) -> Option<u32> {

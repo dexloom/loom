@@ -42,9 +42,9 @@ async fn diff_path_merger_worker<DB>(
 where
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
 {
-    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
+    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe();
 
-    let mut compose_channel_rx: Receiver<MessageSwapCompose<DB>> = compose_channel_rx.subscribe().await;
+    let mut compose_channel_rx: Receiver<MessageSwapCompose<DB>> = compose_channel_rx.subscribe();
 
     let mut swap_paths: Vec<SwapComposeData<DB>> = Vec::new();
 
@@ -123,7 +123,7 @@ where
                                     );
                                     info!("+++ Calculation finished. Merge list : {} profit : {}",merge_list.len(), NWETH::to_float(encode_request.inner.swap.abs_profit_eth())  );
 
-                                    if let Err(e) = compose_channel_tx.send(encode_request).await {
+                                    if let Err(e) = compose_channel_tx.send(encode_request) {
                                        error!("{}",e)
                                     }
                                 }

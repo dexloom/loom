@@ -27,7 +27,7 @@ where
 
             match debug_trace_block(client.clone(), BlockId::Hash(block_header.hash.into()), true).await {
                 Ok((_, post)) => {
-                    if let Err(e) = sender.send(Message::new_with_time(BlockStateUpdate { block_header, state_update: post })).await {
+                    if let Err(e) = sender.send(Message::new_with_time(BlockStateUpdate { block_header, state_update: post })) {
                         error!("Broadcaster error {}", e)
                     }
                 }

@@ -49,6 +49,7 @@ pub enum PoolClass {
     UniswapV4,
     PancakeV3,
     Maverick,
+    MaverickV2,
     Curve,
     LidoStEth,
     LidoWstEth,
@@ -66,6 +67,7 @@ impl From<loom_types_entities::PoolClass> for PoolClass {
             loom_types_entities::PoolClass::UniswapV4 => PoolClass::UniswapV4,
             loom_types_entities::PoolClass::PancakeV3 => PoolClass::PancakeV3,
             loom_types_entities::PoolClass::Maverick => PoolClass::Maverick,
+            loom_types_entities::PoolClass::MaverickV2 => PoolClass::MaverickV2,
             loom_types_entities::PoolClass::Curve => PoolClass::Curve,
             loom_types_entities::PoolClass::LidoStEth => PoolClass::LidoStEth,
             loom_types_entities::PoolClass::LidoWstEth => PoolClass::LidoWstEth,
@@ -81,6 +83,8 @@ impl From<loom_types_entities::PoolClass> for PoolClass {
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
 pub enum PoolProtocol {
     Unknown,
+    AaveV2,
+    AaveV3,
     UniswapV2,
     UniswapV2Like,
     NomiswapStable,
@@ -96,6 +100,7 @@ pub enum PoolProtocol {
     PancakeV3,
     Integral,
     Maverick,
+    MaverickV2,
     Curve,
     LidoStEth,
     LidoWstEth,
@@ -106,9 +111,12 @@ pub enum PoolProtocol {
     BalancerV2,
     Custom(u64),
 }
+
 impl From<loom_types_entities::PoolProtocol> for PoolProtocol {
     fn from(protocol: loom_types_entities::PoolProtocol) -> Self {
         match protocol {
+            loom_types_entities::PoolProtocol::AaveV2 => PoolProtocol::AaveV2,
+            loom_types_entities::PoolProtocol::AaveV3 => PoolProtocol::AaveV3,
             loom_types_entities::PoolProtocol::Unknown => PoolProtocol::Unknown,
             loom_types_entities::PoolProtocol::UniswapV2 => PoolProtocol::UniswapV2,
             loom_types_entities::PoolProtocol::UniswapV2Like => PoolProtocol::UniswapV2Like,
@@ -125,6 +133,7 @@ impl From<loom_types_entities::PoolProtocol> for PoolProtocol {
             loom_types_entities::PoolProtocol::PancakeV3 => PoolProtocol::PancakeV3,
             loom_types_entities::PoolProtocol::Integral => PoolProtocol::Integral,
             loom_types_entities::PoolProtocol::Maverick => PoolProtocol::Maverick,
+            loom_types_entities::PoolProtocol::MaverickV2 => PoolProtocol::MaverickV2,
             loom_types_entities::PoolProtocol::Curve => PoolProtocol::Curve,
             loom_types_entities::PoolProtocol::LidoStEth => PoolProtocol::LidoStEth,
             loom_types_entities::PoolProtocol::LidoWstEth => PoolProtocol::LidoWstEth,
@@ -142,6 +151,8 @@ impl From<&PoolProtocol> for loom_types_entities::PoolProtocol {
     fn from(protocol: &PoolProtocol) -> Self {
         match protocol {
             PoolProtocol::Unknown => loom_types_entities::PoolProtocol::Unknown,
+            PoolProtocol::AaveV2 => loom_types_entities::PoolProtocol::AaveV2,
+            PoolProtocol::AaveV3 => loom_types_entities::PoolProtocol::AaveV3,
             PoolProtocol::UniswapV2 => loom_types_entities::PoolProtocol::UniswapV2,
             PoolProtocol::UniswapV2Like => loom_types_entities::PoolProtocol::UniswapV2Like,
             PoolProtocol::NomiswapStable => loom_types_entities::PoolProtocol::NomiswapStable,
@@ -157,6 +168,7 @@ impl From<&PoolProtocol> for loom_types_entities::PoolProtocol {
             PoolProtocol::PancakeV3 => loom_types_entities::PoolProtocol::PancakeV3,
             PoolProtocol::Integral => loom_types_entities::PoolProtocol::Integral,
             PoolProtocol::Maverick => loom_types_entities::PoolProtocol::Maverick,
+            PoolProtocol::MaverickV2 => loom_types_entities::PoolProtocol::MaverickV2,
             PoolProtocol::Curve => loom_types_entities::PoolProtocol::Curve,
             PoolProtocol::LidoStEth => loom_types_entities::PoolProtocol::LidoStEth,
             PoolProtocol::LidoWstEth => loom_types_entities::PoolProtocol::LidoWstEth,

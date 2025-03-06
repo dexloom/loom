@@ -6,7 +6,7 @@ use tokio::select;
 use tracing::{error, info};
 
 pub(crate) async fn replayer_compose_worker(mempool: SharedState<Mempool>, compose_channel: Broadcaster<MessageTxCompose>) -> WorkerResult {
-    let mut compose_channel_rx = compose_channel.subscribe().await;
+    let mut compose_channel_rx = compose_channel.subscribe();
 
     loop {
         select! {

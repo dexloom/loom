@@ -68,7 +68,7 @@ where
             };
 
             if let Some(block_headers_channel) = &new_block_headers_channel {
-                if let Err(e) = block_headers_channel.send(Message::new_with_time(BlockHeader::new(block.header))).await {
+                if let Err(e) = block_headers_channel.send(Message::new_with_time(BlockHeader::new(block.header))) {
                     error!("new_block_headers_channel.send error: {e}");
                 }
             }
@@ -90,7 +90,7 @@ where
 
                             if txs.is_empty() {
                                 let block_update = BlockUpdate { block };
-                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block_update)).await {
+                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block_update)) {
                                     error!("new_block_with_tx_channel.send error: {e}");
                                 }
                             } else if let Some(block_txs) = block.transactions.as_transactions() {
@@ -99,7 +99,7 @@ where
 
                                 block.transactions = BlockTransactions::Full(txs);
                                 let block_update = BlockUpdate { block };
-                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block_update)).await {
+                                if let Err(e) = block_with_tx_channel.send(Message::new_with_time(block_update)) {
                                     error!("new_block_with_tx_channel.send updated block error: {e}");
                                 }
                             }
@@ -133,7 +133,7 @@ where
                         debug!("Mempool logs : {}", logs.len());
                         logs.extend(block_logs);
                         let logs_update = BlockLogs { block_header: block_header.clone(), logs };
-                        if let Err(e) = block_logs_channel.send(Message::new_with_time(logs_update)).await {
+                        if let Err(e) = block_logs_channel.send(Message::new_with_time(logs_update)) {
                             error!("new_block_logs_channel.send error: {e}");
                         }
                     }
@@ -163,9 +163,8 @@ where
 
                 match debug_trace_block(provider.clone(), BlockId::Hash(curblock_hash.into()), true).await {
                     Ok((_, post)) => {
-                        if let Err(e) = block_state_update_channel
-                            .send(Message::new_with_time(BlockStateUpdate { block_header, state_update: post }))
-                            .await
+                        if let Err(e) =
+                            block_state_update_channel.send(Message::new_with_time(BlockStateUpdate { block_header, state_update: post }))
                         {
                             error!("new_block_state_update_channel error: {e}");
                         }

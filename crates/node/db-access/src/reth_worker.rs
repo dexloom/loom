@@ -87,7 +87,7 @@ where
                     }
 
                         if let Some(block_headers_channel) = &new_block_headers_channel {
-                            if let Err(e) = block_headers_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new( block_header.clone()))).await {
+                            if let Err(e) = block_headers_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new( block_header.clone()))) {
                                 error!("Block header broadcaster error {}", e);
                             }
                         };
@@ -114,7 +114,7 @@ where
                                         };
 
                                         //broadcast
-                                        match block_with_tx_channel.send( Message::new_with_time(BlockUpdate{ block : block_with_senders_rpc})).await {
+                                        match block_with_tx_channel.send( Message::new_with_time(BlockUpdate{ block : block_with_senders_rpc})) {
                                              Err(e) => {error!("Block header broadcaster error {}", e)}
                                              _=>{
                                                 trace!("Block header sent");
@@ -149,7 +149,7 @@ where
                                                             logs
                                                         };
 
-                                                        match block_logs_channel.send(Message::new_with_time(  logs_update)).await {
+                                                        match block_logs_channel.send(Message::new_with_time(  logs_update)) {
                                                              Err(e) => {error!("Block header broadcaster error {}", e)}
                                                              _=>{
                                                                 trace!("Logs update sent")
@@ -226,7 +226,7 @@ where
                             };
 
 
-                            match block_state_update_channel.send( Message::new_with_time(state_update)).await {
+                            match block_state_update_channel.send( Message::new_with_time(state_update)) {
                                  Err(e) => {error!("Block header broadcaster error {}", e)}
                                  _=>{
                                     trace!("State update sent")
@@ -381,10 +381,10 @@ mod test {
             }
         }
 
-        let mut new_block_rx = new_block_headers_channel.subscribe().await;
-        let mut new_block_with_tx_rx = new_block_with_tx_channel.subscribe().await;
-        let mut new_block_logs_rx = new_block_logs_channel.subscribe().await;
-        let mut new_block_state_update_rx = new_block_state_update_channel.subscribe().await;
+        let mut new_block_rx = new_block_headers_channel.subscribe();
+        let mut new_block_with_tx_rx = new_block_with_tx_channel.subscribe();
+        let mut new_block_logs_rx = new_block_logs_channel.subscribe();
+        let mut new_block_state_update_rx = new_block_state_update_channel.subscribe();
 
         for i in 1..10 {
             select! {

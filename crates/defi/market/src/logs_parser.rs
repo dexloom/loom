@@ -3,9 +3,8 @@ use alloy_provider::Provider;
 use alloy_rpc_types::Log;
 use eyre::Result;
 use std::collections::HashMap;
-use tracing::error;
 
-use loom_core_actors::{run_async, Broadcaster};
+use loom_core_actors::{run_sync, Broadcaster};
 use loom_types_entities::PoolLoaders;
 use loom_types_events::LoomTask;
 
@@ -32,6 +31,6 @@ where
         }
     }
 
-    run_async!(tasks_tx.send(LoomTask::FetchAndAddPools(pool_to_fetch)));
+    run_sync!(tasks_tx.send(LoomTask::FetchAndAddPools(pool_to_fetch)));
     Ok(())
 }

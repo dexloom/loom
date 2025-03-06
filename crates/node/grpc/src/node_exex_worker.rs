@@ -43,7 +43,7 @@ async fn process_chain_task(
             inner: header,
         };
 
-        if let Err(e) = block_header_channel.send(header).await {
+        if let Err(e) = block_header_channel.send(header) {
             error!("block_header_channel.send error: {}", e)
         }
     }
@@ -60,7 +60,7 @@ async fn process_chain_task(
         info!("Processing block block_number={} block_hash={}", block_hash_num.number, block_hash_num.hash);
         match reth_rpc_types_compat::block::from_block(sealed_block.clone(), BlockTransactionsKind::Full, &eth_tx_builder) {
             Ok(block) => {
-                if let Err(e) = block_with_tx_channel.send(block).await {
+                if let Err(e) = block_with_tx_channel.send(block) {
                     error!("block_with_tx_channel.send error : {}", e)
                 }
             }
@@ -84,7 +84,7 @@ async fn process_chain_task(
 
         let log_update = BlockLogs { block_header: block_header.clone(), logs };
 
-        if let Err(e) = logs_channel.send(log_update).await {
+        if let Err(e) = logs_channel.send(log_update) {
             error!("logs_channel.send error : {}", e)
         }
 
@@ -111,7 +111,7 @@ async fn process_chain_task(
 
             let block_state_update = BlockStateUpdate { block_header, state_update: vec![state_update] };
 
-            if let Err(e) = state_update_channel.send(block_state_update).await {
+            if let Err(e) = state_update_channel.send(block_state_update) {
                 error!("state_update_channel.send error : {}", e)
             }
         }
@@ -169,7 +169,7 @@ pub async fn node_exex_grpc_worker(
             header = stream_header.next() => {
                 if let Some(header) = header {
                     if let Err(e) = block_header_channel.send(
-                        MessageBlockHeader::new_with_time(BlockHeader::new( header))).await
+                        MessageBlockHeader::new_with_time(BlockHeader::new( header)))
                     {
                         error!("block_header_channel.send error : {}", e)
                     }
@@ -180,7 +180,7 @@ pub async fn node_exex_grpc_worker(
                 if let Some(block) = block {
                     if let Err(e) = block_with_tx_channel.send(
                         Message::new_with_time( BlockUpdate{block})
-                    ).await {
+                    ) {
                         error!("block_with_tx_channel.send error : {}", e)
                     }
                 }
@@ -191,7 +191,7 @@ pub async fn node_exex_grpc_worker(
                     let block_logs = BlockLogs {block_header, logs};
                     if let Err(e) = logs_channel.send(
                         Message::new_with_time(block_logs)
-                    ).await {
+                    ) {
                         error!("block_with_tx_channel.send error : {}", e)
                     }
                 }
@@ -205,7 +205,7 @@ pub async fn node_exex_grpc_worker(
                     };
                     if let Err(e) = state_update_channel.send(
                         Message::new_with_time(block_state_update)
-                    ).await {
+                    ) {
                         error!("block_with_tx_channel.send error : {}", e)
                     }
                 }
@@ -227,7 +227,7 @@ pub async fn node_exex_grpc_worker(
                     };
                     let data_update = NodeMempoolDataUpdate{ tx_hash, mempool_tx};
 
-                    if let Err(e) = mempool_channel.send(Message::new_with_source(data_update, "exex".to_string())).await {
+                    if let Err(e) = mempool_channel.send(Message::new_with_source(data_update, "exex".to_string())) {
                         error!("mempool_channel.send error : {}", e)
                     }
 

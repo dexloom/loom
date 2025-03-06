@@ -7,7 +7,7 @@ use revm::DatabaseRef;
 
 use loom_evm_utils::evm_env::env_for_block;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::PoolWrapper;
+use loom_types_entities::{PoolWrapper, SwapDirection};
 
 #[derive(Clone)]
 pub struct StateUpdateEvent<DB, LDT: LoomDataTypes = LoomDataTypesEthereum> {
@@ -17,7 +17,7 @@ pub struct StateUpdateEvent<DB, LDT: LoomDataTypes = LoomDataTypesEthereum> {
     market_state: DB,
     state_update: Vec<LDT::StateUpdate>,
     state_required: Option<Vec<LDT::StateUpdate>>,
-    directions: BTreeMap<PoolWrapper, Vec<(LDT::Address, LDT::Address)>>,
+    directions: BTreeMap<PoolWrapper, Vec<SwapDirection<LDT>>>,
     pub stuffing_txs_hashes: Vec<LDT::TxHash>,
     pub stuffing_txs: Vec<LDT::Transaction>,
     pub origin: String,
@@ -33,7 +33,7 @@ impl<DB: DatabaseRef, LDT: LoomDataTypes> StateUpdateEvent<DB, LDT> {
         market_state: DB,
         state_update: Vec<LDT::StateUpdate>,
         state_required: Option<Vec<LDT::StateUpdate>>,
-        directions: BTreeMap<PoolWrapper, Vec<(LDT::Address, LDT::Address)>>,
+        directions: BTreeMap<PoolWrapper, Vec<SwapDirection<LDT>>>,
         stuffing_txs_hashes: Vec<LDT::TxHash>,
         stuffing_txs: Vec<LDT::Transaction>,
         origin: String,
@@ -58,7 +58,7 @@ impl<DB: DatabaseRef, LDT: LoomDataTypes> StateUpdateEvent<DB, LDT> {
         env_for_block(self.next_block_number, self.next_block_timestamp)
     }
 
-    pub fn directions(&self) -> &BTreeMap<PoolWrapper, Vec<(LDT::Address, LDT::Address)>> {
+    pub fn directions(&self) -> &BTreeMap<PoolWrapper, Vec<SwapDirection<LDT>>> {
         &self.directions
     }
 

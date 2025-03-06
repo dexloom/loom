@@ -2,15 +2,16 @@ use alloy::primitives::{Address, Bytes, U256};
 use alloy::providers::{Network, Provider};
 use alloy::rpc::types::BlockNumberOrTag;
 use alloy::sol_types::SolInterface;
-use eyre::{eyre, ErrReport, Result};
+use eyre::{eyre, ErrReport, OptionExt, Result};
 use lazy_static::lazy_static;
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::FactoryAddress;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
+use std::any::Any;
 use std::ops::Div;
 use tracing::debug;
 
@@ -18,6 +19,7 @@ use crate::state_readers::UniswapV2StateReader;
 
 lazy_static! {
     static ref U112_MASK: U256 = (U256::from(1) << 112) - U256::from(1);
+    static ref U256_ONE: U256 = U256::from(1);
 }
 #[allow(dead_code)]
 #[derive(Clone)]
@@ -43,7 +45,7 @@ impl UniswapV2Pool {
             factory: Address::ZERO,
             protocol: PoolProtocol::UniswapV2Like,
             fee: U256::from(9970),
-            encoder: UniswapV2PoolAbiEncoder::new(address),
+            encoder: UniswapV2PoolAbiEncoder {},
             reserves_cell: None,
             liquidity0: U256::ZERO,
             liquidity1: U256::ZERO,
@@ -65,7 +67,7 @@ impl UniswapV2Pool {
             factory,
             protocol: PoolProtocol::UniswapV2Like,
             fee: U256::from(9970),
-            encoder: UniswapV2PoolAbiEncoder::new(address),
+            encoder: UniswapV2PoolAbiEncoder {},
             reserves_cell: None,
             liquidity0,
             liquidity1,
@@ -99,6 +101,8 @@ impl UniswapV2Pool {
             PoolProtocol::OgPepe
         } else if factory_address == FactoryAddress::ANTFARM {
             PoolProtocol::AntFarm
+        } else if factory_address == FactoryAddress::INTEGRAL {
+            PoolProtocol::Integral
         } else {
             PoolProtocol::UniswapV2Like
         }
@@ -131,7 +135,7 @@ impl UniswapV2Pool {
             fee,
             factory,
             protocol,
-            encoder: UniswapV2PoolAbiEncoder { pool_address: address },
+            encoder: UniswapV2PoolAbiEncoder {},
             reserves_cell: None,
             liquidity0: Default::default(),
             liquidity1: Default::default(),
@@ -175,7 +179,7 @@ impl UniswapV2Pool {
             reserves_cell,
             liquidity0: U256::from(reserves.reserve0),
             liquidity1: U256::from(reserves.reserve1),
-            encoder: UniswapV2PoolAbiEncoder::new(address),
+            encoder: UniswapV2PoolAbiEncoder {},
         };
         Ok(ret)
     }
@@ -196,6 +200,9 @@ impl UniswapV2Pool {
 }
 
 impl Pool for UniswapV2Pool {
+    fn as_any<'a>(&self) -> &dyn Any {
+        self
+    }
     fn get_class(&self) -> PoolClass {
         PoolClass::UniswapV2
     }
@@ -219,8 +226,8 @@ impl Pool for UniswapV2Pool {
         vec![self.token0, self.token1]
     }
 
-    fn get_swap_directions(&self) -> Vec<(Address, Address)> {
-        vec![(self.token0, self.token1), (self.token1, self.token0)]
+    fn get_swap_directions(&self) -> Vec<SwapDirection> {
+        vec![(self.token0, self.token1).into(), (self.token1, self.token0).into()]
     }
 
     fn calculate_out_amount(
@@ -249,7 +256,7 @@ impl Pool for UniswapV2Pool {
         } else if out_amount.is_zero() {
             Err(eyre!("OUT_AMOUNT_IS_ZERO"))
         } else {
-            Ok((out_amount, 100_000))
+            Ok((out_amount.checked_sub(*U256_ONE).ok_or_eyre("SUB_OVERFLOWN")?, 100_000))
         }
     }
 
@@ -283,7 +290,7 @@ impl Pool for UniswapV2Pool {
             if in_amount.is_zero() {
                 Err(eyre!("IN_AMOUNT_IS_ZERO"))
             } else {
-                Ok((in_amount + U256::from(1), 100_000))
+                Ok((in_amount.checked_add(*U256_ONE).ok_or_eyre("ADD_OVERFLOWN")?, 100_000))
             }
         }
     }
@@ -292,8 +299,16 @@ impl Pool for UniswapV2Pool {
         true
     }
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+    fn can_calculate_in_amount(&self) -> bool {
+        true
+    }
+
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
         Some(&self.encoder)
+    }
+
+    fn get_read_only_cell_vec(&self) -> Vec<U256> {
+        Vec::new()
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -316,18 +331,14 @@ impl Pool for UniswapV2Pool {
     fn is_native(&self) -> bool {
         false
     }
+
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Transfer(self.address)
+    }
 }
 
 #[derive(Clone, Copy)]
-struct UniswapV2PoolAbiEncoder {
-    pool_address: Address,
-}
-
-impl UniswapV2PoolAbiEncoder {
-    pub fn new(pool_address: Address) -> Self {
-        Self { pool_address }
-    }
-}
+struct UniswapV2PoolAbiEncoder {}
 
 impl PoolAbiEncoder for UniswapV2PoolAbiEncoder {
     fn encode_swap_out_amount_provided(
@@ -345,10 +356,6 @@ impl PoolAbiEncoder for UniswapV2PoolAbiEncoder {
         };
 
         Ok(Bytes::from(IUniswapV2Pair::IUniswapV2PairCalls::swap(swap_call).abi_encode()))
-    }
-
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Transfer(self.pool_address)
     }
 
     fn swap_out_amount_offset(&self, token_from_address: Address, token_to_address: Address) -> Option<u32> {

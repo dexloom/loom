@@ -48,8 +48,8 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<Ethereum> + Clone + 'static>
     market_events_rx: Broadcaster<MarketEvents>,
     influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> WorkerResult {
-    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe().await;
-    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe().await;
+    let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe();
+    let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe();
 
     let mut txs_to_check: HashMap<TxHash, TxToCheck> = HashMap::new();
 
@@ -88,7 +88,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<Ethereum> + Clone + 'static>
                                                         .add_tag("block_idx", idx as u64)
                                                         .add_tag("stuffing_tx", tx_hash.to_string())
                                                         .add_tag("other_tx", others_tx_hash.to_string());
-                                                    if let Err(e) = influx_channel_clone.send(write_query).await {
+                                                    if let Err(e) = influx_channel_clone.send(write_query) {
                                                        error!("Failed to send block latency to influxdb: {:?}", e);
                                                     }
                                                 };
@@ -104,7 +104,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<Ethereum> + Clone + 'static>
                             let start_time_utc =   chrono::Utc::now();
 
                             let write_query = WriteQuery::new(Timestamp::from(start_time_utc), "stuffing_waiting").add_field("value", txs_to_check.len() as u64).add_tag("block", block_number);
-                            if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
+                            if let Err(e) = influxdb_write_channel_tx.send(write_query) {
                                error!("Failed to send block latency to influxdb: {:?}", e);
                             }
                         }

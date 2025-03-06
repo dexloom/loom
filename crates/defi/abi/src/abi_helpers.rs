@@ -1,18 +1,13 @@
-use alloy_primitives::{Address, Bytes, U256};
-use alloy_sol_types::{SolCall, SolInterface};
+use alloy::primitives::{Address, Bytes, U256};
+use alloy::sol_types::{SolCall, SolInterface};
 
-use loom_defi_abi::balancer::IVault;
-use loom_defi_abi::lido::{IStEth, IWStEth};
-use loom_defi_abi::{IMultiCaller, IERC20, IWETH};
-use loom_defi_address_book::TokenAddressEth;
+use crate::balancer::IVault;
+use crate::lido::{IStEth, IWStEth};
+use crate::{IMultiCaller, IERC20, IWETH};
 
 pub struct AbiEncoderHelper;
 
 impl AbiEncoderHelper {
-    pub fn is_weth(address: Address) -> bool {
-        address == TokenAddressEth::WETH
-    }
-
     pub fn encode_weth_deposit() -> Bytes {
         IWETH::IWETHCalls::deposit(IWETH::depositCall {}).abi_encode().into()
     }

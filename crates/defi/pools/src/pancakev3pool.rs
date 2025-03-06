@@ -1,3 +1,4 @@
+use std::any::Any;
 use std::fmt::Debug;
 use std::ops::Sub;
 
@@ -16,7 +17,7 @@ use loom_defi_abi::IERC20;
 use loom_defi_address_book::PeripheryAddress;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 
@@ -182,6 +183,9 @@ impl PancakeV3Pool {
 }
 
 impl Pool for PancakeV3Pool {
+    fn as_any<'a>(&self) -> &dyn Any {
+        self
+    }
     fn get_class(&self) -> PoolClass {
         PoolClass::PancakeV3
     }
@@ -198,12 +202,16 @@ impl Pool for PancakeV3Pool {
         PoolId::Address(self.address)
     }
 
+    fn get_fee(&self) -> U256 {
+        U256::from(self.fee)
+    }
+
     fn get_tokens(&self) -> Vec<Address> {
         vec![self.token0, self.token1]
     }
 
-    fn get_swap_directions(&self) -> Vec<(Address, Address)> {
-        vec![(self.token0, self.token1), (self.token1, self.token0)]
+    fn get_swap_directions(&self) -> Vec<SwapDirection> {
+        vec![(self.token0, self.token1).into(), (self.token1, self.token0).into()]
     }
 
     fn calculate_out_amount(
@@ -276,7 +284,11 @@ impl Pool for PancakeV3Pool {
         true
     }
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+    fn can_calculate_in_amount(&self) -> bool {
+        true
+    }
+
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
         Some(&self.encoder)
     }
 
@@ -406,6 +418,10 @@ impl Pool for PancakeV3Pool {
     fn is_native(&self) -> bool {
         false
     }
+
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Callback
+    }
 }
 
 #[allow(dead_code)]
@@ -461,10 +477,6 @@ impl PoolAbiEncoder for PancakeV3AbiSwapEncoder {
         };
 
         Ok(Bytes::from(IUniswapV3Pool::IUniswapV3PoolCalls::swap(swap_call).abi_encode()))
-    }
-
-    fn preswap_requirement(&self) -> PreswapRequirement {
-        PreswapRequirement::Callback
     }
 
     fn swap_in_amount_offset(&self, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {

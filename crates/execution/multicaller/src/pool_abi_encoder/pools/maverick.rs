@@ -5,7 +5,7 @@ use lazy_static::lazy_static;
 use loom_defi_abi::maverick::IMaverickPool;
 use loom_defi_abi::maverick::IMaverickPool::IMaverickPoolCalls;
 use loom_types_blockchain::LoomDataTypesEthereum;
-use loom_types_entities::{Pool, PreswapRequirement};
+use loom_types_entities::Pool;
 
 lazy_static! {
     static ref LOWER_LIMIT: U256 = U256::from(4295128740u64);
@@ -74,14 +74,6 @@ impl ProtocolAbiSwapEncoderTrait for MaverickProtocolAbiEncoder {
         };
 
         Ok(Bytes::from(IMaverickPoolCalls::swap(swap_call).abi_encode()))
-    }
-
-    fn preswap_requirement(&self, _pool: &dyn Pool) -> PreswapRequirement {
-        PreswapRequirement::Callback
-    }
-
-    fn is_native(&self, _pool: &dyn Pool) -> bool {
-        false
     }
 
     fn swap_in_amount_offset(&self, _pool: &dyn Pool, _token_from_address: Address, _token_to_address: Address) -> Option<u32> {

@@ -5,7 +5,7 @@ use influxdb::{Timestamp, WriteQuery};
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info, trace};
 
-use loom_core_actors::{run_async, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
+use loom_core_actors::{run_sync, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_types_blockchain::{ChainParameters, Mempool, MempoolTx};
@@ -53,13 +53,13 @@ pub async fn new_mempool_worker<LDT: LoomDataTypes>(
                 if let Some(logs) = &mempool_update_msg.mempool_tx.logs {
                     if mempool_entry.logs.is_none() {
                         mempool_entry.logs = Some(logs.clone());
-                        run_async!(broadcaster.send(MempoolEvents::MempoolLogUpdate {tx_hash } ));
+                        run_sync!(broadcaster.send(MempoolEvents::MempoolLogUpdate {tx_hash } ));
                     }
                 }
                 if let Some(state_update) = &mempool_update_msg.mempool_tx.state_update {
                     if mempool_entry.state_update.is_none() {
                         mempool_entry.state_update = Some(state_update.clone());
-                        run_async!(broadcaster.send(MempoolEvents::MempoolStateUpdate{ tx_hash }));
+                        run_sync!(broadcaster.send(MempoolEvents::MempoolStateUpdate{ tx_hash }));
                     }
                 }
                 if let Some(tx) = &mempool_update_msg.mempool_tx.tx {
@@ -67,10 +67,10 @@ pub async fn new_mempool_worker<LDT: LoomDataTypes>(
                         mempool_entry.tx = Some(tx.clone());
                         if let Some(cur_gas_price) = current_gas_price {
                             if tx.gas_limit() > 30000 && tx.gas_price() >= cur_gas_price && mempool_guard.is_valid_tx(tx) {
-                                run_async!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate {tx_hash }));
+                                run_sync!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate {tx_hash }));
                             }
                         }
-                        run_async!(broadcaster.send(MempoolEvents::MempoolTxUpdate {tx_hash }));
+                        run_sync!(broadcaster.send(MempoolEvents::MempoolTxUpdate {tx_hash }));
                     }
                 }
                 drop(mempool_guard);
@@ -112,7 +112,7 @@ pub async fn new_mempool_worker<LDT: LoomDataTypes>(
                     if mempool_read_guard.is_valid_tx(&tx) {
                         let tx_hash = tx.tx_hash();
                         trace!("new tx ok {:?}", tx_hash);
-                        run_async!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate { tx_hash }));
+                        run_sync!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate { tx_hash }));
                     } else{
                        trace!("new tx gas change tx not valid {:?}", tx.tx_hash());
                     }
@@ -175,7 +175,7 @@ pub async fn new_mempool_worker<LDT: LoomDataTypes>(
                     .add_field("tx_count_found", mempool_tx_counter)
                     .add_field("tx_mempool_size", mempool_size as u64);
 
-                if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
+                if let Err(e) = influxdb_write_channel_tx.send(write_query) {
                        error!("Failed to send mempool stat to influxdb: {:?}", e);
                 }
 

@@ -3,9 +3,9 @@ use eyre::Result;
 use lazy_static::lazy_static;
 use tracing::trace;
 
-use crate::abi_helpers::AbiEncoderHelper;
 use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::SwapLineEncoder;
+use loom_defi_abi::AbiEncoderHelper;
 use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::{SwapAmountType, SwapStep};

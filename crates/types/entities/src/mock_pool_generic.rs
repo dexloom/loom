@@ -1,6 +1,6 @@
 use crate::pool_id::PoolId;
 use crate::required_state::RequiredState;
-use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol};
+use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
 use alloy_network::Ethereum;
 use alloy_primitives::{Address, U256};
 use alloy_provider::Provider;
@@ -10,6 +10,7 @@ use eyre::{eyre, ErrReport};
 use loom_evm_db::{AlloyDB, LoomDBType};
 use revm::primitives::Env;
 use revm::DatabaseRef;
+use std::any::Any;
 
 #[derive(Clone)]
 pub struct MockPoolGeneric<P> {
@@ -23,6 +24,9 @@ impl<P> Pool for MockPoolGeneric<P>
 where
     P: Provider<Ethereum> + Send + Sync + Clone + 'static,
 {
+    fn as_any<'a>(&self) -> &dyn Any {
+        self
+    }
     fn get_class(&self) -> PoolClass {
         PoolClass::UniswapV2
     }
@@ -38,12 +42,16 @@ where
         PoolId::Address(self.address)
     }
 
+    fn get_fee(&self) -> U256 {
+        U256::ZERO
+    }
+
     fn get_tokens(&self) -> Vec<Address> {
         vec![self.token0, self.token1]
     }
 
-    fn get_swap_directions(&self) -> Vec<(Address, Address)> {
-        vec![(self.token0, self.token1), (self.token1, self.token0)]
+    fn get_swap_directions(&self) -> Vec<SwapDirection> {
+        vec![(self.token0, self.token1).into(), (self.token1, self.token0).into()]
     }
 
     fn calculate_out_amount(
@@ -75,8 +83,16 @@ where
         panic!("Not implemented")
     }
 
-    fn get_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
+    fn can_calculate_in_amount(&self) -> bool {
+        true
+    }
+
+    fn get_abi_encoder(&self) -> Option<&dyn PoolAbiEncoder> {
         panic!("Not implemented")
+    }
+
+    fn get_read_only_cell_vec(&self) -> Vec<U256> {
+        Vec::new()
     }
 
     fn get_state_required(&self) -> Result<RequiredState> {
@@ -85,5 +101,9 @@ where
 
     fn is_native(&self) -> bool {
         false
+    }
+
+    fn preswap_requirement(&self) -> PreswapRequirement {
+        PreswapRequirement::Base
     }
 }

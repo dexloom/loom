@@ -1,15 +1,16 @@
+use crate::blockchain_tokens::add_default_tokens_to_market;
 use alloy::primitives::BlockHash;
 use alloy::primitives::ChainId;
 use influxdb::WriteQuery;
 use loom_core_actors::{Broadcaster, SharedState};
-use loom_defi_address_book::TokenAddressEth;
 use loom_types_blockchain::{ChainParameters, Mempool};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::{AccountNonceAndBalanceState, LatestBlock, Market, Token};
+use loom_types_entities::{AccountNonceAndBalanceState, LatestBlock, Market};
 use loom_types_events::{
     LoomTask, MarketEvents, MempoolEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageHealthEvent,
     MessageMempoolDataUpdate, MessageTxCompose,
 };
+use tracing::error;
 
 #[derive(Clone)]
 pub struct Blockchain<LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
@@ -53,19 +54,9 @@ impl Blockchain<LoomDataTypesEthereum> {
 
         let mut market_instance = Market::default();
 
-        let weth_token = Token::new_with_data(TokenAddressEth::WETH, Some("WETH".to_string()), None, Some(18), true, false);
-        let usdc_token = Token::new_with_data(TokenAddressEth::USDC, Some("USDC".to_string()), None, Some(6), true, false);
-        let usdt_token = Token::new_with_data(TokenAddressEth::USDT, Some("USDT".to_string()), None, Some(6), true, false);
-        let dai_token = Token::new_with_data(TokenAddressEth::DAI, Some("DAI".to_string()), None, Some(18), true, false);
-        let wbtc_token = Token::new_with_data(TokenAddressEth::WBTC, Some("WBTC".to_string()), None, Some(8), true, false);
-        let threecrv_token = Token::new_with_data(TokenAddressEth::THREECRV, Some("3Crv".to_string()), None, Some(18), false, true);
-
-        market_instance.add_token(weth_token).unwrap();
-        market_instance.add_token(usdc_token).unwrap();
-        market_instance.add_token(usdt_token).unwrap();
-        market_instance.add_token(dai_token).unwrap();
-        market_instance.add_token(wbtc_token).unwrap();
-        market_instance.add_token(threecrv_token).unwrap();
+        if let Err(error) = add_default_tokens_to_market(&mut market_instance, chain_id) {
+            error!(%error, "Failed to add default tokens to market");
+        }
 
         Blockchain {
             chain_id,
@@ -146,7 +137,7 @@ impl<LDT: LoomDataTypes> Blockchain<LDT> {
         self.tx_compose_channel.clone()
     }
 
-    pub fn pool_health_monitor_channel(&self) -> Broadcaster<MessageHealthEvent<LDT>> {
+    pub fn health_monitor_channel(&self) -> Broadcaster<MessageHealthEvent<LDT>> {
         self.pool_health_monitor_channel.clone()
     }
 

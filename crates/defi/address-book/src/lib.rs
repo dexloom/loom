@@ -15,6 +15,41 @@ impl TokenAddressEth {
     pub const STETH: Address = address!("ae7ab96520de3a18e5e111b5eaab095312d7fe84");
     pub const WSTETH: Address = address!("7f39c581f595b53c5cb19bd0b3f8da6c935e2ca0");
     pub const LUSD: Address = address!("5f98805a4e8be255a32880fdec7f6728c6568ba0");
+
+    pub fn is_weth(&address: &Address) -> bool {
+        address.eq(&Self::WETH)
+    }
+    pub fn is_eth(&address: &Address) -> bool {
+        address.eq(&Self::ETH_NATIVE)
+    }
+}
+
+#[non_exhaustive]
+pub struct TokenAddressArbitrum;
+
+impl TokenAddressArbitrum {
+    pub const ETH_NATIVE: Address = Address::ZERO;
+    pub const WETH: Address = address!("82aF49447D8a07e3bd95BD0d56f35241523fBab1");
+    pub const USDC: Address = address!("af88d065e77c8cC2239327C5EDb3A432268e5831");
+    pub const WBTC: Address = address!("2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f");
+    pub const USDT: Address = address!("Fd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9");
+    pub const DAI: Address = address!("DA10009cBd5D07dd0CeCc66161FC93D7c9000da1");
+    pub const CRV: Address = address!("11cDb42B0EB46D95f990BeDD4695A6e3fA034978");
+
+    pub fn is_weth(&address: &Address) -> bool {
+        address.eq(&Self::WETH)
+    }
+    pub fn is_eth(&address: &Address) -> bool {
+        address.eq(&Self::ETH_NATIVE)
+    }
+}
+
+#[non_exhaustive]
+pub struct TokenAddressBase;
+impl TokenAddressBase {
+    pub const ETH_NATIVE: Address = Address::ZERO;
+    pub const WETH: Address = address!("4200000000000000000000000000000000000006");
+    pub const USDC: Address = address!("833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
 }
 
 #[non_exhaustive]
@@ -31,6 +66,7 @@ impl FactoryAddress {
     pub const SHIBASWAP: Address = address!("115934131916c8b277dd010ee02de363c09d037c");
     pub const OG_PEPE: Address = address!("52fba58f936833f8b643e881ad308b2e37713a86");
     pub const ANTFARM: Address = address!("E48AEE124F9933661d4DD3Eb265fA9e153e32CBe");
+    pub const INTEGRAL: Address = address!("C480b33eE5229DE3FbDFAD1D2DCD3F3BAD0C56c6");
 
     // Uniswap V3 compatible
     pub const UNISWAP_V3: Address = address!("1f98431c8ad98523631ae4a59f267346ea31f984");
@@ -39,18 +75,27 @@ impl FactoryAddress {
 
     // Maverick
     pub const MAVERICK: Address = address!("eb6625d65a0553c9dbc64449e56abfe519bd9c9b");
+
+    pub const MAVERICK_V2: Address = address!("0A7e848Aca42d879EF06507Fca0E7b33A0a63c1e");
+
+    pub const UNISWAP_V4_POOL_MANAGER_ADDRESS: Address = address!("000000000004444c5dc75cB358380D2e3dE08A90");
 }
 
 #[non_exhaustive]
 pub struct PeripheryAddress;
 
 impl PeripheryAddress {
+    pub const UNISWAP_PERMIT_2_ADDRESS: Address = address!("000000000022D473030F116dDEE9F6B43aC78BA3");
     pub const UNISWAP_V2_ROUTER: Address = address!("7a250d5630b4cf539739df2c5dacb4c659f2488d");
     pub const UNISWAP_V3_QUOTER_V2: Address = address!("61ffe014ba17989e743c5f6cb21bf9697530b21e");
     pub const UNISWAP_V3_TICK_LENS: Address = address!("bfd8137f7d1516d3ea5ca83523914859ec47f573");
     pub const PANCAKE_V3_QUOTER: Address = address!("b048bbc1ee6b733fffcfb9e9cef7375518e25997");
     pub const PANCAKE_V3_TICK_LENS: Address = address!("9a489505a00ce272eaa5e07dba6491314cae3796");
     pub const MAVERICK_QUOTER: Address = address!("9980ce3b5570e41324904f46a06ce7b466925e23");
+    pub const UNISWAP_V4_QUOTER: Address = address!("52f0e24d1c21c8a0cb1e5a5dd6198556bd9e1203");
+    pub const UNISWAPV4_STATE_VIEW_ADDRESS: Address = address!("7fFE42C4a5DEeA5b0feC41C94C136Cf115597227");
+    pub const MAVERICK_V2_QUOTER: Address = address!("b40AfdB85a07f37aE217E7D6462e609900dD8D7A");
+    pub const MAVERICK_V2_TICK_LENS: Address = address!("6A9EB38DE5D349Fe751E0aDb4c0D9D391f94cc8D");
 }
 
 #[non_exhaustive]
@@ -59,6 +104,7 @@ pub struct UniswapV2PoolAddress;
 impl UniswapV2PoolAddress {
     pub const LUSD_WETH: Address = address!("f20ef17b889b437c151eb5ba15a47bfc62bff469");
     pub const WETH_USDT: Address = address!("0d4a11d5eeaac28ec3f61d100daf4d40471f1852");
+    pub const USDC_WETH: Address = address!("0xB4e16d0168e52d35CaCD2c6185b44281Ec28C9Dc");
 }
 
 #[non_exhaustive]
@@ -104,6 +150,13 @@ pub struct CurveMetapoolAddress;
 
 impl CurveMetapoolAddress {
     pub const LUSD: Address = address!("ed279fdd11ca84beef15af5d39bb4d4bee23f0ca");
+}
+
+#[non_exhaustive]
+pub struct MaverickV2PoolAddress;
+
+impl MaverickV2PoolAddress {
+    pub const USDC_USDT: Address = address!("31373595F40Ea48a7aAb6CBCB0d377C6066E2dCA");
 }
 
 #[cfg(test)]

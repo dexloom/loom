@@ -41,6 +41,5 @@ pub trait LoomDataTypes: Debug + Clone + Send + Sync {
     type TxHash: Eq + Copy + Hash + Default + Display + Debug + Clone + Send + Sync;
     type Address: Eq + Copy + Hash + Ord + Default + Display + Debug + Clone + Send + Sync;
     const WETH: Self::Address;
-
     fn is_weth(address: &Self::Address) -> bool;
 }

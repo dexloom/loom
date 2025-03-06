@@ -18,14 +18,24 @@ macro_rules! run_async {
     };
 }
 
+#[macro_export]
+macro_rules! run_sync {
+    ($fx:expr) => {
+        match $fx {
+            Ok(_) => {}
+            Err(error) => tracing::error!(%error, "ERROR_RUNNING_SYNC"),
+        }
+    };
+}
+
 #[inline]
-pub async fn subscribe_helper<A: Clone + Send + Sync>(broadcaster: &Broadcaster<A>) -> tokio::sync::broadcast::Receiver<A> {
-    broadcaster.subscribe().await
+pub fn subscribe_helper<A: Clone + Send + Sync>(broadcaster: &Broadcaster<A>) -> tokio::sync::broadcast::Receiver<A> {
+    broadcaster.subscribe()
 }
 
 #[macro_export]
 macro_rules! subscribe {
     ($name:ident) => {
-        let mut $name = loom_core_actors::subscribe_helper(&$name).await;
+        let mut $name = $crate::subscribe_helper(&$name);
     };
 }

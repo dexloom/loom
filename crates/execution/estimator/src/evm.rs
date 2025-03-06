@@ -13,14 +13,14 @@ use tracing::{debug, error, info, trace};
 
 use loom_core_blockchain::{Blockchain, Strategy};
 use loom_evm_utils::NWETH;
-use loom_types_entities::SwapEncoder;
+use loom_types_entities::{EstimationError, Swap, SwapEncoder};
 
 use loom_core_actors::{subscribe, Actor, ActorResult, Broadcaster, Consumer, Producer, WorkerResult};
 use loom_core_actors_macros::{Consumer, Producer};
 use loom_evm_db::{AlloyDB, DatabaseLoomExt};
 use loom_evm_utils::evm::evm_access_list;
 use loom_evm_utils::evm_env::env_for_block;
-use loom_types_events::{MessageSwapCompose, SwapComposeData, SwapComposeMessage, TxComposeData, TxState};
+use loom_types_events::{HealthEvent, MessageHealthEvent, MessageSwapCompose, SwapComposeData, SwapComposeMessage, TxComposeData, TxState};
 use revm::DatabaseRef;
 
 async fn estimator_task<N, DB>(
@@ -28,7 +28,8 @@ async fn estimator_task<N, DB>(
     swap_encoder: impl SwapEncoder,
     estimate_request: SwapComposeData<DB>,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
-    influxdb_write_channel_tx: Broadcaster<WriteQuery>,
+    health_monitor_channel_tx: Option<Broadcaster<MessageHealthEvent>>,
+    influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 ) -> Result<()>
 where
     N: Network,
@@ -90,15 +91,22 @@ where
 
     let (gas_used, access_list) = match evm_access_list(&db, &evm_env, &tx_request) {
         Ok((gas_used, access_list)) => {
-            for pool_id in estimate_request.swap.get_pool_id_vec() {
-                let pool_id_string = format!("{}", pool_id);
-                let write_query =
-                    WriteQuery::new(Timestamp::from(start_time), "estimation").add_field("success", 1i64).add_tag("pool", pool_id_string);
+            let pool_id_vec = estimate_request.swap.get_pool_id_vec();
 
-                if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
-                    error!("Failed to send block latency to influxdb: {:?}", e);
+            tokio::task::spawn(async move {
+                for pool_id in pool_id_vec {
+                    let pool_id_string = format!("{}", pool_id);
+                    let write_query = WriteQuery::new(Timestamp::from(start_time), "estimation")
+                        .add_field("success", 1i64)
+                        .add_tag("pool", pool_id_string);
+
+                    if let Some(influxdb_write_channel_tx) = &influxdb_write_channel_tx {
+                        if let Err(e) = influxdb_write_channel_tx.send(write_query) {
+                            error!("Failed to send successful estimation latency to influxdb: {:?}", e);
+                        }
+                    }
                 }
-            }
+            });
 
             (gas_used, access_list)
         }
@@ -112,15 +120,18 @@ where
             // simulation has failed but this could be caused by a token / pool with unsupported fee issue
             trace!("evm_access_list error calldata : {} {}", to, call_data);
 
-            /*for pool_id in estimate_request.swap.get_pool_id_vec() {
-                let pool_id_string = format!("{}", pool_id);
-                let write_query =
-                    WriteQuery::new(Timestamp::from(start_time), "estimation").add_field("success", -1i64).add_tag("pool", pool_id_string);
-
-                if let Err(e) = influxdb_write_channel_tx.send(write_query).await {
-                    error!("Failed to send block latency to influxdb: {:?}", e);
+            if let Some(health_monitor_channel_tx) = &health_monitor_channel_tx {
+                if let Swap::BackrunSwapLine(swap_line) = estimate_request.swap {
+                    if let Err(e) =
+                        health_monitor_channel_tx.send(MessageHealthEvent::new(HealthEvent::SwapLineEstimationError(EstimationError {
+                            swap_path: swap_line.path,
+                            msg: e.to_string(),
+                        })))
+                    {
+                        error!("Failed to send message to health monitor channel: {:?}", e);
+                    }
                 }
-            }*/
+            }
 
             return Ok(());
         }
@@ -201,7 +212,7 @@ where
         ..estimate_request
     });
 
-    let result = match compose_channel_tx.send(sign_request).await {
+    let result = match compose_channel_tx.send(sign_request) {
         Err(error) => {
             error!(%error, "compose_channel_tx.send");
             Err(eyre!("COMPOSE_CHANNEL_SEND_ERROR"))
@@ -229,7 +240,8 @@ async fn estimator_worker<N, DB>(
     encoder: impl SwapEncoder + Send + Sync + Clone + 'static,
     compose_channel_rx: Broadcaster<MessageSwapCompose<DB>>,
     compose_channel_tx: Broadcaster<MessageSwapCompose<DB>>,
-    influxdb_write_channel_tx: Broadcaster<WriteQuery>,
+    health_monitor_channel_tx: Option<Broadcaster<MessageHealthEvent>>,
+    influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 ) -> WorkerResult
 where
     N: Network,
@@ -248,6 +260,7 @@ where
                             let encoder_cloned = encoder.clone();
                             let client_cloned = client.clone();
                             let influxdb_channel_tx_cloned = influxdb_write_channel_tx.clone();
+                            let health_monitor_channel_tx_cloned = health_monitor_channel_tx.clone();
                             tokio::task::spawn(
                                 async move {
                                 if let Err(e) = estimator_task(
@@ -255,6 +268,7 @@ where
                                         encoder_cloned,
                                         estimate_request.clone(),
                                         compose_channel_tx_cloned,
+                                        health_monitor_channel_tx_cloned,
                                         influxdb_channel_tx_cloned,
                                 ).await {
                                         error!("Error in EVM estimator_task: {:?}", e);
@@ -279,6 +293,8 @@ pub struct EvmEstimatorActor<P, N, E, DB: Clone + Send + Sync + 'static> {
     #[producer]
     compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
     #[producer]
+    health_monitor_channel_tx: Option<Broadcaster<MessageHealthEvent>>,
+    #[producer]
     influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
     _n: PhantomData<N>,
 }
@@ -296,19 +312,29 @@ where
             client: None,
             compose_channel_tx: None,
             compose_channel_rx: None,
+            health_monitor_channel_tx: None,
             influxdb_write_channel_tx: None,
             _n: PhantomData::<N>,
         }
     }
 
     pub fn new_with_provider(encoder: E, client: Option<P>) -> Self {
-        Self { encoder, client, compose_channel_tx: None, compose_channel_rx: None, influxdb_write_channel_tx: None, _n: PhantomData::<N> }
+        Self {
+            encoder,
+            client,
+            compose_channel_tx: None,
+            compose_channel_rx: None,
+            health_monitor_channel_tx: None,
+            influxdb_write_channel_tx: None,
+            _n: PhantomData::<N>,
+        }
     }
 
     pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
         Self {
             compose_channel_tx: Some(strategy.swap_compose_channel()),
             compose_channel_rx: Some(strategy.swap_compose_channel()),
+            health_monitor_channel_tx: Some(bc.health_monitor_channel()),
             influxdb_write_channel_tx: Some(bc.influxdb_write_channel()),
             ..self
         }
@@ -328,7 +354,8 @@ where
             self.encoder.clone(),
             self.compose_channel_rx.clone().unwrap(),
             self.compose_channel_tx.clone().unwrap(),
-            self.influxdb_write_channel_tx.clone().unwrap(),
+            self.health_monitor_channel_tx.clone(),
+            self.influxdb_write_channel_tx.clone(),
         ));
         Ok(vec![task])
     }

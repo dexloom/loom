@@ -8,7 +8,7 @@ use loom_defi_address_book::{
 use loom_defi_market::fetch_and_add_pool_by_pool_id;
 use loom_defi_pools::PoolLoadersBuilder;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_entities::pool_config::PoolsConfig;
+use loom_types_entities::pool_config::PoolsLoadingConfig;
 use loom_types_entities::{Market, MarketState, PoolClass, Token};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::sync::Arc;
@@ -31,7 +31,7 @@ where
 
     drop(market_instance);
 
-    let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(client.clone(), PoolsConfig::default()));
+    let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(client.clone(), PoolsLoadingConfig::default()));
 
     fetch_and_add_pool_by_pool_id(
         client.clone(),

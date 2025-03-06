@@ -2,7 +2,7 @@ extern crate core;
 
 pub use curvepool::{CurvePool, CurvePoolAbiEncoder};
 pub use loaders::*;
-pub use loom_types_entities::pool_config::PoolsConfig;
+pub use loom_types_entities::pool_config::PoolsLoadingConfig;
 pub use maverickpool::MaverickPool;
 pub use pancakev3pool::PancakeV3Pool;
 pub use uniswapv2pool::UniswapV2Pool;

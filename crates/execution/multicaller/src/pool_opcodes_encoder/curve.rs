@@ -4,11 +4,12 @@ use lazy_static::lazy_static;
 use std::collections::HashMap;
 use tracing::trace;
 
-use crate::abi_helpers::AbiEncoderHelper;
 use crate::opcodes_helpers::OpcodesHelpers;
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
 use crate::pool_opcodes_encoder::swap_opcodes_encoders::MulticallerOpcodesPayload;
 use crate::pool_opcodes_encoder::SwapOpcodesEncoderTrait;
+use loom_defi_abi::AbiEncoderHelper;
+use loom_defi_address_book::TokenAddressEth;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::Pool;
 use loom_types_entities::{PreswapRequirement, SwapAmountType};
@@ -48,8 +49,8 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
         //let pool_encoder = abi_encoder.cur_pool.get_encoder().ok_or_eyre("NO_POOL_ENCODER")?;
         let pool_address = cur_pool.get_address();
 
-        let in_native = if abi_encoder.is_native(cur_pool) { AbiEncoderHelper::is_weth(token_from_address) } else { false };
-        let out_native = if abi_encoder.is_native(cur_pool) { AbiEncoderHelper::is_weth(token_to_address) } else { false };
+        let in_native = if cur_pool.is_native() { TokenAddressEth::is_weth(&token_from_address) } else { false };
+        let out_native = if cur_pool.is_native() { TokenAddressEth::is_weth(&token_to_address) } else { false };
 
         trace!(
             "curve swap for pool={:?} native={} amount={:?} from {} to {}",
@@ -135,7 +136,7 @@ impl SwapOpcodesEncoderTrait for CurveSwapOpcodesEncoder {
                 swap_opcodes.add(balance_opcode);
             }
 
-            if let PreswapRequirement::Transfer(addr) = abi_encoder.preswap_requirement(next_pool) {
+            if let PreswapRequirement::Transfer(addr) = next_pool.preswap_requirement() {
                 trace!("transfer token={:?}, to={:?}, amount=stack_rel_0", token_to_address, addr);
 
                 let mut transfer_opcode =

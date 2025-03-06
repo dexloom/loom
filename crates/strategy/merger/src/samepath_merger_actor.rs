@@ -217,7 +217,7 @@ where
                         ..request
                     });
 
-                    if let Err(e) = swap_request_tx.send(encode_request).await {
+                    if let Err(e) = swap_request_tx.send(encode_request) {
                         error!("{}", e)
                     }
                     info!("+++ Calculation finished {swap_line}");

@@ -27,7 +27,7 @@ pub async fn new_node_block_logs_worker<N: Network, P: Provider<N> + Send + Sync
             while err_counter < 3 {
                 match client.get_logs(&filter).await {
                     Ok(logs) => {
-                        if let Err(e) = sender.send(Message::new_with_time(BlockLogs { block_header, logs })).await {
+                        if let Err(e) = sender.send(Message::new_with_time(BlockLogs { block_header, logs })) {
                             error!("Broadcaster error {}", e);
                         }
                         break;
@@ -56,7 +56,7 @@ pub async fn new_node_block_logs_worker_reth<N: Network, P: Provider<N> + Send +
             let filter = Filter::new().at_block_hash(block_header.hash());
 
             let logs = client.get_logs(&filter).await?;
-            if let Err(e) = sender.send(Message::new_with_time(BlockLogs { block_header, logs })).await {
+            if let Err(e) = sender.send(Message::new_with_time(BlockLogs { block_header, logs })) {
                 error!("Broadcaster error {}", e);
             }
         }

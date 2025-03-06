@@ -22,7 +22,7 @@ pub async fn start_influxdb_worker(
         Ok(_) => info!("Database created with name: {}", database),
         Err(e) => info!("Database creation failed or already exists: {:?}", e),
     }
-    let mut event_receiver = event_receiver.subscribe().await;
+    let mut event_receiver = event_receiver.subscribe();
     loop {
         let event_result = event_receiver.recv().await;
         match event_result {
@@ -30,17 +30,19 @@ pub async fn start_influxdb_worker(
                 for (key, value) in tags.iter() {
                     event = event.add_tag(key, value.clone());
                 }
-
-                match timeout(Duration::from_millis(500), client.query(event)).await {
-                    Ok(inner_result) => {
-                        if let Err(e) = inner_result {
-                            error!("InfluxDB Write failed: {:?}", e);
+                let client_clone = client.clone();
+                tokio::task::spawn(async move {
+                    match timeout(Duration::from_millis(2000), client_clone.query(event)).await {
+                        Ok(inner_result) => {
+                            if let Err(e) = inner_result {
+                                error!("InfluxDB Write failed: {:?}", e);
+                            }
+                        }
+                        Err(elapsed) => {
+                            error!("InfluxDB Query timed out: {}", elapsed);
                         }
                     }
-                    Err(elapsed) => {
-                        error!("InfluxDB Query timed out: {:?}", elapsed);
-                    }
-                }
+                });
             }
             Err(e) => match e {
                 tokio::sync::broadcast::error::RecvError::Closed => {

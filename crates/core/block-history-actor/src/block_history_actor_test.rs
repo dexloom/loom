@@ -36,14 +36,14 @@ mod test {
         state_update: Option<GethStateUpdateVec>,
     ) -> eyre::Result<()> {
         let header_msg: MessageBlockHeader = Message::new(BlockHeader::new(header.clone()));
-        if let Err(e) = bc.new_block_headers_channel().send(header_msg).await {
+        if let Err(e) = bc.new_block_headers_channel().send(header_msg) {
             error!("bc.new_block_headers_channel().send : {}", e)
         }
 
         tokio::time::sleep(Duration::from_millis(100)).await;
 
         if let Some(block) = block {
-            if let Err(e) = bc.new_block_with_tx_channel().send(Message::new(BlockUpdate { block })).await {
+            if let Err(e) = bc.new_block_with_tx_channel().send(Message::new(BlockUpdate { block })) {
                 error!("bc.new_block_with_tx_channel().send : {}", e)
             }
         }
@@ -53,7 +53,7 @@ mod test {
         if let Some(logs) = logs {
             let logs_msg = BlockLogs { block_header: header.clone(), logs };
 
-            if let Err(e) = bc.new_block_logs_channel().send(Message::new(logs_msg)).await {
+            if let Err(e) = bc.new_block_logs_channel().send(Message::new(logs_msg)) {
                 error!("bc.new_block_with_tx_channel().send : {}", e)
             }
         }
@@ -62,7 +62,7 @@ mod test {
 
         if let Some(state_update) = state_update {
             let state_update_msg = BlockStateUpdate { block_header: header.clone(), state_update };
-            if let Err(e) = bc.new_block_state_update_channel().send(Message::new(state_update_msg)).await {
+            if let Err(e) = bc.new_block_state_update_channel().send(Message::new(state_update_msg)) {
                 error!("bc.new_block_with_tx_channel().send : {}", e)
             }
         }
@@ -215,7 +215,7 @@ mod test {
             }
         });
 
-        let mut rx = blockchain.market_events_channel().subscribe().await;
+        let mut rx = blockchain.market_events_channel().subscribe();
         loop {
             tokio::select! {
                 msg = rx.recv() => {
@@ -287,15 +287,11 @@ mod test {
             }
         });
 
-        let mut rx = blockchain.market_events_channel().subscribe().await;
+        let mut rx = blockchain.market_events_channel().subscribe();
         loop {
             tokio::select! {
                 msg = rx.recv() => {
-                    match msg {
-                        _=>{
-                            info!("{:?}", msg)
-                        }
-                    }
+                    info!("{:?}", msg)
                 }
                 _ = tokio::time::sleep(Duration::from_millis(1000)) => {
                     break;
