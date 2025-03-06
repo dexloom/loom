@@ -31,7 +31,7 @@ use loom::defi::address_book::TokenAddressEth;
 use loom::defi::health_monitor::StuffingTxMonitorActor;
 use loom::defi::market::{fetch_and_add_pool_by_pool_id, fetch_state_and_add_pool};
 use loom::defi::pools::protocols::CurveProtocol;
-use loom::defi::pools::{CurvePool, PoolLoadersBuilder, PoolsConfig};
+use loom::defi::pools::{CurvePool, PoolLoadersBuilder, PoolsLoadingConfig};
 use loom::defi::preloader::MarketStatePreloadedOneShotActor;
 use loom::defi::price::PriceActor;
 use loom::evm::db::LoomDBType;
@@ -302,7 +302,7 @@ async fn main() -> Result<()> {
         _ => info!("Price actor has been initialized"),
     }
 
-    let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(client.clone(), PoolsConfig::default()));
+    let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(client.clone(), PoolsLoadingConfig::default()));
 
     for (pool_name, pool_config) in test_config.pools {
         match pool_config.class {

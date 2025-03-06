@@ -10,7 +10,7 @@ use loom_defi_abi::IERC20;
 use loom_defi_address_book::TokenAddressEth;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::error;
@@ -247,14 +247,14 @@ where
         self.tokens.clone()
     }
 
-    fn get_swap_directions(&self) -> Vec<(Address, Address)> {
-        let mut ret: Vec<(Address, Address)> = Vec::new();
+    fn get_swap_directions(&self) -> Vec<SwapDirection> {
+        let mut ret: Vec<SwapDirection> = Vec::new();
         if self.is_meta {
-            ret.push((self.tokens[0], self.tokens[1]));
-            ret.push((self.tokens[1], self.tokens[0]));
+            ret.push((self.tokens[0], self.tokens[1]).into());
+            ret.push((self.tokens[1], self.tokens[0]).into());
             for j in 0..self.underlying_tokens.len() {
-                ret.push((self.tokens[0], self.underlying_tokens[j]));
-                ret.push((self.underlying_tokens[j], self.tokens[0]));
+                ret.push((self.tokens[0], self.underlying_tokens[j]).into());
+                ret.push((self.underlying_tokens[j], self.tokens[0]).into());
             }
         } else {
             for i in 0..self.tokens.len() {
@@ -262,11 +262,11 @@ where
                     if i == j {
                         continue;
                     }
-                    ret.push((self.tokens[i], self.tokens[j]));
+                    ret.push((self.tokens[i], self.tokens[j]).into());
                 }
                 if let Some(lp_token_address) = self.lp_token {
-                    ret.push((self.tokens[i], lp_token_address));
-                    ret.push((lp_token_address, self.tokens[i]));
+                    ret.push((self.tokens[i], lp_token_address).into());
+                    ret.push((lp_token_address, self.tokens[i]).into());
                 }
             }
         }

@@ -17,7 +17,7 @@ use loom_defi_health_monitor::{MetricsRecorderActor, PoolHealthMonitorActor, Stu
 use loom_defi_market::{
     HistoryPoolLoaderOneShotActor, NewPoolLoaderActor, PoolLoaderActor, ProtocolPoolLoaderOneShotActor, RequiredPoolLoaderActor,
 };
-use loom_defi_pools::{PoolLoadersBuilder, PoolsConfig};
+use loom_defi_pools::{PoolLoadersBuilder, PoolsLoadingConfig};
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
 use loom_evm_db::DatabaseLoomExt;
@@ -336,35 +336,35 @@ where
     }
 
     /// Start pool loader from new block events
-    pub fn with_new_pool_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
+    pub fn with_new_pool_loader(&mut self, pools_config: PoolsLoadingConfig) -> Result<&mut Self> {
         let pool_loader = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), pools_config));
         self.actor_manager.start(NewPoolLoaderActor::new(pool_loader).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start pool loader for last 10000 blocks
-    pub fn with_pool_history_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
+    pub fn with_pool_history_loader(&mut self, pools_config: PoolsLoadingConfig) -> Result<&mut Self> {
         let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), pools_config));
         self.actor_manager.start(HistoryPoolLoaderOneShotActor::new(self.provider.clone(), pool_loaders).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start pool loader from new block events
-    pub fn with_pool_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
-        let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), pools_config));
-        self.actor_manager.start(PoolLoaderActor::new(self.provider.clone(), pool_loaders).on_bc(&self.bc, &self.state))?;
+    pub fn with_pool_loader(&mut self, pools_config: PoolsLoadingConfig) -> Result<&mut Self> {
+        let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), pools_config.clone()));
+        self.actor_manager.start(PoolLoaderActor::new(self.provider.clone(), pool_loaders, pools_config).on_bc(&self.bc, &self.state))?;
         Ok(self)
     }
 
     /// Start pool loader for curve + steth + wsteth
-    pub fn with_curve_pool_protocol_loader(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
+    pub fn with_curve_pool_protocol_loader(&mut self, pools_config: PoolsLoadingConfig) -> Result<&mut Self> {
         let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), pools_config));
         self.actor_manager.start(ProtocolPoolLoaderOneShotActor::new(self.provider.clone(), pool_loaders).on_bc(&self.bc))?;
         Ok(self)
     }
 
     /// Start all pool loaders
-    pub fn with_pool_loaders(&mut self, pools_config: PoolsConfig) -> Result<&mut Self> {
+    pub fn with_pool_loaders(&mut self, pools_config: PoolsLoadingConfig) -> Result<&mut Self> {
         if pools_config.is_enabled(PoolClass::Curve) {
             self.with_new_pool_loader(pools_config.clone())?
                 .with_pool_history_loader(pools_config.clone())?
@@ -377,7 +377,7 @@ where
 
     //
     pub fn with_preloaded_state(&mut self, pools: Vec<(Address, PoolClass)>, state_required: Option<RequiredState>) -> Result<&mut Self> {
-        let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), PoolsConfig::default()));
+        let pool_loaders = Arc::new(PoolLoadersBuilder::default_pool_loaders(self.provider.clone(), PoolsLoadingConfig::default()));
         let mut actor = RequiredPoolLoaderActor::new(self.provider.clone(), pool_loaders);
 
         for (pool_address, pool_class) in pools {

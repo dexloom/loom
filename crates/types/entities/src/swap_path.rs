@@ -1,9 +1,8 @@
 use crate::pool_id::PoolId;
-use crate::{PoolWrapper, Token};
+use crate::{PoolWrapper, SwapDirection, Token};
 use alloy_primitives::map::HashMap;
 use eyre::Result;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use std::collections::HashSet;
 use std::fmt;
 use std::fmt::Display;
 use std::hash::{DefaultHasher, Hash, Hasher};
@@ -15,7 +14,7 @@ pub struct SwapPath<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub tokens: Vec<Arc<Token<LDT>>>,
     pub pools: Vec<PoolWrapper<LDT>>,
     pub disabled: bool,
-    pub disabled_pool: HashSet<PoolId<LDT>>,
+    pub disabled_pool: Vec<PoolId<LDT>>,
     pub score: Option<f64>,
 }
 
@@ -142,11 +141,17 @@ pub struct SwapPaths<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub paths: Vec<SwapPath<LDT>>,
     pub pool_paths: HashMap<PoolId<LDT>, Vec<usize>>,
     pub path_hash_map: HashMap<u64, usize>,
+    pub disabled_directions: HashMap<u64, bool>,
 }
 
 impl<LDT: LoomDataTypes> SwapPaths<LDT> {
     pub fn new() -> SwapPaths<LDT> {
-        SwapPaths { paths: Vec::new(), pool_paths: HashMap::default(), path_hash_map: HashMap::default() }
+        SwapPaths {
+            paths: Vec::new(),
+            pool_paths: HashMap::default(),
+            path_hash_map: HashMap::default(),
+            disabled_directions: HashMap::default(),
+        }
     }
     pub fn from(paths: Vec<SwapPath<LDT>>) -> Self {
         let mut swap_paths_ret = SwapPaths::<LDT>::new();
@@ -179,11 +184,11 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
 
         match self.path_hash_map.entry(path_hash) {
             std::collections::hash_map::Entry::Occupied(_) => {
-                debug!("Path already exists hash={}, path={}", path.get_hash(), path);
+                //debug!("Path already exists hash={}, path={}", path.get_hash(), path);
                 None
             }
             std::collections::hash_map::Entry::Vacant(e) => {
-                debug!("Path added hash={}, path={}", path.get_hash(), path);
+                //debug!("Path added hash={}, path={}", path.get_hash(), path);
                 e.insert(path_idx);
 
                 for pool in &path.pools {
@@ -223,14 +228,19 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
                     if let (Some(token_from), Some(token_to)) = (entry.tokens.get(idx), entry.tokens.get(idx + 1)) {
                         if token_from.get_address().eq(token_from_address) && token_to.get_address().eq(token_to_address) {
                             entry.disabled = disabled;
-                            entry.disabled_pool.insert(pool_id.clone());
-                            //debug!("Tokens path disabled by pool hash={}, path={}", entry.get_hash(), entry);
+                            if !entry.disabled_pool.contains(pool_id) {
+                                entry.disabled_pool.push(pool_id.clone());
+                            }
+                            self.disabled_directions
+                                .insert(SwapDirection::new(*token_from_address, *token_to_address).get_hash_with_pool(&pool_id), disabled);
                         }
                     }
                 } else {
                     //debug!("All path disabled by pool hash={}, path={}", entry.get_hash(), entry);
                     entry.disabled = disabled;
-                    entry.disabled_pool.insert(pool_id.clone());
+                    if !entry.disabled_pool.contains(pool_id) {
+                        entry.disabled_pool.push(pool_id.clone());
+                    }
                 }
             }
         }
@@ -245,7 +255,11 @@ impl<LDT: LoomDataTypes> SwapPaths<LDT> {
         let paths = self.pool_paths.get(pool_id)?;
         let paths_vec_ret: Vec<SwapPath<LDT>> = paths
             .iter()
-            .filter_map(|a| self.paths.get(*a).filter(|a| !a.disabled || (a.disabled_pool.contains(pool_id) && a.disabled_pool.len() == 1)))
+            .filter_map(|a| {
+                self.paths
+                    .get(*a)
+                    .filter(|a| a.disabled_pool.len() == 0 || (a.disabled_pool.len() == 1 && a.disabled_pool.contains(pool_id)))
+            })
             .cloned()
             .collect();
         (!paths_vec_ret.is_empty()).then_some(paths_vec_ret)
@@ -272,7 +286,7 @@ mod test {
     use super::*;
     use crate::pool::DefaultAbiSwapEncoder;
     use crate::required_state::RequiredState;
-    use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement};
+    use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
     use alloy_primitives::{Address, U256};
     use eyre::{eyre, ErrReport};
     use revm::primitives::Env;
@@ -358,9 +372,7 @@ mod test {
             vec![]
         }
 
-        fn get_swap_directions(
-            &self,
-        ) -> Vec<(<LoomDataTypesEthereum as LoomDataTypes>::Address, <LoomDataTypesEthereum as LoomDataTypes>::Address)> {
+        fn get_swap_directions(&self) -> Vec<SwapDirection> {
             vec![]
         }
 

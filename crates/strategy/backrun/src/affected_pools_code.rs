@@ -1,6 +1,5 @@
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Network;
-use alloy_primitives::Address;
 use alloy_provider::Provider;
 use eyre::eyre;
 use revm::primitives::Env;
@@ -14,13 +13,13 @@ use loom_defi_pools::state_readers::UniswapV3StateReader;
 use loom_defi_pools::{MaverickPool, PancakeV3Pool, UniswapV2Pool, UniswapV3Pool};
 use loom_evm_db::{AlloyDB, LoomDB};
 use loom_types_blockchain::GethStateUpdateVec;
-use loom_types_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolId, PoolProtocol, PoolWrapper};
+use loom_types_entities::{get_protocol_by_factory, Market, MarketState, Pool, PoolId, PoolProtocol, PoolWrapper, SwapDirection};
 
 pub async fn get_affected_pools_from_code<P, N>(
     client: P,
     market: SharedState<Market>,
     state_update: &GethStateUpdateVec,
-) -> eyre::Result<BTreeMap<PoolWrapper, Vec<(Address, Address)>>>
+) -> eyre::Result<BTreeMap<PoolWrapper, Vec<SwapDirection>>>
 where
     N: Network,
     P: Provider<N> + Send + Sync + Clone + 'static,
@@ -29,7 +28,7 @@ where
 
     market_state.state_db.apply_geth_state_update(state_update, true, false);
 
-    let mut ret: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
+    let mut ret: BTreeMap<PoolWrapper, Vec<SwapDirection>> = BTreeMap::new();
 
     for state_update_record in state_update.iter() {
         for (address, state_update_entry) in state_update_record.iter() {

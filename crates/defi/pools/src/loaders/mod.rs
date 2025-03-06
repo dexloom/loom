@@ -7,7 +7,7 @@ use crate::loaders::curve::CurvePoolLoader;
 use alloy::providers::network::Ethereum;
 use alloy::providers::{Network, Provider, RootProvider};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::pool_config::PoolsConfig;
+use loom_types_entities::pool_config::PoolsLoadingConfig;
 use loom_types_entities::{PoolClass, PoolLoader, PoolLoaders};
 pub use maverick::MaverickPoolLoader;
 pub use uniswap2::UniswapV2PoolLoader;
@@ -85,7 +85,7 @@ where
         PoolLoadersBuilder { inner: self.inner.with_provider(provider) }
     }
 
-    pub fn with_config(self, config: PoolsConfig) -> Self {
+    pub fn with_config(self, config: PoolsLoadingConfig) -> Self {
         Self { inner: self.inner.with_config(config) }
     }
 
@@ -113,7 +113,7 @@ impl<P> PoolLoadersBuilder<P, Ethereum, LoomDataTypesEthereum>
 where
     P: Provider<Ethereum> + 'static,
 {
-    pub fn default_pool_loaders(provider: P, config: PoolsConfig) -> PoolLoaders<P, Ethereum, LoomDataTypesEthereum>
+    pub fn default_pool_loaders(provider: P, config: PoolsLoadingConfig) -> PoolLoaders<P, Ethereum, LoomDataTypesEthereum>
     where
         P: Provider<Ethereum> + Clone,
     {

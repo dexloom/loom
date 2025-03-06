@@ -1,6 +1,6 @@
 use crate::pool_id::PoolId;
 use crate::required_state::RequiredState;
-use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement};
+use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
 use alloy_primitives::{Address, U256};
 use eyre::ErrReport;
 use eyre::Result;
@@ -50,8 +50,8 @@ impl Pool for MockPool {
         vec![self.token0, self.token1]
     }
 
-    fn get_swap_directions(&self) -> Vec<(Address, Address)> {
-        vec![(self.token0, self.token1), (self.token1, self.token0)]
+    fn get_swap_directions(&self) -> Vec<SwapDirection> {
+        vec![(self.token0, self.token1).into(), (self.token1, self.token0).into()]
     }
 
     fn calculate_out_amount(

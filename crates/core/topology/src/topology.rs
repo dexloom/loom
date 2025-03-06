@@ -31,6 +31,7 @@ use loom_node_db_access::RethDbAccessBlockActor;
 use loom_node_grpc::NodeExExGrpcActor;
 use loom_node_json_rpc::{NodeBlockActor, NodeMempoolActor};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_entities::pool_config::PoolsLoadingConfig;
 use loom_types_entities::{BlockHistoryState, MarketState, PoolLoaders, SwapEncoder, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::task::JoinHandle;
@@ -584,7 +585,7 @@ impl<
                 }
 
                 info!("Starting pool loader actor {name}");
-                let mut pool_loader_actor = PoolLoaderActor::new(client.clone(), pool_loaders.clone());
+                let mut pool_loader_actor = PoolLoaderActor::new(client.clone(), pool_loaders.clone(), PoolsLoadingConfig::new());
                 match pool_loader_actor
                     .access(blockchain.market())
                     .access(blockchain_state.market_state())

@@ -16,6 +16,10 @@ loom-types-blockchain.workspace = true
 loom-types-entities.workspace = true
 loom-types-events.workspace = true
 
+alloy-chains.workspace = true
+
 alloy.workspace = true
+eyre.workspace = true
 influxdb.workspace = true
 revm.workspace = true
+tracing.workspace = true

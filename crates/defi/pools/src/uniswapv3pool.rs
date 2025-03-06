@@ -16,7 +16,7 @@ use loom_defi_abi::uniswap_periphery::ITickLens;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::{FactoryAddress, PeripheryAddress};
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement};
+use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::debug;
@@ -247,8 +247,8 @@ impl Pool for UniswapV3Pool {
         vec![self.token0, self.token1]
     }
 
-    fn get_swap_directions(&self) -> Vec<(Address, Address)> {
-        vec![(self.token0, self.token1), (self.token1, self.token0)]
+    fn get_swap_directions(&self) -> Vec<SwapDirection> {
+        vec![(self.token0, self.token1).into(), (self.token1, self.token0).into()]
     }
 
     fn calculate_out_amount(

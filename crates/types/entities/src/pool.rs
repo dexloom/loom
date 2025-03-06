@@ -6,6 +6,7 @@ use std::ops::Deref;
 use std::sync::Arc;
 
 use crate::required_state::RequiredState;
+use crate::swap_direction::SwapDirection;
 use crate::PoolId;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
@@ -41,6 +42,8 @@ pub fn get_protocol_by_factory(factory_address: Address) -> PoolProtocol {
         PoolProtocol::Shibaswap
     } else if factory_address == FactoryAddress::MAVERICK {
         PoolProtocol::Maverick
+    } else if factory_address == FactoryAddress::INTEGRAL {
+        PoolProtocol::Integral
     } else {
         PoolProtocol::Unknown
     }
@@ -251,7 +254,7 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
 
     fn get_tokens(&self) -> Vec<LDT::Address>;
 
-    fn get_swap_directions(&self) -> Vec<(LDT::Address, LDT::Address)>;
+    fn get_swap_directions(&self) -> Vec<SwapDirection<LDT>>;
 
     fn calculate_out_amount(
         &self,

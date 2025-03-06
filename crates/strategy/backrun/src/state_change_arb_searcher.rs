@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashSet};
 use std::sync::Arc;
 
-use alloy_primitives::{Address, U256};
+use alloy_primitives::U256;
 #[cfg(not(debug_assertions))]
 use chrono::TimeDelta;
 use eyre::{eyre, ErrReport, Result};
@@ -21,7 +21,7 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, Strategy};
 use loom_evm_db::DatabaseHelpers;
 use loom_types_entities::strategy_config::StrategyConfig;
-use loom_types_entities::{Market, PoolWrapper, Swap, SwapError, SwapLine, SwapPath};
+use loom_types_entities::{Market, PoolWrapper, Swap, SwapDirection, SwapError, SwapLine, SwapPath};
 use loom_types_events::{
     BestTxSwapCompose, HealthEvent, Message, MessageHealthEvent, MessageSwapCompose, StateUpdateEvent, SwapComposeData, SwapComposeMessage,
     TxComposeData,
@@ -73,7 +73,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
             }
 
             None => {
-                let mut pool_direction: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
+                let mut pool_direction: BTreeMap<PoolWrapper, Vec<SwapDirection>> = BTreeMap::new();
                 pool_direction.insert(pool.clone(), v.clone());
                 market_guard_read.build_swap_path_vec(&pool_direction).unwrap_or_default()
             }

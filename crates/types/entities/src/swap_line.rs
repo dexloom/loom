@@ -9,7 +9,7 @@ use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::debug;
 
-use crate::swappath::SwapPath;
+use crate::swap_path::SwapPath;
 use crate::{CalculationResult, PoolId, PoolWrapper, SwapError, SwapStep, Token};
 
 #[derive(Debug, Clone, Default)]

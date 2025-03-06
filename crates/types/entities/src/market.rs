@@ -8,7 +8,7 @@ use std::fmt::Display;
 use std::sync::Arc;
 use tracing::debug;
 
-use crate::{build_swap_path_vec, PoolId};
+use crate::{build_swap_path_vec, PoolId, SwapDirection};
 use crate::{PoolClass, PoolWrapper, Token};
 use crate::{SwapPath, SwapPaths};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
@@ -25,6 +25,9 @@ pub struct Market<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pools_manager_cells: HashMap<LDT::Address, HashMap<U256, PoolId<LDT>>>,
     // token_address -> token
     tokens: HashMap<LDT::Address, Arc<Token<LDT>>>,
+    // token_symbol -> token_address
+    token_symbols: HashMap<String, LDT::Address>,
+
     // token_from -> token_to
     token_tokens: HashMap<LDT::Address, Vec<LDT::Address>>,
     // token_from -> token_to -> pool_addresses
@@ -66,16 +69,34 @@ impl<LDT: LoomDataTypes> Market<LDT> {
         address.eq(&LDT::WETH)
     }
     /// Add a [`Token`] reference to the market.
-    pub fn add_token<T: Into<Arc<Token<LDT>>>>(&mut self, token: T) -> Result<()> {
+    pub fn add_token<T: Into<Arc<Token<LDT>>>>(&mut self, token: T) {
         let arc_token: Arc<Token<LDT>> = token.into();
+        self.token_symbols.insert(arc_token.get_symbol(), arc_token.get_address());
         self.tokens.insert(arc_token.get_address(), arc_token);
-        Ok(())
     }
 
     /// Check if the token is a basic token.
     #[inline]
     pub fn is_basic_token(&self, address: &LDT::Address) -> bool {
         self.tokens.get(address).is_some_and(|t| t.is_basic())
+    }
+
+    /// Get a [`Token`] reference from the market by the address of the token or create a new one.
+    #[inline]
+    pub fn get_token_or_default(&self, address: &LDT::Address) -> Arc<Token<LDT>> {
+        self.tokens.get(address).map_or(Arc::new(Token::new(*address)), |t| t.clone())
+    }
+
+    /// Get a [`Token`] reference from the market by the address of the token.
+    #[inline]
+    pub fn get_token(&self, address: &LDT::Address) -> Option<Arc<Token<LDT>>> {
+        self.tokens.get(address).cloned()
+    }
+
+    /// Get a [`Token`] reference from the market by the address of the token.
+    #[inline]
+    pub fn get_token_by_symbol(&self, symbol: &String) -> Option<Arc<Token<LDT>>> {
+        self.token_symbols.get(symbol).and_then(|address| self.tokens.get(address).cloned())
     }
 
     /// Add a new pool to the market if it does not exist or the class is unknown.
@@ -89,11 +110,11 @@ impl<LDT: LoomDataTypes> Market<LDT> {
 
         debug!("Adding pool {:?}", pool_address);
 
-        for (token_from_address, token_to_address) in pool_contract.get_swap_directions().into_iter() {
-            self.token_token_pools.entry(token_from_address).or_default().entry(token_to_address).or_default().push(pool_address);
-            self.token_tokens.entry(token_from_address).or_default().push(token_to_address);
+        for swap_direction in pool_contract.get_swap_directions().into_iter() {
+            self.token_token_pools.entry(*swap_direction.from()).or_default().entry(*swap_direction.to()).or_default().push(pool_address);
+            self.token_tokens.entry(*swap_direction.from()).or_default().push(*swap_direction.to());
             // Swap directions are bidirectional, for that reason we only need to add the token_from_address
-            self.token_pools.entry(token_from_address).or_default().push(pool_address);
+            self.token_pools.entry(*swap_direction.from()).or_default().push(pool_address);
         }
 
         self.pools.insert(pool_address, pool_contract);
@@ -201,53 +222,20 @@ impl<LDT: LoomDataTypes> Market<LDT> {
         self.pools_disabled.get(address).is_some_and(|&is_disabled| is_disabled)
     }
 
-    /// Get a [`Token`] reference from the market by the address of the token or create a new one.
-    #[inline]
-    pub fn get_token_or_default(&self, address: &LDT::Address) -> Arc<Token<LDT>> {
-        self.tokens.get(address).map_or(Arc::new(Token::new(*address)), |t| t.clone())
-    }
-
-    /// Get a [`Token`] reference from the market by the address of the token.
-    #[inline]
-    pub fn get_token(&self, address: &LDT::Address) -> Option<Arc<Token<LDT>>> {
-        self.tokens.get(address).cloned()
-    }
-
-    /// Get all pool addresses that allow to swap from `token_from_address` to `token_to_address`.
-    #[inline]
-    pub fn get_token_token_pools(&self, token_from_address: &LDT::Address, token_to_address: &LDT::Address) -> Option<Vec<PoolId<LDT>>> {
-        self.token_token_pools.get(token_from_address)?.get(token_to_address).cloned()
-    }
-
     /// Get all pool addresses as reference that allow to swap from `token_from_address` to `token_to_address`.
     #[inline]
-    pub fn get_token_token_pools_ptr(
-        &self,
-        token_from_address: &LDT::Address,
-        token_to_address: &LDT::Address,
-    ) -> Option<&Vec<PoolId<LDT>>> {
-        self.token_token_pools.get(token_from_address)?.get(token_to_address)
-    }
-
-    /// Get all token addresses that allow to swap from `token_from_address`.
-    #[inline]
-    pub fn get_token_tokens(&self, token_from_address: &LDT::Address) -> Option<Vec<LDT::Address>> {
-        self.token_tokens.get(token_from_address).cloned()
+    pub fn get_token_token_pools(&self, token_from_address: &LDT::Address, token_to_address: &LDT::Address) -> Option<&Vec<PoolId<LDT>>> {
+        self.token_token_pools.get(token_from_address).and_then(|a| a.get(token_to_address))
     }
 
     /// Get all token addresses as reference that allow to swap from `token_from_address`.
     #[inline]
-    pub fn get_token_tokens_ptr(&self, token_from_address: &LDT::Address) -> Option<&Vec<LDT::Address>> {
+    pub fn get_token_tokens(&self, token_from_address: &LDT::Address) -> Option<&Vec<LDT::Address>> {
         self.token_tokens.get(token_from_address)
     }
 
-    /// Get all pool addresses that allow to swap `token_address`.
-    pub fn get_token_pools(&self, token_from_address: &LDT::Address) -> Option<Vec<PoolId<LDT>>> {
-        self.token_pools.get(token_from_address).cloned()
-    }
-
     /// Get all pool addresses as reference that allow to swap `token_address`.
-    pub fn get_token_pools_ptr(&self, token_address: &LDT::Address) -> Option<&Vec<PoolId<LDT>>> {
+    pub fn get_token_pools(&self, token_address: &LDT::Address) -> Option<&Vec<PoolId<LDT>>> {
         self.token_pools.get(token_address)
     }
 
@@ -256,10 +244,7 @@ impl<LDT: LoomDataTypes> Market<LDT> {
         self.token_pools.get(token_address).map_or(0, |t| t.len())
     }
     /// Build a list of swap paths from the given directions.
-    pub fn build_swap_path_vec(
-        &self,
-        directions: &BTreeMap<PoolWrapper<LDT>, Vec<(LDT::Address, LDT::Address)>>,
-    ) -> Result<Vec<SwapPath<LDT>>> {
+    pub fn build_swap_path_vec(&self, directions: &BTreeMap<PoolWrapper<LDT>, Vec<SwapDirection<LDT>>>) -> Result<Vec<SwapPath<LDT>>> {
         build_swap_path_vec(self, directions)
     }
 
@@ -333,9 +318,6 @@ mod tests {
         let mut market = Market::<LoomDataTypesEthereum>::default();
         let token_address = Address::random();
 
-        let result = market.add_token(Arc::new(Token::new(token_address)));
-
-        assert!(result.is_ok());
         assert_eq!(market.get_token(&token_address).unwrap().get_address(), token_address);
     }
 
@@ -396,12 +378,12 @@ mod tests {
         assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 1);
 
         // toggle not ok
-        market.set_pool_disabled(PoolId::Address(pool_address), true);
+        market.set_pool_disabled(PoolId::Address(pool_address), token0, token1, true);
         assert!(market.is_pool_disabled(&PoolId::Address(pool_address)));
         assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 1);
 
         // toggle back
-        market.set_pool_disabled(PoolId::Address(pool_address), false);
+        market.set_pool_disabled(PoolId::Address(pool_address), token0, token1, false);
         assert!(!market.is_pool_disabled(&PoolId::Address(pool_address)));
         assert_eq!(market.get_token_token_pools(&token0, &token1).unwrap().len(), 1);
     }
@@ -443,7 +425,7 @@ mod tests {
         let mock_pool = MockPool { address: pool_address, token0, token1 };
         market.add_pool(mock_pool);
 
-        let pools = market.get_token_pools(&token0);
+        let pools = market.get_token_pools(&token0).cloned();
 
         assert_eq!(pools.unwrap().get(0).unwrap(), &PoolId::Address(pool_address));
     }

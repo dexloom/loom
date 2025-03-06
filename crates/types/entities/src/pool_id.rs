@@ -1,18 +1,42 @@
-use alloy_primitives::{Address, B256};
+use alloy_primitives::{Address, B256, U256};
 use eyre::eyre;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
+use std::ops::Shl;
 
-#[derive(Clone, Debug, Serialize, Deserialize)]
+#[derive(Clone, Debug, Serialize)]
 pub enum PoolId<LDT: LoomDataTypes = LoomDataTypesEthereum>
 where
     LDT::Address: Eq + Hash,
 {
     Address(LDT::Address),
     Bytes32(B256),
+}
+
+impl<'de> Deserialize<'de> for PoolId<LoomDataTypesEthereum> {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        let as_u256 = U256::deserialize(deserializer)?;
+
+        // Convert B256 to U256 for comparison
+        // let as_u256 = U256::try_from(b256).map_err(|_| D::Error::custom("ERROR"))?;
+
+        // If below the boundary, interpret it as an address
+        if as_u256 < U256::from(1).shl(160) {
+            // Take the rightmost 20 bytes as the address
+            let mut addr_bytes = [0u8; 20];
+            addr_bytes.copy_from_slice(&as_u256.to_be_bytes_vec()[12..]);
+            Ok(PoolId::Address(Address::from(addr_bytes)))
+        } else {
+            // Otherwise, treat it as a full 32‑byte hash
+            Ok(PoolId::Bytes32(B256::from(as_u256)))
+        }
+    }
 }
 
 impl<LDT: LoomDataTypes> PoolId<LDT> {

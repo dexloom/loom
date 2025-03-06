@@ -1,4 +1,4 @@
-use crate::pool_config::PoolsConfig;
+use crate::pool_config::PoolsLoadingConfig;
 use crate::{PoolClass, PoolId, PoolWrapper};
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::Bytes;
@@ -44,7 +44,7 @@ where
     LDT: LoomDataTypes,
 {
     provider: Option<P>,
-    config: Option<PoolsConfig>,
+    config: Option<PoolsLoadingConfig>,
     pub map: HashMap<PoolClass, Arc<dyn PoolLoader<P, N, LDT>>>,
 }
 
@@ -58,7 +58,7 @@ where
         Self::default()
     }
 
-    pub fn with_config(self, config: PoolsConfig) -> Self {
+    pub fn with_config(self, config: PoolsLoadingConfig) -> Self {
         Self { config: Some(config), ..self }
     }
 

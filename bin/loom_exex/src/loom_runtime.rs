@@ -6,7 +6,7 @@ use eyre::{ErrReport, OptionExt};
 use loom::core::blockchain::{Blockchain, BlockchainState, Strategy};
 use loom::core::blockchain_actors::BlockchainActors;
 use loom::core::topology::{BroadcasterConfig, EncoderConfig, TopologyConfig};
-use loom::defi::pools::PoolsConfig;
+use loom::defi::pools::PoolsLoadingConfig;
 use loom::evm::db::DatabaseLoomExt;
 use loom::execution::multicaller::MulticallerSwapEncoder;
 use loom::node::actor_config::NodeBlockActorConfig;
@@ -86,7 +86,7 @@ where
         })
         .unwrap_or_default();
 
-    let pools_config = PoolsConfig::disable_all().enable(PoolClass::UniswapV2).enable(PoolClass::UniswapV3);
+    let pools_config = PoolsLoadingConfig::disable_all().enable(PoolClass::UniswapV2).enable(PoolClass::UniswapV3);
 
     let backrun_config: BackrunConfigSection = load_from_file::<BackrunConfigSection>(loom_config_filepath.into()).await?;
     let backrun_config: BackrunConfig = backrun_config.backrun_strategy;

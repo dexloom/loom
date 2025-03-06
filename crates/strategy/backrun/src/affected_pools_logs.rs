@@ -1,22 +1,21 @@
 use std::collections::BTreeMap;
 
-use alloy_primitives::Address;
 use alloy_rpc_types::Log;
 use alloy_sol_types::SolEventInterface;
 use eyre::Result;
 use loom_core_actors::SharedState;
 use loom_defi_abi::uniswap4::IUniswapV4PoolManagerEvents::IUniswapV4PoolManagerEventsEvents;
 use loom_defi_address_book::FactoryAddress;
-use loom_types_entities::{Market, PoolId, PoolWrapper};
+use loom_types_entities::{Market, PoolId, PoolWrapper, SwapDirection};
 
 #[allow(dead_code)]
 pub async fn get_affected_pools_from_logs(
     market: SharedState<Market>,
     logs: &Vec<Log>,
-) -> Result<BTreeMap<PoolWrapper, Vec<(Address, Address)>>> {
+) -> Result<BTreeMap<PoolWrapper, Vec<SwapDirection>>> {
     let market_guard = market.read().await;
 
-    let mut affected_pools: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
+    let mut affected_pools: BTreeMap<PoolWrapper, Vec<SwapDirection>> = BTreeMap::new();
 
     for log in logs.into_iter() {
         if log.address().eq(&FactoryAddress::UNISWAP_V4_POOL_MANAGER_ADDRESS) {

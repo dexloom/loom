@@ -3,7 +3,6 @@ use std::marker::PhantomData;
 use std::sync::Arc;
 
 use alloy_network::Network;
-use alloy_primitives::Address;
 use alloy_provider::Provider;
 use eyre::Result;
 use tracing::{debug, error, info};
@@ -14,10 +13,11 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::required_state::RequiredStateReader;
-use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders, PoolWrapper};
+use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders, PoolWrapper, SwapDirection};
 use loom_types_events::{LoomTask, MarketEvents};
 
 use loom_types_blockchain::get_touched_addresses;
+use loom_types_entities::pool_config::PoolsLoadingConfig;
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::sync::Semaphore;
 
@@ -26,6 +26,7 @@ const MAX_CONCURRENT_TASKS: usize = 20;
 pub async fn pool_loader_worker<P, PL, N, DB>(
     client: P,
     pool_loaders: Arc<PoolLoaders<PL, N>>,
+    pools_config: PoolsLoadingConfig,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     tasks_rx: Broadcaster<LoomTask>,
@@ -38,14 +39,13 @@ where
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     let mut processed_pools = HashMap::new();
-    let semaphore = std::sync::Arc::new(Semaphore::new(MAX_CONCURRENT_TASKS));
+    let semaphore = std::sync::Arc::new(Semaphore::new(pools_config.threads().unwrap_or(MAX_CONCURRENT_TASKS)));
 
     subscribe!(tasks_rx);
     loop {
         if let Ok(task) = tasks_rx.recv().await {
             let pools = match task {
                 LoomTask::FetchAndAddPools(pools) => pools,
-                _ => continue,
             };
 
             for (pool_id, pool_class) in pools {
@@ -153,7 +153,7 @@ where
                 let pool_manager_cells = pool_wrapped.get_pool_manager_cells();
                 let pool_id = pool_wrapped.get_pool_id();
 
-                let mut directions_tree: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
+                let mut directions_tree: BTreeMap<PoolWrapper, Vec<SwapDirection>> = BTreeMap::new();
                 directions_tree.insert(pool_wrapped.clone(), directions_vec);
 
                 let start_time = std::time::Instant::now();
@@ -200,6 +200,7 @@ where
 {
     client: P,
     pool_loaders: Arc<PoolLoaders<PL, N>>,
+    pools_config: PoolsLoadingConfig,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
@@ -218,10 +219,11 @@ where
     PL: Provider<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + Default + 'static,
 {
-    pub fn new(client: P, pool_loader: Arc<PoolLoaders<PL, N>>) -> Self {
+    pub fn new(client: P, pool_loaders: Arc<PoolLoaders<PL, N>>, pools_config: PoolsLoadingConfig) -> Self {
         Self {
             client,
-            pool_loaders: pool_loader,
+            pool_loaders,
+            pools_config,
             market: None,
             market_state: None,
             tasks_rx: None,
@@ -252,6 +254,7 @@ where
         let task = tokio::task::spawn(pool_loader_worker(
             self.client.clone(),
             self.pool_loaders.clone(),
+            self.pools_config.clone(),
             self.market.clone().unwrap(),
             self.market_state.clone().unwrap(),
             self.tasks_rx.clone().unwrap(),

@@ -1,18 +1,18 @@
 use std::collections::BTreeMap;
 
-use alloy_primitives::{Address, U256};
+use alloy_primitives::U256;
 use loom_core_actors::SharedState;
 use loom_types_blockchain::GethStateUpdateVec;
-use loom_types_entities::{Market, PoolId, PoolWrapper};
+use loom_types_entities::{Market, PoolId, PoolWrapper, SwapDirection};
 use tracing::debug;
 
 pub async fn get_affected_pools_from_state_update(
     market: SharedState<Market>,
     state_update: &GethStateUpdateVec,
-) -> BTreeMap<PoolWrapper, Vec<(Address, Address)>> {
+) -> BTreeMap<PoolWrapper, Vec<SwapDirection>> {
     let market_guard = market.read().await;
 
-    let mut affected_pools: BTreeMap<PoolWrapper, Vec<(Address, Address)>> = BTreeMap::new();
+    let mut affected_pools: BTreeMap<PoolWrapper, Vec<SwapDirection>> = BTreeMap::new();
 
     for state_update_record in state_update.iter() {
         for (address, state_update_entry) in state_update_record.iter() {

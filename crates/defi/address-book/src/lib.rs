@@ -25,6 +25,34 @@ impl TokenAddressEth {
 }
 
 #[non_exhaustive]
+pub struct TokenAddressArbitrum;
+
+impl TokenAddressArbitrum {
+    pub const ETH_NATIVE: Address = Address::ZERO;
+    pub const WETH: Address = address!("82aF49447D8a07e3bd95BD0d56f35241523fBab1");
+    pub const USDC: Address = address!("af88d065e77c8cC2239327C5EDb3A432268e5831");
+    pub const WBTC: Address = address!("2f2a2543B76A4166549F7aaB2e75Bef0aefC5B0f");
+    pub const USDT: Address = address!("Fd086bC7CD5C481DCC9C85ebE478A1C0b69FCbb9");
+    pub const DAI: Address = address!("DA10009cBd5D07dd0CeCc66161FC93D7c9000da1");
+    pub const CRV: Address = address!("11cDb42B0EB46D95f990BeDD4695A6e3fA034978");
+
+    pub fn is_weth(&address: &Address) -> bool {
+        address.eq(&Self::WETH)
+    }
+    pub fn is_eth(&address: &Address) -> bool {
+        address.eq(&Self::ETH_NATIVE)
+    }
+}
+
+#[non_exhaustive]
+pub struct TokenAddressBase;
+impl TokenAddressBase {
+    pub const ETH_NATIVE: Address = Address::ZERO;
+    pub const WETH: Address = address!("4200000000000000000000000000000000000006");
+    pub const USDC: Address = address!("833589fCD6eDb6E08f4c7C32D4f71b54bdA02913");
+}
+
+#[non_exhaustive]
 pub struct FactoryAddress;
 
 impl FactoryAddress {
@@ -38,6 +66,7 @@ impl FactoryAddress {
     pub const SHIBASWAP: Address = address!("115934131916c8b277dd010ee02de363c09d037c");
     pub const OG_PEPE: Address = address!("52fba58f936833f8b643e881ad308b2e37713a86");
     pub const ANTFARM: Address = address!("E48AEE124F9933661d4DD3Eb265fA9e153e32CBe");
+    pub const INTEGRAL: Address = address!("C480b33eE5229DE3FbDFAD1D2DCD3F3BAD0C56c6");
 
     // Uniswap V3 compatible
     pub const UNISWAP_V3: Address = address!("1f98431c8ad98523631ae4a59f267346ea31f984");
