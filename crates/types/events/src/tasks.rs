@@ -1,7 +1,6 @@
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::{PoolClass, PoolId};
+use loom_types_entities::{EntityAddress, PoolClass};
 
 #[derive(Clone, Debug)]
-pub enum LoomTask<LDT: LoomDataTypes = LoomDataTypesEthereum> {
-    FetchAndAddPools(Vec<(PoolId<LDT>, PoolClass)>),
+pub enum LoomTask {
+    FetchAndAddPools(Vec<(EntityAddress, PoolClass)>),
 }

@@ -19,5 +19,7 @@ alloy-primitives.workspace = true
 alloy-rpc-types.workspace = true
 revm.workspace = true
 
+op-alloy.workspace = true
+
 chrono.workspace = true
 eyre.workspace = true

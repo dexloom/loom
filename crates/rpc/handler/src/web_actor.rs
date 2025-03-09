@@ -6,6 +6,7 @@ use loom_core_actors_macros::Consumer;
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_rpc_state::AppState;
 use loom_storage_db::DbPool;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use revm::{DatabaseCommit, DatabaseRef};
 use std::net::SocketAddr;
 use tokio::net::TcpListener;
@@ -17,7 +18,7 @@ pub async fn start_web_server_worker<S, DB>(
     host: String,
     extra_router: Router<S>,
     bc: Blockchain,
-    state: BlockchainState<DB>,
+    state: BlockchainState<DB, LoomDataTypesEthereum>,
     db_pool: DbPool,
     shutdown_token: CancellationToken,
 ) -> WorkerResult
@@ -52,7 +53,7 @@ pub struct WebServerActor<S, DB: Clone + Send + Sync + 'static> {
     shutdown_token: CancellationToken,
     db_pool: DbPool,
     bc: Option<Blockchain>,
-    state: Option<BlockchainState<DB>>,
+    state: Option<BlockchainState<DB, LoomDataTypesEthereum>>,
 }
 
 impl<S, DB> WebServerActor<S, DB>
@@ -65,7 +66,7 @@ where
         Self { host, extra_router, shutdown_token, db_pool, bc: None, state: None }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB, LoomDataTypesEthereum>) -> Self {
         Self { bc: Some(bc.clone()), state: Some(state.clone()), ..self }
     }
 }

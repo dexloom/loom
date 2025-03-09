@@ -1,4 +1,4 @@
-use alloy_network::Ethereum;
+use alloy_network::{Ethereum, Network};
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::{Provider, RootProvider};
 use axum::Router;
@@ -37,16 +37,24 @@ use loom_strategy_backrun::{
     BackrunConfig, BlockStateChangeProcessorActor, PendingTxStateChangeProcessorActor, StateChangeArbSearcherActor,
 };
 use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{BlockHistoryState, PoolClass, SwapEncoder, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::HashMap;
+use std::marker::PhantomData;
 use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
-pub struct BlockchainActors<P, DB: Clone + Send + Sync + 'static, E: Clone = MulticallerSwapEncoder> {
+pub struct BlockchainActors<
+    P,
+    N,
+    DB: Clone + Send + Sync + 'static,
+    E: Clone = MulticallerSwapEncoder,
+    LDT: LoomDataTypes + 'static = LoomDataTypesEthereum,
+> {
     provider: P,
-    bc: Blockchain,
+    bc: Blockchain<LDT>,
     state: BlockchainState<DB>,
     strategy: Strategy<DB>,
     pub signers: SharedState<TxSigners>,
@@ -57,11 +65,13 @@ pub struct BlockchainActors<P, DB: Clone + Send + Sync + 'static, E: Clone = Mul
     has_signers: bool,
     mutlicaller_address: Option<Address>,
     relays: Vec<RelayConfig>,
+    _n: PhantomData<N>,
 }
 
-impl<P, DB, E> BlockchainActors<P, DB, E>
+impl<P, N, DB, E, LDT> BlockchainActors<P, N, DB, E, LDT>
 where
-    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
+    N: Network,
+    P: Provider<N> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     DB: DatabaseRef<Error = ErrReport>
         + Database<Error = ErrReport>
         + DatabaseCommit
@@ -73,11 +83,12 @@ where
         + Default
         + 'static,
     E: SwapEncoder + Send + Sync + Clone + 'static,
+    LDT: LoomDataTypes,
 {
     pub fn new(
         provider: P,
         encoder: E,
-        bc: Blockchain,
+        bc: Blockchain<LDT>,
         state: BlockchainState<DB>,
         strategy: Strategy<DB>,
         relays: Vec<RelayConfig>,
@@ -95,6 +106,7 @@ where
             has_signers: false,
             mutlicaller_address: None,
             relays,
+            _n: PhantomData,
         }
     }
 

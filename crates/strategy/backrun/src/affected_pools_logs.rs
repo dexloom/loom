@@ -6,7 +6,7 @@ use eyre::Result;
 use loom_core_actors::SharedState;
 use loom_defi_abi::uniswap4::IUniswapV4PoolManagerEvents::IUniswapV4PoolManagerEventsEvents;
 use loom_defi_address_book::FactoryAddress;
-use loom_types_entities::{Market, PoolId, PoolWrapper, SwapDirection};
+use loom_types_entities::{EntityAddress, Market, PoolWrapper, SwapDirection};
 
 #[allow(dead_code)]
 pub async fn get_affected_pools_from_logs(
@@ -28,7 +28,7 @@ pub async fn get_affected_pools_from_logs(
                 },
                 Err(_) => None,
             } {
-                if let Some(pool) = market_guard.get_pool(&PoolId::from(pool_id)) {
+                if let Some(pool) = market_guard.get_pool(&EntityAddress::from(pool_id)) {
                     if !affected_pools.contains_key(pool) {
                         affected_pools.insert(pool.clone(), pool.get_swap_directions());
                     }

@@ -13,8 +13,8 @@ use loom_core_actors_macros::Accessor;
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_defi_address_book::TokenAddressEth;
 use loom_evm_utils::{BalanceCheater, NWETH};
-use loom_types_blockchain::GethStateUpdate;
-use loom_types_entities::{AccountNonceAndBalanceState, MarketState, TxSigners};
+use loom_types_blockchain::{GethStateUpdate, LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_entities::{AccountNonceAndBalanceState, EntityAddress, MarketState, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tracing::{debug, error, trace};
 
@@ -32,8 +32,8 @@ where
 
 async fn set_monitor_token_balance(
     account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
-    owner: Address,
-    token: Address,
+    owner: EntityAddress,
+    token: EntityAddress,
     balance: U256,
 ) {
     if let Some(account_nonce_balance) = account_nonce_balance_state {
@@ -46,7 +46,11 @@ async fn set_monitor_token_balance(
     }
 }
 
-async fn set_monitor_nonce(account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>, owner: Address, nonce: u64) {
+async fn set_monitor_nonce(
+    account_nonce_balance_state: Option<SharedState<AccountNonceAndBalanceState>>,
+    owner: EntityAddress,
+    nonce: u64,
+) {
     if let Some(account_nonce_balance) = account_nonce_balance_state {
         debug!("set_monitor_nonce {} {}", owner, nonce);
         let mut account_nonce_balance_guard = account_nonce_balance.write().await;
@@ -58,7 +62,7 @@ async fn set_monitor_nonce(account_nonce_balance_state: Option<SharedState<Accou
 
 pub async fn preload_market_state<P, N, DB>(
     client: P,
-    copied_accounts_vec: Vec<Address>,
+    copied_accounts_vec: Vec<EntityAddress>,
     new_accounts_vec: Vec<(Address, u64, U256, Option<Bytes>)>,
     token_balances_vec: Vec<(Address, Address, U256)>,
     market_state: SharedState<MarketState<DB>>,
@@ -75,12 +79,12 @@ where
 
     for address in copied_accounts_vec {
         trace!("Loading address : {address}");
-        let acc_state = fetch_account_state(client.clone(), address).await?;
+        let acc_state = fetch_account_state(client.clone(), address.into()).await?;
 
         set_monitor_token_balance(
             account_nonce_balance_state.clone(),
             address,
-            NWETH::NATIVE_ADDRESS,
+            EntityAddress::default(),
             acc_state.balance.unwrap_or_default(),
         )
         .await;
@@ -88,12 +92,12 @@ where
         set_monitor_nonce(account_nonce_balance_state.clone(), address, acc_state.nonce.unwrap_or_default()).await;
         trace!("Loaded address : {address} {:?}", acc_state);
 
-        state.insert(address, acc_state);
+        state.insert(address.into(), acc_state);
     }
 
     for (address, nonce, balance, code) in new_accounts_vec {
         trace!("new_accounts added {} {} {}", address, nonce, balance);
-        set_monitor_token_balance(account_nonce_balance_state.clone(), address, NWETH::NATIVE_ADDRESS, balance).await;
+        set_monitor_token_balance(account_nonce_balance_state.clone(), address.into(), NWETH::NATIVE_ADDRESS.into(), balance).await;
         state.insert(address, AccountState { balance: Some(balance), code, nonce: Some(nonce), storage: BTreeMap::new() });
     }
 
@@ -120,7 +124,7 @@ where
             }
         }
 
-        set_monitor_token_balance(account_nonce_balance_state.clone(), owner, token, balance).await;
+        set_monitor_token_balance(account_nonce_balance_state.clone(), owner.into(), token.into(), balance).await;
     }
     market_state_guard.apply_geth_update(state);
 
@@ -132,7 +136,7 @@ where
 pub struct MarketStatePreloadedOneShotActor<P, N, DB> {
     name: &'static str,
     client: P,
-    copied_accounts: Vec<Address>,
+    copied_accounts: Vec<EntityAddress>,
     new_accounts: Vec<(Address, u64, U256, Option<Bytes>)>,
     token_balances: Vec<(Address, Address, U256)>,
     #[accessor]
@@ -170,7 +174,7 @@ where
         Self { name, ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+    pub fn on_bc<LDT: LoomDataTypes>(self, bc: &Blockchain, state: &BlockchainState<DB, LDT>) -> Self {
         Self { account_nonce_balance_state: Some(bc.nonce_and_balance()), market_state: Some(state.market_state_commit()), ..self }
     }
 
@@ -190,13 +194,14 @@ where
 
     pub fn with_copied_account(self, address: Address) -> Self {
         let mut copied_accounts = self.copied_accounts;
-        copied_accounts.push(address);
+        copied_accounts.push(address.into());
         Self { copied_accounts, ..self }
     }
 
-    pub fn with_copied_accounts(self, address_vec: Vec<Address>) -> Self {
+    pub fn with_copied_accounts<T: Into<EntityAddress>>(self, address_vec: Vec<T>) -> Self {
         let mut copied_accounts = self.copied_accounts;
-        copied_accounts.extend(address_vec);
+        let more: Vec<EntityAddress> = address_vec.into_iter().map(Into::<EntityAddress>::into).collect();
+        copied_accounts.extend(more);
         Self { copied_accounts, ..self }
     }
 

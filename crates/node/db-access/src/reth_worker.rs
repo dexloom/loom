@@ -26,8 +26,9 @@ use loom_core_blockchain::Blockchain;
 use loom_evm_utils::reth_types::append_all_matching_block_logs;
 use loom_node_actor_config::NodeBlockActorConfig;
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_events::{
-    BlockHeader, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
+    BlockHeaderEventData, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
     MessageBlockStateUpdate,
 };
 
@@ -87,7 +88,7 @@ where
                     }
 
                         if let Some(block_headers_channel) = &new_block_headers_channel {
-                            if let Err(e) = block_headers_channel.send(MessageBlockHeader::new_with_time(BlockHeader::new( block_header.clone()))) {
+                            if let Err(e) = block_headers_channel.send(MessageBlockHeader::new_with_time(BlockHeaderEventData::<LoomDataTypesEthereum>::new( block_header.clone()))) {
                                 error!("Block header broadcaster error {}", e);
                             }
                         };

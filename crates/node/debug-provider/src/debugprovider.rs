@@ -51,7 +51,7 @@ impl AnvilDebugProviderFactory {
 
         let anvil_provider = ProviderBuilder::new().disable_recommended_fillers().on_ws(anvil_ws).await?;
 
-        let curblock = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes).await?;
+        let curblock = anvil_provider.get_block_by_number(BlockNumberOrTag::Latest).await?;
 
         match curblock {
             Some(curblock) => {
@@ -72,7 +72,7 @@ impl AnvilDebugProviderFactory {
             _n: PhantomData::<Ethereum>,
         };
 
-        let curblock = ret._anvil.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes).await?;
+        let curblock = ret._anvil.get_block_by_number(BlockNumberOrTag::Latest).await?;
 
         match curblock {
             Some(curblock) => {
@@ -153,10 +153,10 @@ where
 }
 
 #[async_trait]
-pub trait DebugProviderExt<N = Ethereum> {
+pub trait DebugProviderExt<N: Network = Ethereum> {
     async fn geth_debug_trace_call(
         &self,
-        tx: TransactionRequest,
+        tx: N::TransactionRequest,
         block: BlockId,
         trace_options: GethDebugTracingCallOptions,
     ) -> TransportResult<GethTrace>;
@@ -173,13 +173,13 @@ pub trait DebugProviderExt<N = Ethereum> {
 }
 
 #[async_trait]
-impl<N> DebugProviderExt<N> for RootProvider<Ethereum>
+impl<N> DebugProviderExt<N> for RootProvider<N>
 where
-    N: Network,
+    N: Network<TransactionRequest = TransactionRequest>,
 {
     async fn geth_debug_trace_call(
         &self,
-        tx: TransactionRequest,
+        tx: N::TransactionRequest,
         block: BlockId,
         trace_options: GethDebugTracingCallOptions,
     ) -> TransportResult<GethTrace> {
@@ -204,13 +204,13 @@ where
 #[async_trait]
 impl<PN, PA, N> DebugProviderExt<N> for AnvilDebugProvider<PN, PA, N>
 where
-    N: Network,
+    N: Network<TransactionRequest = TransactionRequest>,
     PN: Provider<N> + Send + Sync + Clone + 'static,
     PA: Provider<N> + Send + Sync + Clone + 'static,
 {
     async fn geth_debug_trace_call(
         &self,
-        tx: TransactionRequest,
+        tx: N::TransactionRequest,
         block: BlockId,
         trace_options: GethDebugTracingCallOptions,
     ) -> TransportResult<GethTrace> {

@@ -1,8 +1,12 @@
-use alloy::consensus::Transaction as TransactionTrait;
+use alloy::consensus::{BlockHeader, Transaction as TransactionTrait};
+use alloy::network::TransactionBuilder;
 use alloy::primitives::{Address, U256};
-use alloy::rpc::types::{Header, Transaction};
+use alloy::rpc::types::{Header, Transaction, TransactionRequest};
 use lazy_static::lazy_static;
-use revm::primitives::{BlobExcessGasAndPrice, BlockEnv, Env, TransactTo, TxEnv};
+use revm::context::setters::ContextSetters;
+use revm::context::{BlockEnv, Evm, TxEnv};
+use revm::context_interface::block::BlobExcessGasAndPrice;
+use revm::Context;
 
 lazy_static! {
     static ref COINBASE: Address = "0x1f9090aaE28b8a3dCeaDf281B0F12828e676c326".parse().unwrap();
@@ -14,16 +18,53 @@ pub async fn env_fetch_for_block<P: Provider<T, N>, T: Transport + Clone, N: Net
 
  */
 
-pub fn env_for_block(block_id: u64, block_timestamp: u64) -> Env {
-    let mut env = Env::default();
-    env.block.timestamp = U256::from(block_timestamp);
-    env.block.number = U256::from(block_id);
-    env.block.coinbase = *COINBASE;
-    env
+pub fn tx_req_to_env<T: Into<TransactionRequest>>(tx: T) -> TxEnv {
+    let tx: TransactionRequest = tx.into();
+    TxEnv {
+        tx_type: tx.transaction_type.unwrap_or_default(),
+        caller: tx.from.unwrap_or_default(),
+        kind: tx.kind().unwrap_or_default(),
+        gas_limit: tx.gas.unwrap_or_default(),
+        gas_price: tx.max_fee_per_gas.unwrap_or_default(),
+        value: tx.value.unwrap_or_default(),
+        data: tx.input.input().cloned().unwrap_or_default(),
+        nonce: tx.nonce.unwrap_or_default(),
+        chain_id: tx.chain_id(),
+        access_list: tx.access_list.unwrap_or_default(),
+        gas_priority_fee: tx.max_priority_fee_per_gas,
+        blob_hashes: tx.blob_versioned_hashes.unwrap_or_default(),
+        max_fee_per_blob_gas: tx.max_fee_per_blob_gas.unwrap_or_default(),
+        authorization_list: tx.authorization_list.unwrap_or_default(),
+    }
 }
 
+pub fn header_to_block_env<H: BlockHeader>(header: Option<H>) -> BlockEnv {
+    match header {
+        Some(header) => BlockEnv {
+            number: header.number(),
+            beneficiary: header.beneficiary(),
+            timestamp: header.timestamp(),
+            gas_limit: header.gas_limit(),
+            basefee: header.base_fee_per_gas().unwrap_or_default(),
+            difficulty: header.difficulty(),
+            prevrandao: Some(header.parent_hash()),
+            blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(header.excess_blob_gas().unwrap_or_default(), false)),
+        },
+        _ => BlockEnv::default(),
+    }
+}
+
+// pub fn env_for_block(block_id: u64, block_timestamp: u64) ->  {
+//     let mut env = Env::default();
+//     env.block.timestamp = U256::from(block_timestamp);
+//     env.block.number = U256::from(block_id);
+//     env.block.coinbase = *COINBASE;
+//     env
+// }
+/*
 pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> Env {
     let tx = tx.into();
+    let tx = tx.inner;
 
     Env {
         cfg: Default::default(),
@@ -38,7 +79,7 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> En
             blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(block_header.excess_blob_gas.unwrap(), false)),
         },
         tx: TxEnv {
-            caller: tx.from,
+            caller: tx.signer(),
             gas_limit: tx.gas_limit(),
             gas_price: U256::from(tx.max_fee_per_gas()),
             transact_to: TransactTo::Call(tx.to().unwrap_or_default()),
@@ -54,3 +95,5 @@ pub fn evm_env_from_tx<T: Into<Transaction>>(tx: T, block_header: &Header) -> En
         },
     }
 }
+
+ */

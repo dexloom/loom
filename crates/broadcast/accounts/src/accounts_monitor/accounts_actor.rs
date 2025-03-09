@@ -9,7 +9,7 @@ use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Shar
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::Blockchain;
 use loom_defi_abi::IERC20::IERC20Events;
-use loom_types_entities::{AccountNonceAndBalanceState, LatestBlock};
+use loom_types_entities::{AccountNonceAndBalanceState, EntityAddress, LatestBlock};
 use loom_types_events::MarketEvents;
 use std::marker::PhantomData;
 use std::time::Duration;
@@ -26,13 +26,13 @@ where
     N: Network,
     P: Provider<N> + Send + Sync + Clone + 'static,
 {
-    let eth_addr = Address::ZERO;
+    let eth_addr = EntityAddress::default();
 
     loop {
         let accounts = accounts_state.read().await.get_accounts_vec();
         for addr in accounts.into_iter() {
-            let nonce = client.get_transaction_count(addr).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await;
-            let balance = client.get_balance(addr).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await;
+            let nonce = client.get_transaction_count(addr.into()).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await;
+            let balance = client.get_balance(addr.into()).block_id(BlockId::Number(BlockNumberOrTag::Latest)).await;
 
             if let Some(acc) = accounts_state.write().await.get_mut_account(&addr) {
                 if let Ok(nonce) = nonce {
@@ -75,19 +75,19 @@ pub async fn nonce_and_balance_monitor_worker(
 
                                     for tx in txs {
                                         let tx_from : Address = tx.from;
-                                        if accounts_lock.is_monitored(&tx_from) {
-                                            if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&tx_from) {
+                                        if accounts_lock.is_monitored(&tx_from.into()) {
+                                            if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&tx_from.into()) {
                                                 let spent = (tx.max_fee_per_gas() + tx.max_priority_fee_per_gas().unwrap()) * tx.gas_limit() as u128 + tx.value().to::<u128>();
                                                 let value = U256::from(spent);
-                                                account.sub_balance(Address::ZERO, value).set_nonce(tx.nonce()+1);
+                                                account.sub_balance(EntityAddress::default(), value).set_nonce(tx.nonce()+1);
                                                 debug!("Account {} : sub ETH balance {} -> {} nonce {}", tx_from, value, account.get_eth_balance(), tx.nonce()+1);
                                             }
                                         }
 
                                         if let Some(to )  = tx.to() {
-                                            if accounts_lock.is_monitored(&to) {
-                                                if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&to) {
-                                                    account.add_balance(Address::ZERO, tx.value());
+                                            if accounts_lock.is_monitored(&to.into()) {
+                                                if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&to.into()) {
+                                                    account.add_balance(EntityAddress::default(), tx.value());
                                                     debug!("Account {} : add ETH balance {} -> {}", to, tx.value(), account.get_eth_balance());
                                                 }
                                             }
@@ -109,15 +109,15 @@ pub async fn nonce_and_balance_monitor_worker(
                                             if let Ok(event) = IERC20Events::decode_log(&log_entry, false ){
                                                 if let  IERC20Events::Transfer(event) = event.data {
                                                     //debug!("ERC20TransferEvent {} : {:?}", log_entry.address, event);
-                                                    if accounts_lock.is_monitored(&event.to) {
-                                                        if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&event.to) {
-                                                            account.add_balance(log_entry.address, event.value);
-                                                            debug!("Account {} : add ERC20 {} balance {} -> {}", event.to, log_entry.address, event.value, account.get_balance(&log_entry.address));
+                                                    if accounts_lock.is_monitored(&event.to.into()) {
+                                                        if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&event.to.into()) {
+                                                            account.add_balance(log_entry.address.into(), event.value);
+                                                            debug!("Account {} : add ERC20 {} balance {} -> {}", event.to, log_entry.address, event.value, account.get_balance(&log_entry.address.into()));
                                                         }
-                                                    } else if accounts_lock.is_monitored(&event.from) {
-                                                        if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&event.from) {
-                                                            account.sub_balance(log_entry.address, event.value);
-                                                            debug!("Account {} : sub ERC20 {} balance {} -> {}", event.from, log_entry.address, event.value, account.get_balance(&log_entry.address));
+                                                    } else if accounts_lock.is_monitored(&event.from.into()) {
+                                                        if let Some(&mut ref mut account) = accounts_lock.get_mut_account(&event.from.into()) {
+                                                            account.sub_balance(log_entry.address.into(), event.value);
+                                                            debug!("Account {} : sub ERC20 {} balance {} -> {}", event.from, log_entry.address, event.value, account.get_balance(&log_entry.address.into()));
                                                         }
                                                     }
                                                 }

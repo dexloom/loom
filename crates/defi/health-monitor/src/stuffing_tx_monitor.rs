@@ -61,7 +61,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<Ethereum> + Clone + 'static>
                     Ok(market_event)=>{
                         if let MarketEvents::BlockTxUpdate{ block_number,..} = market_event {
                             let coinbase =  latest_block.read().await.coinbase().unwrap_or_default();
-                            if let Some(txs) = latest_block.read().await.txs().cloned() {
+                            if let Some(txs) = latest_block.read().await.txs() {
                                 for (idx, tx) in txs.iter().enumerate() {
                                     let tx_hash = tx.tx_hash();
                                     if let Some(tx_to_check) = txs_to_check.get(&tx_hash).cloned(){
@@ -139,7 +139,7 @@ pub async fn stuffing_tx_monitor_worker<P: Provider<Ethereum> + Clone + 'static>
                                                 cost,
                                         }
                                 );
-                                let profit = swap.abs_profit();
+                                let profit = swap.arb_profit();
                                 let profit = token_in.calc_eth_value(profit).unwrap_or_default();
 
                                 if entry.profit < profit {

@@ -31,7 +31,7 @@ impl SwapOpcodesEncoderTrait for StEthSwapEncoder {
             let weth_withdraw_opcode =
                 MulticallerCall::new_call(token_from_address, &AbiEncoderHelper::encode_weth_withdraw(amount_in.unwrap_or_default()));
             let swap_opcode = MulticallerCall::new_call_with_value(
-                pool_address,
+                pool_address.into(),
                 &abi_encoder.encode_swap_in_amount_provided(
                     cur_pool,
                     token_from_address,

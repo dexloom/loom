@@ -1,8 +1,8 @@
 use crate::fast_cache_db::FastCacheDB;
 use alloy::primitives::Address;
 use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
-use revm::db::{AccountState, EmptyDB};
-use revm::primitives::Bytecode;
+use revm::database::{AccountState, EmptyDB};
+use revm::state::Bytecode;
 use std::collections::BTreeMap;
 use std::sync::Arc;
 use tracing::{error, trace};

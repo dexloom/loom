@@ -1,11 +1,13 @@
 use alloy::primitives::aliases::U24;
 use alloy::primitives::{Address, U160, U256};
+use alloy::rpc::types::{TransactionInput, TransactionRequest};
 use alloy::sol_types::SolCall;
 use eyre::{eyre, Result};
 use loom_defi_abi::uniswap_periphery::IQuoterV2;
 use loom_evm_utils::evm::evm_call;
+use loom_evm_utils::EVMHelper;
 use revm::primitives::Env;
-use revm::DatabaseRef;
+use revm::{Database, DatabaseRef, ExecuteEvm, InspectEvm};
 
 pub struct UniswapV3QuoterV2Encoder {}
 
@@ -53,9 +55,8 @@ impl UniswapV3QuoterV2Encoder {
 pub struct UniswapV3QuoterV2StateReader {}
 
 impl UniswapV3QuoterV2StateReader {
-    pub fn quote_exact_input<DB: DatabaseRef>(
-        db: &DB,
-        env: Env,
+    pub fn quote_exact_input<DB>(
+        evm_db: &EVMHelper<DB>,
         quoter_address: Address,
         token_from: Address,
         token_to: Address,
@@ -64,7 +65,9 @@ impl UniswapV3QuoterV2StateReader {
     ) -> Result<(U256, u64)> {
         let call_data_vec = UniswapV3QuoterV2Encoder::quote_exact_input_encode(token_from, token_to, fee, U160::ZERO, amount);
 
-        let (value, gas_used) = evm_call(db, env, quoter_address, call_data_vec)?;
+        let tx_req = TransactionRequest::default().to(quoter_address).input(TransactionInput::new(call_data_vec.into()));
+
+        let (value, gas_used) = evm_db.clone().evm_call(tx_req)?;
 
         let ret = UniswapV3QuoterV2Encoder::quote_exact_input_result_decode(&value)?;
         Ok((ret, gas_used))

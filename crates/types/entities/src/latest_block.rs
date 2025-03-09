@@ -1,10 +1,9 @@
-use alloy_consensus::BlockHeader;
 use alloy_primitives::map::B256HashMap;
 use alloy_primitives::{Address, BlockHash, BlockNumber, B256};
 use alloy_rpc_types::state::{AccountOverride, StateOverride};
-use alloy_rpc_types::{Block, BlockTransactions, Header, Log, Transaction};
+use alloy_rpc_types::Header;
 
-use loom_types_blockchain::GethStateUpdateVec;
+use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec, LoomBlock, LoomHeader};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 pub struct LatestBlock<LDT: LoomDataTypes = LoomDataTypesEthereum> {
@@ -16,13 +15,13 @@ pub struct LatestBlock<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub diff: Option<Vec<LDT::StateUpdate>>,
 }
 
-impl LatestBlock<LoomDataTypesEthereum> {
-    pub fn hash(&self) -> BlockHash {
-        self.block_hash
+impl<LDT: LoomDataTypes<Address = Address, Header = Header, BlockHash = BlockHash, StateUpdate = GethStateUpdate>> LatestBlock<LDT> {
+    pub fn hash(&self) -> LDT::BlockHash {
+        self.hash()
     }
 
-    pub fn parent_hash(&self) -> Option<BlockHash> {
-        self.block_header.as_ref().map(|x| x.parent_hash)
+    pub fn parent_hash(&self) -> Option<LDT::BlockHash> {
+        self.block_header.as_ref().map(|x| <Header as LoomHeader<LDT>>::get_parent_hash(x))
     }
     pub fn number(&self) -> BlockNumber {
         self.block_number
@@ -32,7 +31,7 @@ impl LatestBlock<LoomDataTypesEthereum> {
         (self.block_number, self.block_hash)
     }
 
-    pub fn new(block_number: BlockNumber, block_hash: BlockHash) -> Self {
+    pub fn new(block_number: BlockNumber, block_hash: LDT::BlockHash) -> Self {
         Self { block_number, block_hash, block_header: None, block_with_txs: None, logs: None, diff: None }
     }
 
@@ -54,18 +53,17 @@ impl LatestBlock<LoomDataTypesEthereum> {
         cur_state_override
     }
 
-    pub fn txs(&self) -> Option<&Vec<Transaction>> {
+    pub fn txs(&self) -> Option<Vec<LDT::Transaction>> {
         if let Some(block) = &self.block_with_txs {
-            if let BlockTransactions::Full(txs) = &block.transactions {
-                return Some(txs);
-            }
+            Some(block.get_transactions())
+        } else {
+            None
         }
-        None
     }
 
-    pub fn coinbase(&self) -> Option<Address> {
+    pub fn coinbase(&self) -> Option<LDT::Address> {
         if let Some(block) = &self.block_with_txs {
-            return Some(block.header.beneficiary());
+            return Some(<alloy_rpc_types::Header as LoomHeader<LDT>>::get_beneficiary(&block.get_header()));
         }
         None
     }
@@ -73,11 +71,11 @@ impl LatestBlock<LoomDataTypesEthereum> {
     pub fn update(
         &mut self,
         block_number: BlockNumber,
-        block_hash: BlockHash,
-        block_header: Option<Header>,
-        block_with_txes: Option<Block>,
-        logs: Option<Vec<Log>>,
-        diff: Option<GethStateUpdateVec>,
+        block_hash: LDT::BlockHash,
+        block_header: Option<LDT::Header>,
+        block_with_txes: Option<LDT::Block>,
+        logs: Option<Vec<LDT::Log>>,
+        diff: Option<Vec<LDT::StateUpdate>>,
     ) -> bool {
         if block_number >= self.block_number {
             let is_new = block_number > self.block_number;

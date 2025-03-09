@@ -16,10 +16,10 @@ use tracing::error;
 pub struct Blockchain<LDT: LoomDataTypes + 'static = LoomDataTypesEthereum> {
     chain_id: ChainId,
     chain_parameters: ChainParameters,
-    market: SharedState<Market<LDT>>,
+    market: SharedState<Market>,
     latest_block: SharedState<LatestBlock<LDT>>,
     mempool: SharedState<Mempool<LDT>>,
-    account_nonce_and_balance: SharedState<AccountNonceAndBalanceState<LDT>>,
+    account_nonce_and_balance: SharedState<AccountNonceAndBalanceState>,
 
     new_block_headers_channel: Broadcaster<MessageBlockHeader<LDT>>,
     new_block_with_tx_channel: Broadcaster<MessageBlock<LDT>>,
@@ -89,7 +89,7 @@ impl<LDT: LoomDataTypes> Blockchain<LDT> {
         self.chain_parameters.clone()
     }
 
-    pub fn market(&self) -> SharedState<Market<LDT>> {
+    pub fn market(&self) -> SharedState<Market> {
         self.market.clone()
     }
 
@@ -101,7 +101,7 @@ impl<LDT: LoomDataTypes> Blockchain<LDT> {
         self.mempool.clone()
     }
 
-    pub fn nonce_and_balance(&self) -> SharedState<AccountNonceAndBalanceState<LDT>> {
+    pub fn nonce_and_balance(&self) -> SharedState<AccountNonceAndBalanceState> {
         self.account_nonce_and_balance.clone()
     }
 

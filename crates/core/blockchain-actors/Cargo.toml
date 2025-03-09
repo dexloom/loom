@@ -39,6 +39,7 @@ loom-storage-db.workspace = true
 loom-strategy-backrun.workspace = true
 loom-strategy-merger.workspace = true
 loom-types-entities.workspace = true
+loom-types-blockchain.workspace = true
 
 axum.workspace = true
 eyre.workspace = true

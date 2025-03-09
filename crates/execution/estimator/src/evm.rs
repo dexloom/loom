@@ -53,14 +53,14 @@ where
         estimate_request.tips_pct,
         Some(estimate_request.tx_compose.next_block_number),
         None,
-        Some(tx_signer.address()),
+        Some(tx_signer.address().into()),
         Some(estimate_request.tx_compose.eth_balance),
     )?;
 
     let tx_request = TransactionRequest {
         transaction_type: Some(2),
         chain_id: Some(1),
-        from: Some(tx_signer.address()),
+        from: Some(tx_signer.address().into()),
         to: Some(TxKind::Call(to)),
         gas: Some(estimate_request.tx_compose.gas),
         value: call_value,
@@ -159,7 +159,7 @@ where
         estimate_request.tips_pct,
         Some(estimate_request.tx_compose.next_block_number),
         Some(gas_cost),
-        Some(tx_signer.address()),
+        Some(tx_signer.address().into()),
         Some(estimate_request.tx_compose.eth_balance),
     ) {
         Ok((to, call_value, call_data, tips_vec)) => (to, call_value, call_data, tips_vec),
@@ -172,7 +172,7 @@ where
     let tx_request = TransactionRequest {
         transaction_type: Some(2),
         chain_id: Some(1),
-        from: Some(tx_signer.address()),
+        from: Some(tx_signer.address().into()),
         to: Some(TxKind::Call(to)),
         gas: Some((gas_used * 1500) / 1000),
         value: call_value,
@@ -196,12 +196,12 @@ where
     tx_with_state.push(TxState::SignatureRequired(tx_request));
 
     let total_tips = tips_vec.into_iter().map(|v| v.tips).sum();
-    let profit_eth = estimate_request.swap.abs_profit_eth();
+    let profit_eth = estimate_request.swap.arb_profit_eth();
     let gas_cost_f64 = NWETH::to_float(gas_cost);
     let tips_f64 = NWETH::to_float(total_tips);
     let profit_eth_f64 = NWETH::to_float(profit_eth);
     let profit_f64 = match estimate_request.swap.get_first_token() {
-        Some(token_in) => token_in.to_float(estimate_request.swap.abs_profit()),
+        Some(token_in) => token_in.to_float(estimate_request.swap.arb_profit()),
         None => profit_eth_f64,
     };
 

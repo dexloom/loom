@@ -92,7 +92,7 @@ pub async fn debug_trace_block<N: Network, P: Provider<N> + DebugProviderExt<N>>
     Ok((pre, post))
 }
 
-async fn debug_trace_call<N: Network, C: DebugProviderExt<N>, TR: Into<TransactionRequest> + Send + Sync>(
+async fn debug_trace_call<N: Network, C: DebugProviderExt<N>, TR: Into<N::TransactionRequest> + Send + Sync>(
     client: C,
     req: TR,
     block: BlockId,
@@ -127,7 +127,7 @@ async fn debug_trace_call<N: Network, C: DebugProviderExt<N>, TR: Into<Transacti
     }
 }
 
-pub async fn debug_trace_call_pre_state<N: Network, C: DebugProviderExt<N>, TR: Into<TransactionRequest> + Send + Sync>(
+pub async fn debug_trace_call_pre_state<N: Network, C: DebugProviderExt<N>, TR: Into<N::TransactionRequest> + Send + Sync>(
     client: C,
     req: TR,
     block: BlockId,
@@ -136,16 +136,27 @@ pub async fn debug_trace_call_pre_state<N: Network, C: DebugProviderExt<N>, TR: 
     Ok(debug_trace_call(client, req, block, opts, false).await?.0)
 }
 
-pub async fn debug_trace_call_post_state<N: Network, C: DebugProviderExt<N>, TR: Into<TransactionRequest> + Send + Sync>(
+pub async fn debug_trace_call_post_state<
+    N: Network<TransactionRequest = TransactionRequest>,
+    C: DebugProviderExt<N>,
+    TR: Into<TransactionRequest> + Send + Sync,
+>(
     client: C,
     req: TR,
     block: BlockId,
     opts: Option<GethDebugTracingCallOptions>,
-) -> eyre::Result<GethStateUpdate> {
+) -> eyre::Result<GethStateUpdate>
+where
+    <N as Network>::TransactionRequest: From<TR>,
+{
     Ok(debug_trace_call(client, req, block, opts, true).await?.1)
 }
 
-pub async fn debug_trace_call_diff<N: Network, C: DebugProviderExt<N>, TR: Into<TransactionRequest> + Send + Sync>(
+pub async fn debug_trace_call_diff<
+    N: Network<TransactionRequest = TransactionRequest>,
+    C: DebugProviderExt<N>,
+    TR: Into<TransactionRequest> + Send + Sync,
+>(
     client: C,
     req: TR,
     block: BlockId,

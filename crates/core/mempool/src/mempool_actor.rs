@@ -92,15 +92,15 @@ pub async fn new_mempool_worker<LDT: LoomDataTypes>(
                     }
                 };
 
-                current_gas_price = block_header.header.base_fee();
-                let block_number = block_header.header.number();
+                current_gas_price = block_header.header.get_base_fee();
+                let block_number = block_header.header.get_number();
 
                 let mempool_len = mempool.read().await.len();
                 debug!("Mempool len {}", mempool_len);
 
 
                 let mempool_read_guard = mempool.read().await;
-                let next_base_fee =  block_header.header.next_base_fee(&chain_parameters);
+                let next_base_fee =  block_header.header.get_next_base_fee(&chain_parameters);
 
                 let ok_txes = mempool_read_guard.filter_ok_by_gas_price(next_base_fee as u128);
                 debug!("Mempool gas update {} {}", next_base_fee, ok_txes.len());
@@ -155,22 +155,22 @@ pub async fn new_mempool_worker<LDT: LoomDataTypes>(
                 let mut mempool_write_guard = mempool.write().await;
 
                 let mut mempool_tx_counter=0;
-                let tx_count = block_with_txs.transactions().len();
+                let tx_count = block_with_txs.get_transactions().len();
                 let mempool_size = mempool_write_guard.len();
 
-                for tx in block_with_txs.transactions() {
+                for tx in block_with_txs.get_transactions() {
 
                     if mempool_write_guard.is_tx(&tx.tx_hash()) {
                         mempool_tx_counter += 1;
                     }
 
                     mempool_write_guard
-                        .set_mined(tx.tx_hash(), block_with_txs.number())
+                        .set_mined(tx.tx_hash(), block_with_txs.get_header().get_number())
                         .set_nonce(tx.from(), tx.nonce());
                 }
                 let start_time_utc =   chrono::Utc::now();
                 let write_query = WriteQuery::new(Timestamp::from(start_time_utc), "mempool")
-                    .add_tag("block", block_with_txs.number())
+                    .add_tag("block", block_with_txs.get_header().get_number())
                     .add_field("tx_count_block", tx_count as u64)
                     .add_field("tx_count_found", mempool_tx_counter)
                     .add_field("tx_mempool_size", mempool_size as u64);

@@ -32,7 +32,7 @@ async fn price_worker<N: Network, P: Provider<N> + Clone + 'static>(client: P, m
     let one_ether = U256::from(10).pow(U256::from(18));
     let weth_amount = one_ether.mul(U256::from(5));
 
-    match market.read().await.get_token(&TokenAddressEth::WETH) {
+    match market.read().await.get_token(&TokenAddressEth::WETH.into()) {
         Some(token) => {
             token.set_eth_price(Some(one_ether));
         }
@@ -49,7 +49,7 @@ async fn price_worker<N: Network, P: Provider<N> + Clone + 'static>(client: P, m
                 Ok(out_amount) => {
                     let price = out_amount.mul(one_ether).div(weth_amount);
                     info!("Price of ETH in {token_address:#20x} is {price}");
-                    match market.read().await.get_token(token_address) {
+                    match market.read().await.get_token(&token_address.into()) {
                         Some(tkn) => {
                             tkn.set_eth_price(Some(price));
                             debug!("Price is set");
@@ -65,8 +65,8 @@ async fn price_worker<N: Network, P: Provider<N> + Clone + 'static>(client: P, m
             }
         }
 
-        let usdt_price = market.read().await.get_token_or_default(&TokenAddressEth::USDT).get_eth_price();
-        let usdc_price = market.read().await.get_token_or_default(&TokenAddressEth::USDC).get_eth_price();
+        let usdt_price = market.read().await.get_token_or_default(&TokenAddressEth::USDT.into()).get_eth_price();
+        let usdc_price = market.read().await.get_token_or_default(&TokenAddressEth::USDC.into()).get_eth_price();
 
         let mut usd_price: Option<U256> = None;
         if let Some(usdc_price) = usdc_price {
@@ -76,7 +76,7 @@ async fn price_worker<N: Network, P: Provider<N> + Clone + 'static>(client: P, m
         }
 
         if let Some(usd_price) = usd_price {
-            match market.read().await.get_token(&TokenAddressEth::DAI) {
+            match market.read().await.get_token(&TokenAddressEth::DAI.into()) {
                 Some(tkn) => {
                     tkn.set_eth_price(Some(U256::from(10).pow(U256::from(12)).mul(usd_price)));
                 }

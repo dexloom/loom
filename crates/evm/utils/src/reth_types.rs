@@ -1,6 +1,8 @@
+use alloy::consensus::transaction::Recovered;
 use alloy::consensus::TxEnvelope;
 use alloy::eips::eip2718::Decodable2718;
 use alloy::primitives::Bytes;
+use alloy::rlp::Decodable;
 use alloy::rpc::types::Transaction;
 use alloy::rpc::types::{BlockNumHash, Log as ALog};
 use eyre::{OptionExt, Result};
@@ -92,10 +94,18 @@ pub fn decode_into_transaction(rlp_tx: &Bytes) -> Result<Transaction> {
     //let transaction_recovered: TransactionSignedEcRecovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;
     //let transaction_recovered = TransactionSignedEcRecovered::decode(&mut raw_tx)?;
 
-    let inner = TxEnvelope::decode_2718(&mut raw_tx)?;
-    let from = inner.recover_signer()?;
+    //let inner = Recovered::decode(&mut raw_tx)?;
 
-    let tx = Transaction { inner, block_hash: None, block_number: None, transaction_index: None, effective_gas_price: None, from };
+    let inner = TxEnvelope::decode_2718(&mut raw_tx)?;
+    let signer = inner.recover_signer()?;
+
+    let tx = Transaction {
+        inner: Recovered::new_unchecked(inner, signer),
+        block_hash: None,
+        block_number: None,
+        transaction_index: None,
+        effective_gas_price: None,
+    };
 
     //let env: TxEnvelope = tx.into();
 

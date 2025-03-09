@@ -8,7 +8,7 @@ use alloy_network::{Network, TransactionResponse};
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::state::StateOverride;
-use alloy_rpc_types::{BlockOverrides, Transaction};
+use alloy_rpc_types::{BlockOverrides, Transaction, TransactionRequest};
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use eyre::{eyre, ErrReport, Result};
 use lazy_static::lazy_static;
@@ -25,7 +25,7 @@ use loom_evm_db::DatabaseHelpers;
 use loom_evm_utils::evm::evm_transact;
 use loom_evm_utils::evm_tx_env::tx_to_evm_tx;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, TRACING_CALL_OPTS};
+use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, LoomDataTypes, TRACING_CALL_OPTS};
 use loom_types_entities::{DataFetcher, FetchState, LatestBlock, MarketState, Swap};
 use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeData, SwapComposeMessage, TxComposeData};
 
@@ -57,7 +57,7 @@ fn get_merge_list<'a, DB: Clone + 'static>(
         })
         .collect();
 
-    ret.sort_by(|a, b| b.swap.abs_profit_eth().cmp(&a.swap.abs_profit_eth()));
+    ret.sort_by(|a, b| b.swap.arb_profit_eth().cmp(&a.swap.arb_profit_eth()));
 
     ret
 }
@@ -72,7 +72,7 @@ async fn same_path_merger_task<P, N, DB>(
     swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
 ) -> Result<()>
 where
-    N: Network,
+    N: Network<TransactionRequest = TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
@@ -384,7 +384,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>, strategy: &Strategy<DB>) -> Self {
+    pub fn on_bc<LDT: LoomDataTypes>(self, bc: &Blockchain, state: &BlockchainState<DB, LDT>, strategy: &Strategy<DB>) -> Self {
         Self {
             market_state: Some(state.market_state_commit()),
             latest_block: Some(bc.latest_block()),

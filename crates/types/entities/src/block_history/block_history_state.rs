@@ -1,14 +1,21 @@
 use crate::market_state::MarketStateConfig;
 use crate::BlockHistoryEntry;
 use loom_evm_db::{DatabaseLoomExt, LoomDB};
+use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec, LoomDataTypes};
 use tracing::{error, trace};
 
-pub trait BlockHistoryState {
-    fn apply_update(self, block_history_entry: &BlockHistoryEntry, market_state_config: &MarketStateConfig) -> Self;
+pub trait BlockHistoryState<LDT>
+where
+    LDT: LoomDataTypes,
+{
+    fn apply_update(self, block_history_entry: &BlockHistoryEntry<LDT>, market_state_config: &MarketStateConfig) -> Self;
 }
 
-impl BlockHistoryState for LoomDB {
-    fn apply_update(self, block_history_entry: &BlockHistoryEntry, market_state_config: &MarketStateConfig) -> Self {
+impl<LDT: LoomDataTypes> BlockHistoryState<LDT> for LoomDB
+where
+    LDT: LoomDataTypes<StateUpdate = GethStateUpdate>,
+{
+    fn apply_update(self, block_history_entry: &BlockHistoryEntry<LDT>, market_state_config: &MarketStateConfig) -> Self {
         let mut db = self;
         if let Some(state_update) = &block_history_entry.state_update {
             for state_diff in state_update.iter() {

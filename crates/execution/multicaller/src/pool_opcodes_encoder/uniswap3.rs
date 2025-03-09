@@ -36,7 +36,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
         };
 
         let mut swap_opcode = MulticallerCall::new_call(
-            cur_pool.get_address(),
+            cur_pool.get_address().into(),
             &abi_encoder.encode_swap_in_amount_provided(
                 cur_pool,
                 token_from_address,
@@ -119,7 +119,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
                 let mut payload = payload;
                 let mut transfer_opcode = MulticallerCall::new_call(
                     token_from_address,
-                    &AbiEncoderHelper::encode_erc20_transfer(flash_pool.get_address(), amount_in.unwrap_or_default()),
+                    &AbiEncoderHelper::encode_erc20_transfer(flash_pool.get_address().into(), amount_in.unwrap_or_default()),
                 );
 
                 if amount_in.is_not_set() {
@@ -143,7 +143,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
             amount_in,
         );
         let mut swap_opcode = MulticallerCall::new_call(
-            flash_pool.get_address(),
+            flash_pool.get_address().into(),
             &abi_encoder.encode_swap_in_amount_provided(
                 flash_pool,
                 token_from_address,
@@ -188,7 +188,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
             trace!("retflash transfer token={:?}, to={:?}, amount=stack_norel_1", token_from_address, flash_pool.get_address());
             let mut transfer_opcode = MulticallerCall::new_call(
                 token_from_address,
-                &AbiEncoderHelper::encode_erc20_transfer(flash_pool.get_address(), U256::ZERO),
+                &AbiEncoderHelper::encode_erc20_transfer(flash_pool.get_address().into(), U256::ZERO),
             );
             transfer_opcode.set_call_stack(false, 1, 0x24, 0x20);
 
@@ -212,7 +212,7 @@ impl SwapOpcodesEncoderTrait for UniswapV3SwapOpcodesEncoder {
         );
 
         let mut swap_opcode = MulticallerCall::new_call(
-            flash_pool.get_address(),
+            flash_pool.get_address().into(),
             &abi_encoder.encode_swap_out_amount_provided(
                 flash_pool,
                 token_from_address,

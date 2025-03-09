@@ -198,13 +198,18 @@ wiremock = "0.6.2"
 ## We keep revm and alloy dependencies pinned to specific versions as reth depends on them
 
 # revm
-revm = { version = "19.5.0", features = ["blst", "optional_balance_check", "secp256k1", "std"], default-features = false }
-revm-inspectors = "0.15.0"
+revm = { version = "20.0.0-alpha.1", features = ["blst", "optional_balance_check", "secp256k1", "std"], default-features = false }
+op-revm = { version = "1.0.0-alpha.1", default-features = false }
+revm-inspectors = "0.16.0"
 revm-interpreter = { version = "15.2.0", default-features = false }
 revm-primitives = { version = "15.2.0", features = ["std"], default-features = false }
 
+op-alloy = { version = "0.11.0", features = ["consensus", "rpc-types", "network", "provider"] }
+
+#op-alloy = { rev = "a952369" }
+
 # alloy
-alloy = { version = "0.11.1", features = [
+alloy = { version = "0.12.2", features = [
     "consensus",
     "contract",
     "full",
@@ -219,34 +224,34 @@ alloy = { version = "0.11.1", features = [
     "serde",
     "sol-types",
 ], default-features = false }
-alloy-consensus = "0.11.1"
-alloy-contract = "0.11.1"
-alloy-eips = "0.11.1"
-alloy-json-rpc = "0.11.1"
-alloy-network = "0.11.1"
-alloy-node-bindings = "0.11.1"
-alloy-provider = { version = "0.11.1", features = ["anvil-api", "anvil-node", "debug-api", "ipc", "pubsub", "reqwest", "ws"] }
-alloy-pubsub = "0.11.1"
-alloy-rpc-client = { version = "0.11.1", features = ["ipc", "pubsub", "reqwest", "ws"] }
-alloy-rpc-types = "0.11.1"
-alloy-rpc-types-anvil = "0.11.1"
-alloy-rpc-types-beacon = "0.11.1"
-alloy-rpc-types-engine = "0.11.1"
-alloy-rpc-types-eth = "0.11.1"
-alloy-rpc-types-trace = "0.11.1"
-alloy-serde = "0.11.1"
-alloy-signer = "0.11.1"
-alloy-signer-local = "0.11.1"
-alloy-transport = "0.11.1"
-alloy-transport-http = "0.11.1"
-alloy-transport-ipc = "0.11.1"
-alloy-transport-ws = "0.11.1"
+alloy-consensus = "0.12.2"
+alloy-contract = "0.12.1"
+alloy-eips = "0.12.2"
+alloy-json-rpc = "0.12.2"
+alloy-network = "0.12.2"
+alloy-node-bindings = "0.12.2"
+alloy-provider = { version = "0.12.2", features = ["anvil-api", "anvil-node", "debug-api", "ipc", "pubsub", "reqwest", "ws"] }
+alloy-pubsub = "0.12.2"
+alloy-rpc-client = { version = "0.12.2", features = ["ipc", "pubsub", "reqwest", "ws"] }
+alloy-rpc-types = "0.12.2"
+alloy-rpc-types-anvil = "0.12.2"
+alloy-rpc-types-beacon = "0.12.2"
+alloy-rpc-types-engine = "0.12.2"
+alloy-rpc-types-eth = "0.12.2"
+alloy-rpc-types-trace = "0.12.2"
+alloy-serde = "0.12.2"
+alloy-signer = "0.12.2"
+alloy-signer-local = "0.12.2"
+alloy-transport = "0.12.2"
+alloy-transport-http = "0.12.2"
+alloy-transport-ipc = "0.12.2"
+alloy-transport-ws = "0.12.2"
 
 #alloy-core
 alloy-dyn-abi = { version = "0.8.21", features = ["json", "std"] }
-alloy-primitives = { version = "0.8.21", features = ["map-foldhash", "map-fxhash", "rand"], default-features = false }
-alloy-sol-macro = { version = "0.8.21", features = ["json"] }
-alloy-sol-types = { version = "0.8.21", features = ["json"] }
+alloy-primitives = { version = "0.8.22", features = ["map-foldhash", "map-fxhash", "rand"], default-features = false }
+alloy-sol-macro = { version = "0.8.22", features = ["json"] }
+alloy-sol-types = { version = "0.8.22", features = ["json"] }
 
 #alloy-related
 alloy-chains = "0.1.59"
@@ -255,29 +260,29 @@ alloy-trie = "0.7.9"
 
 
 # reth
-reth = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e", features = ["asm-keccak"] }
-reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-exex = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e", features = ["serde"] }
-reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-node-builder = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-node-core = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e", features = ["asm-keccak"] }
-reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-node-types = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e", features = ["asm-keccak"] }
-reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-rpc = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
-reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", rev = "c6b757e" }
+reth = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e", features = ["asm-keccak"] }
+reth-chainspec = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-codecs = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-codecs-derive = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-db = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-ethereum-forks = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-execution-types = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-exex = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e", features = ["serde"] }
+reth-exex-test-utils = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-node-api = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-node-builder = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-node-core = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e", features = ["asm-keccak"] }
+reth-node-ethereum = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-node-types = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-primitives = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e", features = ["asm-keccak"] }
+reth-provider = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-revm = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-rpc = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-rpc-types-compat = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-storage-api = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-testing-utils = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-tracing = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
+reth-transaction-pool = { git = "https://github.com/paradigmxyz/reth", rev = "7b9470e" }
 
 [profile.test]
 debug = 1
@@ -295,3 +300,20 @@ strip = true # stripping of debuginfo
 codegen-units = 1
 inherits = "release"
 lto = "fat"
+
+
+[patch.crates-io]
+revm = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-bytecode = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-database = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-state = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-primitives = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-interpreter = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-inspector = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-context = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-context-interface = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-database-interface = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+revm-specification = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+op-revm = { git = "https://github.com/bluealloy/revm", rev = "19a5f3b" }
+
+revm-inspectors = { git = "https://github.com/paradigmxyz/revm-inspectors", rev = "9219073" }

@@ -10,7 +10,7 @@ use loom_defi_abi::IERC20;
 use loom_defi_address_book::PeripheryAddress;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
+use loom_types_entities::{EntityAddress, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::any::Any;
@@ -74,8 +74,8 @@ impl MaverickPool {
         }
     }
 
-    pub fn get_zero_for_one(token_address_from: &Address, token_address_to: &Address) -> bool {
-        *token_address_from < *token_address_to
+    pub fn get_zero_for_one<T: Ord>(token_address_from: &T, token_address_to: &T) -> bool {
+        token_address_from.lt(token_address_to)
     }
 
     fn get_protocol_by_factory(_factory_address: Address) -> PoolProtocol {
@@ -156,20 +156,20 @@ impl Pool for MaverickPool {
         self.protocol
     }
 
-    fn get_address(&self) -> Address {
-        self.address
+    fn get_address(&self) -> EntityAddress {
+        self.address.into()
     }
 
-    fn get_pool_id(&self) -> PoolId {
-        PoolId::Address(self.address)
+    fn get_pool_id(&self) -> EntityAddress {
+        EntityAddress::Address(self.address)
     }
 
     fn get_fee(&self) -> U256 {
         self.fee
     }
 
-    fn get_tokens(&self) -> Vec<Address> {
-        vec![self.token0, self.token1]
+    fn get_tokens(&self) -> Vec<EntityAddress> {
+        vec![self.token0.into(), self.token1.into()]
     }
 
     fn get_swap_directions(&self) -> Vec<SwapDirection> {
@@ -180,12 +180,12 @@ impl Pool for MaverickPool {
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         if in_amount >= U256::from(U128::MAX) {
-            error!("IN_AMOUNT_EXCEEDS_MAX {}", self.get_address().to_checksum(None));
+            error!("IN_AMOUNT_EXCEEDS_MAX {}", self.get_address().address_or_zero().to_checksum(None));
             return Err(eyre!("IN_AMOUNT_EXCEEDS_MAX"));
         }
 
@@ -219,15 +219,15 @@ impl Pool for MaverickPool {
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
         env.tx.gas_limit = 500_000;
 
         if out_amount >= U256::from(U128::MAX) {
-            error!("OUT_AMOUNT_EXCEEDS_MAX {} ", self.get_address().to_checksum(None));
+            error!("OUT_AMOUNT_EXCEEDS_MAX {} ", self.get_address());
             return Err(eyre!("OUT_AMOUNT_EXCEEDS_MAX"));
         }
 
@@ -296,7 +296,7 @@ impl Pool for MaverickPool {
         //let tick_bitmap_index = MaverickPool::get_tick_bitmap_index(tick, self.spacing.as_u32());
         let tick_bitmap_index = tick;
 
-        let pool_address = self.get_address();
+        let pool_address = self.address;
 
         let mut state_required = RequiredState::new();
         state_required
@@ -348,7 +348,7 @@ impl Pool for MaverickPool {
             )
             .add_call(PeripheryAddress::MAVERICK_QUOTER, quoter_swap_0_1_call)
             .add_call(PeripheryAddress::MAVERICK_QUOTER, quoter_swap_1_0_call)
-            .add_slot_range(self.get_address(), U256::from(0), 0x20);
+            .add_slot_range(self.address, U256::from(0), 0x20);
 
         for token_address in self.get_tokens() {
             state_required.add_call(token_address, IERC20::balanceOfCall { account: pool_address }.abi_encode());

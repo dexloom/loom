@@ -2,17 +2,16 @@ use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
 use std::hash::{Hash, Hasher};
 
-use alloy_primitives::Address;
 use serde::{Deserialize, Serialize};
 
-use loom_types_entities::{PoolProtocol, SwapPath};
+use loom_types_entities::{EntityAddress, PoolProtocol, SwapPath};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SwapLineDTO {
     pub pool_types: Vec<PoolProtocol>,
     pub token_symbols: Vec<String>,
-    pub pools: Vec<Address>,
-    pub tokens: Vec<Address>,
+    pub pools: Vec<EntityAddress>,
+    pub tokens: Vec<EntityAddress>,
 }
 
 // Implement the Ord and PartialOrd traits for X

@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use alloy_network::Network;
 use alloy_provider::Provider;
+use alloy_rpc_types::TransactionRequest;
 use eyre::Result;
 use tracing::{debug, error, info};
 
@@ -13,10 +14,10 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_entities::required_state::RequiredStateReader;
-use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders, PoolWrapper, SwapDirection};
+use loom_types_entities::{EntityAddress, Market, MarketState, PoolClass, PoolLoaders, PoolWrapper, SwapDirection};
 use loom_types_events::{LoomTask, MarketEvents};
 
-use loom_types_blockchain::get_touched_addresses;
+use loom_types_blockchain::{get_touched_addresses, LoomDataTypes};
 use loom_types_entities::pool_config::PoolsLoadingConfig;
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::sync::Semaphore;
@@ -33,7 +34,7 @@ pub async fn pool_loader_worker<P, PL, N, DB>(
     market_events_tx: Broadcaster<MarketEvents>,
 ) -> WorkerResult
 where
-    N: Network,
+    N: Network<TransactionRequest = TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     PL: Provider<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
@@ -101,9 +102,9 @@ pub async fn fetch_and_add_pool_by_pool_id<P, PL, N, DB>(
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     pool_loaders: Arc<PoolLoaders<PL, N>>,
-    pool_id: PoolId,
+    pool_id: EntityAddress,
     pool_class: PoolClass,
-) -> Result<(PoolId, Vec<usize>)>
+) -> Result<(EntityAddress, Vec<usize>)>
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
@@ -121,7 +122,7 @@ pub async fn fetch_state_and_add_pool<P, N, DB>(
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     pool_wrapped: PoolWrapper,
-) -> Result<(PoolId, Vec<usize>)>
+) -> Result<(EntityAddress, Vec<usize>)>
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
@@ -136,12 +137,13 @@ where
 
                     let mut market_state_write_guard = market_state.write().await;
                     market_state_write_guard.apply_geth_update(state);
-                    market_state_write_guard.config.disable_cell_vec(pool_address, pool_wrapped.get_read_only_cell_vec());
+                    // TODO : Fix disable cells
+                    market_state_write_guard.config.disable_cell_vec(pool_address.address_or_zero(), pool_wrapped.get_read_only_cell_vec());
 
                     let pool_tokens = pool_wrapped.get_tokens();
 
                     for updated_address in updated_addresses {
-                        if !pool_tokens.contains(&updated_address) {
+                        if !pool_tokens.contains(&updated_address.into()) {
                             market_state_write_guard.config.add_force_insert(updated_address);
                         }
                     }
@@ -232,7 +234,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+    pub fn on_bc<LDT: LoomDataTypes>(self, bc: &Blockchain, state: &BlockchainState<DB, LDT>) -> Self {
         Self {
             market: Some(bc.market()),
             market_state: Some(state.market_state_commit()),
@@ -245,7 +247,7 @@ where
 
 impl<P, PL, N, DB> Actor for PoolLoaderActor<P, PL, N, DB>
 where
-    N: Network,
+    N: Network<TransactionRequest = TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     PL: Provider<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Default + Send + Sync + Clone + 'static,

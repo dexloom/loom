@@ -6,6 +6,7 @@ use loom_core_actors::{Accessor, Consumer, SharedState};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_evm_db::DatabaseLoomExt;
+use loom_types_blockchain::{LoomDataTypes, LoomHeader};
 use loom_types_entities::{Market, MarketState};
 use loom_types_events::MessageBlockHeader;
 use revm::DatabaseRef;
@@ -14,10 +15,10 @@ use tikv_jemalloc_ctl::stats;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{error, info};
 
-async fn metrics_recorder_worker<DB: DatabaseLoomExt + DatabaseRef + Send + Sync + 'static>(
+async fn metrics_recorder_worker<DB: DatabaseLoomExt + DatabaseRef + Send + Sync + 'static, LDT: LoomDataTypes>(
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
-    block_header_update_rx: Broadcaster<MessageBlockHeader>,
+    block_header_update_rx: Broadcaster<MessageBlockHeader<LDT>>,
     influx_channel_tx: Broadcaster<WriteQuery>,
 ) -> WorkerResult {
     subscribe!(block_header_update_rx);
@@ -37,7 +38,7 @@ async fn metrics_recorder_worker<DB: DatabaseLoomExt + DatabaseRef + Send + Sync
         };
 
         let current_timestamp = chrono::Utc::now();
-        let block_latency = current_timestamp.timestamp() as f64 - block_header.inner.header.timestamp as f64;
+        let block_latency = current_timestamp.timestamp() as f64 - block_header.inner.header.get_timestamp() as f64;
 
         // check if we received twice the same block number
 
@@ -57,59 +58,61 @@ async fn metrics_recorder_worker<DB: DatabaseLoomExt + DatabaseRef + Send + Sync
 
         let influx_channel_clone = influx_channel_tx.clone();
 
+        let block_number = block_header.inner.header.get_number();
+
         if let Err(e) = tokio::time::timeout(Duration::from_secs(2), async move {
             let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "state_accounts")
                 .add_field("value", accounts as f32)
-                .add_field("block_number", block_header.inner.header.number);
+                .add_field("block_number", block_number);
             if let Err(e) = influx_channel_clone.send(write_query) {
                 error!("Failed to send block latency to influxdb: {:?}", e);
             }
 
             let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "state_contracts")
                 .add_field("value", contracts as f32)
-                .add_field("block_number", block_header.inner.header.number);
+                .add_field("block_number", block_number);
             if let Err(e) = influx_channel_clone.send(write_query) {
                 error!("Failed to send block latency to influxdb: {:?}", e);
             }
 
             let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "pools_disabled")
                 .add_field("value", pools_disabled as f32)
-                .add_field("block_number", block_header.inner.header.number);
+                .add_field("block_number", block_number);
             if let Err(e) = influx_channel_clone.send(write_query) {
                 error!("Failed to send pools_disabled to influxdb: {:?}", e);
             }
 
             let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "paths")
                 .add_field("value", paths as f32)
-                .add_field("block_number", block_header.inner.header.number);
+                .add_field("block_number", block_number);
             if let Err(e) = influx_channel_clone.send(write_query) {
                 error!("Failed to send pools_disabled to influxdb: {:?}", e);
             }
 
             let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "paths_disabled")
                 .add_field("value", paths_disabled as f32)
-                .add_field("block_number", block_header.inner.header.number);
+                .add_field("block_number", block_number);
             if let Err(e) = influx_channel_clone.send(write_query) {
                 error!("Failed to send pools_disabled to influxdb: {:?}", e);
             }
 
             let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "pools_disabled")
                 .add_field("value", pools_disabled as f32)
-                .add_field("block_number", block_header.inner.header.number);
+                .add_field("block_number", block_number);
             if let Err(e) = influx_channel_clone.send(write_query) {
                 error!("Failed to send pools_disabled to influxdb: {:?}", e);
             }
 
             let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "jemalloc_allocated")
                 .add_field("value", (allocated >> 20) as f32)
-                .add_field("block_number", block_header.inner.header.number);
+                .add_field("block_number", block_number);
             if let Err(e) = influx_channel_clone.send(write_query) {
                 error!("Failed to send jemalloc_allocator latency to influxdb: {:?}", e);
             }
 
             let write_query = WriteQuery::new(Timestamp::from(current_timestamp), "block_latency")
                 .add_field("value", block_latency)
-                .add_field("block_number", block_header.inner.header.number);
+                .add_field("block_number", block_number);
             if let Err(e) = influx_channel_clone.send(write_query) {
                 error!("Failed to send block latency to influxdb: {:?}", e);
             }
@@ -122,26 +125,27 @@ async fn metrics_recorder_worker<DB: DatabaseLoomExt + DatabaseRef + Send + Sync
 }
 
 #[derive(Accessor, Consumer, Producer, Default)]
-pub struct MetricsRecorderActor<DB: Clone + Send + Sync + 'static> {
+pub struct MetricsRecorderActor<DB: Clone + Send + Sync + 'static, LDT: LoomDataTypes + 'static> {
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[consumer]
-    block_header_rx: Option<Broadcaster<MessageBlockHeader>>,
+    block_header_rx: Option<Broadcaster<MessageBlockHeader<LDT>>>,
     #[producer]
     influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 }
 
-impl<DB> MetricsRecorderActor<DB>
+impl<DB, LDT> MetricsRecorderActor<DB, LDT>
 where
     DB: DatabaseRef + DatabaseLoomExt + Clone + Send + Sync + 'static,
+    LDT: LoomDataTypes + 'static,
 {
     pub fn new() -> Self {
         Self { market: None, market_state: None, block_header_rx: None, influxdb_write_channel_tx: None }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, bc_state: &BlockchainState<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<LDT>, bc_state: &BlockchainState<DB, LDT>) -> Self {
         Self {
             market: Some(bc.market()),
             market_state: Some(bc_state.market_state()),
@@ -151,9 +155,10 @@ where
     }
 }
 
-impl<DB> Actor for MetricsRecorderActor<DB>
+impl<DB, LDT> Actor for MetricsRecorderActor<DB, LDT>
 where
     DB: DatabaseRef + DatabaseLoomExt + Clone + Send + Sync + 'static,
+    LDT: LoomDataTypes + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(metrics_recorder_worker(

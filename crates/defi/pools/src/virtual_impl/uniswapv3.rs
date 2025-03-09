@@ -1,4 +1,4 @@
-use alloy::primitives::{Address, I256, U256};
+use alloy::primitives::{I256, U256};
 use eyre::eyre;
 use loom_defi_uniswap_v3_math::tick_math::{MAX_SQRT_RATIO, MAX_TICK, MIN_SQRT_RATIO, MIN_TICK};
 use revm::DatabaseRef;
@@ -6,7 +6,7 @@ use revm::DatabaseRef;
 use crate::db_reader::UniswapV3DBReader;
 use crate::virtual_impl::tick_provider::TickProviderEVMDB;
 use crate::UniswapV3Pool;
-use loom_types_entities::Pool;
+use loom_types_entities::{EntityAddress, Pool};
 
 pub struct UniswapV3PoolVirtual;
 
@@ -84,19 +84,19 @@ impl UniswapV3PoolVirtual {
     pub fn simulate_swap_in_amount_provider<DB: DatabaseRef>(
         db: &DB,
         pool: &UniswapV3Pool,
-        token_in: Address,
+        token_in: &EntityAddress,
         amount_in: U256,
     ) -> eyre::Result<U256> {
         if amount_in.is_zero() {
             return Ok(U256::ZERO);
         }
 
-        let zero_for_one = token_in == pool.get_tokens()[0];
+        let zero_for_one = token_in.eq(&pool.get_tokens()[0]);
 
         // Set sqrt_price_limit_x_96 to the max or min sqrt price in the pool depending on zero_for_one
         let sqrt_price_limit_x_96 = if zero_for_one { MIN_SQRT_RATIO + U256_1 } else { MAX_SQRT_RATIO - U256_1 };
 
-        let pool_address = pool.get_address();
+        let pool_address = pool.get_address().address_or_zero();
 
         let slot0 = UniswapV3DBReader::slot0(&db, pool_address)?;
         let liquidity = UniswapV3DBReader::liquidity(&db, pool_address)?;
@@ -210,19 +210,19 @@ impl UniswapV3PoolVirtual {
     pub fn simulate_swap_out_amount_provided<DB: DatabaseRef>(
         db: &DB,
         pool: &UniswapV3Pool,
-        token_in: Address,
+        token_in: &EntityAddress,
         amount_out: U256,
     ) -> eyre::Result<U256> {
         if amount_out.is_zero() {
             return Ok(U256::ZERO);
         }
 
-        let zero_for_one = token_in == pool.get_tokens()[0];
+        let zero_for_one = token_in.eq(&pool.get_tokens()[0]);
 
         // Set sqrt_price_limit_x_96 to the max or min sqrt price in the pool depending on zero_for_one
         let sqrt_price_limit_x_96 = if zero_for_one { MIN_SQRT_RATIO + U256_1 } else { MAX_SQRT_RATIO - U256_1 };
 
-        let pool_address = pool.get_address();
+        let pool_address = pool.get_address().address_or_zero();
 
         let slot0 = UniswapV3DBReader::slot0(&db, pool_address)?;
         let liquidity = UniswapV3DBReader::liquidity(db, pool_address)?;

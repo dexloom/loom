@@ -1,22 +1,28 @@
-use alloy_primitives::U256;
-
 use crate::SwapComposeData;
+use alloy_primitives::U256;
+use loom_types_blockchain::LoomDataTypes;
 
 #[derive(Default)]
-pub struct BestTxSwapCompose<DB> {
+pub struct BestTxSwapCompose<DB, LDT: LoomDataTypes> {
     validity_pct: Option<U256>,
-    best_profit_swap: Option<SwapComposeData<DB>>,
-    best_profit_gas_ratio_swap: Option<SwapComposeData<DB>>,
-    best_tips_swap: Option<SwapComposeData<DB>>,
-    best_tips_gas_ratio_swap: Option<SwapComposeData<DB>>,
+    best_profit_swap: Option<SwapComposeData<DB, LDT>>,
+    best_profit_gas_ratio_swap: Option<SwapComposeData<DB, LDT>>,
+    best_tips_swap: Option<SwapComposeData<DB, LDT>>,
+    best_tips_gas_ratio_swap: Option<SwapComposeData<DB, LDT>>,
 }
 
-impl<DB: Clone + Default + 'static> BestTxSwapCompose<DB> {
+impl<DB: Clone + Default + 'static, LDT: LoomDataTypes> BestTxSwapCompose<DB, LDT> {
     pub fn new_with_pct<T: Into<U256>>(validity_pct: T) -> Self {
-        BestTxSwapCompose { validity_pct: Some(validity_pct.into()), ..Default::default() }
+        BestTxSwapCompose {
+            validity_pct: Some(validity_pct.into()),
+            best_profit_swap: None,
+            best_profit_gas_ratio_swap: None,
+            best_tips_swap: None,
+            best_tips_gas_ratio_swap: None,
+        }
     }
 
-    pub fn check(&mut self, request: &SwapComposeData<DB>) -> bool {
+    pub fn check(&mut self, request: &SwapComposeData<DB, LDT>) -> bool {
         let mut is_ok = false;
 
         match &self.best_profit_swap {
@@ -25,11 +31,11 @@ impl<DB: Clone + Default + 'static> BestTxSwapCompose<DB> {
                 is_ok = true;
             }
             Some(best_swap) => {
-                if best_swap.swap.abs_profit_eth() < request.swap.abs_profit_eth() {
+                if best_swap.swap.arb_profit_eth() < request.swap.arb_profit_eth() {
                     self.best_profit_swap = Some(request.clone());
                     is_ok = true;
                 } else if let Some(pct) = self.validity_pct {
-                    if (best_swap.swap.abs_profit_eth() * pct) / U256::from(10000) < request.swap.abs_profit_eth() {
+                    if (best_swap.swap.arb_profit_eth() * pct) / U256::from(10000) < request.swap.arb_profit_eth() {
                         is_ok = true
                     }
                 }

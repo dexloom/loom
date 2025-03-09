@@ -1,4 +1,5 @@
 use crate::alloydb::AlloyDB;
+use crate::error::LoomDBError;
 use crate::fast_cache_db::FastDbAccount;
 use crate::fast_hasher::SimpleBuildHasher;
 use crate::loom_db_helper::LoomDBHelper;
@@ -12,16 +13,17 @@ use alloy::rpc::client::ClientBuilder;
 use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
 use alloy::transports::Transport;
 use eyre::{ErrReport, OptionExt, Result};
-use revm::db::{AccountState as DBAccountState, EmptyDBTyped};
-use revm::primitives::{Account, AccountInfo, Bytecode};
+use revm::database::AccountState as DBAccountState;
+use revm::database::EmptyDBTyped;
+use revm::state::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::hash_map::Entry;
 use std::collections::BTreeMap;
+use std::convert::Infallible;
 use std::fmt::{Debug, Formatter};
 use std::sync::Arc;
 use tracing::{error, trace};
 
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 #[derive(Clone)]
 pub struct LoomDB
 where
@@ -32,8 +34,7 @@ where
     pub logs: Vec<Log>,
     pub block_hashes: HashMap<BlockNumber, B256>,
     pub read_only_db: Option<Arc<LoomDB>>,
-    #[cfg_attr(feature = "serde", serde(skip))]
-    pub ext_db: Option<Arc<dyn DatabaseRef<Error = ErrReport> + Send + Sync>>,
+    pub ext_db: Option<Arc<dyn DatabaseRef<Error = LoomDBError> + Send + Sync>>,
 }
 
 impl Debug for LoomDB {
@@ -44,7 +45,7 @@ impl Debug for LoomDB {
 
 impl Default for LoomDB {
     fn default() -> Self {
-        LoomDB::new().with_ext_db(EmptyDBTyped::<ErrReport>::new())
+        LoomDB::new().with_ext_db(EmptyDBTyped::<LoomDBError>::new())
     }
 }
 
@@ -115,10 +116,10 @@ impl LoomDB {
 
     pub fn with_ext_db<ExtDB>(self, ext_db: ExtDB) -> Self
     where
-        ExtDB: DatabaseRef<Error = ErrReport> + Send + Sync + 'static,
+        ExtDB: DatabaseRef<Error = LoomDBError> + Send + Sync + 'static,
         Self: Sized,
     {
-        let ext_db = Arc::new(ext_db) as Arc<dyn DatabaseRef<Error = ErrReport> + Send + Sync>;
+        let ext_db = Arc::new(ext_db) as Arc<dyn DatabaseRef<Error = LoomDBError> + Send + Sync>;
         Self { ext_db: Some(ext_db), ..self }
     }
 
@@ -135,7 +136,7 @@ impl LoomDB {
 
     pub fn new_with_ext_db<ExtDB>(db: LoomDB, ext_db: ExtDB) -> Self
     where
-        ExtDB: DatabaseRef<Error = ErrReport> + Send + Sync + 'static,
+        ExtDB: DatabaseRef<Error = LoomDBError> + Send + Sync + 'static,
         Self: Sized,
     {
         Self::new().with_ro_db(Some(db)).with_ext_db(ext_db)
@@ -457,7 +458,7 @@ impl LoomDB {
 }
 
 impl DatabaseLoomExt for LoomDB {
-    fn with_ext_db(&mut self, arc_db: impl DatabaseRef<Error = ErrReport> + Send + Sync + 'static) {
+    fn with_ext_db(&mut self, arc_db: impl DatabaseRef<Error = LoomDBError> + Send + Sync + 'static) {
         self.ext_db = Some(Arc::new(arc_db))
     }
 
@@ -511,7 +512,7 @@ impl DatabaseLoomExt for LoomDB {
 }
 
 impl DatabaseRef for LoomDB {
-    type Error = eyre::ErrReport;
+    type Error = LoomDBError;
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         trace!(%address, "basic_ref");
         let result = match address {
@@ -566,7 +567,7 @@ impl DatabaseRef for LoomDB {
 }
 
 impl Database for LoomDB {
-    type Error = ErrReport;
+    type Error = LoomDBError;
 
     fn basic(&mut self, address: Address) -> std::result::Result<Option<AccountInfo>, Self::Error> {
         trace!(%address, "basic");
@@ -680,14 +681,16 @@ impl DatabaseCommit for LoomDB {
 mod test {
     use super::GethAccountState;
     use crate::alloydb::AlloyDB;
+    use crate::error::LoomDBError;
     use crate::loom_db::LoomDB;
     use alloy::eips::BlockNumberOrTag;
     use alloy::primitives::map::HashMap;
     use alloy::primitives::{Address, Bytes, B256, I256, U256};
     use alloy::providers::{Provider, ProviderBuilder};
     use eyre::ErrReport;
-    use revm::db::EmptyDBTyped;
-    use revm::primitives::{AccountInfo, Bytecode, KECCAK_EMPTY};
+    use revm::database::EmptyDBTyped;
+    use revm::primitives::KECCAK_EMPTY;
+    use revm::state::{AccountInfo, Bytecode};
     use revm::{Database, DatabaseRef};
     use std::collections::BTreeMap;
 
@@ -893,7 +896,7 @@ mod test {
         init_state.insert_account_storage(account, key0, value0).unwrap();
         init_state.insert_account_storage(account, key1, value1).unwrap();
 
-        let mut new_state = LoomDB::new().with_ro_db(Some(init_state)).with_ext_db(EmptyDBTyped::<ErrReport>::new());
+        let mut new_state = LoomDB::new().with_ro_db(Some(init_state)).with_ext_db(EmptyDBTyped::<LoomDBError>::new());
         assert_eq!(new_state.accounts.len(), 0);
 
         new_state.insert_account_info(
@@ -932,20 +935,5 @@ mod test {
         assert_eq!(new_state.accounts.len(), 2);
         assert_eq!(new_state.basic(account2).unwrap(), None);
         assert_eq!(new_state.accounts.len(), 2);
-    }
-
-    #[cfg(feature = "serde-json")]
-    #[test]
-    fn test_serialize_deserialize_cachedb() {
-        let account = Address::with_last_byte(69);
-        let nonce = 420;
-        let mut init_state = LoomDB::new();
-        init_state.insert_account_info(account, AccountInfo { nonce, ..Default::default() });
-
-        let serialized = serde_json::to_string(&init_state).unwrap();
-        let deserialized: LoomDB = serde_json::from_str(&serialized).unwrap();
-
-        assert!(deserialized.accounts.contains_key(&account));
-        assert_eq!(deserialized.accounts.get(&account).unwrap().info.nonce, nonce);
     }
 }

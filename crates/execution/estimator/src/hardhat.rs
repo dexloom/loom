@@ -36,7 +36,7 @@ async fn estimator_worker<DB: DatabaseRef + Send + Sync + Clone>(
                                     let gas_price = estimate_request.tx_compose.priority_gas_fee + estimate_request.tx_compose.next_block_base_fee;
                                     let gas_cost = U256::from(100_000 * gas_price);
 
-                                    let profit = estimate_request.swap.abs_profit();
+                                    let profit = estimate_request.swap.arb_profit();
                                     if profit.is_zero() {
                                         return Err(eyre!("NO_PROFIT"));
                                     }
@@ -47,14 +47,14 @@ async fn estimator_worker<DB: DatabaseRef + Send + Sync + Clone>(
                                         estimate_request.tips_pct,
                                         Some(estimate_request.tx_compose.next_block_number),
                                         Some(gas_cost),
-                                        Some(tx_signer.address()),
+                                        Some(tx_signer.address().into()),
                                         Some(estimate_request.tx_compose.eth_balance),
                                     )?;
 
                                     let tx_request = TransactionRequest {
                                         transaction_type : Some(2),
                                         chain_id : Some(1),
-                                        from: Some(tx_signer.address()),
+                                        from: Some(tx_signer.address().into()),
                                         to: Some(TxKind::Call(to)),
                                         gas: Some(estimate_request.tx_compose.gas),
                                         value: Some(U256::from(1000)),

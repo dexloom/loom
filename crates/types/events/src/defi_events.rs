@@ -1,6 +1,6 @@
 use alloy_primitives::BlockNumber;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::PoolId;
+use loom_types_entities::EntityAddress;
 
 #[derive(Clone, Debug)]
 pub enum MarketEvents<LDT: LoomDataTypes = LoomDataTypesEthereum> {
@@ -8,7 +8,7 @@ pub enum MarketEvents<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     BlockTxUpdate { block_number: BlockNumber, block_hash: LDT::BlockHash },
     BlockLogsUpdate { block_number: BlockNumber, block_hash: LDT::BlockHash },
     BlockStateUpdate { block_hash: LDT::BlockHash },
-    NewPoolLoaded { pool_id: PoolId<LDT>, swap_path_idx_vec: Vec<usize> },
+    NewPoolLoaded { pool_id: EntityAddress, swap_path_idx_vec: Vec<usize> },
 }
 
 #[derive(Clone, Debug)]

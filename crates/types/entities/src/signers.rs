@@ -1,3 +1,4 @@
+use crate::EntityAddress;
 use alloy_consensus::{SignableTransaction, TxEnvelope};
 use alloy_network::{TransactionBuilder, TxSigner as AlloyTxSigner, TxSignerSync};
 use alloy_primitives::{hex, Address, Bytes, B256};
@@ -16,7 +17,7 @@ use std::sync::Arc;
 pub trait LoomTxSigner<LDT: LoomDataTypes>: Send + Sync + Debug {
     fn sign<'a>(&'a self, tx: LDT::TransactionRequest) -> Pin<Box<dyn std::future::Future<Output = Result<LDT::Transaction>> + Send + 'a>>;
     fn sign_sync(&self, tx: LDT::TransactionRequest) -> Result<LDT::Transaction>;
-    fn address(&self) -> LDT::Address;
+    fn address(&self) -> EntityAddress;
 }
 
 #[derive(Clone)]
@@ -39,8 +40,8 @@ impl fmt::Debug for TxSignerEth {
 }
 
 impl LoomTxSigner<LoomDataTypesEthereum> for TxSignerEth {
-    fn address(&self) -> <LoomDataTypesEthereum as LoomDataTypes>::Address {
-        self.address
+    fn address(&self) -> EntityAddress {
+        self.address.into()
     }
     fn sign<'a>(
         &'a self,
@@ -62,7 +63,7 @@ impl LoomTxSigner<LoomDataTypesEthereum> for TxSignerEth {
                 block_number: None,
                 transaction_index: None,
                 effective_gas_price: None,
-                from: self.address(),
+                from: self.address,
             };
             eyre::Result::<Transaction>::Ok(tx)
         };
@@ -96,7 +97,7 @@ impl LoomTxSigner<LoomDataTypesEthereum> for TxSignerEth {
             block_number: None,
             transaction_index: None,
             effective_gas_price: None,
-            from: self.address(),
+            from: self.address,
         };
         Ok(tx)
     }
@@ -110,13 +111,13 @@ impl TxSignerEth {
 
 #[derive(Clone, Default)]
 pub struct TxSigners<LDT: LoomDataTypes = LoomDataTypesEthereum> {
-    signers: IndexMap<LDT::Address, Arc<dyn LoomTxSigner<LDT>>>,
+    signers: IndexMap<EntityAddress, Arc<dyn LoomTxSigner<LDT>>>,
 }
 
 impl TxSigners<LoomDataTypesEthereum> {
     pub fn add_privkey(&mut self, priv_key: Bytes) -> TxSignerEth {
         let wallet = PrivateKeySigner::from_bytes(&B256::from_slice(priv_key.as_ref())).unwrap();
-        self.signers.insert(wallet.address(), Arc::new(TxSignerEth::new(wallet.clone())));
+        self.signers.insert(wallet.address().into(), Arc::new(TxSignerEth::new(wallet.clone())));
         TxSignerEth::new(wallet)
     }
 
@@ -153,14 +154,14 @@ impl<LDT: LoomDataTypes> TxSigners<LDT> {
         }
     }
 
-    pub fn get_signer_by_address(&self, address: &LDT::Address) -> Result<Arc<dyn LoomTxSigner<LDT>>> {
+    pub fn get_signer_by_address(&self, address: &EntityAddress) -> Result<Arc<dyn LoomTxSigner<LDT>>> {
         match self.signers.get(address) {
             Some(s) => Ok(s.clone()),
             None => Err(eyre!("SIGNER_NOT_FOUND")),
         }
     }
 
-    pub fn get_address_vec(&self) -> Vec<LDT::Address> {
+    pub fn get_address_vec(&self) -> Vec<EntityAddress> {
         self.signers.keys().cloned().collect()
     }
 }

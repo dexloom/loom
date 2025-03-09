@@ -1,7 +1,6 @@
 use crate::pool_abi_encoder::ProtocolAbiSwapEncoderTrait;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::OptionExt;
-use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::Pool;
 
 pub struct CurveProtocolAbiEncoder;
@@ -9,7 +8,7 @@ pub struct CurveProtocolAbiEncoder;
 impl ProtocolAbiSwapEncoderTrait for CurveProtocolAbiEncoder {
     fn encode_swap_in_amount_provided(
         &self,
-        pool: &dyn Pool<LoomDataTypesEthereum>,
+        pool: &dyn Pool,
         token_from_address: Address,
         token_to_address: Address,
         amount: U256,

@@ -1,5 +1,5 @@
 use crate::pool_config::PoolsLoadingConfig;
-use crate::{PoolClass, PoolId, PoolWrapper};
+use crate::{EntityAddress, PoolClass, PoolWrapper};
 use alloy_network::{Ethereum, Network};
 use alloy_primitives::Bytes;
 use alloy_provider::Provider;
@@ -20,21 +20,16 @@ where
     P: Provider<N>,
     LDT: Send + Sync + LoomDataTypes,
 {
-    fn get_pool_class_by_log(&self, log_entry: &LDT::Log) -> Option<(PoolId<LDT>, PoolClass)>;
-    fn fetch_pool_by_id<'a>(&'a self, pool_id: PoolId<LDT>) -> Pin<Box<dyn Future<Output = Result<PoolWrapper<LDT>>> + Send + 'a>>;
+    fn get_pool_class_by_log(&self, log_entry: &LDT::Log) -> Option<(EntityAddress, PoolClass)>;
+    fn fetch_pool_by_id<'a>(&'a self, pool_id: EntityAddress) -> Pin<Box<dyn Future<Output = Result<PoolWrapper>> + Send + 'a>>;
     fn fetch_pool_by_id_from_provider<'a>(
         &'a self,
-        pool_id: PoolId<LDT>,
+        pool_id: EntityAddress,
         provider: P,
-    ) -> Pin<Box<dyn Future<Output = Result<PoolWrapper<LDT>>> + Send + 'a>>;
-    fn fetch_pool_by_id_from_evm(
-        &self,
-        pool_id: PoolId<LDT>,
-        db: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
-    ) -> Result<PoolWrapper<LDT>>;
+    ) -> Pin<Box<dyn Future<Output = Result<PoolWrapper>> + Send + 'a>>;
+    fn fetch_pool_by_id_from_evm(&self, pool_id: EntityAddress, db: &dyn DatabaseRef<Error = ErrReport>, env: Env) -> Result<PoolWrapper>;
     fn is_code(&self, code: &Bytes) -> bool;
-    fn protocol_loader(&self) -> Result<Pin<Box<dyn Stream<Item = (PoolId, PoolClass)> + Send>>>;
+    fn protocol_loader(&self) -> Result<Pin<Box<dyn Stream<Item = (EntityAddress, PoolClass)> + Send>>>;
 }
 
 pub struct PoolLoaders<P, N = Ethereum, LDT = LoomDataTypesEthereum>
@@ -89,10 +84,7 @@ where
     N: Network,
     P: Provider<N> + 'static,
 {
-    pub fn determine_pool_class(
-        &self,
-        log_entry: &<LoomDataTypesEthereum as LoomDataTypes>::Log,
-    ) -> Option<(PoolId<LoomDataTypesEthereum>, PoolClass)> {
+    pub fn determine_pool_class(&self, log_entry: &<LoomDataTypesEthereum as LoomDataTypes>::Log) -> Option<(EntityAddress, PoolClass)> {
         for (pool_class, pool_loader) in self.map.iter() {
             if let Some((pool_id, pool_class)) = pool_loader.get_pool_class_by_log(log_entry) {
                 return Some((pool_id, pool_class));
@@ -122,7 +114,7 @@ where
 
     pub fn load_pool_without_provider<'a>(
         &'a self,
-        pool_id: PoolId<LoomDataTypesEthereum>,
+        pool_id: EntityAddress,
         pool_class: &'a PoolClass,
     ) -> Pin<Box<dyn Future<Output = Result<PoolWrapper>> + Send + 'a>>
     where

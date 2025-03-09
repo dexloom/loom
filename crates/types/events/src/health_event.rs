@@ -4,8 +4,8 @@ use loom_types_entities::{EstimationError, SwapError};
 
 #[derive(Clone, Debug)]
 pub enum HealthEvent<LDT: LoomDataTypes = LoomDataTypesEthereum> {
-    PoolSwapError(SwapError<LDT>),
-    SwapLineEstimationError(EstimationError<LDT>),
+    PoolSwapError(SwapError),
+    SwapLineEstimationError(EstimationError),
     MonitorTx(LDT::TxHash),
 }
 

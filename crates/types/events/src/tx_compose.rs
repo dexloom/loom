@@ -1,7 +1,7 @@
 use crate::{Message, TxState};
 use alloy_primitives::{BlockNumber, Bytes, U256};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::{LoomTxSigner, Swap};
+use loom_types_entities::{EntityAddress, LoomTxSigner, Swap};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]
@@ -34,7 +34,7 @@ pub enum TxComposeMessageType<LDT: LoomDataTypes = LoomDataTypesEthereum> {
 pub struct TxComposeData<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     /// The EOA address that will be used to sign the transaction.
     /// If this is None, the transaction will be signed by a random signer.
-    pub eoa: Option<LDT::Address>,
+    pub eoa: Option<EntityAddress>,
     pub signer: Option<Arc<dyn LoomTxSigner<LDT>>>,
     pub nonce: u64,
     pub eth_balance: U256,

@@ -3,7 +3,6 @@ use alloy_primitives::{Address, Bytes, I256, U160, U256};
 use alloy_sol_types::SolInterface;
 use lazy_static::lazy_static;
 use loom_defi_abi::uniswap3::IUniswapV3Pool;
-use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::Pool;
 use std::ops::Sub;
 
@@ -30,7 +29,7 @@ impl PancakeV3ProtocolAbiEncoder {
 impl ProtocolAbiSwapEncoderTrait for PancakeV3ProtocolAbiEncoder {
     fn encode_swap_in_amount_provided(
         &self,
-        _pool: &dyn Pool<LoomDataTypesEthereum>,
+        _pool: &dyn Pool,
         token_from_address: Address,
         token_to_address: Address,
         amount: U256,

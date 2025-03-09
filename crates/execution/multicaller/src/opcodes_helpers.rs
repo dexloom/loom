@@ -32,7 +32,7 @@ impl OpcodesHelpers {
             SwapAmountType::Balance(balance_of_owner) => {
                 let mut balance_opcode = MulticallerCall::new_static_call(
                     balance_of_token.unwrap(),
-                    &AbiEncoderHelper::encode_erc20_balance_of(balance_of_owner),
+                    &AbiEncoderHelper::encode_erc20_balance_of(balance_of_owner.into()),
                 );
                 balance_opcode.set_return_stack(true, 0, 0x0, 0x20);
                 calls.add(balance_opcode);
@@ -62,8 +62,10 @@ impl OpcodesHelpers {
         let mut multicaller_calls = MulticallerCalls::new();
 
         if let SwapAmountType::Balance(balance_of_owner) = amount {
-            let mut balance_opcode =
-                MulticallerCall::new_static_call(balance_of_token.unwrap(), &AbiEncoderHelper::encode_erc20_balance_of(balance_of_owner));
+            let mut balance_opcode = MulticallerCall::new_static_call(
+                balance_of_token.unwrap(),
+                &AbiEncoderHelper::encode_erc20_balance_of(balance_of_owner.into()),
+            );
             balance_opcode.set_return_stack(true, 0, 0x0, 0x20);
             multicaller_calls.add(balance_opcode);
         }

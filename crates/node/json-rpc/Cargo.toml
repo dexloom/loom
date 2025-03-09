@@ -31,4 +31,7 @@ alloy-pubsub.workspace = true
 alloy-rpc-types.workspace = true
 alloy-transport.workspace = true
 
+#op-alloy
+op-alloy.workspace = true
+
 revm.workspace = true

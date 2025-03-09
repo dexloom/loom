@@ -1,26 +1,26 @@
-use crate::PoolId;
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use crate::EntityAddress;
+use alloy_primitives::Address;
 use std::fmt::Debug;
 use std::hash::{DefaultHasher, Hash, Hasher};
 
 #[derive(Clone, Debug)]
-pub struct SwapDirection<LDT: LoomDataTypes = LoomDataTypesEthereum> {
-    token_from: LDT::Address,
-    token_to: LDT::Address,
+pub struct SwapDirection {
+    token_from: EntityAddress,
+    token_to: EntityAddress,
 }
 
-impl<LDT: LoomDataTypes> SwapDirection<LDT> {
+impl SwapDirection {
     #[inline]
-    pub fn new(token_from: LDT::Address, token_to: LDT::Address) -> Self {
+    pub fn new(token_from: EntityAddress, token_to: EntityAddress) -> Self {
         Self { token_from, token_to }
     }
 
     #[inline]
-    pub fn from(&self) -> &LDT::Address {
+    pub fn from(&self) -> &EntityAddress {
         &self.token_from
     }
     #[inline]
-    pub fn to(&self) -> &LDT::Address {
+    pub fn to(&self) -> &EntityAddress {
         &self.token_to
     }
 
@@ -32,7 +32,7 @@ impl<LDT: LoomDataTypes> SwapDirection<LDT> {
     }
 
     #[inline]
-    pub fn get_hash_with_pool(&self, pool_id: &PoolId<LDT>) -> u64 {
+    pub fn get_hash_with_pool(&self, pool_id: &EntityAddress) -> u64 {
         let mut hasher = DefaultHasher::new();
         self.hash(&mut hasher);
         pool_id.hash(&mut hasher);
@@ -40,23 +40,29 @@ impl<LDT: LoomDataTypes> SwapDirection<LDT> {
     }
 }
 
-impl<LDT: LoomDataTypes> Hash for SwapDirection<LDT> {
+impl Hash for SwapDirection {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.token_from.hash(state);
         self.token_to.hash(state);
     }
 }
 
-impl<LDT: LoomDataTypes> PartialEq for SwapDirection<LDT> {
+impl PartialEq for SwapDirection {
     fn eq(&self, other: &Self) -> bool {
         self.token_from.eq(&other.token_from) && self.token_to.eq(&other.token_to)
     }
 }
 
-impl<LDT: LoomDataTypes> Eq for SwapDirection<LDT> {}
+impl Eq for SwapDirection {}
 
-impl<LDT: LoomDataTypes> From<(LDT::Address, LDT::Address)> for SwapDirection<LDT> {
-    fn from(value: (LDT::Address, LDT::Address)) -> Self {
+impl From<(EntityAddress, EntityAddress)> for SwapDirection {
+    fn from(value: (EntityAddress, EntityAddress)) -> Self {
         Self { token_from: value.0, token_to: value.1 }
+    }
+}
+
+impl From<(Address, Address)> for SwapDirection {
+    fn from(value: (Address, Address)) -> Self {
+        Self { token_from: value.0.into(), token_to: value.1.into() }
     }
 }

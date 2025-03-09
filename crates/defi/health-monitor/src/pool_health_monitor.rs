@@ -11,7 +11,7 @@ use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Con
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::Blockchain;
 use loom_defi_address_book::TokenAddressEth;
-use loom_types_entities::{Market, PoolId, PoolProtocol};
+use loom_types_entities::{EntityAddress, Market, PoolProtocol};
 use loom_types_events::{HealthEvent, MessageHealthEvent};
 
 lazy_static! {
@@ -34,7 +34,7 @@ pub async fn pool_health_monitor_worker(
 ) -> WorkerResult {
     subscribe!(pool_health_monitor_rx);
 
-    let mut pool_errors_map: HashMap<PoolId, u32> = HashMap::new();
+    let mut pool_errors_map: HashMap<EntityAddress, u32> = HashMap::new();
     //let mut estimate_errors_map: HashMap<u64, u32> = HashMap::new();
 
     loop {
@@ -69,7 +69,7 @@ pub async fn pool_health_monitor_worker(
 
 
                                                     //if !market_guard.is_pool_disabled(&pool_id) {
-                                                            market_guard.set_pool_disabled(pool_id, tokens[0], tokens[1], true);
+                                                            market_guard.set_pool_disabled(&pool_id, &tokens[0], &tokens[1], true);
 
                                                             match market_guard.get_pool(&pool_id) {
                                                                 Some(pool)=>{
@@ -90,8 +90,8 @@ pub async fn pool_health_monitor_worker(
                                                                                 .add_field("amount", amount_f64)
                                                                                 .add_tag("id", pool_id)
                                                                                 .add_tag("protocol", pool_protocol)
-                                                                                .add_tag("token_from", tokens[0].to_checksum(None))
-                                                                                .add_tag("token_to", tokens[1].to_checksum(None));
+                                                                                .add_tag("token_from", tokens[0].to_string())
+                                                                                .add_tag("token_to", tokens[1].to_string());
 
                                                                             if let Err(e) = influx_channel_clone.send(write_query) {
                                                                                error!("Failed to failed pool to influxdb: {:?}", e);
@@ -129,7 +129,7 @@ pub async fn pool_health_monitor_worker(
                                             debug!(elapsed = start_time.elapsed().as_micros(), "market_guard market.write acquired");
 
                                             //if !market_guard.is_pool_disabled(&swap_error.pool) {
-                                                market_guard.set_pool_disabled(swap_error.pool, swap_error.token_from, swap_error.token_to, true);
+                                                market_guard.set_pool_disabled(&swap_error.pool, &swap_error.token_from, &swap_error.token_to, true);
 
 
                                                 match market_guard.get_pool(&swap_error.pool) {
@@ -156,8 +156,8 @@ pub async fn pool_health_monitor_worker(
                                                                     .add_field("amount", amount_f64)
                                                                     .add_tag("id", pool_id)
                                                                     .add_tag("protocol", pool_protocol)
-                                                                    .add_tag("token_from", swap_error.token_from.to_checksum(None))
-                                                                    .add_tag("token_to", swap_error.token_to.to_checksum(None));
+                                                                    .add_tag("token_from", swap_error.token_from.to_string())
+                                                                    .add_tag("token_to", swap_error.token_to.to_string());
 
                                                                 if let Err(e) = influx_channel_clone.send(write_query) {
                                                                    error!("Failed to failed pool to influxdb: {:?}", e);

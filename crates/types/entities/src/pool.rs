@@ -7,12 +7,11 @@ use std::sync::Arc;
 
 use crate::required_state::RequiredState;
 use crate::swap_direction::SwapDirection;
-use crate::PoolId;
+use crate::EntityAddress;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use revm::primitives::Env;
 use revm::DatabaseRef;
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, EnumString, VariantNames};
@@ -165,103 +164,103 @@ impl Display for PoolProtocol {
     }
 }
 
-pub struct PoolWrapper<LDT: LoomDataTypes = LoomDataTypesEthereum> {
-    pub pool: Arc<dyn Pool<LDT>>,
+pub struct PoolWrapper {
+    pub pool: Arc<dyn Pool>,
 }
 
-impl<LDT: LoomDataTypes> PartialOrd for PoolWrapper<LDT> {
+impl PartialOrd for PoolWrapper {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<LDT: LoomDataTypes> Eq for PoolWrapper<LDT> {}
+impl Eq for PoolWrapper {}
 
-impl<LDT: LoomDataTypes> Ord for PoolWrapper<LDT> {
+impl Ord for PoolWrapper {
     fn cmp(&self, other: &Self) -> Ordering {
         self.get_address().cmp(&other.get_address())
     }
 }
 
-impl<LDT: LoomDataTypes> Display for PoolWrapper<LDT> {
+impl Display for PoolWrapper {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{:?}", self.get_protocol(), self.get_address())
     }
 }
 
-impl<LDT: LoomDataTypes> Debug for PoolWrapper<LDT> {
+impl Debug for PoolWrapper {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}@{:?}", self.get_protocol(), self.get_address())
     }
 }
 
-impl<LDT: LoomDataTypes> Hash for PoolWrapper<LDT> {
+impl Hash for PoolWrapper {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.get_address().hash(state)
     }
 }
 
-impl<LDT: LoomDataTypes> PartialEq for PoolWrapper<LDT> {
+impl PartialEq for PoolWrapper {
     fn eq(&self, other: &Self) -> bool {
         self.pool.get_address() == other.pool.get_address()
     }
 }
 
-impl<LDT: LoomDataTypes> Clone for PoolWrapper<LDT> {
+impl Clone for PoolWrapper {
     fn clone(&self) -> Self {
         Self { pool: self.pool.clone() }
     }
 }
 
-impl<LDT: LoomDataTypes> Deref for PoolWrapper<LDT> {
-    type Target = dyn Pool<LDT>;
+impl Deref for PoolWrapper {
+    type Target = dyn Pool;
 
     fn deref(&self) -> &Self::Target {
         self.pool.deref()
     }
 }
 
-impl<LDT: LoomDataTypes> AsRef<dyn Pool<LDT>> for PoolWrapper<LDT> {
-    fn as_ref(&self) -> &(dyn Pool<LDT> + 'static) {
+impl AsRef<dyn Pool> for PoolWrapper {
+    fn as_ref(&self) -> &(dyn Pool + 'static) {
         self.pool.as_ref()
     }
 }
 
-impl<LDT: LoomDataTypes> PoolWrapper<LDT> {
-    pub fn new(pool: Arc<dyn Pool<LDT>>) -> Self {
+impl PoolWrapper {
+    pub fn new(pool: Arc<dyn Pool>) -> Self {
         PoolWrapper { pool }
     }
 }
 
-impl<T: 'static + Pool<LoomDataTypesEthereum>> From<T> for PoolWrapper<LoomDataTypesEthereum> {
+impl<T: 'static + Pool> From<T> for PoolWrapper {
     fn from(pool: T) -> Self {
         Self { pool: Arc::new(pool) }
     }
 }
 
-pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
+pub trait Pool: Sync + Send {
     fn as_any(&self) -> &dyn Any;
 
     fn get_class(&self) -> PoolClass;
 
     fn get_protocol(&self) -> PoolProtocol;
 
-    fn get_address(&self) -> LDT::Address;
+    fn get_address(&self) -> EntityAddress;
 
-    fn get_pool_id(&self) -> PoolId<LDT>;
+    fn get_pool_id(&self) -> EntityAddress;
 
     fn get_fee(&self) -> U256;
 
-    fn get_tokens(&self) -> Vec<LDT::Address>;
+    fn get_tokens(&self) -> Vec<EntityAddress>;
 
-    fn get_swap_directions(&self) -> Vec<SwapDirection<LDT>>;
+    fn get_swap_directions(&self) -> Vec<SwapDirection>;
 
     fn calculate_out_amount(
         &self,
         state: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &LDT::Address,
-        token_address_to: &LDT::Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport>;
 
@@ -270,8 +269,8 @@ pub trait Pool<LDT: LoomDataTypes = LoomDataTypesEthereum>: Sync + Send {
         &self,
         state: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &LDT::Address,
-        token_address_to: &LDT::Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport>;
 

@@ -110,7 +110,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                             };
 
 
-                            match SwapStep::merge_swap_paths( req_swap.clone(), swap_path.clone(), multicaller_address ){
+                            match SwapStep::merge_swap_paths( req_swap.clone(), swap_path.clone(), multicaller_address.into() ){
                                 Ok((sp0, sp1)) => {
                                     let latest_block_guard = latest_block.read().await;
                                     let block_header = latest_block_guard.block_header.clone().unwrap();
@@ -146,7 +146,7 @@ async fn arb_swap_path_merger_worker<DB: DatabaseRef<Error = ErrReport> + Send +
                             }
                         }
                         ready_requests.push(compose_data.clone());
-                        ready_requests.sort_by(|r0,r1| r1.swap.abs_profit().cmp(&r0.swap.abs_profit())  )
+                        ready_requests.sort_by(|r0,r1| r1.swap.arb_profit().cmp(&r0.swap.arb_profit())  )
 
                     }
                     Err(e)=>{error!("{}",e)}
@@ -227,7 +227,13 @@ mod test {
         let token = Arc::new(Token::new(Address::random()));
 
         let sp0 = SwapLine {
-            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![], disabled: false },
+            path: SwapPath {
+                tokens: vec![token.clone(), token.clone()],
+                pools: vec![],
+                disabled: false,
+                disabled_pool: Default::default(),
+                score: None,
+            },
             amount_in: SwapAmountType::Set(U256::from(1)),
             amount_out: SwapAmountType::Set(U256::from(2)),
             ..Default::default()
@@ -235,7 +241,13 @@ mod test {
         ready_requests.push(SwapComposeData { swap: Swap::BackrunSwapLine(sp0), ..SwapComposeData::default() });
 
         let sp1 = SwapLine {
-            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![], disabled: false },
+            path: SwapPath {
+                tokens: vec![token.clone(), token.clone()],
+                pools: vec![],
+                disabled: false,
+                disabled_pool: Default::default(),
+                score: None,
+            },
             amount_in: SwapAmountType::Set(U256::from(10)),
             amount_out: SwapAmountType::Set(U256::from(20)),
             ..Default::default()
@@ -243,17 +255,23 @@ mod test {
         ready_requests.push(SwapComposeData { swap: Swap::BackrunSwapLine(sp1), ..SwapComposeData::default() });
 
         let sp2 = SwapLine {
-            path: SwapPath { tokens: vec![token.clone(), token.clone()], pools: vec![], disabled: false },
+            path: SwapPath {
+                tokens: vec![token.clone(), token.clone()],
+                pools: vec![],
+                disabled: false,
+                disabled_pool: Default::default(),
+                score: None,
+            },
             amount_in: SwapAmountType::Set(U256::from(3)),
             amount_out: SwapAmountType::Set(U256::from(5)),
             ..Default::default()
         };
         ready_requests.push(SwapComposeData { swap: Swap::BackrunSwapLine(sp2), ..SwapComposeData::default() });
 
-        ready_requests.sort_by(|a, b| a.swap.abs_profit().cmp(&b.swap.abs_profit()));
+        ready_requests.sort_by(|a, b| a.swap.arb_profit().cmp(&b.swap.arb_profit()));
 
-        assert_eq!(ready_requests[0].swap.abs_profit(), U256::from(1));
-        assert_eq!(ready_requests[1].swap.abs_profit(), U256::from(2));
-        assert_eq!(ready_requests[2].swap.abs_profit(), U256::from(10));
+        assert_eq!(ready_requests[0].swap.arb_profit(), U256::from(1));
+        assert_eq!(ready_requests[1].swap.arb_profit(), U256::from(2));
+        assert_eq!(ready_requests[2].swap.arb_profit(), U256::from(10));
     }
 }

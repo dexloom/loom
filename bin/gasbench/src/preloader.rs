@@ -20,14 +20,14 @@ where
 {
     let mut market_instance = market.write().await;
 
-    market_instance.add_token(Token::new_with_data(TokenAddressEth::WETH, Some("WETH".to_string()), None, Some(18), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddressEth::USDC, Some("USDC".to_string()), None, Some(6), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddressEth::USDT, Some("USDT".to_string()), None, Some(6), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddressEth::DAI, Some("DAI".to_string()), None, Some(18), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddressEth::WBTC, Some("WBTC".to_string()), None, Some(8), true, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddressEth::THREECRV, Some("3Crv".to_string()), None, Some(18), false, true))?;
-    market_instance.add_token(Token::new_with_data(TokenAddressEth::CRV, Some("Crv".to_string()), None, Some(18), false, false))?;
-    market_instance.add_token(Token::new_with_data(TokenAddressEth::LUSD, Some("LUSD".to_string()), None, Some(18), false, false))?;
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::WETH, Some("WETH".to_string()), None, Some(18), true, false));
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::USDC, Some("USDC".to_string()), None, Some(6), true, false));
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::USDT, Some("USDT".to_string()), None, Some(6), true, false));
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::DAI, Some("DAI".to_string()), None, Some(18), true, false));
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::WBTC, Some("WBTC".to_string()), None, Some(8), true, false));
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::THREECRV, Some("3Crv".to_string()), None, Some(18), false, true));
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::CRV, Some("Crv".to_string()), None, Some(18), false, false));
+    market_instance.add_token(Token::new_with_data(TokenAddressEth::LUSD, Some("LUSD".to_string()), None, Some(18), false, false));
 
     drop(market_instance);
 

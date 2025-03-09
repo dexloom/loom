@@ -12,13 +12,14 @@ use loom_core_actors::{Accessor, Actor, ActorResult, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_node_debug_provider::DebugProviderExt;
+use loom_types_blockchain::LoomDataTypes;
 use loom_types_entities::required_state::{RequiredState, RequiredStateReader};
-use loom_types_entities::{Market, MarketState, PoolClass, PoolId, PoolLoaders};
+use loom_types_entities::{EntityAddress, Market, MarketState, PoolClass, PoolLoaders};
 
 async fn required_pools_loader_worker<P, N, DB>(
     client: P,
     pool_loaders: Arc<PoolLoaders<P, N>>,
-    pools: Vec<(PoolId, PoolClass)>,
+    pools: Vec<(EntityAddress, PoolClass)>,
     required_state: Option<RequiredState>,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
@@ -83,7 +84,7 @@ where
 {
     client: P,
     pool_loaders: Arc<PoolLoaders<P, N>>,
-    pools: Vec<(PoolId, PoolClass)>,
+    pools: Vec<(EntityAddress, PoolClass)>,
     required_state: Option<RequiredState>,
     #[accessor]
     market: Option<SharedState<Market>>,
@@ -104,11 +105,11 @@ where
 
     pub fn with_pool_address(self, address: Address, pool_class: PoolClass) -> Self {
         let mut pools = self.pools;
-        pools.push((PoolId::Address(address), pool_class));
+        pools.push((EntityAddress::Address(address), pool_class));
         Self { pools, ..self }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+    pub fn on_bc<LDT: LoomDataTypes>(self, bc: &Blockchain, state: &BlockchainState<DB, LDT>) -> Self {
         Self { market: Some(bc.market()), market_state: Some(state.market_state_commit()), ..self }
     }
 

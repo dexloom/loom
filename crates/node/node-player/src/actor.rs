@@ -13,8 +13,8 @@ use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_evm_db::DatabaseLoomExt;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::Mempool;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use loom_types_entities::MarketState;
 use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate, MessageTxCompose};
 use tokio::task::JoinHandle;
@@ -63,7 +63,7 @@ where
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+    pub fn on_bc<LDT: LoomDataTypes>(self, bc: &Blockchain, state: &BlockchainState<DB, LDT>) -> Self {
         Self {
             mempool: Some(bc.mempool()),
             block_header_channel: Some(bc.new_block_headers_channel()),

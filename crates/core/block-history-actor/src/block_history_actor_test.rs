@@ -24,7 +24,7 @@ mod test {
     };
     use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec};
     use loom_types_entities::MarketState;
-    use loom_types_events::{BlockHeader, Message};
+    use loom_types_events::{BlockHeaderEventData, Message};
     use std::time::Duration;
     use tracing::info;
 
@@ -35,7 +35,7 @@ mod test {
         logs: Option<Vec<Log>>,
         state_update: Option<GethStateUpdateVec>,
     ) -> eyre::Result<()> {
-        let header_msg: MessageBlockHeader = Message::new(BlockHeader::new(header.clone()));
+        let header_msg: MessageBlockHeader = Message::new(BlockHeaderEventData::new(header.clone()));
         if let Err(e) = bc.new_block_headers_channel().send(header_msg) {
             error!("bc.new_block_headers_channel().send : {}", e)
         }

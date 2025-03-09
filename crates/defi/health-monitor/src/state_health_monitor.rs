@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use alloy_eips::BlockNumberOrTag;
 use alloy_network::Ethereum;
-use alloy_primitives::Address;
 use alloy_provider::Provider;
 use chrono::{DateTime, Duration, Local};
 use eyre::Result;
@@ -14,16 +13,18 @@ use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Shar
 use loom_core_actors_macros::{Accessor, Consumer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_evm_db::DatabaseLoomExt;
-use loom_types_entities::MarketState;
+use loom_types_blockchain::LoomDataTypes;
+use loom_types_entities::{EntityAddress, MarketState};
 use loom_types_events::{MarketEvents, MessageTxCompose, TxComposeMessageType};
 use revm::DatabaseRef;
 
 async fn verify_pool_state_task<P: Provider<Ethereum> + 'static, DB: DatabaseLoomExt>(
     client: P,
-    address: Address,
+    address: EntityAddress,
     market_state: SharedState<MarketState<DB>>,
 ) -> Result<()> {
     info!("Verifying state {address:?}");
+    let address = address.address()?;
     let account = market_state.write().await.state_db.load_account(address).cloned()?;
     let read_only_cell_hash_set = market_state.read().await.config.read_only_cells.get(&address).cloned().unwrap_or_default();
 
@@ -64,8 +65,8 @@ pub async fn state_health_monitor_worker<
     let mut tx_compose_channel_rx: Receiver<MessageTxCompose> = tx_compose_channel_rx.subscribe();
     let mut market_events_rx: Receiver<MarketEvents> = market_events_rx.subscribe();
 
-    let mut check_time_map: HashMap<Address, DateTime<Local>> = HashMap::new();
-    let mut pool_address_to_verify_vec: Vec<Address> = Vec::new();
+    let mut check_time_map: HashMap<EntityAddress, DateTime<Local>> = HashMap::new();
+    let mut pool_address_to_verify_vec: Vec<EntityAddress> = Vec::new();
 
     loop {
         tokio::select! {
@@ -142,7 +143,7 @@ where
         StateHealthMonitorActor { client, market_state: None, tx_compose_channel_rx: None, market_events_rx: None }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+    pub fn on_bc<LDT: LoomDataTypes>(self, bc: &Blockchain, state: &BlockchainState<DB, LDT>) -> Self {
         Self {
             market_state: Some(state.market_state()),
             tx_compose_channel_rx: Some(bc.tx_compose_channel()),

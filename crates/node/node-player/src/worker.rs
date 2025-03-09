@@ -7,10 +7,10 @@ use alloy_rpc_types::{BlockTransactions, BlockTransactionsKind, Filter};
 use loom_core_actors::{Broadcaster, SharedState, WorkerResult};
 use loom_evm_db::DatabaseLoomExt;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::{debug_trace_block, Mempool};
+use loom_types_blockchain::{debug_trace_block, LoomDataTypesEthereum, Mempool};
 use loom_types_entities::MarketState;
 use loom_types_events::{
-    BlockHeader, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
+    BlockHeaderEventData, BlockLogs, BlockStateUpdate, BlockUpdate, Message, MessageBlock, MessageBlockHeader, MessageBlockLogs,
     MessageBlockStateUpdate,
 };
 use revm::{Database, DatabaseCommit, DatabaseRef};
@@ -68,7 +68,9 @@ where
             };
 
             if let Some(block_headers_channel) = &new_block_headers_channel {
-                if let Err(e) = block_headers_channel.send(Message::new_with_time(BlockHeader::new(block.header))) {
+                if let Err(e) =
+                    block_headers_channel.send(Message::new_with_time(BlockHeaderEventData::<LoomDataTypesEthereum>::new(block.header)))
+                {
                     error!("new_block_headers_channel.send error: {e}");
                 }
             }

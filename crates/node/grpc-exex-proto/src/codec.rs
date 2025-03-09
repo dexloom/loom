@@ -1,4 +1,5 @@
 use crate::proto;
+use crate::proto::bytecode::Bytecode;
 use alloy_primitives::{Address, BlockHash, Bloom, TxHash, B256, B64, U256};
 use eyre::{eyre, OptionExt};
 use reth::primitives::Block;
@@ -296,10 +297,10 @@ impl TryFrom<(Address, &reth::revm::db::BundleAccount)> for proto::BundleAccount
     }
 }
 
-impl TryFrom<&reth::revm::primitives::AccountInfo> for proto::AccountInfo {
+impl TryFrom<&reth::revm::state::AccountInfo> for proto::AccountInfo {
     type Error = eyre::Error;
 
-    fn try_from(account_info: &reth::revm::primitives::AccountInfo) -> Result<Self, Self::Error> {
+    fn try_from(account_info: &reth::revm::state::AccountInfo) -> Result<Self, Self::Error> {
         Ok(proto::AccountInfo {
             balance: account_info.balance.to_le_bytes_vec(),
             nonce: account_info.nonce,
@@ -309,23 +310,22 @@ impl TryFrom<&reth::revm::primitives::AccountInfo> for proto::AccountInfo {
     }
 }
 
-impl TryFrom<&reth::revm::primitives::Bytecode> for proto::Bytecode {
+impl TryFrom<&reth::revm::bytecode::Bytecode> for proto::Bytecode {
     type Error = eyre::Error;
 
-    fn try_from(bytecode: &reth::revm::primitives::Bytecode) -> Result<Self, Self::Error> {
+    fn try_from(bytecode: &reth::revm::bytecode::Bytecode) -> Result<Self, Self::Error> {
         let bytecode = match bytecode {
-            reth::revm::primitives::Bytecode::LegacyRaw(code) => proto::bytecode::Bytecode::LegacyRaw(code.to_vec()),
-            reth::revm::primitives::Bytecode::LegacyAnalyzed(legacy_analyzed) => {
+            reth::revm::bytecode::Bytecode::LegacyAnalyzed(legacy_analyzed) => {
                 proto::bytecode::Bytecode::LegacyAnalyzed(proto::LegacyAnalyzedBytecode {
                     bytecode: legacy_analyzed.bytecode().to_vec(),
                     original_len: legacy_analyzed.original_len() as u64,
                     jump_table: legacy_analyzed.jump_table().0.iter().by_vals().map(|x| x.into()).collect(),
                 })
             }
-            reth::revm::primitives::Bytecode::Eof(_) => {
+            reth::revm::bytecode::Bytecode::Eof(_) => {
                 eyre::bail!("EOF bytecode not supported");
             }
-            reth::revm::primitives::Bytecode::Eip7702(eip7702) => proto::bytecode::Bytecode::Eip7702(proto::Eip7702Bytecode {
+            reth::revm::bytecode::Bytecode::Eip7702(eip7702) => proto::bytecode::Bytecode::Eip7702(proto::Eip7702Bytecode {
                 delegated_address: eip7702.delegated_address.to_vec(),
                 version: eip7702.version as u64,
                 raw: eip7702.raw.to_vec(),
@@ -706,11 +706,11 @@ impl TryFrom<&proto::AccessListItem> for alloy_eips::eip2930::AccessListItem {
     }
 }
 
-impl TryFrom<&proto::AccountInfo> for reth::revm::primitives::AccountInfo {
+impl TryFrom<&proto::AccountInfo> for reth::revm::state::AccountInfo {
     type Error = eyre::Error;
 
     fn try_from(account_info: &proto::AccountInfo) -> Result<Self, Self::Error> {
-        Ok(reth::revm::primitives::AccountInfo {
+        Ok(reth::revm::state::AccountInfo {
             balance: U256::try_from_le_slice(account_info.balance.as_slice()).ok_or_eyre("failed to parse balance")?,
             nonce: account_info.nonce,
             code_hash: B256::try_from(account_info.code_hash.as_slice())?,
@@ -718,18 +718,16 @@ impl TryFrom<&proto::AccountInfo> for reth::revm::primitives::AccountInfo {
         })
     }
 }
-
-impl TryFrom<&proto::Bytecode> for reth::revm::primitives::Bytecode {
+impl TryFrom<&proto::Bytecode> for reth::revm::bytecode::Bytecode {
     type Error = eyre::Error;
 
     fn try_from(bytecode: &proto::Bytecode) -> Result<Self, Self::Error> {
         Ok(match bytecode.bytecode.as_ref().ok_or_eyre("no bytecode")? {
-            proto::bytecode::Bytecode::LegacyRaw(code) => reth::revm::primitives::Bytecode::LegacyRaw(code.clone().into()),
             proto::bytecode::Bytecode::LegacyAnalyzed(legacy_analyzed) => {
-                reth::revm::primitives::Bytecode::LegacyAnalyzed(reth::revm::primitives::LegacyAnalyzedBytecode::new(
+                reth::revm::bytecode::Bytecode::LegacyAnalyzed(reth::revm::bytecode::LegacyAnalyzedBytecode::new(
                     legacy_analyzed.bytecode.clone().into(),
                     legacy_analyzed.original_len as usize,
-                    reth::revm::primitives::JumpTable::from_slice(
+                    reth::revm::bytecode::JumpTable::from_slice(
                         legacy_analyzed.jump_table.iter().map(|dest| *dest as u8).collect::<Vec<_>>().as_slice(),
                     ),
                 ))
@@ -738,7 +736,7 @@ impl TryFrom<&proto::Bytecode> for reth::revm::primitives::Bytecode {
                 eyre::bail!("EOF bytecode not supported");
             }
             proto::bytecode::Bytecode::Eip7702(eip7702) => {
-                reth::revm::primitives::Bytecode::Eip7702(reth::revm::primitives::Eip7702Bytecode {
+                reth::revm::bytecode::Bytecode::Eip7702(reth::revm::bytecode::eip7702::Eip7702Bytecode {
                     delegated_address: Address::try_from(eip7702.delegated_address.as_slice())?,
                     version: eip7702.version as u8,
                     raw: eip7702.raw.as_slice().to_vec().into(),
@@ -747,7 +745,6 @@ impl TryFrom<&proto::Bytecode> for reth::revm::primitives::Bytecode {
         })
     }
 }
-
 impl From<proto::AccountStatus> for reth::revm::db::AccountStatus {
     fn from(status: proto::AccountStatus) -> Self {
         match status {

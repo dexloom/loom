@@ -17,7 +17,7 @@ use loom_defi_abi::IERC20;
 use loom_defi_address_book::PeripheryAddress;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
+use loom_types_entities::{EntityAddress, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 
@@ -101,8 +101,8 @@ impl PancakeV3Pool {
         }
     }
 
-    pub fn get_price_limit(token_address_from: &Address, token_address_to: &Address) -> U160 {
-        if *token_address_from < *token_address_to {
+    pub fn get_price_limit<T: Ord>(token_address_from: &T, token_address_to: &T) -> U160 {
+        if token_address_from.lt(token_address_to) {
             U160::from(4295128740u64)
         } else {
             U160::from_str_radix("1461446703485210103287273052203988822378723970341", 10).unwrap()
@@ -194,20 +194,20 @@ impl Pool for PancakeV3Pool {
         self.protocol
     }
 
-    fn get_address(&self) -> Address {
-        self.address
+    fn get_address(&self) -> EntityAddress {
+        self.address.into()
     }
 
-    fn get_pool_id(&self) -> PoolId {
-        PoolId::Address(self.address)
+    fn get_pool_id(&self) -> EntityAddress {
+        EntityAddress::Address(self.address)
     }
 
     fn get_fee(&self) -> U256 {
         U256::from(self.fee)
     }
 
-    fn get_tokens(&self) -> Vec<Address> {
-        vec![self.token0, self.token1]
+    fn get_tokens(&self) -> Vec<EntityAddress> {
+        vec![self.token0.into(), self.token1.into()]
     }
 
     fn get_swap_directions(&self) -> Vec<SwapDirection> {
@@ -218,8 +218,8 @@ impl Pool for PancakeV3Pool {
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
@@ -227,8 +227,8 @@ impl Pool for PancakeV3Pool {
 
         let call_data = IPancakeQuoterV2Calls::quoteExactInputSingle(IPancakeQuoterV2::quoteExactInputSingleCall {
             params: IPancakeQuoterV2::QuoteExactInputSingleParams {
-                tokenIn: *token_address_from,
-                tokenOut: *token_address_to,
+                tokenIn: token_address_from.into(),
+                tokenOut: token_address_to.into(),
                 amountIn: in_amount,
                 fee: self.fee,
                 sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(token_address_from, token_address_to),
@@ -251,8 +251,8 @@ impl Pool for PancakeV3Pool {
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let mut env = env;
@@ -260,8 +260,8 @@ impl Pool for PancakeV3Pool {
 
         let call_data = IPancakeQuoterV2Calls::quoteExactOutputSingle(IPancakeQuoterV2::quoteExactOutputSingleCall {
             params: IPancakeQuoterV2::QuoteExactOutputSingleParams {
-                tokenIn: *token_address_from,
-                tokenOut: *token_address_to,
+                tokenIn: token_address_from.into(),
+                tokenOut: token_address_to.into(),
                 amount: out_amount,
                 fee: self.fee,
                 sqrtPriceLimitX96: PancakeV3Pool::get_price_limit(token_address_from, token_address_to),
@@ -326,7 +326,7 @@ impl Pool for PancakeV3Pool {
         })
         .abi_encode();
 
-        let pool_address = self.get_address();
+        let pool_address = self.get_address().address_or_zero();
 
         let mut state_required = RequiredState::new();
         state_required
@@ -406,8 +406,8 @@ impl Pool for PancakeV3Pool {
             )
             .add_call(PeripheryAddress::PANCAKE_V3_QUOTER, quoter_swap_0_1_call)
             .add_call(PeripheryAddress::PANCAKE_V3_QUOTER, quoter_swap_1_0_call)
-            .add_slot_range(self.get_address(), U256::from(0), 0x20)
-            .add_empty_slot_range(self.get_address(), U256::from(0x10000), 0x20);
+            .add_slot_range(self.address, U256::from(0), 0x20)
+            .add_empty_slot_range(self.address, U256::from(0x10000), 0x20);
 
         for token_address in self.get_tokens() {
             state_required.add_call(token_address, IERC20::balanceOfCall { account: pool_address }.abi_encode());

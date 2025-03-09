@@ -8,7 +8,7 @@ use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::FactoryAddress;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
+use loom_types_entities::{EntityAddress, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::any::Any;
@@ -187,13 +187,13 @@ impl UniswapV2Pool {
     pub fn fetch_reserves(&self, state_db: &dyn DatabaseRef<Error = ErrReport>, env: Env) -> Result<(U256, U256)> {
         let (reserve_0, reserve_1) = match self.reserves_cell {
             Some(cell) => {
-                if let Ok(storage_value) = state_db.storage_ref(self.get_address(), cell) {
+                if let Ok(storage_value) = state_db.storage_ref(self.address, cell) {
                     Self::storage_to_reserves(storage_value)
                 } else {
                     return Err(eyre!("ERROR_READING_STATE_DB"));
                 }
             }
-            None => UniswapV2StateReader::get_reserves(&state_db, env, self.get_address())?,
+            None => UniswapV2StateReader::get_reserves(&state_db, env, self.address)?,
         };
         Ok((reserve_0, reserve_1))
     }
@@ -211,19 +211,19 @@ impl Pool for UniswapV2Pool {
         self.protocol
     }
 
-    fn get_address(&self) -> Address {
-        self.address
+    fn get_address(&self) -> EntityAddress {
+        self.address.into()
     }
-    fn get_pool_id(&self) -> PoolId {
-        PoolId::Address(self.address)
+    fn get_pool_id(&self) -> EntityAddress {
+        EntityAddress::Address(self.address)
     }
 
     fn get_fee(&self) -> U256 {
         self.fee
     }
 
-    fn get_tokens(&self) -> Vec<Address> {
-        vec![self.token0, self.token1]
+    fn get_tokens(&self) -> Vec<EntityAddress> {
+        vec![self.token0.into(), self.token1.into()]
     }
 
     fn get_swap_directions(&self) -> Vec<SwapDirection> {
@@ -234,8 +234,8 @@ impl Pool for UniswapV2Pool {
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let (reserves_0, reserves_1) = self.fetch_reserves(state_db, env)?;
@@ -264,13 +264,13 @@ impl Pool for UniswapV2Pool {
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let (reserves_0, reserves_1) = self.fetch_reserves(state_db, env)?;
 
-        let (reserve_in, reserve_out) = match token_address_from < token_address_to {
+        let (reserve_in, reserve_out) = match token_address_from.lt(token_address_to) {
             true => (reserves_0, reserves_1),
             false => (reserves_1, reserves_0),
         };
@@ -316,13 +316,11 @@ impl Pool for UniswapV2Pool {
 
         let reserves_call_data_vec = IUniswapV2Pair::IUniswapV2PairCalls::factory(IUniswapV2Pair::factoryCall {}).abi_encode();
 
-        state_required.add_call(self.get_address(), reserves_call_data_vec).add_slot_range(self.get_address(), U256::from(0), 0x20);
+        state_required.add_call(self.get_address(), reserves_call_data_vec).add_slot_range(self.address, U256::from(0), 0x20);
 
         for token_address in self.get_tokens() {
-            state_required.add_call(
-                token_address,
-                IERC20::IERC20Calls::balanceOf(IERC20::balanceOfCall { account: self.get_address() }).abi_encode(),
-            );
+            state_required
+                .add_call(token_address, IERC20::IERC20Calls::balanceOf(IERC20::balanceOfCall { account: self.address }).abi_encode());
         }
 
         Ok(state_required)
@@ -479,7 +477,8 @@ mod test {
 
             // under test
             let evm_env = Env::default();
-            let (amount_out, gas_used) = pool.calculate_out_amount(&state_db, evm_env.clone(), &pool.token0, &pool.token1, amount_in)?;
+            let (amount_out, gas_used) =
+                pool.calculate_out_amount(&state_db, evm_env.clone(), &pool.token0.into(), &pool.token1.into(), amount_in)?;
 
             assert_eq!(amount_out, contract_amount_out, "{}", format!("Missmatch for pool={:?}, amount_in={}", pool_address, amount_in));
             assert_eq!(gas_used, 100_000);
@@ -508,7 +507,8 @@ mod test {
             let contract_amount_in = fetch_original_contract_amounts(client.clone(), pool_address, amount_out, block_number, false).await?;
 
             // under test
-            let (amount_in, gas_used) = pool.calculate_in_amount(&state_db, Env::default(), &pool.token0, &pool.token1, amount_out)?;
+            let (amount_in, gas_used) =
+                pool.calculate_in_amount(&state_db, Env::default(), &pool.token0.into(), &pool.token1.into(), amount_out)?;
 
             assert_eq!(amount_in, contract_amount_in, "{}", format!("Missmatch for pool={:?}, amount_out={}", pool_address, amount_out));
             assert_eq!(gas_used, 100_000);

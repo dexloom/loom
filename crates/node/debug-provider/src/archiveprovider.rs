@@ -6,13 +6,14 @@ use std::sync::Arc;
 
 use crate::anvilprovider::convert_u64;
 use alloy::eips::BlockId;
+use alloy::network::BlockResponse;
 use alloy::primitives::{Address, StorageValue};
 use alloy::rpc::json_rpc::RpcRecv;
 use alloy::rpc::types::BlockTransactionsKind;
 use alloy::{
     network::Ethereum,
     primitives::{BlockNumber, Bytes, U256, U64},
-    providers::{EthCall, Network, Provider, ProviderCall, RootProvider, RpcWithBlock},
+    providers::{EthCall, EthGetBlock, Network, Provider, ProviderCall, RootProvider, RpcWithBlock},
     rpc::{
         client::{NoParams, RpcCall},
         json_rpc::{Id, Request},
@@ -80,7 +81,7 @@ where
         provider_call
     }
 
-    fn call<'req>(&self, tx: &'req <Ethereum as Network>::TransactionRequest) -> EthCall<'req, Ethereum, Bytes> {
+    fn call(&self, tx: <Ethereum as Network>::TransactionRequest) -> EthCall<Ethereum, Bytes> {
         let call = EthCall::new(self.weak_client(), "eth_call", tx).block(self.block_id());
         debug!("call {:?}", self.block_id());
         call
@@ -92,16 +93,9 @@ where
         rpc_call.block_id(self.block_id())
     }
 
-    fn get_block_by_number<'life0, 'async_trait>(
-        &'life0 self,
-        number: BlockNumberOrTag,
-        tx_kind: BlockTransactionsKind,
-    ) -> Pin<Box<dyn Future<Output = TransportResult<Option<Block>>> + Send + 'async_trait>>
-    where
-        'life0: 'async_trait,
-        Self: 'async_trait,
-    {
-        self.provider.get_block_by_number(number, tx_kind)
+    fn get_block_by_number(&self, number: BlockNumberOrTag) -> EthGetBlock<Block>
+where {
+        self.provider.get_block_by_number(number)
     }
 
     async fn get_filter_changes<R: RpcRecv>(&self, id: U256) -> TransportResult<Vec<R>> {

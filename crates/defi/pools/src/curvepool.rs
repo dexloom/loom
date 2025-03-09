@@ -10,7 +10,7 @@ use loom_defi_abi::IERC20;
 use loom_defi_address_book::TokenAddressEth;
 use loom_evm_utils::evm::evm_call;
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
+use loom_types_entities::{EntityAddress, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::error;
@@ -231,20 +231,20 @@ where
         PoolProtocol::Curve
     }
 
-    fn get_address(&self) -> Address {
-        self.address
+    fn get_address(&self) -> EntityAddress {
+        self.address.into()
     }
 
-    fn get_pool_id(&self) -> PoolId {
-        PoolId::Address(self.address)
+    fn get_pool_id(&self) -> EntityAddress {
+        EntityAddress::Address(self.address)
     }
 
     fn get_fee(&self) -> U256 {
         U256::ZERO
     }
 
-    fn get_tokens(&self) -> Vec<Address> {
-        self.tokens.clone()
+    fn get_tokens(&self) -> Vec<EntityAddress> {
+        self.tokens.clone().into_iter().map(Into::into).collect()
     }
 
     fn get_swap_directions(&self) -> Vec<SwapDirection> {
@@ -277,42 +277,45 @@ where
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         in_amount: U256,
     ) -> Result<(U256, u64)> {
+        let token_address_from: Address = token_address_from.into();
+        let token_address_to: Address = token_address_to.into();
+
         let mut env = env;
         env.tx.gas_limit = 500_000;
 
         let call_data = if self.is_meta {
-            let i: Result<u32> = self.get_coin_idx(*token_address_from);
-            let j: Result<u32> = self.get_coin_idx(*token_address_to);
+            let i: Result<u32> = self.get_coin_idx(token_address_from);
+            let j: Result<u32> = self.get_coin_idx(token_address_to);
             if i.is_ok() && j.is_ok() {
                 self.pool_contract.get_dy_call_data(i.unwrap(), j.unwrap(), in_amount)?
             } else {
-                let i: u32 = self.get_meta_coin_idx(*token_address_from)?;
-                let j: u32 = self.get_meta_coin_idx(*token_address_to)?;
+                let i: u32 = self.get_meta_coin_idx(token_address_from)?;
+                let j: u32 = self.get_meta_coin_idx(token_address_to)?;
                 self.pool_contract.get_dy_underlying_call_data(i, j, in_amount)?
             }
         } else if let Some(lp_token) = self.lp_token {
-            if *token_address_from == lp_token {
-                let i: u32 = self.get_coin_idx(*token_address_to)?;
+            if token_address_from == lp_token {
+                let i: u32 = self.get_coin_idx(token_address_to)?;
                 self.pool_contract.calc_withdraw_one_coin_call_data(i, in_amount)?
-            } else if *token_address_to == lp_token {
-                let i: u32 = self.get_coin_idx(*token_address_from)?;
+            } else if token_address_to == lp_token {
+                let i: u32 = self.get_coin_idx(token_address_from)?;
                 self.pool_contract.calc_token_amount_call_data(i, in_amount)?
             } else {
-                let i: u32 = self.get_coin_idx(*token_address_from)?;
-                let j: u32 = self.get_coin_idx(*token_address_to)?;
+                let i: u32 = self.get_coin_idx(token_address_from)?;
+                let j: u32 = self.get_coin_idx(token_address_to)?;
                 self.pool_contract.get_dy_call_data(i, j, in_amount)?
             }
         } else {
-            let i: u32 = self.get_coin_idx(*token_address_from)?;
-            let j: u32 = self.get_coin_idx(*token_address_to)?;
+            let i: u32 = self.get_coin_idx(token_address_from)?;
+            let j: u32 = self.get_coin_idx(token_address_to)?;
             self.pool_contract.get_dy_call_data(i, j, in_amount)?
         };
 
-        let (value, gas_used) = evm_call(state_db, env, self.get_address(), call_data.to_vec())?;
+        let (value, gas_used) = evm_call(state_db, env, self.address, call_data.to_vec())?;
 
         let ret = if value.len() > 32 { U256::from_be_slice(&value[0..32]) } else { U256::from_be_slice(&value[0..]) };
 
@@ -327,19 +330,22 @@ where
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         env: Env,
-        token_address_from: &Address,
-        token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         out_amount: U256,
     ) -> Result<(U256, u64)> {
+        let token_address_from: Address = token_address_from.into();
+        let token_address_to: Address = token_address_to.into();
+
         if self.pool_contract.can_calculate_in_amount() {
             let mut env = env;
             env.tx.gas_limit = 500_000;
 
-            let i: u32 = self.get_coin_idx(*token_address_from)?;
-            let j: u32 = self.get_coin_idx(*token_address_to)?;
+            let i: u32 = self.get_coin_idx(token_address_from)?;
+            let j: u32 = self.get_coin_idx(token_address_to)?;
             let call_data = self.pool_contract.get_dx_call_data(i, j, out_amount)?;
 
-            let (value, gas_used) = evm_call(state_db, env, self.get_address(), call_data.to_vec())?;
+            let (value, gas_used) = evm_call(state_db, env, self.address, call_data.to_vec())?;
 
             let ret = if value.len() > 32 { U256::from_be_slice(&value[0..32]) } else { U256::from_be_slice(&value[0..]) };
 
@@ -429,10 +435,10 @@ where
                 }
             }
         }
-        state_reader.add_slot_range(self.get_address(), U256::from(0), 0x20);
+        state_reader.add_slot_range(self.address, U256::from(0), 0x20);
 
         for token_address in self.get_tokens() {
-            state_reader.add_call(token_address, IERC20::balanceOfCall { account: self.get_address() }.abi_encode());
+            state_reader.add_call(token_address, IERC20::balanceOfCall { account: self.address }.abi_encode());
         }
         Ok(state_reader)
     }
@@ -682,13 +688,13 @@ mod tests {
                     let in_amount = balances[i] / U256::from(1000);
                     let token_in = tokens[i];
                     let (out_amount, gas_used) = pool
-                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &lp_token, in_amount)
+                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in.into(), &lp_token.into(), in_amount)
                         .unwrap_or_default();
                     debug!("LP {:?} {} -> {} : {} -> {} gas : {}", pool.get_address(), token_in, lp_token, in_amount, out_amount, gas_used);
                     assert!(gas_used > 50000);
 
                     let (out_amount2, gas_used) = pool
-                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &lp_token, &token_in, out_amount)
+                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &lp_token.into(), &token_in.into(), out_amount)
                         .unwrap_or_default();
                     debug!(
                         "LP {:?} {} -> {} : {} -> {} gas : {}",
@@ -712,7 +718,7 @@ mod tests {
                     let token_in = tokens[0];
                     let token_out = underlying_token;
                     let (out_amount, gas_used) = pool
-                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in, &token_out, in_amount)
+                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_in.into(), &token_out.into(), in_amount)
                         .unwrap_or_default();
                     debug!(
                         "Meta {:?} {} -> {} : {} -> {} gas: {}",
@@ -724,7 +730,7 @@ mod tests {
                         gas_used
                     );
                     let (out_amount2, gas_used) = pool
-                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_out, &token_in, out_amount)
+                        .calculate_out_amount(&market_state.state_db, evm_env.clone(), &token_out.into(), &token_in.into(), out_amount)
                         .unwrap_or_default();
                     debug!(
                         "Meta {:?} {} -> {} : {} -> {} gas : {} ",

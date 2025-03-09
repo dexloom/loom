@@ -6,9 +6,8 @@ use tracing::trace;
 use crate::opcodes_encoder::{OpcodesEncoder, OpcodesEncoderV2};
 use crate::SwapLineEncoder;
 use loom_defi_abi::AbiEncoderHelper;
-use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
-use loom_types_entities::{SwapAmountType, SwapStep};
+use loom_types_entities::{EntityAddress, SwapAmountType, SwapStep};
 
 lazy_static! {
     static ref BALANCER_VAULT_ADDRESS: Address = "0xBA12222222228d8Ba445958a75a0704d566BF2C8".parse().unwrap();
@@ -52,8 +51,8 @@ impl SwapStepEncoder {
         self.swap_line_encoder.encode_tips(swap_opcodes, token_address, min_balance, tips, funds_to)
     }
 
-    pub fn encode_balancer_flash_loan(&self, steps: Vec<SwapStep<LoomDataTypesEthereum>>) -> Result<MulticallerCalls> {
-        let flash_funds_to = self.multicaller_address;
+    pub fn encode_balancer_flash_loan(&self, steps: Vec<SwapStep>) -> Result<MulticallerCalls> {
+        let flash_funds_to = EntityAddress::Address(self.multicaller_address);
 
         let mut swap_opcodes = MulticallerCalls::new();
 
@@ -85,24 +84,20 @@ impl SwapStepEncoder {
         let mut flash_opcodes = MulticallerCalls::new();
 
         let flash_call_data =
-            AbiEncoderHelper::encode_balancer_flashloan(token.get_address(), in_amount, inside_call_bytes, self.multicaller_address);
+            AbiEncoderHelper::encode_balancer_flashloan(token.get_address().into(), in_amount, inside_call_bytes, self.multicaller_address);
 
         flash_opcodes.add(MulticallerCall::new_call(*BALANCER_VAULT_ADDRESS, &flash_call_data));
 
         Ok(flash_opcodes)
     }
 
-    pub fn encode_in_amount(
-        &self,
-        flash_step: SwapStep<LoomDataTypesEthereum>,
-        swap_step: SwapStep<LoomDataTypesEthereum>,
-    ) -> Result<MulticallerCalls> {
+    pub fn encode_in_amount(&self, flash_step: SwapStep, swap_step: SwapStep) -> Result<MulticallerCalls> {
         let mut swap_step = swap_step;
 
         //let flash_funds_to = self.multicaller_address;
 
         if flash_step.len() > 1 || swap_step.len() > 1 {
-            swap_step.get_mut_swap_line_by_index(swap_step.len() - 1).amount_in = SwapAmountType::Balance(self.multicaller_address);
+            swap_step.get_mut_swap_line_by_index(swap_step.len() - 1).amount_in = SwapAmountType::Balance(self.multicaller_address.into());
         }
 
         let mut swap_opcodes = MulticallerCalls::new();
@@ -135,11 +130,7 @@ impl SwapStepEncoder {
         Ok(swap_opcodes)
     }
 
-    pub fn encode_out_amount(
-        &self,
-        swap_step: SwapStep<LoomDataTypesEthereum>,
-        flash_step: SwapStep<LoomDataTypesEthereum>,
-    ) -> Result<MulticallerCalls> {
+    pub fn encode_out_amount(&self, swap_step: SwapStep, flash_step: SwapStep) -> Result<MulticallerCalls> {
         let mut swap_opcodes = MulticallerCalls::new();
 
         if swap_step.swap_line_vec().len() == 1 {
@@ -174,11 +165,7 @@ impl SwapStepEncoder {
         Ok((self.multicaller_address, call_data))
     }
 
-    pub fn encode_swap_steps(
-        &self,
-        sp0: &SwapStep<LoomDataTypesEthereum>,
-        sp1: &SwapStep<LoomDataTypesEthereum>,
-    ) -> Result<MulticallerCalls> {
+    pub fn encode_swap_steps(&self, sp0: &SwapStep, sp1: &SwapStep) -> Result<MulticallerCalls> {
         if sp0.can_flash_swap() {
             trace!("encode_swap_steps -> sp0.can_flash_swap()");
             self.encode_in_amount(sp0.clone(), sp1.clone())

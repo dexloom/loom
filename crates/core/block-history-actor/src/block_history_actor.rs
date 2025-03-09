@@ -1,33 +1,37 @@
-use alloy_network::Ethereum;
-use alloy_primitives::{BlockHash, BlockNumber};
+use alloy_network::{Ethereum, Network};
+use alloy_primitives::{Address, BlockHash, BlockNumber};
 use alloy_provider::Provider;
-use alloy_rpc_types::Header;
+use alloy_rpc_types::{Block, Header, Log};
 use eyre::{eyre, Result};
 use loom_core_actors::{run_sync, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
 use loom_evm_db::DatabaseLoomExt;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::ChainParameters;
+use loom_types_blockchain::{ChainParameters, GethStateUpdateVec, LoomBlock, LoomDataTypes, LoomDataTypesEVM};
+use loom_types_blockchain::{GethStateUpdate, LoomHeader};
 use loom_types_entities::{BlockHistory, BlockHistoryManager, BlockHistoryState, LatestBlock, MarketState};
 use loom_types_events::{MarketEvents, MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::borrow::BorrowMut;
+use std::marker::PhantomData;
 use std::ops::DerefMut;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::{debug, error, info, trace, warn};
 
-pub async fn set_chain_head<P, DB>(
-    block_history_manager: &BlockHistoryManager<P, DB>,
-    block_history: &mut BlockHistory<DB>,
-    latest_block: &mut LatestBlock,
-    market_events_tx: Broadcaster<MarketEvents>,
-    header: Header,
+pub async fn set_chain_head<P, N, DB, LDT>(
+    block_history_manager: &BlockHistoryManager<P, N, DB, LDT>,
+    block_history: &mut BlockHistory<DB, LDT>,
+    latest_block: &mut LatestBlock<LDT>,
+    market_events_tx: Broadcaster<MarketEvents<LDT>>,
+    header: LDT::Header,
     chain_parameters: &ChainParameters,
 ) -> Result<(bool, usize)>
 where
-    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
-    DB: Clone,
+    N: Network<BlockResponse = LDT::Block>,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
+    DB: BlockHistoryState<LDT> + Clone,
+    LDT: LoomDataTypesEVM,
 {
     let block_number = header.number;
     let block_hash = header.hash;
@@ -65,21 +69,23 @@ where
 }
 
 #[allow(clippy::too_many_arguments)]
-pub async fn new_block_history_worker<P, DB>(
+pub async fn new_block_history_worker<P, N, DB, LDT>(
     client: P,
     chain_parameters: ChainParameters,
-    latest_block: SharedState<LatestBlock>,
+    latest_block: SharedState<LatestBlock<LDT>>,
     market_state: SharedState<MarketState<DB>>,
-    block_history: SharedState<BlockHistory<DB>>,
-    block_header_update_rx: Broadcaster<MessageBlockHeader>,
-    block_update_rx: Broadcaster<MessageBlock>,
-    log_update_rx: Broadcaster<MessageBlockLogs>,
-    state_update_rx: Broadcaster<MessageBlockStateUpdate>,
-    market_events_tx: Broadcaster<MarketEvents>,
+    block_history: SharedState<BlockHistory<DB, LDT>>,
+    block_header_update_rx: Broadcaster<MessageBlockHeader<LDT>>,
+    block_update_rx: Broadcaster<MessageBlock<LDT>>,
+    log_update_rx: Broadcaster<MessageBlockLogs<LDT>>,
+    state_update_rx: Broadcaster<MessageBlockStateUpdate<LDT>>,
+    market_events_tx: Broadcaster<MarketEvents<LDT>>,
 ) -> WorkerResult
 where
-    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
-    DB: BlockHistoryState + DatabaseRef + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
+    N: Network<BlockResponse = LDT::Block>,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
+    DB: BlockHistoryState<LDT> + DatabaseRef + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
+    LDT: LoomDataTypesEVM,
 {
     subscribe!(block_header_update_rx);
     subscribe!(block_update_rx);
@@ -88,18 +94,20 @@ where
 
     debug!("new_block_history_worker started");
 
-    let block_history_manager = BlockHistoryManager::new(client);
+    let block_history_manager = BlockHistoryManager::<P, N, DB, LDT>::new(client);
 
     loop {
         tokio::select! {
             msg = block_header_update_rx.recv() => {
-                let block_update : Result<MessageBlockHeader, RecvError>  = msg;
+                let block_update : Result<MessageBlockHeader<LDT>, RecvError>  = msg;
                 match block_update {
                     Ok(block_header)=>{
                         let mut block_history_guard = block_history.write().await;
                         let mut latest_block_guard = latest_block.write().await;
 
-                        debug!("Block Header, Update {} {}", block_header.header.number, block_header.header.hash_slow());
+                        let header = block_header.inner.header.clone();
+
+                        debug!("Block Header, Update {} {}", <alloy_rpc_types::Header as LoomHeader<LDT>>::get_number(&header), <alloy_rpc_types::Header as LoomHeader<LDT>>::get_hash(&header));
 
 
                         set_chain_head(
@@ -118,11 +126,11 @@ where
             }
 
             msg = block_update_rx.recv() => {
-                let block_update : Result<MessageBlock, RecvError>  = msg;
+                let block_update : Result<MessageBlock<LDT>, RecvError>  = msg;
                 match block_update {
                     Ok(block)=>{
                         let block = block.inner.block;
-                        let block_header : Header = block.header.clone();
+                        let block_header : Header = block.get_header().clone();
                         let block_hash : BlockHash = block_header.hash;
                         let block_number : BlockNumber = block_header.number;
 
@@ -168,7 +176,7 @@ where
                 }
             }
             msg = log_update_rx.recv() => {
-                let log_update : Result<MessageBlockLogs, RecvError>  = msg;
+                let log_update : Result<MessageBlockLogs<LDT>, RecvError>  = msg;
                 match log_update {
                     Ok(msg) =>{
                         let blocklogs = msg.inner;
@@ -219,7 +227,7 @@ where
             }
             msg = state_update_rx.recv() => {
 
-                let state_update_msg : Result<MessageBlockStateUpdate, RecvError> = msg;
+                let state_update_msg : Result<MessageBlockStateUpdate<LDT>, RecvError> = msg;
 
                 let msg = match state_update_msg {
                     Ok(message_block_state_update) => message_block_state_update,
@@ -343,31 +351,34 @@ where
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct BlockHistoryActor<P, DB> {
+pub struct BlockHistoryActor<P, N, DB, LDT: LoomDataTypes + 'static> {
     client: P,
     chain_parameters: ChainParameters,
     #[accessor]
-    latest_block: Option<SharedState<LatestBlock>>,
+    latest_block: Option<SharedState<LatestBlock<LDT>>>,
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
-    block_history: Option<SharedState<BlockHistory<DB>>>,
+    block_history: Option<SharedState<BlockHistory<DB, LDT>>>,
     #[consumer]
-    block_header_update_rx: Option<Broadcaster<MessageBlockHeader>>,
+    block_header_update_rx: Option<Broadcaster<MessageBlockHeader<LDT>>>,
     #[consumer]
-    block_update_rx: Option<Broadcaster<MessageBlock>>,
+    block_update_rx: Option<Broadcaster<MessageBlock<LDT>>>,
     #[consumer]
-    log_update_rx: Option<Broadcaster<MessageBlockLogs>>,
+    log_update_rx: Option<Broadcaster<MessageBlockLogs<LDT>>>,
     #[consumer]
-    state_update_rx: Option<Broadcaster<MessageBlockStateUpdate>>,
+    state_update_rx: Option<Broadcaster<MessageBlockStateUpdate<LDT>>>,
     #[producer]
-    market_events_tx: Option<Broadcaster<MarketEvents>>,
+    market_events_tx: Option<Broadcaster<MarketEvents<LDT>>>,
+    _n: PhantomData<N>,
 }
 
-impl<P, DB> BlockHistoryActor<P, DB>
+impl<P, N, DB, LDT> BlockHistoryActor<P, N, DB, LDT>
 where
-    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Sync + Send + Clone + 'static,
-    DB: DatabaseRef + BlockHistoryState + DatabaseLoomExt + DatabaseCommit + Database + Send + Sync + Clone + Default + 'static,
+    N: Network,
+    P: Provider<N> + DebugProviderExt<Ethereum> + Sync + Send + Clone + 'static,
+    DB: DatabaseRef + BlockHistoryState<LDT> + DatabaseLoomExt + DatabaseCommit + Database + Send + Sync + Clone + Default + 'static,
+    LDT: LoomDataTypes + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -381,10 +392,11 @@ where
             log_update_rx: None,
             state_update_rx: None,
             market_events_tx: None,
+            _n: PhantomData,
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<LDT>, state: &BlockchainState<DB, LDT>) -> Self {
         Self {
             chain_parameters: bc.chain_parameters(),
             latest_block: Some(bc.latest_block()),
@@ -400,10 +412,12 @@ where
     }
 }
 
-impl<P, DB> Actor for BlockHistoryActor<P, DB>
+impl<P, N, DB, LDT> Actor for BlockHistoryActor<P, N, DB, LDT>
 where
-    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Sync + Send + Clone + 'static,
-    DB: BlockHistoryState + DatabaseRef + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
+    N: Network<BlockResponse = LDT::Block>,
+    P: Provider<N> + DebugProviderExt<N> + Sync + Send + Clone + 'static,
+    DB: BlockHistoryState<LDT> + DatabaseRef + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
+    LDT: LoomDataTypesEVM,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_block_history_worker(

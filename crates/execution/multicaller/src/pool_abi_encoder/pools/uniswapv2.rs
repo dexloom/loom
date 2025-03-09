@@ -3,7 +3,6 @@ use alloy_primitives::{Address, Bytes, U256};
 use alloy_sol_types::SolInterface;
 use eyre::eyre;
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
-use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::Pool;
 
 pub struct UniswapV2ProtocolAbiEncoder;
@@ -18,7 +17,7 @@ impl UniswapV2ProtocolAbiEncoder {
 impl ProtocolAbiSwapEncoderTrait for UniswapV2ProtocolAbiEncoder {
     fn encode_swap_in_amount_provided(
         &self,
-        _pool: &dyn Pool<LoomDataTypesEthereum>,
+        _pool: &dyn Pool,
         _token_from_address: Address,
         _token_to_address: Address,
         _amount: U256,

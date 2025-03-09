@@ -10,7 +10,7 @@ use eyre::{eyre, Result};
 use tracing::{error, trace};
 
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec};
+use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, LoomDataTypesEVM};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug, Default)]
@@ -67,9 +67,13 @@ impl RequiredState {
 pub struct RequiredStateReader {}
 
 impl RequiredStateReader {
-    pub async fn fetch_calls_and_slots<N: Network, C: DebugProviderExt<N> + Provider<N> + Clone + 'static>(
+    pub async fn fetch_calls_and_slots<
+        N: Network<TransactionRequest = LDT::TransactionRequest>,
+        C: DebugProviderExt<N> + Provider<N> + Clone + 'static,
+        LDT: LoomDataTypesEVM,
+    >(
         client: C,
-        required_state: RequiredState,
+        required_state: RequiredState<LDT>,
         block_number: Option<BlockNumber>,
     ) -> Result<GethStateUpdate> {
         let block_id = if block_number.is_none() {
@@ -80,7 +84,7 @@ impl RequiredStateReader {
 
         let mut ret: GethStateUpdate = GethStateUpdate::new();
         for req in required_state.calls.into_iter() {
-            let to = req.to.unwrap_or_default().to().map_or(Address::ZERO, |x| *x);
+            let to = req.to().unwrap_or_default().to().map_or(Address::ZERO, |x| *x);
 
             let call_result = debug_trace_call_pre_state(client.clone(), req, block_id, None).await;
             trace!("trace_call_result: {:?}", call_result);

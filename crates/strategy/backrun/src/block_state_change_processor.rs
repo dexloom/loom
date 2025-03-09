@@ -3,20 +3,20 @@ use eyre::eyre;
 use loom_core_actors::{run_sync, subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
-use loom_types_blockchain::ChainParameters;
-use loom_types_blockchain::LoomDataTypesEthereum;
+use loom_types_blockchain::{ChainParameters, LoomDataTypes};
+use loom_types_blockchain::{LoomDataTypesEVM, LoomDataTypesEthereum};
 use loom_types_entities::{BlockHistory, Market};
 use loom_types_events::{MarketEvents, StateUpdateEvent};
 use revm::DatabaseRef;
 use tokio::sync::broadcast::error::RecvError;
 use tracing::error;
 
-pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + 'static>(
+pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + 'static, LDT: LoomDataTypesEVM>(
     chain_parameters: ChainParameters,
     market: SharedState<Market>,
-    block_history: SharedState<BlockHistory<DB>>,
-    market_events_rx: Broadcaster<MarketEvents>,
-    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB, LoomDataTypesEthereum>>,
+    block_history: SharedState<BlockHistory<DB, LDT>>,
+    market_events_rx: Broadcaster<MarketEvents<LDT>>,
+    state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB, LDT>>,
 ) -> WorkerResult {
     subscribe!(market_events_rx);
 
@@ -83,20 +83,20 @@ pub async fn block_state_change_worker<DB: DatabaseRef + Send + Sync + Clone + '
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct BlockStateChangeProcessorActor<DB: Clone + Send + Sync + 'static> {
+pub struct BlockStateChangeProcessorActor<DB: Clone + Send + Sync + 'static, LDT: LoomDataTypesEVM + 'static> {
     chain_parameters: ChainParameters,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
-    block_history: Option<SharedState<BlockHistory<DB>>>,
+    block_history: Option<SharedState<BlockHistory<DB, LDT>>>,
     #[consumer]
-    market_events_rx: Option<Broadcaster<MarketEvents>>,
+    market_events_rx: Option<Broadcaster<MarketEvents<LDT>>>,
     #[producer]
-    state_updates_tx: Option<Broadcaster<StateUpdateEvent<DB>>>,
+    state_updates_tx: Option<Broadcaster<StateUpdateEvent<DB, LDT>>>,
 }
 
-impl<DB: DatabaseRef + Send + Sync + Clone + 'static> BlockStateChangeProcessorActor<DB> {
-    pub fn new() -> BlockStateChangeProcessorActor<DB> {
+impl<DB: DatabaseRef + Send + Sync + Clone + 'static, LDT: LoomDataTypesEVM> BlockStateChangeProcessorActor<DB, LDT> {
+    pub fn new() -> BlockStateChangeProcessorActor<DB, LDT> {
         BlockStateChangeProcessorActor {
             chain_parameters: ChainParameters::ethereum(),
             market: None,
@@ -106,7 +106,7 @@ impl<DB: DatabaseRef + Send + Sync + Clone + 'static> BlockStateChangeProcessorA
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, state: &BlockchainState<DB>, strategy: &Strategy<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<LDT>, state: &BlockchainState<DB, LDT>, strategy: &Strategy<DB, LDT>) -> Self {
         Self {
             chain_parameters: bc.chain_parameters(),
             market: Some(bc.market()),
@@ -117,13 +117,13 @@ impl<DB: DatabaseRef + Send + Sync + Clone + 'static> BlockStateChangeProcessorA
     }
 }
 
-impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Default for BlockStateChangeProcessorActor<DB> {
+impl<DB: DatabaseRef + Send + Sync + Clone + 'static, LDT: LoomDataTypesEVM> Default for BlockStateChangeProcessorActor<DB, LDT> {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<DB: DatabaseRef + Send + Sync + Clone + 'static> Actor for BlockStateChangeProcessorActor<DB> {
+impl<DB: DatabaseRef + Send + Sync + Clone + 'static, LDT: LoomDataTypesEVM> Actor for BlockStateChangeProcessorActor<DB, LDT> {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(block_state_change_worker(
             self.chain_parameters.clone(),

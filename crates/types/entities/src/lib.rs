@@ -6,13 +6,13 @@ pub use account_nonce_balance::{AccountNonceAndBalanceState, AccountNonceAndBala
 pub use block_history::{BlockHistory, BlockHistoryEntry, BlockHistoryManager, BlockHistoryState};
 pub use calculation_result::CalculationResult;
 pub use datafetcher::{DataFetcher, FetchState};
+pub use entity_address::EntityAddress;
 pub use keystore::KeyStore;
 pub use latest_block::LatestBlock;
 pub use market::Market;
 pub use market_state::MarketState;
 pub use mock_pool::MockPool;
 pub use pool::{get_protocol_by_factory, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PoolWrapper, PreswapRequirement};
-pub use pool_id::PoolId;
 pub use pool_loader::{PoolLoader, PoolLoaders};
 pub use signers::{LoomTxSigner, TxSignerEth, TxSigners};
 pub use swap::Swap;
@@ -50,9 +50,8 @@ mod datafetcher;
 mod mock_pool;
 pub mod strategy_config;
 
-mod mock_pool_generic;
+mod entity_address;
 pub mod pool_config;
-mod pool_id;
 mod pool_loader;
 mod swap;
 mod swap_direction;

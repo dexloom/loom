@@ -121,7 +121,7 @@ where
                                             ..sign_request.clone()
                                         }
                                     );
-                                    info!("+++ Calculation finished. Merge list : {} profit : {}",merge_list.len(), NWETH::to_float(encode_request.inner.swap.abs_profit_eth())  );
+                                    info!("+++ Calculation finished. Merge list : {} profit : {}",merge_list.len(), NWETH::to_float(encode_request.inner.swap.arb_profit_eth())  );
 
                                     if let Err(e) = compose_channel_tx.send(encode_request) {
                                        error!("{}",e)
@@ -129,7 +129,7 @@ where
                                 }
 
                                 swap_paths.push(sign_request.clone());
-                                swap_paths.sort_by(|a, b| b.swap.abs_profit_eth().cmp(&a.swap.abs_profit_eth() ) )
+                                swap_paths.sort_by(|a, b| b.swap.arb_profit_eth().cmp(&a.swap.arb_profit_eth() ) )
                             }
                         }
                     }

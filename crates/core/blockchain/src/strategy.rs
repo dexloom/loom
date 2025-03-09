@@ -11,30 +11,24 @@ pub struct Strategy<DB: Clone + Send + Sync + 'static, LDT: LoomDataTypes + 'sta
     state_update_channel: Broadcaster<StateUpdateEvent<DB, LDT>>,
 }
 
-impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseLoomExt + Send + Sync + Clone + Default + 'static> Default
-    for Strategy<DB, LoomDataTypesEthereum>
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState + DatabaseLoomExt + Send + Sync + Clone + Default + 'static>
-    Strategy<DB, LoomDataTypesEthereum>
+impl<
+        DB: DatabaseRef + Database + DatabaseCommit + BlockHistoryState<LDT> + DatabaseLoomExt + Send + Sync + Clone + Default + 'static,
+        LDT: LoomDataTypes,
+    > Strategy<DB, LDT>
 {
     pub fn new() -> Self {
-        let compose_channel: Broadcaster<MessageSwapCompose<DB, LoomDataTypesEthereum>> = Broadcaster::new(100);
-        let state_update_channel: Broadcaster<StateUpdateEvent<DB, LoomDataTypesEthereum>> = Broadcaster::new(100);
+        let compose_channel: Broadcaster<MessageSwapCompose<DB, LDT>> = Broadcaster::new(100);
+        let state_update_channel: Broadcaster<StateUpdateEvent<DB, LDT>> = Broadcaster::new(100);
         Strategy { swap_compose_channel: compose_channel, state_update_channel }
     }
 }
 
-impl<DB: Send + Sync + Clone + 'static> Strategy<DB, LoomDataTypesEthereum> {
-    pub fn swap_compose_channel(&self) -> Broadcaster<MessageSwapCompose<DB, LoomDataTypesEthereum>> {
+impl<DB: Send + Sync + Clone + 'static, LDT: LoomDataTypes> Strategy<DB, LDT> {
+    pub fn swap_compose_channel(&self) -> Broadcaster<MessageSwapCompose<DB, LDT>> {
         self.swap_compose_channel.clone()
     }
 
-    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent<DB, LoomDataTypesEthereum>> {
+    pub fn state_update_channel(&self) -> Broadcaster<StateUpdateEvent<DB, LDT>> {
         self.state_update_channel.clone()
     }
 }

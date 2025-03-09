@@ -17,7 +17,7 @@ pub struct StateUpdateEvent<DB, LDT: LoomDataTypes = LoomDataTypesEthereum> {
     market_state: DB,
     state_update: Vec<LDT::StateUpdate>,
     state_required: Option<Vec<LDT::StateUpdate>>,
-    directions: BTreeMap<PoolWrapper, Vec<SwapDirection<LDT>>>,
+    directions: BTreeMap<PoolWrapper, Vec<SwapDirection>>,
     pub stuffing_txs_hashes: Vec<LDT::TxHash>,
     pub stuffing_txs: Vec<LDT::Transaction>,
     pub origin: String,
@@ -33,7 +33,7 @@ impl<DB: DatabaseRef, LDT: LoomDataTypes> StateUpdateEvent<DB, LDT> {
         market_state: DB,
         state_update: Vec<LDT::StateUpdate>,
         state_required: Option<Vec<LDT::StateUpdate>>,
-        directions: BTreeMap<PoolWrapper, Vec<SwapDirection<LDT>>>,
+        directions: BTreeMap<PoolWrapper, Vec<SwapDirection>>,
         stuffing_txs_hashes: Vec<LDT::TxHash>,
         stuffing_txs: Vec<LDT::Transaction>,
         origin: String,
@@ -58,7 +58,7 @@ impl<DB: DatabaseRef, LDT: LoomDataTypes> StateUpdateEvent<DB, LDT> {
         env_for_block(self.next_block_number, self.next_block_timestamp)
     }
 
-    pub fn directions(&self) -> &BTreeMap<PoolWrapper, Vec<SwapDirection<LDT>>> {
+    pub fn directions(&self) -> &BTreeMap<PoolWrapper, Vec<SwapDirection>> {
         &self.directions
     }
 

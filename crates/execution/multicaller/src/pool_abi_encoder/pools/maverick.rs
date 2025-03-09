@@ -4,7 +4,6 @@ use alloy_sol_types::SolInterface;
 use lazy_static::lazy_static;
 use loom_defi_abi::maverick::IMaverickPool;
 use loom_defi_abi::maverick::IMaverickPool::IMaverickPoolCalls;
-use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_entities::Pool;
 
 lazy_static! {
@@ -31,7 +30,7 @@ impl MaverickProtocolAbiEncoder {
 impl ProtocolAbiSwapEncoderTrait for MaverickProtocolAbiEncoder {
     fn encode_swap_in_amount_provided(
         &self,
-        _pool: &dyn Pool<LoomDataTypesEthereum>,
+        _pool: &dyn Pool,
         token_from_address: Address,
         token_to_address: Address,
         amount: U256,

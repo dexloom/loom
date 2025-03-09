@@ -11,6 +11,7 @@ use reth::revm::db::states::StorageSlot;
 use reth::revm::db::{BundleAccount, StorageWithOriginalValues};
 use reth::rpc::eth::EthTxBuilder;
 use reth_exex::ExExNotification;
+use reth_primitives::transaction::SignedTransaction;
 use reth_rpc_types_compat::TransactionCompat;
 use reth_tracing::tracing::error;
 use std::collections::BTreeMap;
@@ -20,7 +21,6 @@ use tonic::transport::Channel;
 use crate::helpers::append_all_matching_block_logs_sealed;
 use crate::proto::remote_ex_ex_client::RemoteExExClient;
 use crate::proto::SubscribeRequest;
-use reth_primitives::transaction::SignedTransactionIntoRecoveredExt;
 
 #[derive(Debug, Clone)]
 pub struct ExExClient {

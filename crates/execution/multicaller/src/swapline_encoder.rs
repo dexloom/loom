@@ -9,7 +9,6 @@ use crate::pool_opcodes_encoder::{MulticallerOpcodesPayload, ProtocolSwapOpcodes
 use crate::ProtocolABIEncoderV2;
 use loom_defi_abi::AbiEncoderHelper;
 use loom_defi_address_book::TokenAddressEth;
-use loom_types_blockchain::LoomDataTypesEthereum;
 use loom_types_blockchain::{MulticallerCall, MulticallerCalls};
 use loom_types_entities::SwapAmountType::RelativeStack;
 use loom_types_entities::{PoolWrapper, SwapAmountType, SwapLine, Token};
@@ -39,7 +38,7 @@ impl SwapLineEncoder {
 
     pub fn encode_flash_swap_line_in_amount(
         &self,
-        swap_path: &SwapLine<LoomDataTypesEthereum>,
+        swap_path: &SwapLine,
         inside_swap_opcodes: MulticallerCalls,
         funds_to: Option<&PoolWrapper>,
     ) -> Result<MulticallerCalls> {
@@ -63,8 +62,8 @@ impl SwapLineEncoder {
             self.opcodes_encoder.encode_flash_swap_in_amount_provided(
                 &mut flash_swap_opcodes,
                 self.abi_encoder.as_ref(),
-                token_from_address,
-                token_to_address,
+                token_from_address.into(),
+                token_to_address.into(),
                 amount_in,
                 flash_pool.as_ref(),
                 prev_pool.map(|v| v.as_ref()),
@@ -81,7 +80,7 @@ impl SwapLineEncoder {
 
     pub fn encode_flash_swap_line_out_amount(
         &self,
-        swap_path: &SwapLine<LoomDataTypesEthereum>,
+        swap_path: &SwapLine,
         inside_swap_opcodes: MulticallerCalls,
     ) -> Result<MulticallerCalls> {
         trace!("encode_flash_swap_line_out_amount inside_opcodes={}", inside_swap_opcodes.len());
@@ -105,8 +104,8 @@ impl SwapLineEncoder {
             self.opcodes_encoder.encode_flash_swap_out_amount_provided(
                 &mut flash_swap_opcodes,
                 self.abi_encoder.as_ref(),
-                token_from_address,
-                token_to_address,
+                token_from_address.into(),
+                token_to_address.into(),
                 amount_out,
                 flash_pool.as_ref(),
                 next_pool.map(|v| v.as_ref()),
@@ -274,11 +273,7 @@ impl SwapLineEncoder {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 
-    pub fn encode_swap_line_in_amount(
-        &self,
-        swap_path: &SwapLine<LoomDataTypesEthereum>,
-        funds_to: Option<&PoolWrapper>,
-    ) -> Result<MulticallerCalls> {
+    pub fn encode_swap_line_in_amount(&self, swap_path: &SwapLine, funds_to: Option<&PoolWrapper>) -> Result<MulticallerCalls> {
         let mut swap_opcodes = MulticallerCalls::new();
 
         let mut amount_in = swap_path.amount_in;
@@ -370,15 +365,15 @@ impl SwapLineEncoder {
                 funds_to
             };*/
 
-            let swap_to = next_pool.map(|x| x.get_address()).unwrap_or(self.multicaller_address);
+            let swap_to = next_pool.map(|x| x.get_address()).unwrap_or(self.multicaller_address.into());
 
             trace!("swap_to {:?}", swap_to);
 
             self.opcodes_encoder.encode_swap_in_amount_provided(
                 &mut swap_opcodes,
                 self.abi_encoder.as_ref(),
-                token_from_address,
-                token_to_address,
+                token_from_address.into(),
+                token_to_address.into(),
                 amount_in,
                 cur_pool.as_ref(),
                 next_pool.map(|next_pool| next_pool.as_ref()),

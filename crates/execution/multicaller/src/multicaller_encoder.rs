@@ -54,7 +54,8 @@ impl MulticallerEncoder for MulticallerSwapEncoder {
     fn make_calls(&self, swap: &Swap) -> Result<MulticallerCalls> {
         match swap {
             Swap::BackrunSwapLine(swap_line) => {
-                let (swap_step_0, swap_step_1) = swap_line.to_swap_steps(self.multicaller_address).ok_or_eyre("SWAP_TYPE_NOT_COVERED")?;
+                let (swap_step_0, swap_step_1) =
+                    swap_line.to_swap_steps(self.multicaller_address.into()).ok_or_eyre("SWAP_TYPE_NOT_COVERED")?;
                 self.swap_step_encoder.encode_swap_steps(&swap_step_0, &swap_step_1)
             }
             Swap::BackrunSwapSteps((swap_step_0, swap_step_1)) => self.swap_step_encoder.encode_swap_steps(swap_step_0, swap_step_1),

@@ -16,7 +16,7 @@ use loom_defi_abi::uniswap_periphery::ITickLens;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::{FactoryAddress, PeripheryAddress};
 use loom_types_entities::required_state::RequiredState;
-use loom_types_entities::{Pool, PoolAbiEncoder, PoolClass, PoolId, PoolProtocol, PreswapRequirement, SwapDirection};
+use loom_types_entities::{EntityAddress, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
 use revm::primitives::Env;
 use revm::DatabaseRef;
 use tracing::debug;
@@ -232,19 +232,19 @@ impl Pool for UniswapV3Pool {
         self.protocol
     }
 
-    fn get_address(&self) -> Address {
-        self.address
+    fn get_address(&self) -> EntityAddress {
+        self.address.into()
     }
-    fn get_pool_id(&self) -> PoolId {
-        PoolId::Address(self.address)
+    fn get_pool_id(&self) -> EntityAddress {
+        EntityAddress::Address(self.address)
     }
 
     fn get_fee(&self) -> U256 {
         U256::from(self.fee)
     }
 
-    fn get_tokens(&self) -> Vec<Address> {
-        vec![self.token0, self.token1]
+    fn get_tokens(&self) -> Vec<EntityAddress> {
+        vec![self.token0.into(), self.token1.into()]
     }
 
     fn get_swap_directions(&self) -> Vec<SwapDirection> {
@@ -255,12 +255,12 @@ impl Pool for UniswapV3Pool {
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         _env: Env,
-        token_address_from: &Address,
-        _token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let (ret, gas_used) = if self.get_protocol() == PoolProtocol::UniswapV3 {
-            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_in_amount_provider(&state_db, self, *token_address_from, in_amount)?;
+            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_in_amount_provider(&state_db, self, token_address_from, in_amount)?;
 
             #[cfg(feature = "debug-calculation")]
             {
@@ -270,8 +270,8 @@ impl Pool for UniswapV3Pool {
                     &state_db,
                     env,
                     PeripheryAddress::UNISWAP_V3_QUOTER_V2,
-                    *token_address_from,
-                    *_token_address_to,
+                    token_address_from.into(),
+                    token_address_to.into(),
                     self.fee.try_into()?,
                     in_amount,
                 )?;
@@ -288,8 +288,8 @@ impl Pool for UniswapV3Pool {
                 &state_db,
                 env,
                 PeripheryAddress::UNISWAP_V3_QUOTER_V2,
-                *token_address_from,
-                *_token_address_to,
+                token_address_from.into(),
+                token_address_to.into(),
                 self.fee.try_into()?,
                 in_amount,
             )?;
@@ -308,12 +308,12 @@ impl Pool for UniswapV3Pool {
         &self,
         state_db: &dyn DatabaseRef<Error = ErrReport>,
         _env: Env,
-        token_address_from: &Address,
-        _token_address_to: &Address,
+        token_address_from: &EntityAddress,
+        token_address_to: &EntityAddress,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
         let (ret, gas_used) = if self.get_protocol() == PoolProtocol::UniswapV3 {
-            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_out_amount_provided(&state_db, self, *token_address_from, out_amount)?;
+            let ret_virtual = UniswapV3PoolVirtual::simulate_swap_out_amount_provided(&state_db, self, token_address_from, out_amount)?;
 
             #[cfg(feature = "debug-calculation")]
             {
@@ -323,8 +323,8 @@ impl Pool for UniswapV3Pool {
                     &state_db,
                     env,
                     PeripheryAddress::UNISWAP_V3_QUOTER_V2,
-                    *token_address_from,
-                    *_token_address_to,
+                    token_address_from.into(),
+                    token_address_to.into(),
                     self.fee.try_into()?,
                     out_amount,
                 )?;
@@ -342,8 +342,8 @@ impl Pool for UniswapV3Pool {
                 &state_db,
                 env,
                 PeripheryAddress::UNISWAP_V3_QUOTER_V2,
-                *token_address_from,
-                *_token_address_to,
+                token_address_from.into(),
+                token_address_to.into(),
                 self.fee.try_into()?,
                 out_amount,
             )?;
@@ -384,13 +384,13 @@ impl Pool for UniswapV3Pool {
 
         //debug!("Fetching state {:?} tick {} tick bitmap index {}", self.address, tick, tick_bitmap_index);
 
-        let balance_call_data = IERC20::IERC20Calls::balanceOf(IERC20::balanceOfCall { account: self.get_address() }).abi_encode();
+        let balance_call_data = IERC20::IERC20Calls::balanceOf(IERC20::balanceOfCall { account: self.address }).abi_encode();
 
-        let pool_address = self.get_address();
+        let pool_address = self.get_address().address_or_zero();
 
         state_required
-            .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
-            .add_call(self.get_address(), IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode());
+            .add_call(pool_address, IUniswapV3Pool::IUniswapV3PoolCalls::slot0(IUniswapV3Pool::slot0Call {}).abi_encode())
+            .add_call(pool_address, IUniswapV3Pool::IUniswapV3PoolCalls::liquidity(IUniswapV3Pool::liquidityCall {}).abi_encode());
 
         for i in -4..=3 {
             state_required.add_call(
@@ -405,8 +405,8 @@ impl Pool for UniswapV3Pool {
         state_required
             .add_call(self.token0, balance_call_data.clone())
             .add_call(self.token1, balance_call_data)
-            .add_slot_range(self.get_address(), U256::from(0), 0x20)
-            .add_empty_slot_range(self.get_address(), U256::from(0x10000), 0x20);
+            .add_slot_range(self.address, U256::from(0), 0x20)
+            .add_empty_slot_range(self.address, U256::from(0x10000), 0x20);
 
         for token_address in self.get_tokens() {
             state_required.add_call(token_address, IERC20::balanceOfCall { account: pool_address }.abi_encode());

@@ -8,7 +8,7 @@ use axum::Json;
 use eyre::ErrReport;
 use loom_evm_utils::error_handler::internal_error;
 use loom_rpc_state::AppState;
-use loom_types_entities::{PoolId, PoolWrapper};
+use loom_types_entities::{EntityAddress, PoolWrapper};
 use revm::primitives::Env;
 use revm::{DatabaseCommit, DatabaseRef};
 use std::str::FromStr;
@@ -54,7 +54,7 @@ pub async fn pools<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'sta
         ret.push(Pool {
             address: pool_address,
             fee: pool.pool.get_fee(),
-            tokens: pool.pool.get_tokens(),
+            tokens: pool.pool.get_tokens().into_iter().map(Into::into).collect(),
             protocol: PoolProtocol::from(pool.pool.get_protocol()),
             pool_class: PoolClass::from(pool.get_class()),
         });
@@ -96,14 +96,14 @@ pub async fn pool<DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'stat
 ) -> Result<Json<PoolDetailsResponse>, (StatusCode, String)> {
     let address = Address::from_str(&address).map_err(internal_error)?;
 
-    match app_state.bc.market().read().await.pools().get(&PoolId::Address(address)) {
+    match app_state.bc.market().read().await.pools().get(&EntityAddress::Address(address)) {
         None => Err((StatusCode::NOT_FOUND, "Pool not found".to_string())),
         Some(pool) => Ok(Json(PoolDetailsResponse {
-            address: pool.get_address(),
+            address: pool.get_address().address_or_zero(),
             pool_class: PoolClass::from(pool.get_class()),
             protocol: PoolProtocol::from(pool.get_protocol()),
             fee: pool.get_fee(),
-            tokens: pool.get_tokens(),
+            tokens: pool.get_tokens().into_iter().map(Into::into).collect(),
         })),
     }
 }
@@ -153,15 +153,15 @@ pub async fn pool_quote<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Se
     Json(quote_request): Json<QuoteRequest>,
 ) -> Result<Json<QuoteResponse>, (StatusCode, String)> {
     let address = Address::from_str(&address).map_err(internal_error)?;
-    match app_state.bc.market().read().await.pools().get(&PoolId::Address(address)) {
+    match app_state.bc.market().read().await.pools().get(&EntityAddress::Address(address)) {
         None => Err((StatusCode::NOT_FOUND, "Pool not found".to_string())),
         Some(pool) => {
             let evm_env = Env::default();
             let quote_result = pool.pool.calculate_out_amount(
                 &app_state.state.market_state().read().await.state_db,
                 evm_env,
-                &quote_request.token_address_from,
-                &quote_request.token_address_to,
+                &quote_request.token_address_from.into(),
+                &quote_request.token_address_to.into(),
                 quote_request.amount_in,
             );
             match quote_result {

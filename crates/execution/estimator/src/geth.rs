@@ -31,7 +31,7 @@ async fn estimator_task<P: Provider<Ethereum> + Send + Sync + Clone + 'static, D
 
     let tx_signer = estimate_request.tx_compose.signer.clone().ok_or(eyre!("NO_SIGNER"))?;
 
-    let profit = estimate_request.swap.abs_profit();
+    let profit = estimate_request.swap.arb_profit();
     if profit.is_zero() {
         return Err(eyre!("NO_PROFIT"));
     }
@@ -46,14 +46,14 @@ async fn estimator_task<P: Provider<Ethereum> + Send + Sync + Clone + 'static, D
         estimate_request.tips_pct,
         Some(estimate_request.tx_compose.next_block_number),
         Some(gas_cost),
-        Some(tx_signer.address()),
+        Some(tx_signer.address().into()),
         Some(estimate_request.tx_compose.eth_balance),
     )?;
 
     let mut tx_request = TransactionRequest {
         transaction_type: Some(2),
         chain_id: Some(1),
-        from: Some(tx_signer.address()),
+        from: Some(tx_signer.address().into()),
         to: Some(TxKind::Call(to)),
         gas: Some(estimate_request.tx_compose.gas),
         value: Some(U256::from(1000)),
@@ -125,7 +125,7 @@ async fn estimator_task<P: Provider<Ethereum> + Send + Sync + Clone + 'static, D
                                 estimate_request.tips_pct,
                                 Some(estimate_request.tx_compose.next_block_number),
                                 Some(gas_cost),
-                                Some(tx_signer.address()),
+                                Some(tx_signer.address().into()),
                                 Some(estimate_request.tx_compose.eth_balance),
                             )?,
                         };
@@ -133,7 +133,7 @@ async fn estimator_task<P: Provider<Ethereum> + Send + Sync + Clone + 'static, D
                         let tx_request = TransactionRequest {
                             transaction_type: Some(2),
                             chain_id: Some(1),
-                            from: Some(tx_signer.address()),
+                            from: Some(tx_signer.address().into()),
                             to: Some(TxKind::Call(to)),
                             gas: Some((gas * 1500) / 1000),
                             value: call_value,

@@ -1,7 +1,7 @@
 use alloy_rpc_types::Header;
 
 use crate::Message;
-use loom_types_blockchain::{GethStateUpdateVec, MempoolTx};
+use loom_types_blockchain::{GethStateUpdateVec, LoomDataTypesOptimism, MempoolTx};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 
 #[derive(Clone, Debug)]
@@ -28,7 +28,7 @@ pub struct BlockLogs<LDT: LoomDataTypes = LoomDataTypesEthereum> {
 }
 
 #[derive(Clone, Debug, Default)]
-pub struct BlockHeader<LDT: LoomDataTypes = LoomDataTypesEthereum> {
+pub struct BlockHeaderEventData<LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub header: LDT::Header,
     pub next_block_number: u64,
     pub next_block_timestamp: u64,
@@ -36,12 +36,20 @@ pub struct BlockHeader<LDT: LoomDataTypes = LoomDataTypesEthereum> {
 
 pub type MessageMempoolDataUpdate<LDT = LoomDataTypesEthereum> = Message<NodeMempoolDataUpdate<LDT>>;
 
-pub type MessageBlockHeader<LDT = LoomDataTypesEthereum> = Message<BlockHeader<LDT>>;
+pub type MessageBlockHeader<LDT = LoomDataTypesEthereum> = Message<BlockHeaderEventData<LDT>>;
 pub type MessageBlock<LDT = LoomDataTypesEthereum> = Message<BlockUpdate<LDT>>;
 pub type MessageBlockLogs<LDT = LoomDataTypesEthereum> = Message<BlockLogs<LDT>>;
 pub type MessageBlockStateUpdate<LDT = LoomDataTypesEthereum> = Message<BlockStateUpdate<LDT>>;
 
-impl BlockHeader<LoomDataTypesEthereum> {
+impl BlockHeaderEventData<LoomDataTypesEthereum> {
+    pub fn new(header: Header) -> Self {
+        let next_block_number = header.number + 1;
+        let next_block_timestamp = header.timestamp + 12;
+        Self { header, next_block_number, next_block_timestamp }
+    }
+}
+
+impl BlockHeaderEventData<LoomDataTypesOptimism> {
     pub fn new(header: Header) -> Self {
         let next_block_number = header.number + 1;
         let next_block_timestamp = header.timestamp + 12;

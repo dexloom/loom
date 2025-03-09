@@ -4,7 +4,7 @@ use alloy_eips::eip2718::Encodable2718;
 use alloy_primitives::{Bytes, U256};
 use eyre::{eyre, Result};
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use loom_types_entities::{PoolId, Swap};
+use loom_types_entities::{EntityAddress, Swap};
 use revm::DatabaseRef;
 use std::ops::Deref;
 
@@ -52,7 +52,7 @@ impl<DB, LDT: LoomDataTypes> SwapComposeMessage<DB, LDT> {
 #[derive(Clone, Debug)]
 pub struct SwapComposeData<DB, LDT: LoomDataTypes = LoomDataTypesEthereum> {
     pub tx_compose: TxComposeData<LDT>,
-    pub swap: Swap<LDT>,
+    pub swap: Swap,
     pub prestate: Option<DB>,
     pub poststate: Option<DB>,
     pub poststate_update: Option<Vec<LDT::StateUpdate>>,
@@ -74,7 +74,7 @@ impl<DB: Clone + 'static, LDT: LoomDataTypes> SwapComposeData<DB, LDT> {
         }
     }
 
-    pub fn cross_pools(&self, others_pools: &[PoolId<LDT>]) -> bool {
+    pub fn cross_pools(&self, others_pools: &[EntityAddress]) -> bool {
         self.swap.get_pool_id_vec().iter().any(|x| others_pools.contains(x))
     }
 
@@ -94,7 +94,7 @@ impl<DB: Clone + 'static, LDT: LoomDataTypes> SwapComposeData<DB, LDT> {
         if self.tx_compose.gas == 0 {
             U256::ZERO
         } else {
-            self.swap.abs_profit_eth() / U256::from(self.tx_compose.gas)
+            self.swap.arb_profit_eth() / U256::from(self.tx_compose.gas)
         }
     }
 

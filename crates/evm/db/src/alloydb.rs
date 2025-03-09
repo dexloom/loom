@@ -1,11 +1,15 @@
-use alloy::eips::BlockId;
+use crate::error::LoomDBError;
+use alloy::eips::{BlockId, BlockNumberOrTag};
 use alloy::network::primitives::{BlockTransactionsKind, HeaderResponse};
 use alloy::providers::{network::BlockResponse, Network, Provider};
+use core::error::Error;
 use eyre::ErrReport;
+use revm::state::{AccountInfo, Bytecode};
 use revm::{
-    primitives::{AccountInfo, Address, Bytecode, B256, U256},
+    primitives::{Address, B256, U256},
     Database, DatabaseRef,
 };
+use std::convert::Infallible;
 use std::future::IntoFuture;
 use tokio::runtime::{Handle, Runtime};
 
@@ -105,7 +109,7 @@ impl<N: Network, P: Provider<N>> AlloyDB<N, P> {
 }
 
 impl<N: Network, P: Provider<N>> DatabaseRef for AlloyDB<N, P> {
-    type Error = ErrReport;
+    type Error = LoomDBError;
 
     fn basic_ref(&self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {
         let f = async {
@@ -117,10 +121,10 @@ impl<N: Network, P: Provider<N>> DatabaseRef for AlloyDB<N, P> {
 
         let (nonce, balance, code) = self.block_on(f);
 
-        let balance = balance?;
-        let code = Bytecode::new_raw(code?.0.into());
+        let balance = balance.map_err(|_| LoomDBError::TransportError)?;
+        let code = Bytecode::new_raw(code.map_err(|_| LoomDBError::TransportError)?.0.into());
         let code_hash = code.hash_slow();
-        let nonce = nonce?;
+        let nonce = nonce.map_err(|_| LoomDBError::TransportError)?;
 
         Ok(Some(AccountInfo::new(balance, nonce, code_hash, code)))
     }
@@ -132,23 +136,26 @@ impl<N: Network, P: Provider<N>> DatabaseRef for AlloyDB<N, P> {
 
     fn storage_ref(&self, address: Address, index: U256) -> Result<U256, Self::Error> {
         let f = self.provider.get_storage_at(address, index).block_id(self.block_number);
-        let slot_val = self.block_on(f.into_future())?;
+        let slot_val = self.block_on(f.into_future()).map_err(|_| LoomDBError::TransportError)?;
         Ok(slot_val)
     }
 
     fn block_hash_ref(&self, number: u64) -> Result<B256, Self::Error> {
-        let block = self.block_on(
-            self.provider
-                // SAFETY: We know number <= u64::MAX, so we can safely convert it to u64
-                .get_block_by_number(number.into(), BlockTransactionsKind::Hashes),
-        )?;
+        let block = self
+            .block_on(
+                self.provider
+                    // SAFETY: We know number <= u64::MAX, so we can safely convert it to u64
+                    .get_block_by_number(number.into())
+                    .into_future(),
+            )
+            .map_err(|_| LoomDBError::TransportError)?;
         // SAFETY: If the number is given, the block is supposed to be finalized, so unwrapping is safe.
         Ok(B256::new(*block.unwrap().header().hash()))
     }
 }
 
 impl<N: Network, P: Provider<N>> Database for AlloyDB<N, P> {
-    type Error = ErrReport;
+    type Error = LoomDBError;
 
     #[inline]
     fn basic(&mut self, address: Address) -> Result<Option<AccountInfo>, Self::Error> {

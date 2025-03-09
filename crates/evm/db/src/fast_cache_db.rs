@@ -1,16 +1,15 @@
 use std::vec::Vec;
 
+use crate::fast_hasher::SimpleBuildHasher;
 use alloy::primitives::map::{Entry, HashMap};
 use alloy::primitives::BlockNumber;
 use alloy::{
     consensus::constants::KECCAK_EMPTY,
     primitives::{Address, Log, B256, U256},
 };
-use revm::db::AccountState;
-use revm::primitives::{Account, AccountInfo, Bytecode};
+use revm::database::AccountState;
+use revm::state::{Account, AccountInfo, Bytecode};
 use revm::{Database, DatabaseCommit, DatabaseRef};
-
-use crate::fast_hasher::SimpleBuildHasher;
 
 /// A [Database] implementation that stores all state changes in memory.
 ///
@@ -20,7 +19,6 @@ use crate::fast_hasher::SimpleBuildHasher;
 /// whereas contracts are identified by their code hash, and are stored in the `contracts` map.
 /// The [FastDbAccount] holds the code hash of the contract, which is used to look up the contract in the `contracts` map.
 #[derive(Debug, Clone)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FastCacheDB<ExtDB> {
     /// Account info where None means it is not existing. Not existing state is needed for Pre TANGERINE forks.
     /// `code` is always `None`, and bytecode can be found in `contracts`.
@@ -262,7 +260,6 @@ impl<ExtDB: DatabaseRef> DatabaseRef for FastCacheDB<ExtDB> {
 }
 
 #[derive(Debug, Clone, Default)]
-#[cfg_attr(feature = "serde", derive(serde::Serialize, serde::Deserialize))]
 pub struct FastDbAccount {
     pub info: AccountInfo,
     /// If account is selfdestructed or newly created, storage will be cleared.
@@ -307,8 +304,9 @@ mod tests {
     use crate::in_memory_db::LoomInMemoryDB;
     use alloy::primitives::{Bytes, B256};
     use alloy::rpc::types::trace::geth::AccountState as GethAccountState;
-    use revm::db::EmptyDB;
-    use revm::primitives::{db::Database, AccountInfo, Address, Bytecode, I256, KECCAK_EMPTY, U256};
+    use revm::database::EmptyDB;
+    use revm::primitives::{Address, I256, KECCAK_EMPTY, U256};
+    use revm::state::{AccountInfo, Bytecode};
     use revm::DatabaseRef;
 
     #[test]

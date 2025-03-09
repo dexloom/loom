@@ -1,6 +1,5 @@
 use alloy_primitives::{Address, B256, U256};
 use eyre::eyre;
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
 use serde::{Deserialize, Deserializer, Serialize};
 use std::cmp::Ordering;
 use std::fmt::{Display, Formatter};
@@ -8,39 +7,30 @@ use std::hash::{Hash, Hasher};
 use std::ops::Shl;
 
 #[derive(Clone, Debug, Serialize)]
-pub enum PoolId<LDT: LoomDataTypes = LoomDataTypesEthereum>
-where
-    LDT::Address: Eq + Hash,
-{
-    Address(LDT::Address),
+pub enum EntityAddress {
+    Address(Address),
     Bytes32(B256),
 }
 
-impl<'de> Deserialize<'de> for PoolId<LoomDataTypesEthereum> {
+impl<'de> Deserialize<'de> for EntityAddress {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
         D: Deserializer<'de>,
     {
         let as_u256 = U256::deserialize(deserializer)?;
 
-        // Convert B256 to U256 for comparison
-        // let as_u256 = U256::try_from(b256).map_err(|_| D::Error::custom("ERROR"))?;
-
-        // If below the boundary, interpret it as an address
         if as_u256 < U256::from(1).shl(160) {
-            // Take the rightmost 20 bytes as the address
             let mut addr_bytes = [0u8; 20];
             addr_bytes.copy_from_slice(&as_u256.to_be_bytes_vec()[12..]);
-            Ok(PoolId::Address(Address::from(addr_bytes)))
+            Ok(EntityAddress::Address(Address::from(addr_bytes)))
         } else {
-            // Otherwise, treat it as a full 32‑byte hash
-            Ok(PoolId::Bytes32(B256::from(as_u256)))
+            Ok(EntityAddress::Bytes32(B256::from(as_u256)))
         }
     }
 }
 
-impl<LDT: LoomDataTypes> PoolId<LDT> {
-    pub fn address(&self) -> eyre::Result<LDT::Address> {
+impl EntityAddress {
+    pub fn address(&self) -> eyre::Result<Address> {
         if let Self::Address(addr) = self {
             Ok(*addr)
         } else {
@@ -56,11 +46,11 @@ impl<LDT: LoomDataTypes> PoolId<LDT> {
         }
     }
 
-    pub fn address_or_zero(&self) -> LDT::Address {
+    pub fn address_or_zero(&self) -> Address {
         if let Self::Address(addr) = self {
             *addr
         } else {
-            LDT::Address::default()
+            Address::default()
         }
     }
 
@@ -73,9 +63,9 @@ impl<LDT: LoomDataTypes> PoolId<LDT> {
     }
 }
 
-impl<LDT: LoomDataTypes> Copy for PoolId<LDT> {}
+impl Copy for EntityAddress {}
 
-impl<LDT: LoomDataTypes> Hash for PoolId<LDT> {
+impl Hash for EntityAddress {
     fn hash<H: Hasher>(&self, state: &mut H) {
         match self {
             Self::Address(addr) => addr.hash(state),
@@ -84,7 +74,7 @@ impl<LDT: LoomDataTypes> Hash for PoolId<LDT> {
     }
 }
 
-impl<LDT: LoomDataTypes> PartialEq<Self> for PoolId<LDT> {
+impl PartialEq<Self> for EntityAddress {
     fn eq(&self, other: &Self) -> bool {
         match (self, other) {
             (Self::Address(a), Self::Address(b)) => a == b,
@@ -94,24 +84,24 @@ impl<LDT: LoomDataTypes> PartialEq<Self> for PoolId<LDT> {
     }
 }
 
-impl<LDT: LoomDataTypes> PartialOrd for PoolId<LDT> {
+impl PartialOrd for EntityAddress {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl<LDT: LoomDataTypes> Ord for PoolId<LDT> {
+impl Ord for EntityAddress {
     fn cmp(&self, other: &Self) -> Ordering {
         match (self, other) {
-            (PoolId::Address(a), PoolId::Address(b)) => a.cmp(b),
-            (PoolId::Bytes32(a), PoolId::Bytes32(b)) => a.cmp(b),
-            (PoolId::Address(a), PoolId::Bytes32(b)) => Ordering::Less,
-            (PoolId::Bytes32(a), PoolId::Address(b)) => Ordering::Greater,
+            (EntityAddress::Address(a), EntityAddress::Address(b)) => a.cmp(b),
+            (EntityAddress::Bytes32(a), EntityAddress::Bytes32(b)) => a.cmp(b),
+            (EntityAddress::Address(a), EntityAddress::Bytes32(b)) => Ordering::Less,
+            (EntityAddress::Bytes32(a), EntityAddress::Address(b)) => Ordering::Greater,
         }
     }
 }
 
-impl<LDT: LoomDataTypes> Display for PoolId<LDT> {
+impl Display for EntityAddress {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         match self {
             Self::Address(a) => write!(f, "{}", a),
@@ -120,28 +110,54 @@ impl<LDT: LoomDataTypes> Display for PoolId<LDT> {
     }
 }
 
-impl<LDT: LoomDataTypes> Eq for PoolId<LDT> {}
+impl Eq for EntityAddress {}
 
-impl<LDT: LoomDataTypes> Default for PoolId<LDT> {
+impl Default for EntityAddress {
     fn default() -> Self {
         Self::Address(Default::default())
     }
 }
 
-impl From<Address> for PoolId {
+impl From<Address> for EntityAddress {
     fn from(addr: Address) -> Self {
         Self::Address(addr)
     }
 }
 
-impl From<B256> for PoolId {
+impl From<&Address> for EntityAddress {
+    fn from(addr: &Address) -> Self {
+        Self::Address(*addr)
+    }
+}
+
+impl From<B256> for EntityAddress {
     fn from(bytes: B256) -> Self {
         Self::Bytes32(bytes)
     }
 }
 
-impl From<[u8; 32]> for PoolId {
+impl From<[u8; 32]> for EntityAddress {
     fn from(bytes: [u8; 32]) -> Self {
         Self::Bytes32(B256::from(bytes))
+    }
+}
+
+// impl Into<Address> for EntityAddress {
+//     fn into(self) -> Address {
+//         self.address_or_zero()
+//     }
+// }
+
+impl From<EntityAddress> for alloy_primitives::Address {
+    #[inline]
+    fn from(addr: EntityAddress) -> Self {
+        (&addr).into()
+    }
+}
+
+impl From<&EntityAddress> for alloy_primitives::Address {
+    #[inline]
+    fn from(addr: &EntityAddress) -> Self {
+        addr.address_or_zero()
     }
 }

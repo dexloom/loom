@@ -11,7 +11,7 @@ use tracing::info;
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::Mempool;
+use loom_types_blockchain::{LoomDataTypes, Mempool};
 use loom_types_entities::{BlockHistory, LatestBlock, Market, MarketState};
 use loom_types_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageSwapCompose};
 
@@ -20,7 +20,7 @@ use crate::block_state_change_processor::BlockStateChangeProcessorActor;
 use crate::BackrunConfig;
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct StateChangeArbActor<P, N, DB: Clone + Send + Sync + 'static> {
+pub struct StateChangeArbActor<P, N, DB: Clone + Send + Sync + 'static, LDT: LoomDataTypes + 'static> {
     backrun_config: BackrunConfig,
     client: P,
     use_blocks: bool,
@@ -34,28 +34,29 @@ pub struct StateChangeArbActor<P, N, DB: Clone + Send + Sync + 'static> {
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
-    block_history: Option<SharedState<BlockHistory<DB>>>,
+    block_history: Option<SharedState<BlockHistory<DB, LDT>>>,
     #[consumer]
-    mempool_events_tx: Option<Broadcaster<MempoolEvents>>,
+    mempool_events_tx: Option<Broadcaster<MempoolEvents<LDT>>>,
     #[consumer]
-    market_events_tx: Option<Broadcaster<MarketEvents>>,
+    market_events_tx: Option<Broadcaster<MarketEvents<LDT>>>,
     #[producer]
-    compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
+    compose_channel_tx: Option<Broadcaster<MessageSwapCompose<DB, LDT>>>,
     #[producer]
-    pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
+    pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent<LDT>>>,
     #[producer]
     influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 
     _n: PhantomData<N>,
 }
 
-impl<P, N, DB> StateChangeArbActor<P, N, DB>
+impl<P, N, DB, LDT> StateChangeArbActor<P, N, DB, LDT>
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Send + Sync + Clone + 'static,
+    LDT: LoomDataTypes,
 {
-    pub fn new(client: P, use_blocks: bool, use_mempool: bool, backrun_config: BackrunConfig) -> StateChangeArbActor<P, N, DB> {
+    pub fn new(client: P, use_blocks: bool, use_mempool: bool, backrun_config: BackrunConfig) -> StateChangeArbActor<P, N, DB, LDT> {
         StateChangeArbActor {
             backrun_config,
             client,
@@ -76,11 +77,12 @@ where
     }
 }
 
-impl<P, N, DB> Actor for StateChangeArbActor<P, N, DB>
+impl<P, N, DB, LDT> Actor for StateChangeArbActor<P, N, DB, LDT>
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+    LDT: LoomDataTypes,
 {
     fn start(&self) -> ActorResult {
         let searcher_pool_update_channel = Broadcaster::new(100);

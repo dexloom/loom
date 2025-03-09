@@ -20,6 +20,7 @@ use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Con
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, Strategy};
 use loom_evm_db::DatabaseHelpers;
+use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec, LoomDataTypes};
 use loom_types_entities::strategy_config::StrategyConfig;
 use loom_types_entities::{Market, PoolWrapper, Swap, SwapDirection, SwapError, SwapLine, SwapPath};
 use loom_types_events::{
@@ -27,13 +28,16 @@ use loom_types_events::{
     TxComposeData,
 };
 
-async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static>(
+async fn state_change_arb_searcher_task<
+    DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+    LDT: LoomDataTypes<StateUpdate = GethStateUpdate>,
+>(
     thread_pool: Arc<ThreadPool>,
     backrun_config: BackrunConfig,
-    state_update_event: StateUpdateEvent<DB>,
+    state_update_event: StateUpdateEvent<DB, LDT>,
     market: SharedState<Market>,
-    swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
-    pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
+    swap_request_tx: Broadcaster<MessageSwapCompose<DB, LDT>>,
+    pool_health_monitor_tx: Broadcaster<MessageHealthEvent<LDT>>,
     influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> Result<()> {
     debug!("Message received {} stuffing : {:?}", state_update_event.origin, state_update_event.stuffing_tx_hash());
@@ -90,7 +94,7 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
 
     if swap_path_vec.is_empty() {
         debug!(
-            request=?state_update_event.stuffing_txs_hashes().first().unwrap_or_default(),
+            request=?state_update_event.stuffing_txs_hashes().first(),
             elapsed=start_time.elapsed().as_micros(),
             "No swap path built",
 
@@ -171,13 +175,13 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
         match swap_line_result {
             Ok(swap_line) => {
                 let prepare_request = SwapComposeMessage::Prepare(SwapComposeData {
-                    tx_compose: TxComposeData {
-                        eoa: backrun_config.eoa(),
+                    tx_compose: TxComposeData::<LDT> {
+                        eoa: backrun_config.eoa().map(Into::into),
                         next_block_number: state_update_event.next_block_number,
                         next_block_timestamp: state_update_event.next_block_timestamp,
                         next_block_base_fee: state_update_event.next_base_fee,
                         gas: swap_line.gas_used.unwrap_or(300000),
-                        stuffing_txs: state_update_event.stuffing_txs.clone(),
+                        stuffing_txs: state_update_event.stuffing_txs().clone(),
                         stuffing_txs_hashes: state_update_event.stuffing_txs_hashes.clone(),
                         ..TxComposeData::default()
                     },
@@ -234,12 +238,13 @@ async fn state_change_arb_searcher_task<DB: DatabaseRef<Error = ErrReport> + Dat
 
 pub async fn state_change_arb_searcher_worker<
     DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+    LDT: LoomDataTypes,
 >(
     backrun_config: BackrunConfig,
     market: SharedState<Market>,
-    search_request_rx: Broadcaster<StateUpdateEvent<DB>>,
-    swap_request_tx: Broadcaster<MessageSwapCompose<DB>>,
-    pool_health_monitor_tx: Broadcaster<MessageHealthEvent>,
+    search_request_rx: Broadcaster<StateUpdateEvent<DB, LDT>>,
+    swap_request_tx: Broadcaster<MessageSwapCompose<DB, LDT>>,
+    pool_health_monitor_tx: Broadcaster<MessageHealthEvent<LDT>>,
     influxdb_write_channel_tx: Broadcaster<WriteQuery>,
 ) -> WorkerResult {
     subscribe!(search_request_rx);
@@ -272,22 +277,24 @@ pub async fn state_change_arb_searcher_worker<
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct StateChangeArbSearcherActor<DB: Clone + Send + Sync + 'static> {
+pub struct StateChangeArbSearcherActor<DB: Clone + Send + Sync + 'static, LDT: LoomDataTypes + 'static> {
     backrun_config: BackrunConfig,
     #[accessor]
     market: Option<SharedState<Market>>,
     #[consumer]
-    state_update_rx: Option<Broadcaster<StateUpdateEvent<DB>>>,
+    state_update_rx: Option<Broadcaster<StateUpdateEvent<DB, LDT>>>,
     #[producer]
-    compose_tx: Option<Broadcaster<MessageSwapCompose<DB>>>,
+    compose_tx: Option<Broadcaster<MessageSwapCompose<DB, LDT>>>,
     #[producer]
-    pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent>>,
+    pool_health_monitor_tx: Option<Broadcaster<MessageHealthEvent<LDT>>>,
     #[producer]
     influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 }
 
-impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateChangeArbSearcherActor<DB> {
-    pub fn new(backrun_config: BackrunConfig) -> StateChangeArbSearcherActor<DB> {
+impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static, LDT: LoomDataTypes + 'static>
+    StateChangeArbSearcherActor<DB, LDT>
+{
+    pub fn new(backrun_config: BackrunConfig) -> StateChangeArbSearcherActor<DB, LDT> {
         StateChangeArbSearcherActor {
             backrun_config,
             market: None,
@@ -298,7 +305,7 @@ impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateCh
         }
     }
 
-    pub fn on_bc(self, bc: &Blockchain, strategy: &Strategy<DB>) -> Self {
+    pub fn on_bc(self, bc: &Blockchain<LDT>, strategy: &Strategy<DB, LDT>) -> Self {
         Self {
             market: Some(bc.market()),
             pool_health_monitor_tx: Some(bc.health_monitor_channel()),
@@ -310,8 +317,8 @@ impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static> StateCh
     }
 }
 
-impl<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static> Actor
-    for StateChangeArbSearcherActor<DB>
+impl<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static, LDT: LoomDataTypes + 'static> Actor
+    for StateChangeArbSearcherActor<DB, LDT>
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_change_arb_searcher_worker(
