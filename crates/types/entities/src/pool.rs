@@ -11,8 +11,9 @@ use crate::EntityAddress;
 use alloy_primitives::{Address, Bytes, U256};
 use eyre::{eyre, ErrReport, Result};
 use loom_defi_address_book::FactoryAddress;
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use revm::DatabaseRef;
+use loom_evm_utils::{LoomEVMType, LoomEVMWrapper, LoomExecuteEvm};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEVM, LoomDataTypesEthereum};
+use revm::{DatabaseRef, ExecuteEvm};
 use serde::{Deserialize, Serialize};
 use strum_macros::{Display, EnumIter, EnumString, VariantNames};
 
@@ -257,8 +258,7 @@ pub trait Pool: Sync + Send {
 
     fn calculate_out_amount(
         &self,
-        state: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         in_amount: U256,
@@ -267,8 +267,7 @@ pub trait Pool: Sync + Send {
     // returns (in_amount, gas_used)
     fn calculate_in_amount(
         &self,
-        state: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        env: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         out_amount: U256,
@@ -380,7 +379,7 @@ pub trait PoolAbiEncoder: Send + Sync {
 }
 
 #[cfg(test)]
-mod test {
+mod tests {
     use crate::PoolClass;
 
     #[test]

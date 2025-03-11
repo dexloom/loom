@@ -1,11 +1,11 @@
 use crate::loom_data_types::LoomTransactionRequest;
-use crate::{ChainParameters, GethStateUpdate, LoomBlock, LoomDataTypes, LoomHeader, LoomTx};
+use crate::{ChainParameters, GethStateUpdate, LoomBlock, LoomDataTypes, LoomDataTypesEVM, LoomHeader, LoomTx};
 use alloy_consensus::{BlockHeader, Transaction as TransactionTrait};
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, BlockHash, TxHash, TxKind};
+use alloy_primitives::{Address, BlockHash, Bytes, TxHash, TxKind};
+use alloy_provider::network::TransactionBuilder;
 use alloy_provider::network::TransactionResponse;
 use alloy_rpc_types_eth::{Block as EthBlock, Header, Log, Transaction, TransactionReceipt, TransactionRequest};
-
 #[derive(Clone, Debug, Default)]
 pub struct LoomDataTypesEthereum {
     _private: (),
@@ -24,24 +24,26 @@ impl LoomDataTypes for LoomDataTypesEthereum {
     type Address = Address;
 }
 
+impl LoomDataTypesEVM for LoomDataTypesEthereum {}
+
 impl LoomTx<LoomDataTypesEthereum> for Transaction {
-    fn gas_price(&self) -> u128 {
+    fn get_gas_price(&self) -> u128 {
         TransactionTrait::max_fee_per_gas(self)
     }
 
-    fn gas_limit(&self) -> u64 {
+    fn get_gas_limit(&self) -> u64 {
         TransactionTrait::gas_limit(self)
     }
 
-    fn tx_hash(&self) -> <LoomDataTypesEthereum as LoomDataTypes>::TxHash {
+    fn get_tx_hash(&self) -> <LoomDataTypesEthereum as LoomDataTypes>::TxHash {
         TransactionResponse::tx_hash(self)
     }
 
-    fn nonce(&self) -> u64 {
+    fn get_nonce(&self) -> u64 {
         TransactionTrait::nonce(self)
     }
 
-    fn from(&self) -> Address {
+    fn get_from(&self) -> Address {
         TransactionResponse::from(self)
     }
 
@@ -73,5 +75,9 @@ impl LoomTransactionRequest<LoomDataTypesEthereum> for TransactionRequest {
                 TxKind::Call(to) => Some(*to),
             },
         }
+    }
+
+    fn build_call(to: <LoomDataTypesEthereum as LoomDataTypes>::Address, data: Bytes) -> TransactionRequest {
+        TransactionRequest::default().with_kind(TxKind::Call(to)).with_input(data).with_gas_limit(1_000_000)
     }
 }

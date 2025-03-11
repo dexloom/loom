@@ -66,7 +66,7 @@ pub async fn new_mempool_worker<LDT: LoomDataTypes>(
                     if mempool_entry.tx.is_none() {
                         mempool_entry.tx = Some(tx.clone());
                         if let Some(cur_gas_price) = current_gas_price {
-                            if tx.gas_limit() > 30000 && tx.gas_price() >= cur_gas_price && mempool_guard.is_valid_tx(tx) {
+                            if tx.get_gas_limit() > 30000 && tx.get_gas_price() >= cur_gas_price && mempool_guard.is_valid_tx(tx) {
                                 run_sync!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate {tx_hash }));
                             }
                         }
@@ -106,15 +106,15 @@ pub async fn new_mempool_worker<LDT: LoomDataTypes>(
                 debug!("Mempool gas update {} {}", next_base_fee, ok_txes.len());
                 for mempool_tx in ok_txes {
                     let tx = mempool_tx.tx.clone().unwrap();
-                    if tx.gas_limit()  < 50000 {
+                    if tx.get_gas_limit()  < 50000 {
                         continue
                     }
                     if mempool_read_guard.is_valid_tx(&tx) {
-                        let tx_hash = tx.tx_hash();
+                        let tx_hash = tx.get_tx_hash();
                         trace!("new tx ok {:?}", tx_hash);
                         run_sync!(broadcaster.send(MempoolEvents::MempoolActualTxUpdate { tx_hash }));
                     } else{
-                       trace!("new tx gas change tx not valid {:?}", tx.tx_hash());
+                       trace!("new tx gas change tx not valid {:?}", tx.get_tx_hash());
                     }
                 }
                 drop(mempool_read_guard);
@@ -160,13 +160,13 @@ pub async fn new_mempool_worker<LDT: LoomDataTypes>(
 
                 for tx in block_with_txs.get_transactions() {
 
-                    if mempool_write_guard.is_tx(&tx.tx_hash()) {
+                    if mempool_write_guard.is_tx(&tx.get_tx_hash()) {
                         mempool_tx_counter += 1;
                     }
 
                     mempool_write_guard
-                        .set_mined(tx.tx_hash(), block_with_txs.get_header().get_number())
-                        .set_nonce(tx.from(), tx.nonce());
+                        .set_mined(tx.get_tx_hash(), block_with_txs.get_header().get_number())
+                        .set_nonce(tx.get_from(), tx.get_nonce());
                 }
                 let start_time_utc =   chrono::Utc::now();
                 let write_query = WriteQuery::new(Timestamp::from(start_time_utc), "mempool")

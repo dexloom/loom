@@ -1,46 +1,52 @@
-use alloy::primitives::{Address, U256};
+use alloy::network::TransactionBuilder;
+use alloy::primitives::{Address, TxKind, U256};
+use alloy::rpc::types::TransactionRequest;
 use alloy::sol_types::{SolCall, SolInterface};
-use eyre::Result;
-use revm::primitives::Env;
-use revm::DatabaseRef;
-
+use eyre::{eyre, Result};
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
-use loom_evm_utils::evm::evm_call;
+use loom_evm_utils::{evm_call, evm_dyn_call, LoomExecuteEvm};
+use revm::DatabaseRef;
+use tracing::error;
 
-pub struct UniswapV2StateReader {}
+pub struct UniswapV2EVMStateReader {}
 
-impl UniswapV2StateReader {
-    pub fn factory<DB: DatabaseRef>(db: &DB, env: Env, pool: Address) -> Result<Address> {
-        //info!(" ----- {} {} {}", db.storage(pool, U256::try_from(8).unwrap()).unwrap(), db.storage(pool, U256::try_from(9).unwrap()).unwrap(),  db.storage(pool, U256::try_from(10).unwrap()).unwrap());
-        let call_data_result =
-            evm_call(db, env, pool, IUniswapV2Pair::IUniswapV2PairCalls::factory(IUniswapV2Pair::factoryCall {}).abi_encode())?.0;
+impl UniswapV2EVMStateReader {
+    pub fn factory(evm: &mut dyn LoomExecuteEvm, pool: Address) -> Result<Address> {
+        let input = IUniswapV2Pair::IUniswapV2PairCalls::factory(IUniswapV2Pair::factoryCall {}).abi_encode();
+        let req = TransactionRequest::default().with_kind(TxKind::Call(pool)).with_input(input);
+        let call_data_result = evm_dyn_call(evm, req)?.0;
         let call_return = IUniswapV2Pair::factoryCall::abi_decode_returns(&call_data_result, false)?;
         Ok(call_return._0)
     }
 
-    pub fn token0<DB: DatabaseRef>(db: &DB, env: Env, pool: Address) -> Result<Address> {
-        let call_data_result =
-            evm_call(db, env, pool, IUniswapV2Pair::IUniswapV2PairCalls::token0(IUniswapV2Pair::token0Call {}).abi_encode())?.0;
+    pub fn token0(evm: &mut dyn LoomExecuteEvm, pool: Address) -> Result<Address> {
+        let input = IUniswapV2Pair::IUniswapV2PairCalls::token0(IUniswapV2Pair::token0Call {}).abi_encode();
+        let req = TransactionRequest::default().with_kind(TxKind::Call(pool)).with_input(input);
+        let call_data_result = evm_dyn_call(evm, req)?.0;
+
         let call_return = IUniswapV2Pair::token0Call::abi_decode_returns(&call_data_result, false)?;
         Ok(call_return._0)
     }
 
-    pub fn token1<DB: DatabaseRef>(db: &DB, env: Env, pool: Address) -> Result<Address> {
-        let call_data_result =
-            evm_call(db, env, pool, IUniswapV2Pair::IUniswapV2PairCalls::token1(IUniswapV2Pair::token1Call {}).abi_encode())?.0;
+    pub fn token1(evm: &mut dyn LoomExecuteEvm, pool: Address) -> Result<Address> {
+        let input = IUniswapV2Pair::IUniswapV2PairCalls::token1(IUniswapV2Pair::token1Call {}).abi_encode();
+        let req = TransactionRequest::default().with_kind(TxKind::Call(pool)).with_input(input);
+        let call_data_result = evm_dyn_call(evm, req)?.0;
         let call_return = IUniswapV2Pair::token1Call::abi_decode_returns(&call_data_result, false)?;
         Ok(call_return._0)
     }
-    /*
-       pub fn is_code(code: &Bytecode) -> bool {
-           match_abi(code, vec![IUniswapV2Pair::swapCall::SELECTOR, IUniswapV2Pair::mintCall::SELECTOR, IUniswapV2Pair::syncCall::SELECTOR, IUniswapV2Pair::token0Call::SELECTOR, IUniswapV2Pair::factoryCall::SELECTOR])
-       }
 
+    pub fn get_reserves(evm: &mut dyn LoomExecuteEvm, pool: Address) -> Result<(U256, U256)> {
+        let input = IUniswapV2Pair::IUniswapV2PairCalls::getReserves(IUniswapV2Pair::getReservesCall {}).abi_encode();
+        let req = TransactionRequest::default().with_kind(TxKind::Call(pool)).with_input(input).with_gas_limit(100_000);
+        let call_data_result = match evm_dyn_call(evm, req) {
+            Ok(call_data) => call_data.0,
+            Err(error) => {
+                error!(%error,"get_reserves");
+                return Err(eyre!(error));
+            }
+        };
 
-    */
-    pub fn get_reserves<DB: DatabaseRef>(db: &DB, env: Env, pool: Address) -> Result<(U256, U256)> {
-        let call_data_result =
-            evm_call(db, env, pool, IUniswapV2Pair::IUniswapV2PairCalls::getReserves(IUniswapV2Pair::getReservesCall {}).abi_encode())?.0;
         let call_return = IUniswapV2Pair::getReservesCall::abi_decode_returns(&call_data_result, false)?;
         Ok((U256::from(call_return.reserve0), U256::from(call_return.reserve1)))
     }

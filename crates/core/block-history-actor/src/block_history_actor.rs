@@ -1,4 +1,5 @@
-use alloy_network::{Ethereum, Network};
+use alloy_json_rpc::RpcRecv;
+use alloy_network::{BlockResponse, Ethereum, Network};
 use alloy_primitives::{Address, BlockHash, BlockNumber};
 use alloy_provider::Provider;
 use alloy_rpc_types::{Block, Header, Log};
@@ -32,6 +33,7 @@ where
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: BlockHistoryState<LDT> + Clone,
     LDT: LoomDataTypesEVM,
+    LDT::Block: RpcRecv + BlockResponse,
 {
     let block_number = header.number;
     let block_hash = header.hash;
@@ -86,6 +88,7 @@ where
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: BlockHistoryState<LDT> + DatabaseRef + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
     LDT: LoomDataTypesEVM,
+    LDT::Block: RpcRecv + BlockResponse,
 {
     subscribe!(block_header_update_rx);
     subscribe!(block_update_rx);
@@ -376,9 +379,10 @@ pub struct BlockHistoryActor<P, N, DB, LDT: LoomDataTypes + 'static> {
 impl<P, N, DB, LDT> BlockHistoryActor<P, N, DB, LDT>
 where
     N: Network,
-    P: Provider<N> + DebugProviderExt<Ethereum> + Sync + Send + Clone + 'static,
+    P: Provider<N> + DebugProviderExt<N> + Sync + Send + Clone + 'static,
     DB: DatabaseRef + BlockHistoryState<LDT> + DatabaseLoomExt + DatabaseCommit + Database + Send + Sync + Clone + Default + 'static,
     LDT: LoomDataTypes + 'static,
+    LDT::Block: BlockResponse,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -418,6 +422,7 @@ where
     P: Provider<N> + DebugProviderExt<N> + Sync + Send + Clone + 'static,
     DB: BlockHistoryState<LDT> + DatabaseRef + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
     LDT: LoomDataTypesEVM,
+    LDT::Block: BlockResponse + RpcRecv,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(new_block_history_worker(

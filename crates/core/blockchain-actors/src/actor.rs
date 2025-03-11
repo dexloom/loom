@@ -1,4 +1,5 @@
-use alloy_network::{Ethereum, Network};
+use alloy_json_rpc::RpcRecv;
+use alloy_network::{BlockResponse, Ethereum, Network};
 use alloy_primitives::{Address, B256, U256};
 use alloy_provider::{Provider, RootProvider};
 use axum::Router;
@@ -20,7 +21,7 @@ use loom_defi_market::{
 use loom_defi_pools::{PoolLoadersBuilder, PoolsLoadingConfig};
 use loom_defi_preloader::MarketStatePreloadedOneShotActor;
 use loom_defi_price::PriceActor;
-use loom_evm_db::DatabaseLoomExt;
+use loom_evm_db::{DatabaseLoomExt, LoomDBError};
 use loom_evm_utils::NWETH;
 use loom_execution_estimator::{EvmEstimatorActor, GethEstimatorActor};
 use loom_execution_multicaller::MulticallerSwapEncoder;
@@ -37,7 +38,7 @@ use loom_strategy_backrun::{
     BackrunConfig, BlockStateChangeProcessorActor, PendingTxStateChangeProcessorActor, StateChangeArbSearcherActor,
 };
 use loom_strategy_merger::{ArbSwapPathMergerActor, DiffPathMergerActor, SamePathMergerActor};
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEVM, LoomDataTypesEthereum};
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{BlockHistoryState, PoolClass, SwapEncoder, TxSigners};
 use revm::{Database, DatabaseCommit, DatabaseRef};
@@ -51,13 +52,13 @@ pub struct BlockchainActors<
     N,
     DB: Clone + Send + Sync + 'static,
     E: Clone = MulticallerSwapEncoder,
-    LDT: LoomDataTypes + 'static = LoomDataTypesEthereum,
+    LDT: LoomDataTypesEVM + 'static = LoomDataTypesEthereum,
 > {
     provider: P,
     bc: Blockchain<LDT>,
-    state: BlockchainState<DB>,
-    strategy: Strategy<DB>,
-    pub signers: SharedState<TxSigners>,
+    state: BlockchainState<DB, LDT>,
+    strategy: Strategy<DB, LDT>,
+    pub signers: SharedState<TxSigners<LDT>>,
     actor_manager: ActorsManager,
     encoder: Option<E>,
     has_mempool: bool,
@@ -70,27 +71,28 @@ pub struct BlockchainActors<
 
 impl<P, N, DB, E, LDT> BlockchainActors<P, N, DB, E, LDT>
 where
-    N: Network,
-    P: Provider<N> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef<Error = ErrReport>
-        + Database<Error = ErrReport>
+    N: Network<HeaderResponse = LDT::Header, BlockResponse = LDT::Block>,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = LoomDBError>
+        + Database<Error = LoomDBError>
         + DatabaseCommit
         + DatabaseLoomExt
-        + BlockHistoryState
+        + BlockHistoryState<LDT>
         + Send
         + Sync
         + Clone
         + Default
         + 'static,
     E: SwapEncoder + Send + Sync + Clone + 'static,
-    LDT: LoomDataTypes,
+    LDT: LoomDataTypesEVM,
+    LDT::Block: BlockResponse + RpcRecv,
 {
     pub fn new(
         provider: P,
         encoder: E,
         bc: Blockchain<LDT>,
-        state: BlockchainState<DB>,
-        strategy: Strategy<DB>,
+        state: BlockchainState<DB, LDT>,
+        strategy: Strategy<DB, LDT>,
         relays: Vec<RelayConfig>,
     ) -> Self {
         Self {
@@ -126,52 +128,53 @@ where
         Ok(self)
     }
 
+    //TODO : Fix
     /// Initialize signers with the default anvil Private Key
-    pub fn initialize_signers_with_anvil(&mut self) -> Result<&mut Self> {
-        let key: B256 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".parse()?;
-
-        self.actor_manager.start_and_wait(
-            InitializeSignersOneShotBlockingActor::new(Some(key.to_vec())).with_signers(self.signers.clone()).on_bc(&self.bc),
-        )?;
-        self.with_signers()?;
-        Ok(self)
-    }
-
-    /// Initialize signers with the private key. Random key generated if param in None
-    pub fn initialize_signers_with_key(&mut self, key: Option<Vec<u8>>) -> Result<&mut Self> {
-        self.actor_manager
-            .start_and_wait(InitializeSignersOneShotBlockingActor::new(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
-        self.with_signers()?;
-        Ok(self)
-    }
-
-    /// Initialize signers with multiple private keys
-    pub fn initialize_signers_with_keys(&mut self, keys: Vec<Vec<u8>>) -> Result<&mut Self> {
-        for key in keys {
-            self.actor_manager
-                .start_and_wait(InitializeSignersOneShotBlockingActor::new(Some(key)).with_signers(self.signers.clone()).on_bc(&self.bc))?;
-        }
-        self.with_signers()?;
-        Ok(self)
-    }
-
-    /// Initialize signers with encrypted private key
-    pub fn initialize_signers_with_encrypted_key(&mut self, key: Vec<u8>) -> Result<&mut Self> {
-        self.actor_manager.start_and_wait(
-            InitializeSignersOneShotBlockingActor::new_from_encrypted_key(key).with_signers(self.signers.clone()).on_bc(&self.bc),
-        )?;
-        self.with_signers()?;
-        Ok(self)
-    }
-
-    /// Initializes signers with encrypted key form DATA env var
-    pub fn initialize_signers_with_env(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start_and_wait(
-            InitializeSignersOneShotBlockingActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc),
-        )?;
-        self.with_signers()?;
-        Ok(self)
-    }
+    // pub fn initialize_signers_with_anvil(&mut self) -> Result<&mut Self> {
+    //     let key: B256 = "0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80".parse()?;
+    //
+    //     self.actor_manager.start_and_wait(
+    //         InitializeSignersOneShotBlockingActor::new(Some(key.to_vec())).with_signers(self.signers.clone()).on_bc(&self.bc),
+    //     )?;
+    //     self.with_signers()?;
+    //     Ok(self)
+    // }
+    //
+    // /// Initialize signers with the private key. Random key generated if param in None
+    // pub fn initialize_signers_with_key(&mut self, key: Option<Vec<u8>>) -> Result<&mut Self> {
+    //     self.actor_manager
+    //         .start_and_wait(InitializeSignersOneShotBlockingActor::new(key).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+    //     self.with_signers()?;
+    //     Ok(self)
+    // }
+    //
+    // /// Initialize signers with multiple private keys
+    // pub fn initialize_signers_with_keys(&mut self, keys: Vec<Vec<u8>>) -> Result<&mut Self> {
+    //     for key in keys {
+    //         self.actor_manager
+    //             .start_and_wait(InitializeSignersOneShotBlockingActor::new(Some(key)).with_signers(self.signers.clone()).on_bc(&self.bc))?;
+    //     }
+    //     self.with_signers()?;
+    //     Ok(self)
+    // }
+    //
+    // /// Initialize signers with encrypted private key
+    // pub fn initialize_signers_with_encrypted_key(&mut self, key: Vec<u8>) -> Result<&mut Self> {
+    //     self.actor_manager.start_and_wait(
+    //         InitializeSignersOneShotBlockingActor::new_from_encrypted_key(key).with_signers(self.signers.clone()).on_bc(&self.bc),
+    //     )?;
+    //     self.with_signers()?;
+    //     Ok(self)
+    // }
+    //
+    // /// Initializes signers with encrypted key form DATA env var
+    // pub fn initialize_signers_with_env(&mut self) -> Result<&mut Self> {
+    //     self.actor_manager.start_and_wait(
+    //         InitializeSignersOneShotBlockingActor::new_from_encrypted_env().with_signers(self.signers.clone()).on_bc(&self.bc),
+    //     )?;
+    //     self.with_signers()?;
+    //     Ok(self)
+    // }
 
     /// Starts signer actor
     pub fn with_signers(&mut self) -> Result<&mut Self> {
@@ -186,7 +189,7 @@ where
     pub fn with_swap_encoder(&mut self, swap_encoder: E) -> Result<&mut Self> {
         self.mutlicaller_address = Some(swap_encoder.address());
         self.encoder = Some(swap_encoder);
-        self.actor_manager.start(SwapRouterActor::<DB>::new().with_signers(self.signers.clone()).on_bc(&self.bc, &self.strategy))?;
+        self.actor_manager.start(SwapRouterActor::<DB, LDT>::new().with_signers(self.signers.clone()).on_bc(&self.bc, &self.strategy))?;
         Ok(self)
     }
 
@@ -195,7 +198,7 @@ where
         let mut address_vec = self.signers.inner().try_read()?.get_address_vec();
 
         if let Some(loom_multicaller) = self.mutlicaller_address {
-            address_vec.push(loom_multicaller);
+            address_vec.push(loom_multicaller.into());
         }
 
         self.actor_manager.start_and_wait(
@@ -212,9 +215,9 @@ where
 
         for address in address_vec {
             //            market_state_preloader = market_state_preloader.with_new_account(address, 0, NWETH::from_float(10.0), None);
-            market_state_preloader = market_state_preloader.with_copied_account(address).with_token_balance(
+            market_state_preloader = market_state_preloader.with_copied_account(address.into()).with_token_balance(
                 TokenAddressEth::ETH_NATIVE,
-                address,
+                address.into(),
                 NWETH::from_float(10.0),
             );
         }
@@ -241,10 +244,11 @@ where
     }
 
     /// Starts nonce and balance monitor
-    pub fn with_nonce_and_balance_monitor(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(NonceAndBalanceMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
-        Ok(self)
-    }
+    /// TODO : Fix
+    // pub fn with_nonce_and_balance_monitor(&mut self) -> Result<&mut Self> {
+    //     self.actor_manager.start(NonceAndBalanceMonitorActor::new(self.provider.clone()).on_bc(&self.bc))?;
+    //     Ok(self)
+    // }
 
     pub fn with_nonce_and_balance_monitor_only_events(&mut self) -> Result<&mut Self> {
         self.actor_manager.start(NonceAndBalanceMonitorActor::new(self.provider.clone()).only_once().on_bc(&self.bc))?;
@@ -257,11 +261,13 @@ where
         Ok(self)
     }
 
+    //TODO : FIX
+
     /// Starts token price calculator
-    pub fn with_price_station(&mut self) -> Result<&mut Self> {
-        self.actor_manager.start(PriceActor::new(self.provider.clone()).on_bc(&self.bc))?;
-        Ok(self)
-    }
+    // pub fn with_price_station(&mut self) -> Result<&mut Self> {
+    //     self.actor_manager.start(PriceActor::new(self.provider.clone()).on_bc(&self.bc))?;
+    //     Ok(self)
+    // }
 
     /// Starts receiving blocks events through RPC
     pub fn with_block_events(&mut self, config: NodeBlockActorConfig) -> Result<&mut Self> {

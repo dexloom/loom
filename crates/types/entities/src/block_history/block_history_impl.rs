@@ -1,6 +1,7 @@
 use crate::block_history::block_history_state::BlockHistoryState;
 use crate::market_state::MarketStateConfig;
-use alloy_consensus::BlockHeader;
+use alloy_consensus::{BlockHeader, TxEnvelope};
+use alloy_json_rpc::RpcRecv;
 use alloy_network::{BlockResponse, Ethereum, Network};
 use alloy_primitives::{BlockHash, BlockNumber, FixedBytes};
 use alloy_provider::Provider;
@@ -10,8 +11,10 @@ use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::{
     debug_trace_block, GethStateUpdate, GethStateUpdateVec, LoomBlock, LoomDataTypes, LoomDataTypesEVM, LoomDataTypesEthereum, LoomHeader,
 };
+use serde::de::Deserialize;
 use std::collections::HashMap;
 use std::fmt::Debug;
+use std::future::IntoFuture;
 use std::marker::PhantomData;
 use tracing::{debug, error};
 
@@ -262,20 +265,51 @@ pub struct BlockHistoryManager<P, N, DB, LDT> {
     client: P,
     _td: PhantomData<(N, DB, LDT)>,
 }
+//
+// impl<P, S, LDT> BlockHistoryManager<P, Ethereum, S, LDT>
+// where
+//     P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
+//     S: BlockHistoryState<LDT> + Clone,
+//     LDT: LoomDataTypesEVM,
+// {
+//     pub async fn fetch_entry_data(&self, entry: &mut BlockHistoryEntry<LDT>) -> Result<()> {
+//         if entry.logs.is_none() {
+//             let filter = Filter::new().at_block_hash(entry.hash());
+//             let logs = self.client.get_logs(&filter).await?;
+//             entry.logs = Some(logs);
+//         }
+//
+//         if entry.block.is_none() {
+//             let block = self.client.get_block_by_hash(entry.hash()).full().await?;
+//             if let Some(block) = block {
+//                 entry.block = Some(block);
+//             }
+//         }
+//
+//         if entry.state_update.is_none() {
+//             if let Ok((_, state_update)) = debug_trace_block(self.client.clone(), BlockId::Hash(entry.hash().into()), true).await {
+//                 entry.state_update = Some(state_update);
+//             } else {
+//                 error!("ERROR_FETCHING_STATE_UPDATE");
+//                 entry.state_update = Some(vec![]);
+//             }
+//         }
+//
+//         if entry.is_fetched() {
+//             Ok(())
+//         } else {
+//             Err(eyre!("BLOCK_DATA_NOT_FETCHED"))
+//         }
+//     }
+// }
 
-impl<P, DB> BlockHistoryManager<P, Ethereum, DB, LoomDataTypesEthereum>
-where
-    P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
-    DB: Clone,
-{
-}
-
-impl<P, N, S, LDT> BlockHistoryManager<P, N, S, LDT>
+impl<'de, P, N, S, LDT> BlockHistoryManager<P, N, S, LDT>
 where
     N: Network<BlockResponse = LDT::Block>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     S: BlockHistoryState<LDT> + Clone,
     LDT: LoomDataTypesEVM,
+    LDT::Block: BlockResponse + RpcRecv,
 {
     pub fn init(&self, current_state: S, depth: usize, block: LDT::Block) -> BlockHistory<S, LDT>
     where
@@ -309,7 +343,7 @@ where
         }
 
         if entry.block.is_none() {
-            let block = self.client.get_block_by_hash(entry.hash(), BlockTransactionsKind::Full).await?;
+            let block = self.client.get_block_by_hash(entry.hash()).await?;
             if let Some(block) = block {
                 entry.block = Some(block);
             }
@@ -450,7 +484,7 @@ where
     }
 
     pub async fn fetch_entry_by_hash(&self, block_hash: LDT::BlockHash) -> Result<BlockHistoryEntry<LDT>> {
-        let block = self.client.get_block_by_hash(block_hash, BlockTransactionsKind::Full).await?;
+        let block = self.client.get_block_by_hash(block_hash).full().await?;
         if let Some(block) = block {
             let header = block.get_header().clone();
 
@@ -577,7 +611,7 @@ mod test {
 
         let block_number_0 = provider.get_block_number().await?;
 
-        let block_0 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
+        let block_0 = provider.get_block_by_number(BlockNumberOrTag::Latest).full().await?.unwrap();
 
         let market_state = Arc::new(RwLock::new(MarketState::new(LoomDBType::default())));
 
@@ -590,7 +624,7 @@ mod test {
         provider.anvil_mine(Some(1), None).await?;
 
         let block_number_2 = provider.get_block_number().await?;
-        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
+        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest).full().await?.unwrap();
 
         assert_eq!(block_number_2, block_number_0 + 1);
         assert_eq!(block_2.header.parent_hash, block_0.header.hash);
@@ -609,7 +643,7 @@ mod test {
 
         provider.revert(snap.to()).await?;
         let block_number_2 = provider.get_block_number().await?;
-        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Full).await?.unwrap();
+        let block_2 = provider.get_block_by_number(BlockNumberOrTag::Latest).full().await?.unwrap();
 
         assert_eq!(block_number_2, block_number_0);
         assert_eq!(block_2.header.hash, block_0.header.hash);

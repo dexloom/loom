@@ -152,11 +152,7 @@ where
     Ok(debug_trace_call(client, req, block, opts, true).await?.1)
 }
 
-pub async fn debug_trace_call_diff<
-    N: Network<TransactionRequest = TransactionRequest>,
-    C: DebugProviderExt<N>,
-    TR: Into<TransactionRequest> + Send + Sync,
->(
+pub async fn debug_trace_call_diff<N: Network, C: DebugProviderExt<N>, TR: Into<N::TransactionRequest> + Send + Sync>(
     client: C,
     req: TR,
     block: BlockId,
@@ -211,7 +207,7 @@ mod test {
         let client = ProviderBuilder::new().disable_recommended_fillers().on_client(client);
 
         let blocknumber = client.get_block_number().await?;
-        let _block = client.get_block_by_number(blocknumber.into(), BlockTransactionsKind::Hashes).await?.unwrap();
+        let _block = client.get_block_by_number(blocknumber.into()).await?.unwrap();
 
         let _ret = debug_trace_block(client, BlockId::Number(blocknumber.into()), true).await?;
 

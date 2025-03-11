@@ -8,8 +8,8 @@ use futures::{pin_mut, StreamExt};
 use reth_exex::ExExNotification;
 use reth_provider::Chain;
 use reth_rpc::eth::EthTxBuilder;
-use revm::db::states::StorageSlot;
-use revm::db::{BundleAccount, StorageWithOriginalValues};
+use revm::database::states::StorageSlot;
+use revm::database::{BundleAccount, StorageWithOriginalValues};
 use tokio::select;
 use tracing::{error, info};
 

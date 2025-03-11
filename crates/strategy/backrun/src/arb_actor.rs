@@ -10,8 +10,9 @@ use tracing::info;
 
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
+use loom_evm_db::LoomDBError;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::{LoomDataTypes, Mempool};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEVM, Mempool};
 use loom_types_entities::{BlockHistory, LatestBlock, Market, MarketState};
 use loom_types_events::{MarketEvents, MempoolEvents, MessageHealthEvent, MessageSwapCompose};
 
@@ -20,7 +21,7 @@ use crate::block_state_change_processor::BlockStateChangeProcessorActor;
 use crate::BackrunConfig;
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct StateChangeArbActor<P, N, DB: Clone + Send + Sync + 'static, LDT: LoomDataTypes + 'static> {
+pub struct StateChangeArbActor<P, N, DB: Clone + Send + Sync + 'static, LDT: LoomDataTypesEVM + 'static> {
     backrun_config: BackrunConfig,
     client: P,
     use_blocks: bool,
@@ -28,9 +29,9 @@ pub struct StateChangeArbActor<P, N, DB: Clone + Send + Sync + 'static, LDT: Loo
     #[accessor]
     market: Option<SharedState<Market>>,
     #[accessor]
-    mempool: Option<SharedState<Mempool>>,
+    mempool: Option<SharedState<Mempool<LDT>>>,
     #[accessor]
-    latest_block: Option<SharedState<LatestBlock>>,
+    latest_block: Option<SharedState<LatestBlock<LDT>>>,
     #[accessor]
     market_state: Option<SharedState<MarketState<DB>>>,
     #[accessor]
@@ -54,7 +55,7 @@ where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Send + Sync + Clone + 'static,
-    LDT: LoomDataTypes,
+    LDT: LoomDataTypesEVM + 'static,
 {
     pub fn new(client: P, use_blocks: bool, use_mempool: bool, backrun_config: BackrunConfig) -> StateChangeArbActor<P, N, DB, LDT> {
         StateChangeArbActor {
@@ -79,10 +80,10 @@ where
 
 impl<P, N, DB, LDT> Actor for StateChangeArbActor<P, N, DB, LDT>
 where
-    N: Network,
+    N: Network<TransactionRequest = LDT::TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
-    LDT: LoomDataTypes,
+    DB: DatabaseRef<Error = LoomDBError> + Database<Error = LoomDBError> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+    LDT: LoomDataTypesEVM + 'static,
 {
     fn start(&self) -> ActorResult {
         let searcher_pool_update_channel = Broadcaster::new(100);

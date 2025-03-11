@@ -5067,6 +5067,7 @@ name = "loom-core-block-history"
 version = "0.6.0"
 dependencies = [
  "alloy-eips 0.12.3",
+ "alloy-json-rpc",
  "alloy-network",
  "alloy-node-bindings",
  "alloy-primitives",
@@ -5113,6 +5114,7 @@ dependencies = [
 name = "loom-core-blockchain-actors"
 version = "0.6.0"
 dependencies = [
+ "alloy-json-rpc",
  "alloy-network",
  "alloy-primitives",
  "alloy-provider",
@@ -5298,6 +5300,7 @@ dependencies = [
  "loom-core-actors-macros",
  "loom-core-blockchain",
  "loom-defi-pools",
+ "loom-evm-db",
  "loom-node-debug-provider",
  "loom-types-blockchain",
  "loom-types-entities",
@@ -5413,6 +5416,7 @@ name = "loom-evm-utils"
 version = "0.6.0"
 dependencies = [
  "alloy",
+ "auto_impl",
  "axum",
  "eyre",
  "lazy_static",
@@ -5659,6 +5663,7 @@ dependencies = [
 name = "loom-node-json-rpc"
 version = "0.6.0"
 dependencies = [
+ "alloy-json-rpc",
  "alloy-network",
  "alloy-primitives",
  "alloy-provider",
@@ -5783,6 +5788,7 @@ dependencies = [
  "loom-defi-address-book",
  "loom-defi-pools",
  "loom-evm-db",
+ "loom-evm-utils",
  "loom-node-debug-provider",
  "loom-types-blockchain",
  "loom-types-entities",
@@ -5859,6 +5865,7 @@ version = "0.6.0"
 dependencies = [
  "aes",
  "alloy-consensus",
+ "alloy-json-rpc",
  "alloy-network",
  "alloy-node-bindings",
  "alloy-primitives",
@@ -5871,6 +5878,7 @@ dependencies = [
  "alloy-signer-local",
  "alloy-transport",
  "async-stream",
+ "auto_impl",
  "chrono",
  "criterion",
  "eyre",

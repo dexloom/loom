@@ -63,7 +63,7 @@ where
                             }
                             client.mine().await?;
 
-                            let block = client.get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes).await?.unwrap_or_default();
+                            let block = client.get_block_by_number(BlockNumberOrTag::Latest).await?.unwrap_or_default();
                             if let BlockTransactions::Hashes(hashes) = block.transactions {
                                 for tx_hash in hashes {
                                     let reciept = client.get_transaction_receipt(tx_hash).await?.unwrap();

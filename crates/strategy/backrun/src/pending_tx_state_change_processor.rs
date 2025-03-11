@@ -8,7 +8,6 @@ use alloy_rpc_types::{BlockOverrides, Transaction, TransactionRequest};
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use eyre::{eyre, Result};
 use lazy_static::lazy_static;
-use revm::primitives::bitvec::macros::internal::funty::Fundamental;
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use std::collections::hash_map::Entry;
 use std::collections::HashMap;
@@ -52,7 +51,7 @@ pub async fn pending_tx_state_change_task<P, N, DB, LDT>(
     state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB, LDT>>,
 ) -> Result<()>
 where
-    N: Network,
+    N: Network<TransactionRequest = LDT::TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Clone + Send + Sync + 'static,
     LDT: LoomDataTypesEVM,
@@ -149,7 +148,7 @@ where
             merged_state_update_vec.push(post);
         }
         Err(error) => {
-            let tx_hash = tx.tx_hash();
+            let tx_hash = tx.get_tx_hash();
             mempool.write().await.set_failed(tx_hash);
             debug!(block=cur_block_number, %tx_hash, %error, "debug_trace_call error for");
         }
@@ -166,8 +165,8 @@ where
 
     //TODO : Fix Latest header is empty
     if let Some(latest_header) = latest_block.read().await.block_header.clone() {
-        let next_block_number = latest_header.number.as_u64() + 1;
-        let next_block_timestamp = latest_header.timestamp.as_u64() + 12;
+        let next_block_number = latest_header.number + 1;
+        let next_block_timestamp = latest_header.timestamp + 12;
 
         if !affected_pools.is_empty() {
             let cur_state_db = market_state.read().await.state_db.clone();
@@ -209,8 +208,8 @@ where
                 debug!("Mempool code pools {} {} update len : {}", tx_hash, source, affected_pools.len());
 
                 if let Some(latest_header) = latest_block.read().await.block_header.clone() {
-                    let block_number = latest_header.number.as_u64() + 1;
-                    let block_timestamp = latest_header.timestamp.as_u64() + 12;
+                    let block_number = latest_header.number + 1;
+                    let block_timestamp = latest_header.timestamp + 12;
 
                     if !affected_pools.is_empty() {
                         let cur_state_db = market_state.read().await.state_db.clone();
@@ -256,7 +255,7 @@ pub async fn pending_tx_state_change_worker<P, N, DB, LDT>(
     state_updates_broadcaster: Broadcaster<StateUpdateEvent<DB, LDT>>,
 ) -> WorkerResult
 where
-    N: Network,
+    N: Network<TransactionRequest = LDT::TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Clone + Send + Sync + 'static,
     LDT: LoomDataTypesEVM,
@@ -277,7 +276,7 @@ where
                     let market_event_msg : MarketEvents<LDT> = msg;
                     if let MarketEvents::BlockHeaderUpdate{ block_number, block_hash, timestamp, base_fee, next_base_fee } = market_event_msg {
                         debug!("Block header update {} {} base_fee {} ", block_number, block_hash, base_fee);
-                        cur_block_number = Some( block_number.as_u64() + 1);
+                        cur_block_number = Some( block_number + 1);
                         cur_block_time = Some(timestamp + 12 );
                         cur_next_base_fee = next_base_fee;
 
@@ -326,7 +325,7 @@ where
 }
 
 #[derive(Accessor, Consumer, Producer)]
-pub struct PendingTxStateChangeProcessorActor<P, N, DB: Clone + Send + Sync + 'static, LDT: LoomDataTypes + 'static> {
+pub struct PendingTxStateChangeProcessorActor<P, N, DB: Clone + Send + Sync + 'static, LDT: LoomDataTypesEVM + 'static> {
     client: P,
     #[accessor]
     market: Option<SharedState<Market>>,
@@ -350,7 +349,7 @@ where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Send + Sync + Clone + 'static,
-    LDT: LoomDataTypes + 'static,
+    LDT: LoomDataTypesEVM + 'static,
 {
     pub fn new(client: P) -> PendingTxStateChangeProcessorActor<P, N, DB, LDT> {
         PendingTxStateChangeProcessorActor {
@@ -382,10 +381,10 @@ where
 
 impl<P, N, DB, LDT> Actor for PendingTxStateChangeProcessorActor<P, N, DB, LDT>
 where
-    N: Network,
+    N: Network<TransactionRequest = LDT::TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
-    LDT: LoomDataTypes + 'static,
+    LDT: LoomDataTypesEVM + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(pending_tx_state_change_worker(

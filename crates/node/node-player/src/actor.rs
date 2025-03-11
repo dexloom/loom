@@ -11,7 +11,7 @@ use eyre::ErrReport;
 use loom_core_actors::{Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState};
-use loom_evm_db::DatabaseLoomExt;
+use loom_evm_db::{DatabaseLoomExt, LoomDBError};
 use loom_node_debug_provider::DebugProviderExt;
 use loom_types_blockchain::Mempool;
 use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
@@ -81,7 +81,7 @@ impl<P, N, DB> Actor for NodeBlockPlayerActor<P, N, DB>
 where
     P: Provider<Ethereum> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
     N: Send + Sync,
-    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
+    DB: Database<Error = LoomDBError> + DatabaseRef<Error = LoomDBError> + DatabaseCommit + DatabaseLoomExt + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let mut handles: Vec<JoinHandle<WorkerResult>> = Vec::new();

@@ -1,8 +1,8 @@
-use crate::{ChainParameters, GethStateUpdate, LoomBlock, LoomDataTypes, LoomDataTypesEthereum, LoomHeader, LoomTx};
+use crate::{ChainParameters, GethStateUpdate, LoomBlock, LoomDataTypes, LoomDataTypesEVM, LoomDataTypesEthereum, LoomHeader, LoomTx};
 use alloy_consensus::{BlockHeader, Transaction as TransactionTrait};
 use alloy_eips::eip2718::Encodable2718;
-use alloy_primitives::{Address, BlockHash, TxHash, TxKind};
-use alloy_provider::network::TransactionResponse;
+use alloy_primitives::{Address, BlockHash, Bytes, TxHash, TxKind};
+use alloy_provider::network::{TransactionBuilder, TransactionResponse};
 
 use crate::loom_data_types::LoomTransactionRequest;
 use alloy_rpc_types_eth::{Block as EthBlock, Header, Log, TransactionRequest};
@@ -26,24 +26,26 @@ impl LoomDataTypes for LoomDataTypesOptimism {
     type Address = Address;
 }
 
+impl LoomDataTypesEVM for LoomDataTypesOptimism {}
+
 impl LoomTx<LoomDataTypesOptimism> for OpTransaction {
-    fn gas_price(&self) -> u128 {
+    fn get_gas_price(&self) -> u128 {
         TransactionTrait::max_fee_per_gas(self)
     }
 
-    fn gas_limit(&self) -> u64 {
+    fn get_gas_limit(&self) -> u64 {
         TransactionTrait::gas_limit(self)
     }
 
-    fn tx_hash(&self) -> <LoomDataTypesOptimism as LoomDataTypes>::TxHash {
+    fn get_tx_hash(&self) -> <LoomDataTypesOptimism as LoomDataTypes>::TxHash {
         TransactionResponse::tx_hash(self)
     }
 
-    fn nonce(&self) -> u64 {
+    fn get_nonce(&self) -> u64 {
         TransactionTrait::nonce(self)
     }
 
-    fn from(&self) -> Address {
+    fn get_from(&self) -> Address {
         TransactionResponse::from(self)
     }
 
@@ -75,5 +77,9 @@ impl LoomTransactionRequest<LoomDataTypesOptimism> for OpTransactionRequest {
             Ok(tx) => tx.to(),
             _ => None,
         }
+    }
+
+    fn build_call(to: <LoomDataTypesEthereum as LoomDataTypes>::Address, data: Bytes) -> OpTransactionRequest {
+        OpTransactionRequest::default().with_kind(TxKind::Call(to)).with_input(data)
     }
 }

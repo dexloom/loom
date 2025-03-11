@@ -4,8 +4,8 @@ use alloy_network::{Ethereum, Network};
 use alloy_primitives::Bytes;
 use alloy_provider::Provider;
 use eyre::{eyre, ErrReport, Result};
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
-use reth_revm::primitives::Env;
+use loom_evm_utils::LoomExecuteEvm;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEVM, LoomDataTypesEthereum};
 use revm::DatabaseRef;
 use std::collections::HashMap;
 use std::future::Future;
@@ -27,7 +27,7 @@ where
         pool_id: EntityAddress,
         provider: P,
     ) -> Pin<Box<dyn Future<Output = Result<PoolWrapper>> + Send + 'a>>;
-    fn fetch_pool_by_id_from_evm(&self, pool_id: EntityAddress, db: &dyn DatabaseRef<Error = ErrReport>, env: Env) -> Result<PoolWrapper>;
+    fn fetch_pool_by_id_from_evm(&self, pool_id: EntityAddress, evm: &mut dyn LoomExecuteEvm) -> Result<PoolWrapper>;
     fn is_code(&self, code: &Bytes) -> bool;
     fn protocol_loader(&self) -> Result<Pin<Box<dyn Stream<Item = (EntityAddress, PoolClass)> + Send>>>;
 }
@@ -79,10 +79,11 @@ where
     }
 }
 
-impl<P, N> PoolLoaders<P, N>
+impl<P, N, LDT> PoolLoaders<P, N, LDT>
 where
     N: Network,
     P: Provider<N> + 'static,
+    LDT: LoomDataTypesEVM + 'static,
 {
     pub fn determine_pool_class(&self, log_entry: &<LoomDataTypesEthereum as LoomDataTypes>::Log) -> Option<(EntityAddress, PoolClass)> {
         for (pool_class, pool_loader) in self.map.iter() {

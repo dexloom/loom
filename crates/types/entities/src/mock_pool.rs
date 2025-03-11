@@ -4,7 +4,7 @@ use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, S
 use alloy_primitives::{Address, U256};
 use eyre::ErrReport;
 use eyre::Result;
-use revm::primitives::Env;
+use loom_evm_utils::LoomExecuteEvm;
 use revm::DatabaseRef;
 use std::any::Any;
 
@@ -56,8 +56,7 @@ impl Pool for MockPool {
 
     fn calculate_out_amount(
         &self,
-        state: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         in_amount: U256,
@@ -67,8 +66,7 @@ impl Pool for MockPool {
 
     fn calculate_in_amount(
         &self,
-        state: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         out_amount: U256,

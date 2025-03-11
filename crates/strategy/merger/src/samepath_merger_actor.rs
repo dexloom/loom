@@ -8,12 +8,13 @@ use alloy_network::{Network, TransactionResponse};
 use alloy_primitives::{Address, TxHash, U256};
 use alloy_provider::Provider;
 use alloy_rpc_types::state::StateOverride;
-use alloy_rpc_types::{BlockOverrides, Transaction, TransactionRequest};
+use alloy_rpc_types::{BlockOverrides, Header, Transaction, TransactionRequest};
 use alloy_rpc_types_trace::geth::GethDebugTracingCallOptions;
 use eyre::{eyre, ErrReport, Result};
 use lazy_static::lazy_static;
-use revm::primitives::{BlockEnv, Env, CANCUN};
-use revm::{Database, DatabaseCommit, DatabaseRef, Evm};
+use loom_evm_utils::LoomExecuteEvm;
+use revm::database::CacheDB;
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::sync::broadcast::error::RecvError;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, trace};
@@ -21,11 +22,10 @@ use tracing::{debug, error, info, trace};
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, BlockchainState, Strategy};
-use loom_evm_db::DatabaseHelpers;
-use loom_evm_utils::evm::evm_transact;
-use loom_evm_utils::evm_tx_env::tx_to_evm_tx;
+use loom_evm_db::{DatabaseHelpers, LoomDBError};
+use loom_evm_utils::{evm_dyn_transact, evm_transact, LoomEVMWrapper};
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, LoomDataTypes, TRACING_CALL_OPTS};
+use loom_types_blockchain::{debug_trace_call_pre_state, GethStateUpdate, GethStateUpdateVec, LoomDataTypes, LoomTx, TRACING_CALL_OPTS};
 use loom_types_entities::{DataFetcher, FetchState, LatestBlock, MarketState, Swap};
 use loom_types_events::{MarketEvents, MessageSwapCompose, SwapComposeData, SwapComposeMessage, TxComposeData};
 
@@ -74,7 +74,7 @@ async fn same_path_merger_task<P, N, DB>(
 where
     N: Network<TransactionRequest = TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
-    DB: Database<Error = ErrReport> + DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: Database<Error = LoomDBError> + DatabaseRef<Error = LoomDBError> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     debug!("same_path_merger_task stuffing_txs len {}", stuffing_txes.len());
 
@@ -82,20 +82,10 @@ where
 
     let mut stuffing_state_locks: Vec<(Transaction, FetchState<GethStateUpdate>)> = Vec::new();
 
-    let env = Env {
-        block: BlockEnv {
-            number: U256::from(request.tx_compose.next_block_number),
-            timestamp: U256::from(request.tx_compose.next_block_timestamp),
-            basefee: U256::from(request.tx_compose.next_block_base_fee),
-            ..BlockEnv::default()
-        },
-        ..Env::default()
-    };
-
     for tx in stuffing_txes.into_iter() {
         let client_clone = client.clone(); //Pin::new(Box::new(client.clone()));
         let tx_clone = tx.clone();
-        let tx_hash: TxHash = tx.tx_hash();
+        let tx_hash: TxHash = tx.get_tx_hash();
         let call_opts_clone = call_opts.clone();
 
         let lock = prestate_guard
@@ -142,20 +132,25 @@ where
 
         DatabaseHelpers::apply_geth_state_update_vec(&mut db, states);
 
-        let mut evm = Evm::builder().with_spec_id(CANCUN).with_db(db).with_env(Box::new(env.clone())).build();
+        let mut evm = LoomEVMWrapper::new(db);
+        evm.get_mut().modify_block(|block| {
+            block.number = request.tx_compose.next_block_number;
+            block.timestamp = request.tx_compose.next_block_timestamp;
+            block.basefee = request.tx_compose.next_block_base_fee;
+        });
 
         for (idx, tx_idx) in tx_order.clone().iter().enumerate() {
             // set tx context for evm
             let tx = &stuffing_states[*tx_idx].0;
-            let tx_env = tx_to_evm_tx(tx);
-            evm.context.evm.env.tx = tx_env;
 
-            match evm_transact(&mut evm) {
+            let tx_req: TransactionRequest = tx.to_transaction_request();
+
+            match evm_dyn_transact(evm.get_mut(), tx_req) {
                 Ok(_c) => {
-                    trace!("Transaction {} committed successfully {:?}", idx, tx.tx_hash());
+                    trace!("Transaction {} committed successfully {:?}", idx, tx.get_tx_hash());
                 }
                 Err(e) => {
-                    error!("Transaction {} {:?} commit error: {}", idx, tx.tx_hash(), e);
+                    error!("Transaction {} {:?} commit error: {}", idx, tx.get_tx_hash(), e);
                     match changing {
                         Some(changing_idx) => {
                             if (changing_idx == idx && idx == 0) || (changing_idx == idx - 1) {
@@ -188,7 +183,7 @@ where
 
         if ok {
             debug!("Transaction sequence found {tx_order:?}");
-            let (db, _) = evm.into_db_and_env_with_handler_cfg();
+            let db = evm.db().clone();
             break Some(db);
         }
     };
@@ -198,14 +193,22 @@ where
     }
 
     if let Some(db) = rdb {
+        let mut evm = LoomEVMWrapper::new(db.clone());
+        evm.get_mut().modify_block(|block| {
+            block.number = request.tx_compose.next_block_number;
+            block.timestamp = request.tx_compose.next_block_timestamp;
+            block.basefee = request.tx_compose.next_block_base_fee;
+        });
+
         if let Swap::BackrunSwapLine(mut swap_line) = request.swap.clone() {
             let first_token = swap_line.get_first_token().unwrap();
             let amount_in = first_token.calc_token_value_from_eth(U256::from(10).pow(U256::from(17))).unwrap();
-            match swap_line.optimize_with_in_amount(&db, env.clone(), amount_in) {
+
+            match swap_line.optimize_with_in_amount(evm.get_mut(), amount_in) {
                 Ok(_r) => {
                     let encode_request = MessageSwapCompose::prepare(SwapComposeData {
                         tx_compose: TxComposeData {
-                            stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.tx_hash()).collect(),
+                            stuffing_txs_hashes: tx_order.iter().map(|i| stuffing_states[*i].0.get_tx_hash()).collect(),
                             stuffing_txs: tx_order.iter().map(|i| stuffing_states[*i].0.clone()).collect(),
                             ..request.tx_compose
                         },
@@ -235,9 +238,9 @@ where
 }
 
 async fn same_path_merger_worker<
-    N: Network,
+    N: Network<TransactionRequest = TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = LoomDBError> + Database<Error = LoomDBError> + DatabaseCommit + Send + Sync + Clone + 'static,
 >(
     client: P,
     latest_block: SharedState<LatestBlock>,
@@ -370,7 +373,7 @@ impl<P, N, DB> SamePathMergerActor<P, N, DB>
 where
     N: Network,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = LoomDBError> + DatabaseRef<Error = LoomDBError> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     pub fn new(client: P) -> Self {
         Self {
@@ -398,9 +401,9 @@ where
 
 impl<P, N, DB> Actor for SamePathMergerActor<P, N, DB>
 where
-    N: Network,
+    N: Network<TransactionRequest = TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
-    DB: DatabaseRef<Error = ErrReport> + Database<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + 'static,
+    DB: DatabaseRef<Error = LoomDBError> + Database<Error = LoomDBError> + DatabaseCommit + Send + Sync + Clone + 'static,
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(same_path_merger_worker(

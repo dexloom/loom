@@ -742,6 +742,14 @@ impl TryFrom<&proto::Bytecode> for reth::revm::bytecode::Bytecode {
                     raw: eip7702.raw.as_slice().to_vec().into(),
                 })
             }
+            proto::bytecode::Bytecode::LegacyRaw(bytecode) => {
+                //TODO : Check and  Implement properly
+                reth::revm::bytecode::Bytecode::LegacyAnalyzed(reth::revm::bytecode::LegacyAnalyzedBytecode::new(
+                    bytecode.clone().into(),
+                    bytecode.len(),
+                    reth::revm::bytecode::JumpTable::default(),
+                ))
+            }
         })
     }
 }

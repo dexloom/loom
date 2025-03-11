@@ -1,3 +1,4 @@
+use crate::state_readers::UniswapV2EVMStateReader;
 use alloy::primitives::{Address, Bytes, U256};
 use alloy::providers::{Network, Provider};
 use alloy::rpc::types::BlockNumberOrTag;
@@ -7,15 +8,13 @@ use lazy_static::lazy_static;
 use loom_defi_abi::uniswap2::IUniswapV2Pair;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::FactoryAddress;
+use loom_evm_utils::LoomExecuteEvm;
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{EntityAddress, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
-use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::any::Any;
-use std::ops::Div;
+use std::ops::{Deref, Div};
 use tracing::debug;
-
-use crate::state_readers::UniswapV2StateReader;
 
 lazy_static! {
     static ref U112_MASK: U256 = (U256::from(1) << 112) - U256::from(1);
@@ -120,10 +119,10 @@ impl UniswapV2Pool {
         ((value >> 0) & *U112_MASK, (value >> (112)) & *U112_MASK)
     }
 
-    pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
-        let token0 = UniswapV2StateReader::token0(&db, env.clone(), address)?;
-        let token1 = UniswapV2StateReader::token1(&db, env.clone(), address)?;
-        let factory = UniswapV2StateReader::factory(&db, env.clone(), address)?;
+    pub fn fetch_pool_data_evm(evm: &mut dyn LoomExecuteEvm, address: Address) -> Result<Self> {
+        let token0 = UniswapV2EVMStateReader::token0(evm, address)?;
+        let token1 = UniswapV2EVMStateReader::token1(evm, address)?;
+        let factory = UniswapV2EVMStateReader::factory(evm, address)?;
         let protocol = Self::get_uni2_protocol_by_factory(factory);
 
         let fee = Self::get_fee_by_protocol(protocol);
@@ -184,17 +183,8 @@ impl UniswapV2Pool {
         Ok(ret)
     }
 
-    pub fn fetch_reserves(&self, state_db: &dyn DatabaseRef<Error = ErrReport>, env: Env) -> Result<(U256, U256)> {
-        let (reserve_0, reserve_1) = match self.reserves_cell {
-            Some(cell) => {
-                if let Ok(storage_value) = state_db.storage_ref(self.address, cell) {
-                    Self::storage_to_reserves(storage_value)
-                } else {
-                    return Err(eyre!("ERROR_READING_STATE_DB"));
-                }
-            }
-            None => UniswapV2StateReader::get_reserves(&state_db, env, self.address)?,
-        };
+    pub fn fetch_reserves(&self, evm: &mut dyn LoomExecuteEvm) -> Result<(U256, U256)> {
+        let (reserve_0, reserve_1) = UniswapV2EVMStateReader::get_reserves(evm, self.address)?;
         Ok((reserve_0, reserve_1))
     }
 }
@@ -232,13 +222,12 @@ impl Pool for UniswapV2Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let (reserves_0, reserves_1) = self.fetch_reserves(state_db, env)?;
+        let (reserves_0, reserves_1) = self.fetch_reserves(evm)?;
 
         let (reserve_in, reserve_out) = match token_address_from < token_address_to {
             true => (reserves_0, reserves_1),
@@ -262,13 +251,12 @@ impl Pool for UniswapV2Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let (reserves_0, reserves_1) = self.fetch_reserves(state_db, env)?;
+        let (reserves_0, reserves_1) = self.fetch_reserves(evm)?;
 
         let (reserve_in, reserve_out) = match token_address_from.lt(token_address_to) {
             true => (reserves_0, reserves_1),
@@ -314,9 +302,13 @@ impl Pool for UniswapV2Pool {
     fn get_state_required(&self) -> Result<RequiredState> {
         let mut state_required = RequiredState::new();
 
-        let reserves_call_data_vec = IUniswapV2Pair::IUniswapV2PairCalls::factory(IUniswapV2Pair::factoryCall {}).abi_encode();
+        let reserves_call_data_vec = IUniswapV2Pair::IUniswapV2PairCalls::getReserves(IUniswapV2Pair::getReservesCall {}).abi_encode();
+        let factory_call_data_vec = IUniswapV2Pair::IUniswapV2PairCalls::factory(IUniswapV2Pair::factoryCall {}).abi_encode();
 
-        state_required.add_call(self.get_address(), reserves_call_data_vec).add_slot_range(self.address, U256::from(0), 0x20);
+        state_required
+            .add_call(self.get_address(), reserves_call_data_vec)
+            .add_call(self.get_address(), factory_call_data_vec)
+            .add_slot_range(self.address, U256::from(0), 0x20);
 
         for token_address in self.get_tokens() {
             state_required
@@ -382,6 +374,7 @@ mod test {
     use loom_defi_abi::uniswap2::IUniswapV2Router;
     use loom_defi_address_book::PeripheryAddress;
     use loom_evm_db::LoomDBType;
+    use loom_evm_utils::LoomEVMWrapper;
     use loom_node_debug_provider::{AnvilDebugProviderFactory, AnvilDebugProviderType};
     use loom_types_entities::required_state::RequiredStateReader;
     use rand::Rng;
@@ -396,6 +389,10 @@ mod test {
 
     #[tokio::test]
     async fn test_fetch_reserves() -> Result<()> {
+        let _ = env_logger::try_init_from_env(env_logger::Env::default().default_filter_or(
+            "info,loom_types_entities::required_state=trace,loom_types_blockchain::state_update=off,alloy_rpc_client::call=off,tungstenite=off",
+        ));
+
         let block_number = 20935488u64;
 
         let node_url = env::var("MAINNET_WS")?;
@@ -414,8 +411,10 @@ mod test {
             let mut state_db = LoomDBType::default();
             state_db.apply_geth_update(state_update);
 
+            let mut evm = LoomEVMWrapper::new(state_db);
+
             // under test
-            let (reserves_0, reserves_1) = pool.fetch_reserves(&state_db, Env::default())?;
+            let (reserves_0, reserves_1) = pool.fetch_reserves(evm.get_mut())?;
 
             assert_eq!(reserves_0, reserves_0_original, "{}", format!("Missmatch for pool={:?}", pool_address));
             assert_eq!(reserves_1, reserves_1_original, "{}", format!("Missmatch for pool={:?}", pool_address));
@@ -475,10 +474,10 @@ mod test {
             // fetch original
             let contract_amount_out = fetch_original_contract_amounts(client.clone(), pool_address, amount_in, block_number, true).await?;
 
-            // under test
-            let evm_env = Env::default();
+            let mut evm = LoomEVMWrapper::new(state_db);
+
             let (amount_out, gas_used) =
-                pool.calculate_out_amount(&state_db, evm_env.clone(), &pool.token0.into(), &pool.token1.into(), amount_in)?;
+                pool.calculate_out_amount(evm.get_evm_mut(), &pool.token0.into(), &pool.token1.into(), amount_in)?;
 
             assert_eq!(amount_out, contract_amount_out, "{}", format!("Missmatch for pool={:?}, amount_in={}", pool_address, amount_in));
             assert_eq!(gas_used, 100_000);
@@ -506,9 +505,11 @@ mod test {
             // fetch original
             let contract_amount_in = fetch_original_contract_amounts(client.clone(), pool_address, amount_out, block_number, false).await?;
 
+            let mut evm = LoomEVMWrapper::new(state_db);
+
             // under test
             let (amount_in, gas_used) =
-                pool.calculate_in_amount(&state_db, Env::default(), &pool.token0.into(), &pool.token1.into(), amount_out)?;
+                pool.calculate_in_amount(evm.get_evm_mut(), &pool.token0.into(), &pool.token1.into(), amount_out)?;
 
             assert_eq!(amount_in, contract_amount_in, "{}", format!("Missmatch for pool={:?}, amount_out={}", pool_address, amount_out));
             assert_eq!(gas_used, 100_000);

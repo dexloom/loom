@@ -3,7 +3,7 @@ use revm::database::DBErrorMarker;
 use std::error::Error;
 use std::fmt::{Debug, Display, Formatter};
 
-#[derive(Default, Debug)]
+#[derive(Clone, Default, Debug)]
 pub enum LoomDBError {
     #[default]
     Nonimportant,

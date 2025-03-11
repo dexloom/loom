@@ -44,7 +44,7 @@ impl MulticallerDeployer {
         P: Provider<Ethereum> + Send + Sync + Clone + 'static,
     {
         let block = client
-            .get_block_by_number(BlockNumberOrTag::Latest, BlockTransactionsKind::Hashes)
+            .get_block_by_number(BlockNumberOrTag::Latest)
             .await
             .map_err(|e| {
                 error!("{e}");

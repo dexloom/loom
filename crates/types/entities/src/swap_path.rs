@@ -278,7 +278,7 @@ mod test {
     use crate::{Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
     use alloy_primitives::{Address, U256};
     use eyre::{eyre, ErrReport};
-    use revm::primitives::Env;
+    use loom_evm_utils::LoomExecuteEvm;
     use revm::DatabaseRef;
     use std::any::Any;
     use tokio::task::JoinHandle;
@@ -313,8 +313,7 @@ mod test {
 
         fn calculate_out_amount(
             &self,
-            _state: &dyn DatabaseRef<Error = ErrReport>,
-            _env: Env,
+            _evm: &mut dyn LoomExecuteEvm,
             _token_address_from: &EntityAddress,
             _token_address_to: &EntityAddress,
             _in_amount: U256,
@@ -324,8 +323,7 @@ mod test {
 
         fn calculate_in_amount(
             &self,
-            _state: &dyn DatabaseRef<Error = ErrReport>,
-            _env: Env,
+            _evm: &mut dyn LoomExecuteEvm,
             _token_address_from: &EntityAddress,
             _token_address_to: &EntityAddress,
             _out_amount: U256,

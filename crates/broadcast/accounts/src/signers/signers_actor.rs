@@ -31,7 +31,7 @@ async fn sign_task<LDT: LoomDataTypes>(
             TxState::Stuffing(t) => RlpState::Stuffing(t.encode().into()),
             TxState::SignatureRequired(t) => {
                 let tx = signer.sign_sync(t.clone()).unwrap();
-                let tx_hash = tx.tx_hash();
+                let tx_hash = tx.get_tx_hash();
                 let signed_tx_bytes = Bytes::from(tx.encode());
 
                 info!("Tx signed {tx_hash:?}");

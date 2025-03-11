@@ -8,7 +8,7 @@ use eyre::{eyre, ErrReport, Result};
 use influxdb::{Timestamp, WriteQuery};
 use rayon::prelude::*;
 use rayon::{ThreadPool, ThreadPoolBuilder};
-use revm::{DatabaseCommit, DatabaseRef};
+use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::sync::broadcast::error::RecvError;
 #[cfg(not(debug_assertions))]
 use tracing::warn;
@@ -19,8 +19,9 @@ use crate::SwapCalculator;
 use loom_core_actors::{subscribe, Accessor, Actor, ActorResult, Broadcaster, Consumer, Producer, SharedState, WorkerResult};
 use loom_core_actors_macros::{Accessor, Consumer, Producer};
 use loom_core_blockchain::{Blockchain, Strategy};
-use loom_evm_db::DatabaseHelpers;
-use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec, LoomDataTypes};
+use loom_evm_db::{DatabaseHelpers, LoomDBError};
+use loom_evm_utils::LoomEVMWrapper;
+use loom_types_blockchain::{GethStateUpdate, GethStateUpdateVec, LoomDataTypes, LoomDataTypesEVM};
 use loom_types_entities::strategy_config::StrategyConfig;
 use loom_types_entities::{Market, PoolWrapper, Swap, SwapDirection, SwapError, SwapLine, SwapPath};
 use loom_types_events::{
@@ -29,8 +30,8 @@ use loom_types_events::{
 };
 
 async fn state_change_arb_searcher_task<
-    DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
-    LDT: LoomDataTypes<StateUpdate = GethStateUpdate>,
+    DB: DatabaseRef<Error = LoomDBError> + Database<Error = LoomDBError> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+    LDT: LoomDataTypesEVM,
 >(
     thread_pool: Arc<ThreadPool>,
     backrun_config: BackrunConfig,
@@ -103,7 +104,7 @@ async fn state_change_arb_searcher_task<
     }
     info!("Calculation started: swap_path_vec_len={} elapsed={}", swap_path_vec.len(), start_time.elapsed().as_micros());
 
-    let env = state_update_event.evm_env();
+    let next_header = state_update_event.next_header();
 
     let channel_len = swap_path_vec.len();
     let (swap_path_tx, mut swap_line_rx) = tokio::sync::mpsc::channel(channel_len);
@@ -111,24 +112,19 @@ async fn state_change_arb_searcher_task<
     let market_state_clone = db.clone();
     let swap_path_vec_len = swap_path_vec.len();
 
-    tokio::task::spawn(async move {
+    //let evm = Arc::new(LoomEVMWrapper::new(market_state_clone));
+
+    let tasks = tokio::task::spawn(async move {
         thread_pool.install(|| {
-            swap_path_vec.into_par_iter().for_each_with((&swap_path_tx, &market_state_clone, &env), |req, item| {
+            swap_path_vec.into_par_iter().for_each_with((&swap_path_tx, &market_state_clone, &next_header), |req, item| {
                 let mut mut_item: SwapLine = SwapLine { path: item, ..Default::default() };
-                //#[cfg(not(debug_assertions))]
-                //let start_time = chrono::Local::now();
-                let calc_result = SwapCalculator::calculate(&mut mut_item, req.1, req.2.clone());
-                //#[cfg(not(debug_assertions))]
-                //let took_time = chrono::Local::now() - start_time;
+
+                let mut evm = LoomEVMWrapper::new(req.1.clone()).with_header(req.2);
+
+                let calc_result = SwapCalculator::calculate(&mut mut_item, evm.get_mut());
 
                 match calc_result {
                     Ok(_) => {
-                        // #[cfg(not(debug_assertions))]
-                        // {
-                        //     if took_time > TimeDelta::new(0, 50 * 1000000).unwrap() {
-                        //         warn!("Took longer than expected {} {}", took_time, mut_item.clone())
-                        //     }
-                        // }
                         trace!("Calc result received: {}", mut_item);
 
                         if let Ok(profit) = mut_item.profit() {
@@ -142,12 +138,6 @@ async fn state_change_arb_searcher_task<
                         }
                     }
                     Err(e) => {
-                        // #[cfg(not(debug_assertions))]
-                        // {
-                        //     if took_time > TimeDelta::new(0, 10 * 5000000).unwrap() {
-                        //         warn!("Took longer than expected {:?} {}", e, mut_item.clone())
-                        //     }
-                        // }
                         trace!("Swap error: {:?}", e);
 
                         if let Err(error) = swap_path_tx.try_send(Err(e)) {
@@ -237,8 +227,8 @@ async fn state_change_arb_searcher_task<
 }
 
 pub async fn state_change_arb_searcher_worker<
-    DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
-    LDT: LoomDataTypes,
+    DB: DatabaseRef<Error = LoomDBError> + Database<Error = LoomDBError> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+    LDT: LoomDataTypesEVM,
 >(
     backrun_config: BackrunConfig,
     market: SharedState<Market>,
@@ -257,7 +247,7 @@ pub async fn state_change_arb_searcher_worker<
     loop {
         tokio::select! {
                 msg = search_request_rx.recv() => {
-                let pool_update_msg : Result<StateUpdateEvent<DB>, RecvError> = msg;
+                let pool_update_msg : Result<StateUpdateEvent<DB, LDT>, RecvError> = msg;
                 if let Ok(msg) = pool_update_msg {
                     tokio::task::spawn(
                         state_change_arb_searcher_task(
@@ -291,8 +281,10 @@ pub struct StateChangeArbSearcherActor<DB: Clone + Send + Sync + 'static, LDT: L
     influxdb_write_channel_tx: Option<Broadcaster<WriteQuery>>,
 }
 
-impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static, LDT: LoomDataTypes + 'static>
-    StateChangeArbSearcherActor<DB, LDT>
+impl<
+        DB: DatabaseRef<Error = LoomDBError> + Database<Error = LoomDBError> + DatabaseCommit + Send + Sync + Clone + 'static,
+        LDT: LoomDataTypesEVM + 'static,
+    > StateChangeArbSearcherActor<DB, LDT>
 {
     pub fn new(backrun_config: BackrunConfig) -> StateChangeArbSearcherActor<DB, LDT> {
         StateChangeArbSearcherActor {
@@ -317,8 +309,10 @@ impl<DB: DatabaseRef<Error = ErrReport> + Send + Sync + Clone + 'static, LDT: Lo
     }
 }
 
-impl<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Send + Sync + Clone + Default + 'static, LDT: LoomDataTypes + 'static> Actor
-    for StateChangeArbSearcherActor<DB, LDT>
+impl<
+        DB: DatabaseRef<Error = LoomDBError> + Database<Error = LoomDBError> + DatabaseCommit + Send + Sync + Clone + Default + 'static,
+        LDT: LoomDataTypesEVM + 'static,
+    > Actor for StateChangeArbSearcherActor<DB, LDT>
 {
     fn start(&self) -> ActorResult {
         let task = tokio::task::spawn(state_change_arb_searcher_worker(

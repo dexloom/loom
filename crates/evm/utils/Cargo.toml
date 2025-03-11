@@ -15,6 +15,7 @@ loom-node-debug-provider.workspace = true
 loom-types-blockchain.workspace = true
 
 # misc
+auto_impl.workspace = true
 axum.workspace = true
 eyre.workspace = true
 lazy_static.workspace = true

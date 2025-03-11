@@ -1,18 +1,18 @@
-use alloy_network::{Ethereum, Network};
+use alloy_json_rpc::RpcRecv;
+use alloy_network::{BlockResponse, Ethereum, Network};
 use alloy_provider::Provider;
-use alloy_rpc_types::Header;
+use alloy_rpc_types::{Block, Header};
 use op_alloy::network::Optimism;
 use std::marker::PhantomData;
 use tokio::task::JoinHandle;
 
 use crate::eth::new_eth_node_block_workers_starter;
-use crate::op::new_op_node_block_workers_starter;
 use loom_core_actors::{Actor, ActorResult, Broadcaster, Producer, WorkerResult};
 use loom_core_actors_macros::Producer;
 use loom_core_blockchain::Blockchain;
 use loom_node_actor_config::NodeBlockActorConfig;
 use loom_node_debug_provider::DebugProviderExt;
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum, LoomDataTypesOptimism};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEVM, LoomDataTypesEthereum, LoomDataTypesOptimism};
 use loom_types_events::{MessageBlock, MessageBlockHeader, MessageBlockLogs, MessageBlockStateUpdate};
 
 #[derive(Producer)]
@@ -32,15 +32,16 @@ pub struct NodeBlockActor<P, N, LDT: LoomDataTypes + 'static> {
 
 impl<P, N, LDT> NodeBlockActor<P, N, LDT>
 where
-    LDT: LoomDataTypes,
-    N: Network,
-    P: Provider<N> + DebugProviderExt<Ethereum> + Send + Sync + Clone + 'static,
+    N: Network<HeaderResponse = LDT::Header, BlockResponse = LDT::Block>,
+    P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
+    LDT: LoomDataTypesEVM<Block = Block>,
+    LDT::Block: BlockResponse + RpcRecv,
 {
     fn name(&self) -> &'static str {
         "NodeBlockActor"
     }
 
-    pub fn new(client: P, config: NodeBlockActorConfig) -> NodeBlockActor<P, Ethereum, LoomDataTypesEthereum> {
+    pub fn new(client: P, config: NodeBlockActorConfig) -> NodeBlockActor<P, N, LDT> {
         NodeBlockActor {
             client,
             config,
@@ -63,9 +64,12 @@ where
     }
 }
 
-impl<P> Actor for NodeBlockActor<P, Ethereum, LoomDataTypesEthereum>
+impl<P, N, LDT> Actor for NodeBlockActor<P, N, LDT>
 where
+    N: Network<HeaderResponse = LDT::Header, BlockResponse = LDT::Block>,
     P: Provider + DebugProviderExt + Send + Sync + Clone + 'static,
+    LDT: LoomDataTypesEVM<Block = Block>,
+    LDT::Block: BlockResponse + RpcRecv,
 {
     fn start(&self) -> ActorResult {
         new_eth_node_block_workers_starter(
@@ -81,7 +85,8 @@ where
     }
 }
 
-impl<P> Actor for NodeBlockActor<P, Optimism, LoomDataTypesOptimism>
+/*
+impl<P> Actor for NodeBlockActor<P, N, LoomDataTypesOptimism>
 where
     P: Provider<Optimism> + DebugProviderExt + Send + Sync + Clone + 'static,
 {
@@ -98,3 +103,5 @@ where
         self.name()
     }
 }
+
+ */

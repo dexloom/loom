@@ -9,7 +9,6 @@ use eyre::ErrReport;
 use loom_evm_utils::error_handler::internal_error;
 use loom_rpc_state::AppState;
 use loom_types_entities::{EntityAddress, PoolWrapper};
-use revm::primitives::Env;
 use revm::{DatabaseCommit, DatabaseRef};
 use std::str::FromStr;
 
@@ -155,19 +154,19 @@ pub async fn pool_quote<DB: DatabaseRef<Error = ErrReport> + DatabaseCommit + Se
     let address = Address::from_str(&address).map_err(internal_error)?;
     match app_state.bc.market().read().await.pools().get(&EntityAddress::Address(address)) {
         None => Err((StatusCode::NOT_FOUND, "Pool not found".to_string())),
-        Some(pool) => {
-            let evm_env = Env::default();
-            let quote_result = pool.pool.calculate_out_amount(
-                &app_state.state.market_state().read().await.state_db,
-                evm_env,
-                &quote_request.token_address_from.into(),
-                &quote_request.token_address_to.into(),
-                quote_request.amount_in,
-            );
-            match quote_result {
-                Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string())),
-                Ok((out_amount, gas_used)) => Ok(Json(QuoteResponse { out_amount, gas_used })),
-            }
-        }
+        Some(pool) => Err((StatusCode::NOT_FOUND, "Not_implemted".to_string())),
+        //TODO : rewrite
+        /*let evm_env = Env::default();
+        let quote_result = pool.pool.calculate_out_amount(
+            &app_state.state.market_state().read().await.state_db,
+            evm_env,
+            &quote_request.token_address_from.into(),
+            &quote_request.token_address_to.into(),
+            quote_request.amount_in,
+        );
+        match quote_result {
+            Err(err) => Err((StatusCode::INTERNAL_SERVER_ERROR, err.to_string())),
+            Ok((out_amount, gas_used)) => Ok(Json(QuoteResponse { out_amount, gas_used })),
+        }*/
     }
 }

@@ -38,19 +38,16 @@ pub fn tx_req_to_env<T: Into<TransactionRequest>>(tx: T) -> TxEnv {
     }
 }
 
-pub fn header_to_block_env<H: BlockHeader>(header: Option<H>) -> BlockEnv {
-    match header {
-        Some(header) => BlockEnv {
-            number: header.number(),
-            beneficiary: header.beneficiary(),
-            timestamp: header.timestamp(),
-            gas_limit: header.gas_limit(),
-            basefee: header.base_fee_per_gas().unwrap_or_default(),
-            difficulty: header.difficulty(),
-            prevrandao: Some(header.parent_hash()),
-            blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(header.excess_blob_gas().unwrap_or_default(), false)),
-        },
-        _ => BlockEnv::default(),
+pub fn header_to_block_env<H: BlockHeader>(header: &H) -> BlockEnv {
+    BlockEnv {
+        number: header.number(),
+        beneficiary: header.beneficiary(),
+        timestamp: header.timestamp(),
+        gas_limit: header.gas_limit(),
+        basefee: header.base_fee_per_gas().unwrap_or_default(),
+        difficulty: header.difficulty(),
+        prevrandao: Some(header.parent_hash()),
+        blob_excess_gas_and_price: Some(BlobExcessGasAndPrice::new(header.excess_blob_gas().unwrap_or_default(), false)),
     }
 }
 

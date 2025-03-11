@@ -2,12 +2,12 @@ use std::fmt;
 use std::hash::{Hash, Hasher};
 use std::sync::Arc;
 
-use alloy_primitives::{I256, U256};
-use eyre::{eyre, ErrReport, Report, Result};
-use tracing::debug;
-
 use crate::swap_path::SwapPath;
 use crate::{CalculationResult, EntityAddress, PoolWrapper, SwapError, SwapStep, Token};
+use alloy_primitives::{I256, U256};
+use eyre::{eyre, ErrReport, Report, Result};
+use loom_evm_utils::LoomExecuteEvm;
+use tracing::debug;
 
 #[derive(Debug, Clone, Default)]
 pub enum SwapAmountType {
@@ -313,10 +313,9 @@ impl SwapLine {
     const MIN_VALID_OUT_AMOUNT: U256 = U256::from_limbs([0x100, 0, 0, 0]);
 
     /// Calculate the out amount for the swap line for a given in amount
-    pub fn calculate_with_in_amount<DB: DatabaseRef<Error = Report>>(
+    pub fn calculate_with_in_amount(
         &self,
-        state: &DB,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         in_amount: U256,
     ) -> Result<(U256, u64, Vec<CalculationResult>), SwapError> {
         let mut current_in_amount = in_amount;
@@ -327,7 +326,7 @@ impl SwapLine {
         for (i, pool) in self.pools().iter().enumerate() {
             let token_from = &self.tokens()[i];
             let token_to = &self.tokens()[i + 1];
-            match pool.calculate_out_amount(state, env.clone(), &token_from.get_address(), &token_to.get_address(), current_in_amount) {
+            match pool.calculate_out_amount(evm, &token_from.get_address(), &token_to.get_address(), current_in_amount) {
                 Ok((out_amount_result, gas_result)) => {
                     if out_amount_result.is_zero() {
                         return Err(SwapError {
@@ -372,10 +371,9 @@ impl SwapLine {
     }
 
     /// Calculate the in amount for the swap line for a given out amount
-    pub fn calculate_with_out_amount<DB: DatabaseRef<Error = Report>>(
+    pub fn calculate_with_out_amount(
         &self,
-        state: &DB,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         out_amount: U256,
     ) -> Result<(U256, u64, Vec<CalculationResult>), SwapError> {
         let mut current_out_amount = out_amount;
@@ -392,7 +390,7 @@ impl SwapLine {
         for (i, pool) in pool_reverse.iter().enumerate() {
             let token_from = &tokens_reverse[i + 1];
             let token_to = &tokens_reverse[i];
-            match pool.calculate_in_amount(state, env.clone(), &token_from.get_address(), &token_to.get_address(), current_out_amount) {
+            match pool.calculate_in_amount(evm, &token_from.get_address(), &token_to.get_address(), current_out_amount) {
                 Ok((in_amount_result, gas_result)) => {
                     if in_amount_result == U256::MAX || in_amount_result == U256::ZERO {
                         return Err(SwapError {
@@ -427,12 +425,7 @@ impl SwapLine {
     }
 
     /// Optimize the swap line for a given in amount
-    pub fn optimize_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
-        &mut self,
-        state: &DB,
-        env: Env,
-        in_amount: U256,
-    ) -> Result<&mut Self, SwapError> {
+    pub fn optimize_with_in_amount(&mut self, evm: &mut dyn LoomExecuteEvm, in_amount: U256) -> Result<&mut Self, SwapError> {
         let mut current_in_amount = in_amount;
         let mut best_profit: Option<I256> = None;
         let mut current_step = U256::from(10000);
@@ -452,17 +445,16 @@ impl SwapLine {
                 return Ok(self);
             }
 
-            let (current_out_amount, current_gas_used, calculation_results) =
-                match self.calculate_with_in_amount(state, env.clone(), next_amount) {
-                    Ok(ret) => ret,
-                    Err(e) => {
-                        if counter == 1 {
-                            // break if first swap already fails
-                            return Err(e);
-                        }
-                        (U256::ZERO, 0, vec![])
+            let (current_out_amount, current_gas_used, calculation_results) = match self.calculate_with_in_amount(evm, next_amount) {
+                Ok(ret) => ret,
+                Err(e) => {
+                    if counter == 1 {
+                        // break if first swap already fails
+                        return Err(e);
                     }
-                };
+                    (U256::ZERO, 0, vec![])
+                }
+            };
 
             let current_profit = I256::from_raw(current_out_amount) - I256::from_raw(next_amount);
 

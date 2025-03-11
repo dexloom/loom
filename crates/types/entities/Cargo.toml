@@ -16,6 +16,7 @@ loom-types-blockchain.workspace = true
 
 aes.workspace = true
 async-stream.workspace = true
+auto_impl.workspace = true
 eyre.workspace = true
 futures.workspace = true
 hex.workspace = true
@@ -33,6 +34,7 @@ toml.workspace = true
 tracing.workspace = true
 
 alloy-consensus.workspace = true
+alloy-json-rpc.workspace = true
 alloy-network.workspace = true
 alloy-primitives.workspace = true
 alloy-provider.workspace = true

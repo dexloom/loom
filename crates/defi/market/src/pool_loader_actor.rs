@@ -17,7 +17,7 @@ use loom_types_entities::required_state::RequiredStateReader;
 use loom_types_entities::{EntityAddress, Market, MarketState, PoolClass, PoolLoaders, PoolWrapper, SwapDirection};
 use loom_types_events::{LoomTask, MarketEvents};
 
-use loom_types_blockchain::{get_touched_addresses, LoomDataTypes};
+use loom_types_blockchain::{get_touched_addresses, LoomDataTypes, LoomDataTypesEVM, LoomDataTypesEthereum};
 use loom_types_entities::pool_config::PoolsLoadingConfig;
 use revm::{Database, DatabaseCommit, DatabaseRef};
 use tokio::sync::Semaphore;
@@ -97,39 +97,41 @@ where
 }
 
 /// Fetch pool data, add it to the market and fetch the required state
-pub async fn fetch_and_add_pool_by_pool_id<P, PL, N, DB>(
+pub async fn fetch_and_add_pool_by_pool_id<P, PL, N, DB, LDT>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
-    pool_loaders: Arc<PoolLoaders<PL, N>>,
+    pool_loaders: Arc<PoolLoaders<PL, N, LDT>>,
     pool_id: EntityAddress,
     pool_class: PoolClass,
 ) -> Result<(EntityAddress, Vec<usize>)>
 where
-    N: Network,
+    N: Network<TransactionRequest = LDT::TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     PL: Provider<N> + Send + Sync + Clone + 'static,
     DB: DatabaseRef + Database + DatabaseCommit + Send + Sync + Clone + 'static,
+    LDT: LoomDataTypesEVM + 'static,
 {
     debug!(%pool_id, %pool_class, "Fetching pool");
 
     let pool = pool_loaders.load_pool_without_provider(pool_id, &pool_class).await?;
-    fetch_state_and_add_pool(client, market.clone(), market_state.clone(), pool).await
+    fetch_state_and_add_pool::<P, N, DB, LDT>(client, market.clone(), market_state.clone(), pool).await
 }
 
-pub async fn fetch_state_and_add_pool<P, N, DB>(
+pub async fn fetch_state_and_add_pool<P, N, DB, LDT>(
     client: P,
     market: SharedState<Market>,
     market_state: SharedState<MarketState<DB>>,
     pool_wrapped: PoolWrapper,
 ) -> Result<(EntityAddress, Vec<usize>)>
 where
-    N: Network,
+    N: Network<TransactionRequest = LDT::TransactionRequest>,
     P: Provider<N> + DebugProviderExt<N> + Send + Sync + Clone + 'static,
     DB: Database + DatabaseRef + DatabaseCommit + Send + Sync + Clone + 'static,
+    LDT: LoomDataTypesEVM,
 {
     match pool_wrapped.get_state_required() {
-        Ok(required_state) => match RequiredStateReader::fetch_calls_and_slots(client, required_state, None).await {
+        Ok(required_state) => match RequiredStateReader::<LDT>::fetch_calls_and_slots::<N, P>(client, required_state, None).await {
             Ok(state) => {
                 let pool_address = pool_wrapped.get_address();
                 {

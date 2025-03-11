@@ -5,9 +5,9 @@ use alloy::providers::network::Ethereum;
 use async_stream::stream;
 use eyre::{eyre, ErrReport};
 use futures::Stream;
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_evm_utils::LoomExecuteEvm;
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEVM, LoomDataTypesEthereum};
 use loom_types_entities::{EntityAddress, PoolClass, PoolLoader, PoolWrapper};
-use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::future::Future;
 use std::pin::Pin;
@@ -16,11 +16,13 @@ use tracing::error;
 
 pool_loader!(CurvePoolLoader);
 
-impl<P> PoolLoader<P, Ethereum, LoomDataTypesEthereum> for CurvePoolLoader<P, Ethereum, LoomDataTypesEthereum>
+impl<P, N, LDT> PoolLoader<P, N, LDT> for CurvePoolLoader<P, N, LDT>
 where
-    P: Provider<Ethereum> + Clone + 'static,
+    N: Network,
+    P: Provider<N> + Clone + 'static,
+    LDT: LoomDataTypesEVM + 'static,
 {
-    fn get_pool_class_by_log(&self, _log_entry: &<LoomDataTypesEthereum as LoomDataTypes>::Log) -> Option<(EntityAddress, PoolClass)> {
+    fn get_pool_class_by_log(&self, _log_entry: &LDT::Log) -> Option<(EntityAddress, PoolClass)> {
         None
     }
 
@@ -43,8 +45,7 @@ where
             let pool_address = pool_id.address()?;
             match CurveProtocol::get_contract_from_code(provider.clone(), pool_address).await {
                 Ok(curve_contract) => {
-                    let curve_pool =
-                        CurvePool::<P, Ethereum>::fetch_pool_data_with_default_encoder(provider.clone(), curve_contract).await?;
+                    let curve_pool = CurvePool::<P, N>::fetch_pool_data_with_default_encoder(provider.clone(), curve_contract).await?;
 
                     Ok(PoolWrapper::new(Arc::new(curve_pool)))
                 }
@@ -56,12 +57,7 @@ where
         })
     }
 
-    fn fetch_pool_by_id_from_evm(
-        &self,
-        _pool_id: EntityAddress,
-        _db: &dyn DatabaseRef<Error = ErrReport>,
-        _env: Env,
-    ) -> eyre::Result<PoolWrapper> {
+    fn fetch_pool_by_id_from_evm(&self, _pool_id: EntityAddress, evm: &mut dyn LoomExecuteEvm) -> eyre::Result<PoolWrapper> {
         Err(eyre!("NOT_IMPLEMENTED"))
     }
 

@@ -11,7 +11,7 @@ use loom_defi_abi::uniswap3::IUniswapV3Pool::slot0Return;
 use loom_evm_db::LoomDBType;
 use loom_evm_utils::remv_db_direct_access::{try_read_cell, try_read_hashmap_cell};
 
-pub struct UniswapV3DBReader {}
+pub struct UniswapV3DbReader {}
 
 lazy_static! {
     static ref BITS160MASK: U256 = U256::from(1).shl(160) - U256::from(1);
@@ -21,7 +21,7 @@ lazy_static! {
     static ref BITS8MASK: U256 = U256::from(1).shl(8) - U256::from(1);
     static ref BITS1MASK: U256 = U256::from(1);
 }
-impl UniswapV3DBReader {
+impl UniswapV3DbReader {
     pub fn fee_growth_global0_x128(db: &LoomDBType, address: Address) -> Result<U256> {
         let cell = try_read_cell(db, &address, &U256::from(1))?;
         Ok(cell)
@@ -98,18 +98,19 @@ impl UniswapV3DBReader {
 mod test {
     use alloy::primitives::Address;
     use eyre::Result;
-    use revm::primitives::Env;
+    use revm::database::CacheDB;
     use std::env;
     use tracing::debug;
 
     use loom_defi_address_book::UniswapV3PoolAddress;
     use loom_evm_db::LoomDBType;
+    use loom_evm_utils::LoomEVMWrapper;
     use loom_node_debug_provider::AnvilDebugProviderFactory;
     use loom_types_entities::required_state::RequiredStateReader;
     use loom_types_entities::{MarketState, Pool};
 
-    use crate::db_reader::UniswapV3DBReader;
-    use crate::state_readers::UniswapV3StateReader;
+    use crate::db_reader::UniswapV3DbReader;
+    use crate::state_readers::UniswapV3EvmStateReader;
     use crate::UniswapV3Pool;
 
     #[tokio::test]
@@ -134,17 +135,16 @@ mod test {
 
         market_state.state_db.apply_geth_update(state_required);
 
-        let evm_env = Env::default();
+        let mut evm = LoomEVMWrapper::new(CacheDB::new(market_state.state_db.clone()));
 
-        let factory_evm = UniswapV3StateReader::factory(&market_state.state_db, evm_env.clone(), pool_address)?;
-        let token0_evm = UniswapV3StateReader::token0(&market_state.state_db, evm_env.clone(), pool_address)?;
-        let token1_evm = UniswapV3StateReader::token1(&market_state.state_db, evm_env.clone(), pool_address)?;
-
+        let factory_evm = UniswapV3EvmStateReader::factory(evm.get_mut(), pool_address)?;
+        let token0_evm = UniswapV3EvmStateReader::token0(evm.get_mut(), pool_address)?;
+        let token1_evm = UniswapV3EvmStateReader::token1(evm.get_mut(), pool_address)?;
         debug!("{factory_evm:?} {token0_evm:?} {token1_evm:?}");
 
-        let slot0_evm = UniswapV3StateReader::slot0(&market_state.state_db, evm_env.clone(), pool_address)?;
+        let slot0_evm = UniswapV3EvmStateReader::slot0(evm.get_mut(), pool_address)?;
 
-        let slot0_db = UniswapV3DBReader::slot0(&market_state.state_db, pool_address)?;
+        let slot0_db = UniswapV3DbReader::slot0(&market_state.state_db, pool_address)?;
 
         debug!("evm : {slot0_evm:?}");
         debug!("db  : {slot0_db:?}");

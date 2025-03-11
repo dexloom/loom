@@ -8,6 +8,7 @@ use tracing::error;
 
 use crate::{EntityAddress, PoolWrapper, SwapAmountType, SwapLine, Token};
 use loom_evm_db::LoomDBType;
+use loom_evm_utils::LoomExecuteEvm;
 
 #[derive(Clone, Debug)]
 pub struct SwapStep {
@@ -331,12 +332,7 @@ impl SwapStep {
         Ok(out_amount)
     }
 
-    pub fn calculate_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
-        &mut self,
-        state: &DB,
-        env: Env,
-        in_ammount: Option<U256>,
-    ) -> Result<(U256, u64)> {
+    pub fn calculate_with_in_amount<EVM: LoomExecuteEvm>(&mut self, evm: &mut EVM, in_ammount: Option<U256>) -> Result<(U256, u64)> {
         let mut out_amount = U256::ZERO;
         let mut gas_used = 0;
 
@@ -352,7 +348,7 @@ impl SwapStep {
             };
             swap_path.amount_in = SwapAmountType::Set(cur_in_amount);
 
-            match swap_path.calculate_with_in_amount(state, env.clone(), cur_in_amount) {
+            match swap_path.calculate_with_in_amount(evm, cur_in_amount) {
                 Ok((amount, gas, calculation_results)) => {
                     out_amount += amount;
                     swap_path.amount_out = SwapAmountType::Set(amount);
@@ -366,7 +362,7 @@ impl SwapStep {
         Ok((out_amount, gas_used))
     }
 
-    pub fn calculate_with_out_amount(&mut self, state: &LoomDBType, env: Env, out_amount: Option<U256>) -> Result<(U256, u64)> {
+    pub fn calculate_with_out_amount<EVM: LoomExecuteEvm>(&mut self, evm: &mut EVM, out_amount: Option<U256>) -> Result<(U256, u64)> {
         let mut in_amount = U256::ZERO;
         let mut gas_used = 0;
 
@@ -383,7 +379,7 @@ impl SwapStep {
 
             swap_path.amount_out = SwapAmountType::Set(cur_out_amount);
 
-            match swap_path.calculate_with_out_amount(state, env.clone(), cur_out_amount) {
+            match swap_path.calculate_with_out_amount(evm, cur_out_amount) {
                 Ok((amount, gas, calculation_results)) => {
                     in_amount += amount;
                     gas_used += gas;
@@ -447,23 +443,21 @@ impl SwapStep {
         }
     }
 
-    pub fn optimize_swap_steps<DB: DatabaseRef<Error = ErrReport>>(
-        state: &DB,
-        env: Env,
+    pub fn optimize_swap_steps<EVM: LoomExecuteEvm>(
+        evm: &mut EVM,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
         middle_amount: Option<U256>,
     ) -> Result<(SwapStep, SwapStep)> {
         if swap_step_0.can_calculate_in_amount() {
-            SwapStep::optimize_with_middle_amount(state, env, swap_step_0, swap_step_1, middle_amount)
+            SwapStep::optimize_with_middle_amount(evm, swap_step_0, swap_step_1, middle_amount)
         } else {
-            SwapStep::optimize_with_in_amount(state, env, swap_step_0, swap_step_1, middle_amount)
+            SwapStep::optimize_with_in_amount(evm, swap_step_0, swap_step_1, middle_amount)
         }
     }
 
-    pub fn optimize_with_middle_amount<DB: DatabaseRef<Error = ErrReport>>(
-        state: &DB,
-        env: Env,
+    pub fn optimize_with_middle_amount<EVM: LoomExecuteEvm>(
+        evm: &mut EVM,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
         middle_amount: Option<U256>,
@@ -473,8 +467,8 @@ impl SwapStep {
         let mut best_profit: Option<I256> = None;
 
         let (middle_amount, _) = match middle_amount {
-            Some(amount) => step_0.calculate_with_in_amount(state, env.clone(), Some(amount))?,
-            _ => step_0.calculate_with_in_amount(state, env.clone(), None)?,
+            Some(amount) => step_0.calculate_with_in_amount(evm, Some(amount))?,
+            _ => step_0.calculate_with_in_amount(evm, None)?,
         };
 
         let step_0_out_amount = step_0.get_out_amount()?;
@@ -485,7 +479,7 @@ impl SwapStep {
             swap_path_1.amount_in = SwapAmountType::Set(in_amount);
         }
 
-        step_1.calculate_with_in_amount(state, env.clone(), None);
+        step_1.calculate_with_in_amount(evm, None);
 
         let cur_profit = Self::arb_result(&step_0, &step_1);
         if cur_profit.is_positive() {
@@ -535,9 +529,8 @@ impl SwapStep {
                     Some(new_out_amount) => {
                         if swap_path_0_calc.amount_out.unwrap() != new_out_amount {
                             let new_amount_out = amount_out + step;
-                            let (in_amount, gas, calculation_results) = swap_path_0_calc
-                                .calculate_with_out_amount(state, env.clone(), new_amount_out)
-                                .unwrap_or((U256::MAX, 0, vec![]));
+                            let (in_amount, gas, calculation_results) =
+                                swap_path_0_calc.calculate_with_out_amount(evm, new_amount_out).unwrap_or((U256::MAX, 0, vec![]));
                             swap_path_0_calc.amount_in = SwapAmountType::Set(in_amount);
                             swap_path_0_calc.amount_out = SwapAmountType::Set(new_amount_out);
                             swap_path_0_calc.gas_used = Some(gas);
@@ -562,9 +555,8 @@ impl SwapStep {
                 match new_amount_in {
                     Some(new_amount_in) => {
                         if swap_path_1_calc.amount_in.unwrap() != new_amount_in {
-                            let (out_amount, gas, calculation_results) = swap_path_1_calc
-                                .calculate_with_in_amount(state, env.clone(), new_amount_in)
-                                .unwrap_or((U256::ZERO, 0, vec![]));
+                            let (out_amount, gas, calculation_results) =
+                                swap_path_1_calc.calculate_with_in_amount(evm, new_amount_in).unwrap_or((U256::ZERO, 0, vec![]));
                             swap_path_1_calc.amount_out = SwapAmountType::Set(out_amount);
                             swap_path_1_calc.amount_in = SwapAmountType::Set(new_amount_in);
                             swap_path_1_calc.gas_used = Some(gas);
@@ -631,9 +623,8 @@ impl SwapStep {
         }
     }
 
-    pub fn optimize_with_in_amount<DB: DatabaseRef<Error = ErrReport>>(
-        state: &DB,
-        env: Env,
+    pub fn optimize_with_in_amount<EVM: LoomExecuteEvm>(
+        evm: &mut EVM,
         swap_step_0: &SwapStep,
         swap_step_1: &SwapStep,
         in_amount: Option<U256>,
@@ -643,8 +634,8 @@ impl SwapStep {
         let mut best_profit: Option<I256> = None;
 
         match in_amount {
-            Some(amount) => step_0.calculate_with_in_amount(state, env.clone(), Some(amount))?,
-            _ => step_0.calculate_with_in_amount(state, env.clone(), None)?,
+            Some(amount) => step_0.calculate_with_in_amount(evm, Some(amount))?,
+            _ => step_0.calculate_with_in_amount(evm, None)?,
         };
         let in_amount = step_0.get_in_amount()?;
 
@@ -655,7 +646,7 @@ impl SwapStep {
             let in_amount = step_0_out_amount * swap_path_1.amount_out.unwrap() / step_1_out_amount;
             swap_path_1.amount_in = SwapAmountType::Set(in_amount);
         }
-        let _ = step_1.calculate_with_in_amount(state, env.clone(), None)?;
+        let _ = step_1.calculate_with_in_amount(evm, None)?;
 
         //debug!("AfterCalc SwapStep0 {:?}", step_0);
         //debug!("AfterCalc SwapStep1 {:?}", step_1);
@@ -703,7 +694,7 @@ impl SwapStep {
                 {
                     let new_amount_in = step_0.swap_line_vec[i].amount_in.unwrap() + step;
                     let (amount_out, gas, calculation_results) =
-                        swap_path_0_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or((U256::ZERO, 0, vec![]));
+                        swap_path_0_calc.calculate_with_in_amount(evm, new_amount_in).unwrap_or((U256::ZERO, 0, vec![]));
                     swap_path_0_calc.amount_in = SwapAmountType::Set(new_amount_in);
                     swap_path_0_calc.amount_out = SwapAmountType::Set(amount_out);
                     swap_path_0_calc.gas_used = Some(gas);
@@ -741,7 +732,7 @@ impl SwapStep {
                 {
                     let new_amount_in = step_1.swap_line_vec[i].amount_in.unwrap() + middle_amount_step;
                     let (out_amount, gas, calculation_results) =
-                        swap_path_1_calc.calculate_with_in_amount(state, env.clone(), new_amount_in).unwrap_or_default();
+                        swap_path_1_calc.calculate_with_in_amount(evm, new_amount_in).unwrap_or_default();
                     swap_path_1_calc.amount_out = SwapAmountType::Set(out_amount);
                     swap_path_1_calc.amount_in = SwapAmountType::Set(new_amount_in);
                     swap_path_1_calc.gas_used = Some(gas);

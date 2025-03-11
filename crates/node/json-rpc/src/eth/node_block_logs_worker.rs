@@ -7,13 +7,19 @@ use tokio::sync::broadcast::Receiver;
 use tracing::{debug, error};
 
 use loom_core_actors::{subscribe, Broadcaster, WorkerResult};
+use loom_types_blockchain::LoomDataTypesEVM;
 use loom_types_events::{BlockLogs, Message, MessageBlockLogs};
 
-pub async fn new_node_block_logs_worker<N: Network, P: Provider<N> + Send + Sync + 'static>(
+pub async fn new_node_block_logs_worker<N, P, LDT>(
     client: P,
     block_header_receiver: Broadcaster<Header>,
-    sender: Broadcaster<MessageBlockLogs>,
-) -> WorkerResult {
+    sender: Broadcaster<MessageBlockLogs<LDT>>,
+) -> WorkerResult
+where
+    N: Network,
+    P: Provider<N> + Send + Sync + 'static,
+    LDT: LoomDataTypesEVM,
+{
     subscribe!(block_header_receiver);
 
     loop {

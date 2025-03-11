@@ -1,3 +1,3 @@
-pub use uniswapv3::UniswapV3DBReader;
+pub use uniswapv3::UniswapV3DbReader;
 
 mod uniswapv3;

@@ -1,5 +1,8 @@
-use alloy::primitives::{Address, Bytes, U128, U256};
+use crate::state_readers::UniswapV3EvmStateReader;
+use alloy::network::TransactionBuilder;
+use alloy::primitives::{Address, Bytes, TxKind, U128, U256};
 use alloy::providers::{Network, Provider};
+use alloy::rpc::types::TransactionRequest;
 use alloy::sol_types::{SolCall, SolInterface};
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use lazy_static::lazy_static;
@@ -8,15 +11,13 @@ use loom_defi_abi::maverick::IMaverickQuoter::{calculateSwapCall, IMaverickQuote
 use loom_defi_abi::maverick::{IMaverickPool, IMaverickQuoter, State};
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::PeripheryAddress;
-use loom_evm_utils::evm::evm_call;
+use loom_evm_utils::{evm_call, evm_dyn_call, LoomExecuteEvm};
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{EntityAddress, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
-use revm::primitives::Env;
 use revm::DatabaseRef;
 use std::any::Any;
+use std::ops::DerefMut;
 use tracing::error;
-
-use crate::state_readers::UniswapV3StateReader;
 
 lazy_static! {
     static ref U256_ONE: U256 = U256::from(1);
@@ -116,12 +117,12 @@ impl MaverickPool {
 
         Ok(ret)
     }
-    pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
-        let token0: Address = UniswapV3StateReader::token0(&db, env.clone(), address)?;
-        let token1: Address = UniswapV3StateReader::token1(&db, env.clone(), address)?;
-        let fee = UniswapV3StateReader::fee(&db, env.clone(), address)?;
-        let factory: Address = UniswapV3StateReader::factory(&db, env.clone(), address)?;
-        let spacing: u32 = UniswapV3StateReader::tick_spacing(&db, env.clone(), address)?;
+    pub fn fetch_pool_data_evm(evm: &mut dyn LoomExecuteEvm, address: Address) -> Result<Self> {
+        let token0: Address = UniswapV3EvmStateReader::token0(evm, address)?;
+        let token1: Address = UniswapV3EvmStateReader::token1(evm, address)?;
+        let fee = UniswapV3EvmStateReader::fee(evm, address)?;
+        let factory: Address = UniswapV3EvmStateReader::factory(evm, address)?;
+        let spacing: u32 = UniswapV3EvmStateReader::tick_spacing(evm, address)?;
 
         let protocol = Self::get_protocol_by_factory(factory);
 
@@ -178,8 +179,7 @@ impl Pool for MaverickPool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         in_amount: U256,
@@ -192,9 +192,6 @@ impl Pool for MaverickPool {
         let token_a_in = MaverickPool::get_zero_for_one(token_address_from, token_address_to);
         //let sqrt_price_limit = MaverickPool::get_price_limit(token_address_from, token_address_to);
 
-        let mut env = env;
-        env.tx.gas_limit = 1_500_000;
-
         let call_data_vec = IMaverickQuoterCalls::calculateSwap(calculateSwapCall {
             pool: self.address,
             amount: in_amount.to(),
@@ -204,7 +201,9 @@ impl Pool for MaverickPool {
         })
         .abi_encode();
 
-        let (value, gas_used) = evm_call(state_db, env, PeripheryAddress::MAVERICK_QUOTER, call_data_vec)?;
+        let req = TransactionRequest::default().with_kind(TxKind::Call(PeripheryAddress::MAVERICK_QUOTER)).with_input(call_data_vec);
+
+        let (value, gas_used) = evm_dyn_call(evm, req)?;
 
         let ret = calculateSwapCall::abi_decode_returns(&value, false)?.returnAmount;
 
@@ -217,15 +216,11 @@ impl Pool for MaverickPool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let mut env = env;
-        env.tx.gas_limit = 500_000;
-
         if out_amount >= U256::from(U128::MAX) {
             error!("OUT_AMOUNT_EXCEEDS_MAX {} ", self.get_address());
             return Err(eyre!("OUT_AMOUNT_EXCEEDS_MAX"));
@@ -243,7 +238,12 @@ impl Pool for MaverickPool {
         })
         .abi_encode();
 
-        let (value, gas_used) = evm_call(state_db, env, PeripheryAddress::MAVERICK_QUOTER, call_data_vec)?;
+        let req = TransactionRequest::default()
+            .with_kind(TxKind::Call(PeripheryAddress::MAVERICK_QUOTER))
+            .with_input(call_data_vec)
+            .with_gas_limit(500_000);
+
+        let (value, gas_used) = evm_dyn_call(evm, req)?;
 
         let ret = calculateSwapCall::abi_decode_returns(&value, false)?.returnAmount;
 
@@ -447,7 +447,7 @@ mod tests {
     use alloy::rpc::types::BlockNumberOrTag;
     use loom_defi_abi::maverick::IMaverickQuoter::IMaverickQuoterInstance;
     use loom_evm_db::LoomDBType;
-    use loom_evm_utils::evm_env::env_for_block;
+    use loom_evm_utils::LoomEVMWrapper;
     use loom_node_debug_provider::AnvilDebugProviderFactory;
     use loom_types_entities::required_state::RequiredStateReader;
     use loom_types_entities::MarketState;
@@ -475,9 +475,9 @@ mod tests {
         market_state.state_db.apply_geth_update(state_required);
 
         let block_number = client.get_block_number().await?;
-        let block = client.get_block_by_number(BlockNumberOrTag::Number(block_number), BlockTransactionsKind::Hashes).await?.unwrap();
+        let block = client.get_block_by_number(BlockNumberOrTag::Number(block_number)).await?.unwrap();
 
-        let evm_env = env_for_block(block.header.number, block.header.timestamp);
+        let mut evm = LoomEVMWrapper::new(market_state.state_db.clone()).with_header(block.header);
 
         let amount = U256::from(pool.liquidity1 / U256::from(1000));
 
@@ -489,10 +489,9 @@ mod tests {
 
         let (out_amount, gas_used) = pool
             .calculate_out_amount(
-                &market_state.state_db,
-                evm_env.clone(),
-                &pool.token1,
-                &pool.token0,
+                evm.get_evm_mut(),
+                &pool.token1.into(),
+                &pool.token0.into(),
                 U256::from(pool.liquidity1 / U256::from(1000)),
             )
             .unwrap();
@@ -502,10 +501,9 @@ mod tests {
 
         let (out_amount, gas_used) = pool
             .calculate_out_amount(
-                &market_state.state_db,
-                evm_env.clone(),
-                &pool.token0,
-                &pool.token1,
+                evm.get_evm_mut(),
+                &pool.token0.into(),
+                &pool.token1.into(),
                 U256::from(pool.liquidity0 / U256::from(1000)),
             )
             .unwrap();

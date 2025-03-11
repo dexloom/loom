@@ -365,7 +365,7 @@ mod tests {
 
     #[test]
     fn test_is_pool_not_found() {
-        let market = Market::<LoomDataTypesEthereum>::default();
+        let market = Market::default();
         let pool_address = Address::random();
 
         let is_pool = market.is_pool(&EntityAddress::Address(pool_address));

@@ -1,13 +1,11 @@
+use alloy::network::TransactionBuilder;
 use alloy::primitives::aliases::U24;
-use alloy::primitives::{Address, U160, U256};
-use alloy::rpc::types::{TransactionInput, TransactionRequest};
+use alloy::primitives::{Address, TxKind, U160, U256};
+use alloy::rpc::types::TransactionRequest;
 use alloy::sol_types::SolCall;
 use eyre::{eyre, Result};
 use loom_defi_abi::uniswap_periphery::IQuoterV2;
-use loom_evm_utils::evm::evm_call;
-use loom_evm_utils::EVMHelper;
-use revm::primitives::Env;
-use revm::{Database, DatabaseRef, ExecuteEvm, InspectEvm};
+use loom_evm_utils::{evm_call, evm_dyn_call, LoomExecuteEvm};
 
 pub struct UniswapV3QuoterV2Encoder {}
 
@@ -55,36 +53,32 @@ impl UniswapV3QuoterV2Encoder {
 pub struct UniswapV3QuoterV2StateReader {}
 
 impl UniswapV3QuoterV2StateReader {
-    pub fn quote_exact_input<DB>(
-        evm_db: &EVMHelper<DB>,
+    pub fn quote_exact_input(
+        evm: &mut dyn LoomExecuteEvm,
         quoter_address: Address,
         token_from: Address,
         token_to: Address,
         fee: U24,
         amount: U256,
     ) -> Result<(U256, u64)> {
-        let call_data_vec = UniswapV3QuoterV2Encoder::quote_exact_input_encode(token_from, token_to, fee, U160::ZERO, amount);
-
-        let tx_req = TransactionRequest::default().to(quoter_address).input(TransactionInput::new(call_data_vec.into()));
-
-        let (value, gas_used) = evm_db.clone().evm_call(tx_req)?;
-
+        let input = UniswapV3QuoterV2Encoder::quote_exact_input_encode(token_from, token_to, fee, U160::ZERO, amount);
+        let req = TransactionRequest::default().with_kind(TxKind::Call(quoter_address)).with_input(input);
+        let (value, gas_used) = evm_dyn_call(evm, req)?;
         let ret = UniswapV3QuoterV2Encoder::quote_exact_input_result_decode(&value)?;
         Ok((ret, gas_used))
     }
 
-    pub fn quote_exact_output<DB: DatabaseRef>(
-        db: &DB,
-        env: Env,
+    pub fn quote_exact_output(
+        evm: &mut dyn LoomExecuteEvm,
         quoter_address: Address,
         token_from: Address,
         token_to: Address,
         fee: U24,
         amount: U256,
     ) -> Result<(U256, u64)> {
-        let call_data_vec = UniswapV3QuoterV2Encoder::quote_exact_output_encode(token_from, token_to, fee, U160::ZERO, amount);
-
-        let (value, gas_used) = evm_call(db, env, quoter_address, call_data_vec)?;
+        let input = UniswapV3QuoterV2Encoder::quote_exact_output_encode(token_from, token_to, fee, U160::ZERO, amount);
+        let req = TransactionRequest::default().with_kind(TxKind::Call(quoter_address)).with_input(input);
+        let (value, gas_used) = evm_dyn_call(evm, req)?;
 
         let ret = UniswapV3QuoterV2Encoder::quote_exact_output_result_decode(&value)?;
         Ok((ret, gas_used))

@@ -144,6 +144,7 @@ tokio-util = "0.7.12"
 
 # misc
 aes = "0.8.4"
+auto_impl = "1.2.1"
 bincode = "1.3.3"
 chrono = "0.4.38"
 clap = { version = "4.5", features = ["derive"] }

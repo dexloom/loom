@@ -31,7 +31,7 @@ impl<LDT: LoomDataTypes> Mempool<LDT> {
     }
 
     pub fn add_tx(&mut self, tx: LDT::Transaction) -> &mut Self {
-        let tx_hash: LDT::TxHash = tx.tx_hash();
+        let tx_hash: LDT::TxHash = tx.get_tx_hash();
         let entry = self.txs.entry(tx_hash).or_default();
         entry.tx = Some(tx);
         self
@@ -52,7 +52,7 @@ impl<LDT: LoomDataTypes> Mempool<LDT> {
     pub fn filter_by_gas_price(&self, gas_price: u128) -> Vec<&MempoolTx<LDT>> {
         self.txs
             .values()
-            .filter(|&item| item.mined.is_none() && item.tx.clone().map_or_else(|| false, |tx| tx.gas_price() >= gas_price))
+            .filter(|&item| item.mined.is_none() && item.tx.clone().map_or_else(|| false, |tx| tx.get_gas_price() >= gas_price))
             .collect()
     }
 
@@ -62,7 +62,7 @@ impl<LDT: LoomDataTypes> Mempool<LDT> {
             .filter(|&item| {
                 item.mined.is_none()
                     && !item.failed.unwrap_or(false)
-                    && item.tx.clone().map_or_else(|| false, |tx| tx.gas_price() >= gas_price)
+                    && item.tx.clone().map_or_else(|| false, |tx| tx.get_gas_price() >= gas_price)
             })
             .collect()
     }
@@ -119,7 +119,7 @@ impl<LDT: LoomDataTypes> Mempool<LDT> {
     }
 
     pub fn is_valid_tx(&self, tx: &LDT::Transaction) -> bool {
-        self.accounts.get(&tx.from()).map_or_else(|| true, |acc| acc.nonce.map_or_else(|| true, |nonce| tx.nonce() == nonce + 1))
+        self.accounts.get(&tx.get_from()).map_or_else(|| true, |acc| acc.nonce.map_or_else(|| true, |nonce| tx.get_nonce() == nonce + 1))
     }
 
     pub fn get_tx_by_hash(&self, tx_hash: &LDT::TxHash) -> Option<&MempoolTx<LDT>> {

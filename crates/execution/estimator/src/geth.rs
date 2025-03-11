@@ -80,7 +80,7 @@ async fn estimator_task<P: Provider<Ethereum> + Send + Sync + Clone + 'static, D
 
     //let typed_tx = tx_request.clone().into();
     let tx = tx_signer.sign(tx_request.clone()).await?;
-    let tx_hash = LoomTx::tx_hash(&tx);
+    let tx_hash = LoomTx::get_tx_hash(&tx);
     let tx_rlp = tx.encode();
 
     simulation_bundle.push(Bytes::from(tx_rlp));

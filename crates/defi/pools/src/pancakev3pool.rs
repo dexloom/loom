@@ -1,11 +1,9 @@
-use std::any::Any;
-use std::fmt::Debug;
-use std::ops::Sub;
-
-use crate::state_readers::UniswapV3StateReader;
+use crate::state_readers::UniswapV3EvmStateReader;
+use alloy::network::TransactionBuilder;
 use alloy::primitives::aliases::{I24, U24};
-use alloy::primitives::{Address, Bytes, I256, U160, U256};
+use alloy::primitives::{Address, Bytes, TxKind, I256, U160, U256};
 use alloy::providers::{Network, Provider};
+use alloy::rpc::types::TransactionRequest;
 use alloy::sol_types::{SolCall, SolInterface};
 use eyre::{eyre, ErrReport, OptionExt, Result};
 use loom_defi_abi::pancake::IPancakeQuoterV2::IPancakeQuoterV2Calls;
@@ -15,11 +13,13 @@ use loom_defi_abi::uniswap3::IUniswapV3Pool;
 use loom_defi_abi::uniswap_periphery::ITickLens;
 use loom_defi_abi::IERC20;
 use loom_defi_address_book::PeripheryAddress;
-use loom_evm_utils::evm::evm_call;
+use loom_evm_utils::{evm_call, evm_dyn_call, LoomExecuteEvm};
 use loom_types_entities::required_state::RequiredState;
 use loom_types_entities::{EntityAddress, Pool, PoolAbiEncoder, PoolClass, PoolProtocol, PreswapRequirement, SwapDirection};
-use revm::primitives::Env;
 use revm::DatabaseRef;
+use std::any::Any;
+use std::fmt::Debug;
+use std::ops::Sub;
 
 #[allow(dead_code)]
 #[derive(Clone, Debug, Default)]
@@ -121,12 +121,12 @@ impl PancakeV3Pool {
             PoolProtocol::UniswapV3Like
         }
     }
-    pub fn fetch_pool_data_evm(db: &dyn DatabaseRef<Error = ErrReport>, env: Env, address: Address) -> Result<Self> {
-        let token0: Address = UniswapV3StateReader::token0(&db, env.clone(), address)?;
-        let token1: Address = UniswapV3StateReader::token1(&db, env.clone(), address)?;
-        let fee = UniswapV3StateReader::fee(&db, env.clone(), address)?;
+    pub fn fetch_pool_data_evm(evm: &mut dyn LoomExecuteEvm, address: Address) -> Result<Self> {
+        let token0: Address = UniswapV3EvmStateReader::token0(evm, address)?;
+        let token1: Address = UniswapV3EvmStateReader::token1(evm, address)?;
+        let fee = UniswapV3EvmStateReader::fee(evm, address)?;
         let fee_u32: u32 = fee.to();
-        let factory = UniswapV3StateReader::factory(&db, env.clone(), address)?;
+        let factory = UniswapV3EvmStateReader::factory(evm, address)?;
         let protocol = Self::get_protocol_by_factory(factory);
 
         let ret = PancakeV3Pool {
@@ -216,15 +216,11 @@ impl Pool for PancakeV3Pool {
 
     fn calculate_out_amount(
         &self,
-        state_db: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         in_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let mut env = env;
-        env.tx.gas_limit = 1_000_000;
-
         let call_data = IPancakeQuoterV2Calls::quoteExactInputSingle(IPancakeQuoterV2::quoteExactInputSingleCall {
             params: IPancakeQuoterV2::QuoteExactInputSingleParams {
                 tokenIn: token_address_from.into(),
@@ -236,7 +232,12 @@ impl Pool for PancakeV3Pool {
         })
         .abi_encode();
 
-        let (value, gas_used) = evm_call(state_db, env, PeripheryAddress::PANCAKE_V3_QUOTER, call_data)?;
+        let req = TransactionRequest::default()
+            .with_kind(TxKind::Call(PeripheryAddress::PANCAKE_V3_QUOTER))
+            .with_input(call_data)
+            .gas_limit(1_000_000);
+
+        let (value, gas_used) = evm_dyn_call(evm, req)?;
 
         let ret = IPancakeQuoterV2::quoteExactInputSingleCall::abi_decode_returns(&value, false)?;
 
@@ -249,15 +250,11 @@ impl Pool for PancakeV3Pool {
 
     fn calculate_in_amount(
         &self,
-        state_db: &dyn DatabaseRef<Error = ErrReport>,
-        env: Env,
+        evm: &mut dyn LoomExecuteEvm,
         token_address_from: &EntityAddress,
         token_address_to: &EntityAddress,
         out_amount: U256,
     ) -> Result<(U256, u64), ErrReport> {
-        let mut env = env;
-        env.tx.gas_limit = 1_000_000;
-
         let call_data = IPancakeQuoterV2Calls::quoteExactOutputSingle(IPancakeQuoterV2::quoteExactOutputSingleCall {
             params: IPancakeQuoterV2::QuoteExactOutputSingleParams {
                 tokenIn: token_address_from.into(),
@@ -269,7 +266,12 @@ impl Pool for PancakeV3Pool {
         })
         .abi_encode();
 
-        let (value, gas_used) = evm_call(state_db, env, PeripheryAddress::PANCAKE_V3_QUOTER, call_data)?;
+        let req = TransactionRequest::default()
+            .with_kind(TxKind::Call(PeripheryAddress::PANCAKE_V3_QUOTER))
+            .with_input(call_data)
+            .gas_limit(1_000_000);
+
+        let (value, gas_used) = evm_dyn_call(evm, req)?;
 
         let ret = IPancakeQuoterV2::quoteExactOutputSingleCall::abi_decode_returns(&value, false)?;
 
@@ -504,12 +506,13 @@ impl PoolAbiEncoder for PancakeV3AbiSwapEncoder {
 mod tests {
     use env_logger::Env as EnvLog;
     use loom_evm_db::LoomDBType;
-    use std::env;
-    use tracing::debug;
-
+    use loom_evm_utils::LoomEVMWrapper;
     use loom_node_debug_provider::AnvilDebugProviderFactory;
     use loom_types_entities::required_state::RequiredStateReader;
     use loom_types_entities::MarketState;
+    use revm::database::CacheDB;
+    use std::env;
+    use tracing::debug;
 
     use super::*;
 
@@ -540,29 +543,18 @@ mod tests {
 
         market_state.state_db.apply_geth_update(state_update);
 
-        let evm_env = Env::default();
+        let mut evm = LoomEVMWrapper::new(CacheDB::new(market_state.state_db));
 
         let (out_amount, gas_used) = pool
-            .calculate_out_amount(
-                &market_state.state_db,
-                evm_env.clone(),
-                &pool.token0,
-                &pool.token1,
-                U256::from(pool.liquidity0 / U256::from(100)),
-            )
+            .calculate_out_amount(evm.get_mut(), &pool.token0.into(), &pool.token1.into(), U256::from(pool.liquidity0 / U256::from(100)))
             .unwrap();
+
         debug!("{} {} ", out_amount, gas_used);
         assert_ne!(out_amount, U256::ZERO);
         assert!(gas_used > 100_000, "gas used check failed");
 
         let (out_amount, gas_used) = pool
-            .calculate_out_amount(
-                &market_state.state_db,
-                evm_env.clone(),
-                &pool.token1,
-                &pool.token0,
-                U256::from(pool.liquidity1 / U256::from(100)),
-            )
+            .calculate_out_amount(evm.get_mut(), &pool.token1.into(), &pool.token0.into(), U256::from(pool.liquidity1 / U256::from(100)))
             .unwrap();
         debug!("{} {} ", out_amount, gas_used);
         assert_ne!(out_amount, U256::ZERO);

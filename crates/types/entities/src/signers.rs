@@ -1,12 +1,13 @@
 use crate::EntityAddress;
+use alloy_consensus::transaction::Recovered;
 use alloy_consensus::{SignableTransaction, TxEnvelope};
 use alloy_network::{TransactionBuilder, TxSigner as AlloyTxSigner, TxSignerSync};
 use alloy_primitives::{hex, Address, Bytes, B256};
-use alloy_rpc_types::Transaction;
+use alloy_rpc_types::{Transaction, TransactionRequest};
 use alloy_signer_local::PrivateKeySigner;
 use eyre::{eyre, OptionExt, Result};
 use indexmap::IndexMap;
-use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEthereum};
+use loom_types_blockchain::{LoomDataTypes, LoomDataTypesEVM, LoomDataTypesEthereum};
 use rand::prelude::IteratorRandom;
 use std::fmt;
 use std::fmt::Debug;
@@ -43,10 +44,7 @@ impl LoomTxSigner<LoomDataTypesEthereum> for TxSignerEth {
     fn address(&self) -> EntityAddress {
         self.address.into()
     }
-    fn sign<'a>(
-        &'a self,
-        tx_req: <LoomDataTypesEthereum as LoomDataTypes>::TransactionRequest,
-    ) -> Pin<Box<dyn Future<Output = Result<<LoomDataTypesEthereum as LoomDataTypes>::Transaction>> + Send + 'a>> {
+    fn sign<'a>(&'a self, tx_req: TransactionRequest) -> Pin<Box<dyn Future<Output = Result<Transaction>> + Send + 'a>> {
         let fut = async move {
             let mut typed_tx = tx_req
                 .build_typed_tx()
@@ -57,14 +55,11 @@ impl LoomTxSigner<LoomDataTypesEthereum> for TxSignerEth {
             let signature = self.wallet.sign_transaction(&mut typed_tx).await?;
             let signed_tx = typed_tx.clone().into_signed(signature);
             let tx_env: TxEnvelope = signed_tx.into();
-            let tx = Transaction {
-                inner: tx_env,
-                block_hash: None,
-                block_number: None,
-                transaction_index: None,
-                effective_gas_price: None,
-                from: self.address,
-            };
+
+            let recovered = Recovered::new_unchecked(tx_env, self.address);
+
+            let tx =
+                Transaction { inner: recovered, block_hash: None, block_number: None, transaction_index: None, effective_gas_price: None };
             eyre::Result::<Transaction>::Ok(tx)
         };
         Box::pin(fut)
@@ -75,10 +70,7 @@ impl LoomTxSigner<LoomDataTypesEthereum> for TxSignerEth {
         //Ok((hash, Bytes::from(tx_data)))
     }
 
-    fn sign_sync(
-        &self,
-        tx_req: <LoomDataTypesEthereum as LoomDataTypes>::TransactionRequest,
-    ) -> Result<<LoomDataTypesEthereum as LoomDataTypes>::Transaction> {
+    fn sign_sync(&self, tx_req: TransactionRequest) -> Result<Transaction> {
         let mut typed_tx = tx_req
             .build_unsigned()
             .map_err(|e| eyre!(format!("CANNOT_BUILD_UNSIGNED with error: {}", e)))?
@@ -91,14 +83,10 @@ impl LoomTxSigner<LoomDataTypesEthereum> for TxSignerEth {
 
         let hash = signed_tx.signature_hash();
         let tx_env: TxEnvelope = signed_tx.into();
-        let tx = Transaction {
-            inner: tx_env,
-            block_hash: None,
-            block_number: None,
-            transaction_index: None,
-            effective_gas_price: None,
-            from: self.address,
-        };
+
+        let recovered = Recovered::new_unchecked(tx_env, self.address);
+
+        let tx = Transaction { inner: recovered, block_hash: None, block_number: None, transaction_index: None, effective_gas_price: None };
         Ok(tx)
     }
 }
@@ -200,7 +188,7 @@ mod tests {
             .with_max_fee_per_gas(1)
             .with_max_priority_fee_per_gas(1);
         let tx = signer.sign(tx_req).await?;
-        let tx_hash = tx.tx_hash();
+        let tx_hash = tx.get_tx_hash();
         let tx_rlp = tx.encode();
         assert_eq!(tx_hash, TxHash::from(hex!("a43d09cb299eb6269f5a63fb10ea078c649cbf6a5f159cfd5b6f4be7ad0dfcfd")));
         assert!(!tx_rlp.is_empty());
@@ -218,7 +206,7 @@ mod tests {
             .with_max_fee_per_gas(1)
             .with_max_priority_fee_per_gas(1);
         let tx = signer.sign_sync(tx_req)?;
-        let tx_hash = tx.tx_hash();
+        let tx_hash = tx.get_tx_hash();
         let tx_rlp = tx.encode();
         assert_eq!(tx_hash, TxHash::from(hex!("a43d09cb299eb6269f5a63fb10ea078c649cbf6a5f159cfd5b6f4be7ad0dfcfd")));
         assert!(!tx_rlp.is_empty());

@@ -1,20 +1,22 @@
 use crate::{ChainParameters, GethStateUpdate};
 use alloy_consensus::BlockHeader;
-use alloy_primitives::{Address, BlockHash, TxHash};
+use alloy_primitives::{Address, BlockHash, Bytes, TxHash};
+use alloy_provider::network::BlockResponse;
 use alloy_rpc_types::TransactionTrait;
 use alloy_rpc_types_eth::{Header, Log, TransactionRequest};
 use op_alloy::rpc_types::OpTransactionRequest;
+use serde::de::Deserialize;
 use std::fmt::{Debug, Display};
 use std::hash::Hash;
 
 pub trait LoomTx<LDT: LoomDataTypes> {
-    fn gas_price(&self) -> u128;
-    fn gas_limit(&self) -> u64;
+    fn get_gas_price(&self) -> u128;
+    fn get_gas_limit(&self) -> u64;
 
-    fn tx_hash(&self) -> LDT::TxHash;
+    fn get_tx_hash(&self) -> LDT::TxHash;
 
-    fn nonce(&self) -> u64;
-    fn from(&self) -> LDT::Address;
+    fn get_nonce(&self) -> u64;
+    fn get_from(&self) -> LDT::Address;
 
     fn encode(&self) -> Vec<u8>;
 
@@ -43,6 +45,7 @@ pub trait LoomBlock<LDT: LoomDataTypes> {
 
 pub trait LoomTransactionRequest<LDT: LoomDataTypes> {
     fn get_to(&self) -> Option<LDT::Address>;
+    fn build_call(to: LDT::Address, data: Bytes) -> LDT::TransactionRequest;
 }
 
 pub trait LoomDataTypes: Debug + Clone + Send + Sync {
