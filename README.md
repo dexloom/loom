@@ -1,3 +1,11 @@
+# Loom is not public anymore
+
+The Loom codebase is no longer maintained as an open-source project; however, it continues to be actively developed as a
+proprietary solution by [SombraX](https://sombrax.com)
+
+Active LOOM fork maintained by [cakevm](https://github.com/cakevm) can be found at
+[Kabu repository](https://github.com/cakevm/kabu)
+
 # Loom
 
 <div align="center">
@@ -10,8 +18,11 @@
 | [Crate Docs](https://dexloom.github.io/loom/docs/) |
 
 [gh-loom]: https://github.com/dexloom/loom/actions/workflows/ci.yml
+
 [gh-book]: https://github.com/dexloom/loom/actions/workflows/book.yml
+
 [tg-badge]: https://img.shields.io/badge/telegram-dexloom_com-2CA5E0?style=plastic&logo=telegram
+
 [tg-url]: https://t.me/dexloom_com
 
 The toolbox for your DeFi strategies:
@@ -21,16 +32,19 @@ The toolbox for your DeFi strategies:
 
 ## What is Loom?
 
-Loom is a modular framework designed to streamline the development of automated strategies for decentralized exchanges (DEXs) or other blockchain applications.
+Loom is a modular framework designed to streamline the development of automated strategies for decentralized exchanges (
+DEXs) or other blockchain applications.
 
 ## Who is Loom for?
 
-First of all, Loom will not generate any revenue and is challenging for newcomers. The Loom framework is tailored for advanced users with prior experience in blockchain development. It’s specifically designed for developers building trading bots, arbitrage bots, block builders, solvers, or those looking to work with blockchain events.
+First of all, Loom will not generate any revenue and is challenging for newcomers. The Loom framework is tailored for
+advanced users with prior experience in blockchain development. It’s specifically designed for developers building
+trading bots, arbitrage bots, block builders, solvers, or those looking to work with blockchain events.
 
 ## How to get started?
 
-See the [Getting started](https://dexloom.github.io/loom/getting_started.html) guide. Have also a look at the [Multicaller](https://github.com/dexloom/multicaller) smart contract repository.
-
+See the [Getting started](https://dexloom.github.io/loom/getting_started.html) guide. Have also a look at
+the [Multicaller](https://github.com/dexloom/multicaller) smart contract repository.
 
 ## Crates
 
@@ -59,13 +73,19 @@ See the [Getting started](https://dexloom.github.io/loom/getting_started.html) g
 - [gasbench](./bin/gasbench) - gas consumption benchmark utility
 - [nodebench](./bin/nodebench) - nodes benchmark utility
 
-
 # GREETINGS
 
+- [cakevm](https://github.com/cakevm) - is a leading MEV developer whose major contributions have taken LOOM to a new
+  level.
 - [Paradigm](https://github.com/paradigmxyz) - Paradigm. All those inspiring products : RETH / REVM / Alloy / Ethers
 - [darkforestry](https://github.com/darkforestry/amms-rs) - AMM Crate
 - [0xKitsune](https://github.com/0xKitsune) - Uniswap Math crate
 - [Onbjerg](https://github.com/onbjerg) - Flashbots crate
+
+# Links
+
+- [Kabu](https://github.com/cakevm/kabu) - cakevm's fork of Loom.
+- [Huff Neo](https://github.com/cakevm/huff-neo) - cakevm's fork of Huff.
 
 # DISCLAMER
 
